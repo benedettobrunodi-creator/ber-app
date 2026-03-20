@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --ber-carbon: #2D2D2D;
+  --ber-teal: #5A7A7A;
+  --ber-olive: #B5B820;
+  --ber-offwhite: #D8DDD8;
+  --ber-gray: #868686;
+  --ber-black: #000000;
+}
+
+@theme inline {
+  --color-ber-carbon: var(--ber-carbon);
+  --color-ber-teal: var(--ber-teal);
+  --color-ber-olive: var(--ber-olive);
+  --color-ber-offwhite: var(--ber-offwhite);
+  --color-ber-gray: var(--ber-gray);
+  --color-ber-black: var(--ber-black);
+  --font-sans: "Montserrat", sans-serif;
+}
+
+body {
+  font-family: "Montserrat", sans-serif;
+  background: var(--ber-offwhite);
+  color: var(--ber-carbon);
+}

@@ -1,0 +1,693 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  name         String   @db.VarChar(255)
+  role         String   @default("campo") @db.VarChar(50)
+  phone        String?  @db.VarChar(20)
+  avatarUrl    String?  @map("avatar_url")
+  pushToken    String?  @map("push_token")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  coordinatedObras Obra[]             @relation("ObraCoordinator")
+  obraMembers      ObraMember[]
+  assignedTasks    ObraTask[]         @relation("TaskAssignee")
+  createdTasks     ObraTask[]         @relation("TaskCreator")
+  proposals        Proposal[]
+  meetingsCreated  Meeting[]
+  announcements    Announcement[]
+  announcementReads AnnouncementRead[]
+  chatRoomMembers  ChatRoomMember[]
+  chatMessages     ChatMessage[]
+  photos           Photo[]
+  photoComments    PhotoComment[]
+  notifications    Notification[]
+  timeEntries      TimeEntry[]
+  createdChecklists  Checklist[]     @relation("ChecklistCreator")
+  responsibleItems   ChecklistItem[] @relation("ChecklistItemResponsible")
+  answeredItems      ChecklistItem[] @relation("ChecklistItemAnswerer")
+  canteiroCreated    CanteiroChecklist[]     @relation("CanteiroCreator")
+  canteiroApproved   CanteiroChecklist[]     @relation("CanteiroApprover")
+  canteiroAnswered   CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
+  aprsCreated      APR[]               @relation("APRCreator")
+  aprsApproved     APR[]               @relation("APRApprover")
+  epiControls      EPIControl[]        @relation("EPIUser")
+  incidentsReported Incident[]         @relation("IncidentReporter")
+  incidentsInjured  Incident[]         @relation("IncidentInjured")
+  trainings        Training[]          @relation("TrainingUser")
+  sequenciamentosCreated ObraSequenciamento[] @relation("SeqCreator")
+  etapasSubmitted  ObraEtapa[]         @relation("EtapaSubmitter")
+  etapasApproved   ObraEtapa[]         @relation("EtapaApprover")
+  etapasRejected   ObraEtapa[]         @relation("EtapaRejecter")
+  instrucoesCreated  InstrucaoTecnica[] @relation("ITCreator")
+  instrucoesUpdated  InstrucaoTecnica[] @relation("ITUpdater")
+  recebimentosRegistrados RecebimentoMaterial[] @relation("RecebimentoRegistrador")
+
+  @@map("users")
+}
+
+model Obra {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String    @db.VarChar(255)
+  client          String?   @db.VarChar(255)
+  address         String?
+  status          String    @default("em_andamento") @db.VarChar(50)
+  startDate       DateTime? @map("start_date") @db.Date
+  expectedEndDate DateTime? @map("expected_end_date") @db.Date
+  actualEndDate   DateTime? @map("actual_end_date") @db.Date
+  progressPercent Int       @default(0) @map("progress_percent")
+  coordinatorId   String?   @map("coordinator_id") @db.Uuid
+  trelloBoardId   String?   @map("trello_board_id") @db.VarChar(30)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  members     ObraMember[]
+  tasks       ObraTask[]
+  chatRooms   ChatRoom[]
+  photos      Photo[]
+  timeEntries TimeEntry[]
+  checklists  Checklist[]
+  canteiroChecklists CanteiroChecklist[]
+  aprs        APR[]
+  epiControls EPIControl[]
+  incidents   Incident[]
+  trainings   Training[]
+  sequenciamentos ObraSequenciamento[]
+  etapas          ObraEtapa[]
+  recebimentos    RecebimentoMaterial[]
+
+  @@map("obras")
+}
+
+model ObraMember {
+  id       String   @id @default(uuid()) @db.Uuid
+  obraId   String   @map("obra_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     String   @default("membro") @db.VarChar(50)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([obraId, userId])
+  @@map("obra_members")
+}
+
+model ObraTask {
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  description String?
+  status      String    @default("todo") @db.VarChar(50)
+  priority    String    @default("medium") @db.VarChar(20)
+  assignedTo  String?   @map("assigned_to") @db.Uuid
+  createdBy   String?   @map("created_by") @db.Uuid
+  dueDate     DateTime? @map("due_date") @db.Date
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  assignee User? @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  creator  User? @relation("TaskCreator", fields: [createdBy], references: [id])
+
+  @@index([obraId])
+  @@index([status])
+  @@index([assignedTo])
+  @@map("obra_tasks")
+}
+
+model Proposal {
+  id                String    @id @default(uuid()) @db.Uuid
+  agendorDealId     String?   @unique @map("agendor_deal_id") @db.VarChar(100)
+  clientName        String    @map("client_name") @db.VarChar(255)
+  title             String    @db.VarChar(255)
+  value             Decimal?  @db.Decimal(15, 2)
+  status            String    @default("leads_info") @db.VarChar(50)
+  sentDate          DateTime? @map("sent_date") @db.Date
+  closedDate        DateTime? @map("closed_date") @db.Date
+  notes             String?
+  agendorStageName  String?   @map("agendor_stage_name") @db.VarChar(255)
+  agendorFunnelName String?   @map("agendor_funnel_name") @db.VarChar(255)
+  agendorWebUrl     String?   @map("agendor_web_url") @db.VarChar(500)
+  agendorUpdatedAt  DateTime? @map("agendor_updated_at")
+  createdBy         String?   @map("created_by") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  creator  User?     @relation(fields: [createdBy], references: [id])
+  meetings Meeting[]
+
+  @@index([status])
+  @@map("proposals")
+}
+
+model Meeting {
+  id            String   @id @default(uuid()) @db.Uuid
+  googleEventId String?  @map("google_event_id") @db.VarChar(255)
+  title         String   @db.VarChar(255)
+  description   String?
+  clientName    String?  @map("client_name") @db.VarChar(255)
+  location      String?
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  proposalId    String?  @map("proposal_id") @db.Uuid
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  proposal Proposal? @relation(fields: [proposalId], references: [id])
+  creator  User?     @relation(fields: [createdBy], references: [id])
+
+  @@map("meetings")
+}
+
+model Announcement {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(255)
+  body        String
+  category    String   @default("informativo") @db.VarChar(50)
+  targetRoles String[] @default(["diretoria", "coordenacao", "gestor", "campo"]) @map("target_roles")
+  authorId    String?  @map("author_id") @db.Uuid
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  author User?              @relation(fields: [authorId], references: [id])
+  reads  AnnouncementRead[]
+
+  @@index([createdAt(sort: Desc)])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String   @id @default(uuid()) @db.Uuid
+  announcementId String   @map("announcement_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  readAt         DateTime @default(now()) @map("read_at")
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@map("announcement_reads")
+}
+
+model ChatRoom {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String?  @db.VarChar(255)
+  type      String   @default("group") @db.VarChar(20)
+  obraId    String?  @map("obra_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  obra     Obra?            @relation(fields: [obraId], references: [id])
+  members  ChatRoomMember[]
+  messages ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+model ChatRoomMember {
+  id       String   @id @default(uuid()) @db.Uuid
+  roomId   String   @map("room_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("chat_room_members")
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  roomId         String   @map("room_id") @db.Uuid
+  senderId       String?  @map("sender_id") @db.Uuid
+  body           String
+  attachmentUrl  String?  @map("attachment_url")
+  attachmentType String?  @map("attachment_type") @db.VarChar(20)
+  readBy         String[] @default([]) @map("read_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User?    @relation(fields: [senderId], references: [id])
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@map("chat_messages")
+}
+
+model Photo {
+  id           String   @id @default(uuid()) @db.Uuid
+  obraId       String   @map("obra_id") @db.Uuid
+  uploadedBy   String?  @map("uploaded_by") @db.Uuid
+  imageUrl     String   @map("image_url")
+  thumbnailUrl String?  @map("thumbnail_url")
+  caption      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  obra     Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  uploader User?          @relation(fields: [uploadedBy], references: [id])
+  comments PhotoComment[]
+
+  @@index([obraId, createdAt(sort: Desc)])
+  @@map("photos")
+}
+
+model PhotoComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  photoId   String   @map("photo_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@map("photo_comments")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(255)
+  body      String?
+  data      Json     @default("{}")
+  read      Boolean  @default(false)
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model TimeEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  obraId    String?  @map("obra_id") @db.Uuid
+  type      String   @db.VarChar(10)
+  timestamp DateTime @default(now())
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+  address   String?
+  photoUrl  String?  @map("photo_url")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  obra Obra? @relation(fields: [obraId], references: [id])
+
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([obraId, timestamp(sort: Desc)])
+  @@map("time_entries")
+}
+
+model ChecklistTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  type      String   @db.VarChar(50)
+  segment   String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  items      ChecklistTemplateItem[]
+  checklists Checklist[]
+
+  @@map("checklist_templates")
+}
+
+model ChecklistTemplateItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  templateId  String  @map("template_id") @db.Uuid
+  title       String  @db.VarChar(500)
+  description String?
+  order       Int     @default(0)
+  required    Boolean @default(true)
+
+  template       ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  checklistItems ChecklistItem[]
+
+  @@index([templateId])
+  @@map("checklist_template_items")
+}
+
+model Checklist {
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  templateId  String?   @map("template_id") @db.Uuid
+  type        String    @db.VarChar(50)
+  segment     String    @db.VarChar(50)
+  status      String    @default("em_andamento") @db.VarChar(50)
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  obra     Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  template ChecklistTemplate? @relation(fields: [templateId], references: [id])
+  creator  User?              @relation("ChecklistCreator", fields: [createdBy], references: [id])
+  items    ChecklistItem[]
+
+  @@index([obraId])
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  checklistId    String    @map("checklist_id") @db.Uuid
+  templateItemId String?   @map("template_item_id") @db.Uuid
+  title          String    @db.VarChar(500)
+  description    String?
+  required       Boolean   @default(true)
+  order          Int       @default(0)
+  answer         String?   @db.VarChar(20)
+  photoUrl       String?   @map("photo_url")
+  observation    String?
+  responsibleId  String?   @map("responsible_id") @db.Uuid
+  answeredAt     DateTime? @map("answered_at")
+  answeredBy     String?   @map("answered_by") @db.Uuid
+
+  checklist    Checklist              @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  templateItem ChecklistTemplateItem? @relation(fields: [templateItemId], references: [id])
+  responsible  User?                  @relation("ChecklistItemResponsible", fields: [responsibleId], references: [id])
+  answerer     User?                  @relation("ChecklistItemAnswerer", fields: [answeredBy], references: [id])
+
+  @@index([checklistId])
+  @@map("checklist_items")
+}
+
+model CanteiroTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  items      CanteiroTemplateItem[]
+  checklists CanteiroChecklist[]
+
+  @@map("canteiro_templates")
+}
+
+model CanteiroTemplateItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  templateId  String  @map("template_id") @db.Uuid
+  category    String  @db.VarChar(50)
+  title       String  @db.VarChar(500)
+  description String?
+  order       Int     @default(0)
+  required    Boolean @default(true)
+
+  template       CanteiroTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  checklistItems CanteiroChecklistItem[]
+
+  @@index([templateId])
+  @@map("canteiro_template_items")
+}
+
+model CanteiroChecklist {
+  id         String    @id @default(uuid()) @db.Uuid
+  obraId     String    @map("obra_id") @db.Uuid
+  templateId String?   @map("template_id") @db.Uuid
+  weekStart  DateTime  @map("week_start") @db.Date
+  status     String    @default("em_andamento") @db.VarChar(50)
+  createdBy  String?   @map("created_by") @db.Uuid
+  approvedBy String?   @map("approved_by") @db.Uuid
+  approvedAt DateTime? @map("approved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  obra     Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  template CanteiroTemplate?  @relation(fields: [templateId], references: [id])
+  creator  User?              @relation("CanteiroCreator", fields: [createdBy], references: [id])
+  approver User?              @relation("CanteiroApprover", fields: [approvedBy], references: [id])
+  items    CanteiroChecklistItem[]
+
+  @@unique([obraId, weekStart])
+  @@index([obraId])
+  @@map("canteiro_checklists")
+}
+
+model CanteiroChecklistItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  checklistId    String    @map("checklist_id") @db.Uuid
+  templateItemId String?   @map("template_item_id") @db.Uuid
+  title          String    @db.VarChar(500)
+  category       String    @db.VarChar(50)
+  order          Int       @default(0)
+  required       Boolean   @default(true)
+  answer         String?   @db.VarChar(20)
+  photoUrl       String?   @map("photo_url")
+  observation    String?
+  answeredBy     String?   @map("answered_by") @db.Uuid
+  answeredAt     DateTime? @map("answered_at")
+
+  checklist    CanteiroChecklist      @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  templateItem CanteiroTemplateItem?  @relation(fields: [templateItemId], references: [id])
+  answerer     User?                  @relation("CanteiroItemAnswerer", fields: [answeredBy], references: [id])
+
+  @@index([checklistId])
+  @@map("canteiro_checklist_items")
+}
+
+model APR {
+  id           String    @id @default(uuid()) @db.Uuid
+  obraId       String    @map("obra_id") @db.Uuid
+  activityName String    @map("activity_name") @db.VarChar(255)
+  date         DateTime  @db.Date
+  responsible  String    @db.VarChar(255)
+  risks        Json      @default("[]")
+  status       String    @default("rascunho") @db.VarChar(50)
+  createdBy    String?   @map("created_by") @db.Uuid
+  approvedBy   String?   @map("approved_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  creator  User? @relation("APRCreator", fields: [createdBy], references: [id])
+  approver User? @relation("APRApprover", fields: [approvedBy], references: [id])
+
+  @@index([obraId])
+  @@map("aprs")
+}
+
+model EPIControl {
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  epiName     String    @map("epi_name") @db.VarChar(255)
+  epiType     String    @map("epi_type") @db.VarChar(100)
+  deliveredAt DateTime  @map("delivered_at") @db.Date
+  expiresAt   DateTime? @map("expires_at") @db.Date
+  quantity    Int       @default(1)
+  caNumber    String?   @map("ca_number") @db.VarChar(50)
+  returnedAt  DateTime? @map("returned_at") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  user User @relation("EPIUser", fields: [userId], references: [id])
+
+  @@index([obraId])
+  @@index([userId])
+  @@map("epi_controls")
+}
+
+model Incident {
+  id              String   @id @default(uuid()) @db.Uuid
+  obraId          String   @map("obra_id") @db.Uuid
+  type            String   @db.VarChar(50)
+  severity        String   @db.VarChar(50)
+  description     String
+  immediateAction String?  @map("immediate_action")
+  correctiveAction String? @map("corrective_action")
+  occurredAt      DateTime @map("occurred_at")
+  reportedBy      String?  @map("reported_by") @db.Uuid
+  injuredUserId   String?  @map("injured_user_id") @db.Uuid
+  photoUrls       String[] @default([]) @map("photo_urls")
+  status          String   @default("aberto") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  reporter User? @relation("IncidentReporter", fields: [reportedBy], references: [id])
+  injured  User? @relation("IncidentInjured", fields: [injuredUserId], references: [id])
+
+  @@index([obraId])
+  @@map("incidents")
+}
+
+model Training {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  obraId         String?   @map("obra_id") @db.Uuid
+  trainingName   String    @map("training_name") @db.VarChar(255)
+  provider       String?   @db.VarChar(255)
+  nr             String    @db.VarChar(20)
+  completedAt    DateTime  @map("completed_at") @db.Date
+  expiresAt      DateTime? @map("expires_at") @db.Date
+  certificateUrl String?   @map("certificate_url")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User  @relation("TrainingUser", fields: [userId], references: [id])
+  obra Obra? @relation(fields: [obraId], references: [id])
+
+  @@index([userId])
+  @@index([obraId])
+  @@map("trainings")
+}
+
+model SequenciamentoTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  segment   String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  etapas         SequenciamentoEtapa[]
+  sequenciamentos ObraSequenciamento[]
+
+  @@map("sequenciamento_templates")
+}
+
+model SequenciamentoEtapa {
+  id                 String   @id @default(uuid()) @db.Uuid
+  templateId         String   @map("template_id") @db.Uuid
+  name               String   @db.VarChar(255)
+  discipline         String   @db.VarChar(50)
+  description        String?
+  order              Int      @default(0)
+  estimatedDays      Int      @default(0) @map("estimated_days")
+  dependsOn          String[] @default([]) @map("depends_on")
+  requiredChecklists String[] @default([]) @map("required_checklists")
+
+  template SequenciamentoTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("sequenciamento_etapas")
+}
+
+model ObraSequenciamento {
+  id         String    @id @default(uuid()) @db.Uuid
+  obraId     String    @map("obra_id") @db.Uuid
+  templateId String?   @map("template_id") @db.Uuid
+  createdBy  String?   @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  frozenAt   DateTime? @map("frozen_at")
+
+  obra     Obra                    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  template SequenciamentoTemplate? @relation(fields: [templateId], references: [id])
+  creator  User?                   @relation("SeqCreator", fields: [createdBy], references: [id])
+  etapas   ObraEtapa[]
+
+  @@unique([obraId])
+  @@map("obra_sequenciamentos")
+}
+
+model ObraEtapa {
+  id               String    @id @default(uuid()) @db.Uuid
+  sequenciamentoId String    @map("sequenciamento_id") @db.Uuid
+  obraId           String    @map("obra_id") @db.Uuid
+  templateEtapaId  String?   @map("template_etapa_id") @db.Uuid
+  name             String    @db.VarChar(255)
+  discipline       String    @db.VarChar(50)
+  order            Int       @default(0)
+  estimatedDays    Int       @default(0) @map("estimated_days")
+  dependsOn        String[]  @default([]) @map("depends_on")
+  startDate        DateTime? @map("start_date")
+  endDate          DateTime? @map("end_date")
+  estimatedEndDate DateTime? @map("estimated_end_date")
+  status           String    @default("nao_iniciada") @db.VarChar(50)
+  gestorNotes      String?   @map("gestor_notes")
+  coordenadorNotes String?   @map("coordenador_notes")
+  submittedBy      String?   @map("submitted_by") @db.Uuid
+  submittedAt      DateTime? @map("submitted_at")
+  approvedBy       String?   @map("approved_by") @db.Uuid
+  approvedAt       DateTime? @map("approved_at")
+  rejectedBy       String?   @map("rejected_by") @db.Uuid
+  rejectedAt       DateTime? @map("rejected_at")
+  rejectionReason  String?   @map("rejection_reason")
+
+  sequenciamento ObraSequenciamento @relation(fields: [sequenciamentoId], references: [id], onDelete: Cascade)
+  obra           Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  submitter      User?              @relation("EtapaSubmitter", fields: [submittedBy], references: [id])
+  approver       User?              @relation("EtapaApprover", fields: [approvedBy], references: [id])
+  rejecter       User?              @relation("EtapaRejecter", fields: [rejectedBy], references: [id])
+
+  @@index([sequenciamentoId])
+  @@index([obraId])
+  @@map("obra_etapas")
+}
+
+model NormaTecnica {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique @db.VarChar(50)
+  title      String   @db.VarChar(500)
+  discipline String   @db.VarChar(50)
+  summary    String?
+  source     String   @default("interno") @db.VarChar(20)
+  url        String?
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([discipline])
+  @@map("normas_tecnicas")
+}
+
+model InstrucaoTecnica {
+  id               String   @id @default(uuid()) @db.Uuid
+  code             String   @unique @db.VarChar(20)
+  title            String   @db.VarChar(500)
+  discipline       String   @db.VarChar(50)
+  objective        String?
+  materials        Json     @default("[]")
+  tools            Json     @default("[]")
+  steps            Json     @default("[]")
+  attentionPoints  Json     @default("[]") @map("attention_points")
+  approvalCriteria Json     @default("[]") @map("approval_criteria")
+  relatedNormas    String[] @default([]) @map("related_normas") @db.Uuid
+  status           String   @default("rascunho") @db.VarChar(20)
+  createdBy        String?  @map("created_by") @db.Uuid
+  updatedBy        String?  @map("updated_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  creator User? @relation("ITCreator", fields: [createdBy], references: [id])
+  updater User? @relation("ITUpdater", fields: [updatedBy], references: [id])
+
+  @@index([discipline])
+  @@index([status])
+  @@map("instrucoes_tecnicas")
+}
+
+model RecebimentoMaterial {
+  id             String   @id @default(uuid()) @db.Uuid
+  obraId         String   @map("obra_id") @db.Uuid
+  fornecedor     String   @db.VarChar(255)
+  material       String   @db.VarChar(255)
+  quantidade     Decimal  @db.Decimal(12, 2)
+  unidade        String   @db.VarChar(30)
+  numeroNF       String?  @map("numero_nf") @db.VarChar(50)
+  dataNF         DateTime? @map("data_nf") @db.Date
+  dataEntrega    DateTime @map("data_entrega") @db.Date
+  condicao       String   @default("aprovado") @db.VarChar(30)
+  observacao     String?
+  fotosMaterial  String[] @default([]) @map("fotos_material")
+  fotoNF         String?  @map("foto_nf")
+  registradoPor  String   @map("registrado_por") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  obra        Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  registrador User @relation("RecebimentoRegistrador", fields: [registradoPor], references: [id])
+
+  @@index([obraId])
+  @@map("recebimento_materiais")
+}

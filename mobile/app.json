@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "BER Engenharia",
+    "slug": "ber-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2D2D2D"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.berengenharia.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localiza\u00e7\u00e3o para registrar o ponto.",
+        "NSCameraUsageDescription": "Precisamos da c\u00e2mera para enviar fotos de obra.",
+        "NSPhotoLibraryUsageDescription": "Precisamos acessar suas fotos para enviar ao mural."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2D2D2D"
+      },
+      "package": "com.berengenharia.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      "expo-location",
+      "expo-image-picker",
+      "expo-notifications",
+      "expo-asset"
+    ],
+    "sdkVersion": "54.0.0"
+  }
+}

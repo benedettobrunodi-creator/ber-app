@@ -1,0 +1,18 @@
+{
+  "fontFamily": "Montserrat",
+  "source": "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap",
+  "weights": {
+    "regular": 400,
+    "semiBold": 600,
+    "bold": 700,
+    "black": 900
+  },
+  "hierarchy": {
+    "h1": { "weight": 900, "sizePx": "48-64", "use": "Títulos principais" },
+    "h2": { "weight": 700, "sizePx": "36-52", "use": "Subtítulos" },
+    "h3": { "weight": 700, "sizePx": 16, "use": "Section labels, uppercase, letterSpacing: 4px" },
+    "body": { "weight": 400, "sizePx": "24-26", "use": "Corpo de texto" },
+    "caption": { "weight": 400, "sizePx": "14-16", "use": "Textos pequenos" },
+    "button": { "weight": 600, "sizePx": 24, "use": "CTAs e botões" }
+  }
+}
