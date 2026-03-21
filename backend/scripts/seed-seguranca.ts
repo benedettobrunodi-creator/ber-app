@@ -7,7 +7,7 @@ async function main() {
   if (!bruno) throw new Error('Usuário Bruno não encontrado');
 
   // Buscar obra referência
-  const obra = await prisma.obra.findFirst({ where: { name: 'Escritorio Corporativo Paulista' } });
+  const obra = await prisma.obra.findFirst();
   if (!obra) throw new Error('Obra "Escritorio Corporativo Paulista" não encontrada');
 
   const today = new Date();
