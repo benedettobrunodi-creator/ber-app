@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Ponto', href: '/ponto', icon: Clock },
   { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
-  { label: 'Checklists', href: '/obras', icon: ClipboardCheck, subtitle: 'Acesse via Obras' },
+  { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { label: 'Canteiro', href: '/canteiro', icon: Tent },
   { label: 'Normas Técnicas', href: '/normas', icon: BookOpen },
   { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
@@ -72,7 +72,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Navigation */}
         <nav className="flex-1 space-y-0.5 px-3 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
-            const active = !item.subtitle && pathname.startsWith(item.href);
+            const active = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.label}

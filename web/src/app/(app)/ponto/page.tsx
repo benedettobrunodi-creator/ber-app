@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { LogIn, LogOut, MapPin, Clock, AlertCircle, Download, Users, Calendar } from 'lucide-react';
+import { LogIn, LogOut, MapPin, Clock, AlertCircle, Download, Users, Calendar, HardHat, X } from 'lucide-react';
 
 // --- Types ---
 
@@ -15,6 +15,13 @@ interface TimeEntry {
   longitude: string | null;
   address: string | null;
   obra: { id: string; name: string } | null;
+}
+
+interface Obra {
+  id: string;
+  name: string;
+  client: string | null;
+  status: string;
 }
 
 interface ExportUser {
@@ -97,6 +104,12 @@ export default function PontoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState('');
+
+  // Obra selection state
+  const [showObraModal, setShowObraModal] = useState(false);
+  const [obras, setObras] = useState<Obra[]>([]);
+  const [loadingObras, setLoadingObras] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'checkin' | 'checkout' | null>(null);
 
   // Export state
   const canExport = user?.role === 'diretoria' || user?.role === 'coordenacao';
@@ -183,7 +196,25 @@ export default function PontoPage() {
     return () => clearInterval(interval);
   }, [status?.isCheckedIn, status?.checkedInSince]);
 
-  async function handleToggle() {
+  async function openObraModal() {
+    setError(null);
+    const action = status?.isCheckedIn ? 'checkout' : 'checkin';
+    setPendingAction(action);
+    setLoadingObras(true);
+    setShowObraModal(true);
+
+    try {
+      const res = await api.get('/obras', { params: { status: 'em_andamento' } });
+      setObras(res.data.data);
+    } catch {
+      setObras([]);
+    } finally {
+      setLoadingObras(false);
+    }
+  }
+
+  async function handleConfirmWithObra(obraId: string) {
+    setShowObraModal(false);
     setError(null);
     setSubmitting(true);
 
@@ -198,9 +229,10 @@ export default function PontoPage() {
       const payload = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
+        obraId,
       };
 
-      if (status?.isCheckedIn) {
+      if (pendingAction === 'checkout') {
         await api.post('/time-entries/checkout', payload);
       } else {
         await api.post('/time-entries/checkin', payload);
@@ -217,6 +249,7 @@ export default function PontoPage() {
       }
     } finally {
       setSubmitting(false);
+      setPendingAction(null);
     }
   }
 
@@ -263,7 +296,7 @@ export default function PontoPage() {
 
           {/* Button */}
           <button
-            onClick={handleToggle}
+            onClick={openObraModal}
             disabled={submitting}
             className={`inline-flex items-center gap-3 rounded-xl px-10 py-4 text-lg font-bold text-white transition-all disabled:opacity-50 ${
               isCheckedIn
@@ -369,6 +402,53 @@ export default function PontoPage() {
           </div>
         )}
       </div>
+
+      {/* Modal selecao de obra */}
+      {showObraModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-ber-carbon">
+                <HardHat size={18} className="mr-2 inline" />
+                Selecione a obra
+              </h3>
+              <button
+                onClick={() => { setShowObraModal(false); setPendingAction(null); }}
+                className="rounded p-1 text-ber-gray hover:bg-ber-gray/10"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingObras ? (
+              <div className="py-8 text-center text-sm text-ber-gray">Carregando obras...</div>
+            ) : obras.length === 0 ? (
+              <div className="py-8 text-center">
+                <HardHat size={32} className="mx-auto mb-2 text-ber-gray/30" />
+                <p className="text-sm text-ber-gray">Nenhuma obra em andamento.</p>
+              </div>
+            ) : (
+              <div className="max-h-72 space-y-1 overflow-y-auto">
+                {obras.map((obra) => (
+                  <button
+                    key={obra.id}
+                    onClick={() => handleConfirmWithObra(obra.id)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-ber-gray/10 px-4 py-3 text-left transition-colors hover:border-ber-olive/30 hover:bg-ber-olive/5"
+                  >
+                    <HardHat size={16} className="shrink-0 text-ber-teal" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ber-carbon">{obra.name}</p>
+                      {obra.client && (
+                        <p className="truncate text-xs text-ber-gray">{obra.client}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Exportar Relatorio - only for diretoria/coordenacao */}
       {canExport && (
