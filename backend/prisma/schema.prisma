@@ -615,7 +615,10 @@ model ObraEtapa {
   approvedAt       DateTime? @map("approved_at")
   rejectedBy       String?   @map("rejected_by") @db.Uuid
   rejectedAt       DateTime? @map("rejected_at")
-  rejectionReason  String?   @map("rejection_reason")
+  rejectionReason        String?   @map("rejection_reason")
+  evidenciaDescricao     String?   @map("evidencia_descricao")
+  evidenciaFotos         String[]  @default([]) @map("evidencia_fotos")
+  evidenciaRegistradaEm  DateTime? @map("evidencia_registrada_em")
 
   sequenciamento ObraSequenciamento @relation(fields: [sequenciamentoId], references: [id], onDelete: Cascade)
   obra           Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)

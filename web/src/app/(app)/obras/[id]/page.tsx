@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon } from 'lucide-react';
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -151,6 +151,9 @@ interface SeqEtapa {
   rejecter: { id: string; name: string } | null;
   rejectedAt: string | null;
   rejectionReason: string | null;
+  evidenciaDescricao: string | null;
+  evidenciaFotos: string[];
+  evidenciaRegistradaEm: string | null;
 }
 
 interface Sequenciamento {
@@ -279,6 +282,9 @@ export default function ObraDetailPage() {
   const [etapaAction, setEtapaAction] = useState<{ id: string; type: 'start' | 'submit' | 'approve' | 'reject' } | null>(null);
   const [etapaNotes, setEtapaNotes] = useState('');
   const [etapaSubmitting, setEtapaSubmitting] = useState(false);
+  const [evidenciaDescricao, setEvidenciaDescricao] = useState('');
+  const [evidenciaFotos, setEvidenciaFotos] = useState<string[]>([]);
+  const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
 
   // Recebimentos state
   const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
@@ -500,21 +506,44 @@ export default function ObraDetailPage() {
     } catch {} finally { setCreatingSeq(false); }
   }
 
+  async function handleEvidenciaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingEvidencia(true);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/uploads', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        setEvidenciaFotos((prev) => [...prev, res.data.data.url]);
+      }
+    } catch {} finally {
+      setUploadingEvidencia(false);
+      e.target.value = '';
+    }
+  }
+
   async function handleEtapaAction() {
     if (!etapaAction) return;
     setEtapaSubmitting(true);
     try {
       const { id, type } = etapaAction;
-      const body: Record<string, string> = {};
+      const body: Record<string, any> = {};
       if (type === 'start') body.gestorNotes = etapaNotes;
-      if (type === 'submit') body.gestorNotes = etapaNotes;
+      if (type === 'submit') {
+        body.gestorNotes = etapaNotes;
+        if (evidenciaDescricao.trim()) body.evidenciaDescricao = evidenciaDescricao;
+        if (evidenciaFotos.length > 0) body.evidenciaFotos = evidenciaFotos;
+      }
       if (type === 'approve') body.coordenadorNotes = etapaNotes;
       if (type === 'reject') {
         body.rejectionReason = etapaNotes;
       }
-      await api.patch(`/obras/${params.id}/etapas/${id}/${type}`  , body);
+      await api.patch(`/obras/${params.id}/etapas/${id}/${type}`, body);
       setEtapaAction(null);
       setEtapaNotes('');
+      setEvidenciaDescricao('');
+      setEvidenciaFotos([]);
       fetchSeq();
     } catch {} finally { setEtapaSubmitting(false); }
   }
@@ -1285,6 +1314,39 @@ export default function ObraDetailPage() {
                                         <strong>Coordenador:</strong> {etapa.coordenadorNotes}
                                       </p>
                                     )}
+
+                                    {/* Evidencias */}
+                                    {(etapa.evidenciaDescricao || etapa.evidenciaFotos.length > 0) && (
+                                      <div className="mt-2 rounded-md bg-ber-offwhite p-2.5">
+                                        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1.5">
+                                          <ImageIcon size={10} />
+                                          Evidencia
+                                          {etapa.evidenciaRegistradaEm && (
+                                            <span className="font-normal normal-case ml-1">
+                                              — {new Date(etapa.evidenciaRegistradaEm).toLocaleDateString('pt-BR')}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {etapa.evidenciaDescricao && (
+                                          <p className="text-xs text-ber-carbon mb-1.5">{etapa.evidenciaDescricao}</p>
+                                        )}
+                                        {etapa.evidenciaFotos.length > 0 && (
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {etapa.evidenciaFotos.map((url, i) => (
+                                              <a
+                                                key={i}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block h-14 w-14 overflow-hidden rounded border border-ber-gray/15 hover:opacity-80 transition"
+                                              >
+                                                <img src={url} alt={`Evidencia ${i + 1}`} className="h-full w-full object-cover" />
+                                              </a>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </>
                                 )}
                               </>
@@ -1323,7 +1385,7 @@ export default function ObraDetailPage() {
                                 )}
                                 {etapa.status === 'em_andamento' && isGestor && (
                                   <button
-                                    onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); }}
+                                    onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }}
                                     className="flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
                                   >
                                     <Send size={12} /> Enviar para Aprovação
@@ -1518,22 +1580,77 @@ export default function ObraDetailPage() {
                 <X size={18} />
               </button>
             </div>
-            <div className="px-6 py-5">
-              <label className="block text-sm font-medium text-ber-carbon">
-                {etapaAction.type === 'reject' ? 'Motivo da rejeição *' : 'Notas' + (etapaAction.type === 'submit' ? ' *' : ' (opcional)')}
-              </label>
-              <textarea
-                value={etapaNotes}
-                onChange={(e) => setEtapaNotes(e.target.value)}
-                rows={3}
-                placeholder={
-                  etapaAction.type === 'reject'
-                    ? 'Descreva o motivo da rejeição...'
-                    : 'Adicione observações...'
-                }
-                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-              />
-              <div className="mt-4 flex justify-end gap-3">
+            <div className="px-6 py-5 space-y-4">
+              {/* Evidence fields — only for submit */}
+              {etapaAction.type === 'submit' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-ber-carbon">
+                      Descricao da evidencia
+                    </label>
+                    <textarea
+                      value={evidenciaDescricao}
+                      onChange={(e) => setEvidenciaDescricao(e.target.value)}
+                      rows={3}
+                      placeholder="Descreva o que foi executado nesta etapa..."
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-ber-carbon">
+                      Fotos de evidencia
+                    </label>
+                    {evidenciaFotos.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {evidenciaFotos.map((url, i) => (
+                          <div key={i} className="relative group">
+                            <img src={url} alt={`Foto ${i + 1}`} className="h-16 w-16 rounded border border-ber-gray/15 object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEvidenciaFotos((prev) => prev.filter((_, j) => j !== i))}
+                              className="absolute -right-1.5 -top-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-[10px]"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-ber-gray/20 px-3 py-2 text-xs font-medium text-ber-carbon transition hover:bg-ber-offwhite">
+                      <Camera size={14} />
+                      {uploadingEvidencia ? 'Enviando...' : 'Adicionar fotos'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        capture="environment"
+                        onChange={handleEvidenciaUpload}
+                        disabled={uploadingEvidencia}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-ber-carbon">
+                  {etapaAction.type === 'reject' ? 'Motivo da rejeicao *' : 'Observacoes' + (etapaAction.type === 'submit' ? ' *' : ' (opcional)')}
+                </label>
+                <textarea
+                  value={etapaNotes}
+                  onChange={(e) => setEtapaNotes(e.target.value)}
+                  rows={3}
+                  placeholder={
+                    etapaAction.type === 'reject'
+                      ? 'Descreva o motivo da rejeição...'
+                      : 'Adicione observações...'
+                  }
+                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setEtapaAction(null)}
                   className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"

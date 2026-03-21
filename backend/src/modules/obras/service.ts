@@ -44,20 +44,51 @@ export async function getObraById(id: string) {
 }
 
 export async function createObra(input: CreateObraInput) {
-  const obra = await prisma.obra.create({
-    data: {
-      name: input.name,
-      client: input.client,
-      address: input.address,
-      status: input.status,
-      startDate: input.startDate ? new Date(input.startDate) : undefined,
-      expectedEndDate: input.expectedEndDate ? new Date(input.expectedEndDate) : undefined,
-      coordinatorId: input.coordinatorId,
-    },
-    include: {
-      coordinator: { select: { id: true, name: true } },
-    },
+  const obra = await prisma.$transaction(async (tx) => {
+    const newObra = await tx.obra.create({
+      data: {
+        name: input.name,
+        client: input.client,
+        address: input.address,
+        status: input.status,
+        startDate: input.startDate ? new Date(input.startDate) : undefined,
+        expectedEndDate: input.expectedEndDate ? new Date(input.expectedEndDate) : undefined,
+        coordinatorId: input.coordinatorId,
+      },
+      include: {
+        coordinator: { select: { id: true, name: true } },
+      },
+    });
+
+    // Auto-create the 4 default checklists from all templates
+    const templates = await tx.checklistTemplate.findMany({
+      include: { items: { orderBy: { order: 'asc' } } },
+    });
+
+    for (const template of templates) {
+      await tx.checklist.create({
+        data: {
+          obraId: newObra.id,
+          templateId: template.id,
+          type: template.type,
+          segment: template.segment,
+          createdBy: input.coordinatorId,
+          items: {
+            create: template.items.map((item) => ({
+              templateItemId: item.id,
+              title: item.title,
+              description: item.description,
+              required: item.required,
+              order: item.order,
+            })),
+          },
+        },
+      });
+    }
+
+    return newObra;
   });
+
   return obra;
 }
 

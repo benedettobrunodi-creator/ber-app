@@ -314,13 +314,18 @@ export async function submitEtapa(
     throw AppError.badRequest('Etapa precisa estar em andamento para enviar para aprovação');
   }
 
+  const now = new Date();
+
   return prisma.obraEtapa.update({
     where: { id: etapaId },
     data: {
       status: 'aguardando_aprovacao',
       gestorNotes: input.gestorNotes,
+      evidenciaDescricao: input.evidenciaDescricao ?? null,
+      evidenciaFotos: input.evidenciaFotos ?? [],
+      evidenciaRegistradaEm: input.evidenciaDescricao || (input.evidenciaFotos && input.evidenciaFotos.length > 0) ? now : null,
       submittedBy: userId,
-      submittedAt: new Date(),
+      submittedAt: now,
       rejectedBy: null,
       rejectedAt: null,
       rejectionReason: null,

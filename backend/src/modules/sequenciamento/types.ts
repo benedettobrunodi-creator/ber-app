@@ -10,6 +10,8 @@ export const startEtapaSchema = z.object({
 
 export const submitEtapaSchema = z.object({
   gestorNotes: z.string().min(1, 'Notas do gestor são obrigatórias'),
+  evidenciaDescricao: z.string().optional(),
+  evidenciaFotos: z.array(z.string()).optional(),
 });
 
 export const approveEtapaSchema = z.object({

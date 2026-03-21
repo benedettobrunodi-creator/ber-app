@@ -109,7 +109,6 @@ export default function PontoPage() {
   const [showObraModal, setShowObraModal] = useState(false);
   const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'checkin' | 'checkout' | null>(null);
 
   // Export state
   const canExport = user?.role === 'diretoria' || user?.role === 'coordenacao';
@@ -196,20 +195,58 @@ export default function PontoPage() {
     return () => clearInterval(interval);
   }, [status?.isCheckedIn, status?.checkedInSince]);
 
-  async function openObraModal() {
-    setError(null);
-    const action = status?.isCheckedIn ? 'checkout' : 'checkin';
-    setPendingAction(action);
-    setLoadingObras(true);
-    setShowObraModal(true);
+  // Find the last checkin obra from today's entries (for checkout)
+  const lastCheckinEntry = [...entries]
+    .filter((e) => e.type === 'checkin')
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  const checkinObra = lastCheckinEntry?.obra ?? null;
 
-    try {
-      const res = await api.get('/obras', { params: { status: 'em_andamento' } });
-      setObras(res.data.data);
-    } catch {
-      setObras([]);
-    } finally {
-      setLoadingObras(false);
+  async function handleToggle() {
+    setError(null);
+
+    if (status?.isCheckedIn) {
+      // Checkout — use the same obra from the last checkin, no modal
+      setSubmitting(true);
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          });
+        });
+
+        const payload: any = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        if (checkinObra) payload.obraId = checkinObra.id;
+
+        await api.post('/time-entries/checkout', payload);
+        await fetchData();
+      } catch (err: any) {
+        if (err?.code === 1) {
+          setError('Permissao de localizacao negada. Habilite nas configuracoes do navegador.');
+        } else if (err?.code === 2 || err?.code === 3) {
+          setError('Nao foi possivel obter a localizacao. Tente novamente.');
+        } else {
+          setError(err?.response?.data?.error?.message || 'Erro ao registrar ponto.');
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Checkin — open obra selection modal
+
+      setLoadingObras(true);
+      setShowObraModal(true);
+      try {
+        const res = await api.get('/obras', { params: { status: 'em_andamento' } });
+        setObras(res.data.data);
+      } catch {
+        setObras([]);
+      } finally {
+        setLoadingObras(false);
+      }
     }
   }
 
@@ -226,17 +263,11 @@ export default function PontoPage() {
         });
       });
 
-      const payload = {
+      await api.post('/time-entries/checkin', {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         obraId,
-      };
-
-      if (pendingAction === 'checkout') {
-        await api.post('/time-entries/checkout', payload);
-      } else {
-        await api.post('/time-entries/checkin', payload);
-      }
+      });
 
       await fetchData();
     } catch (err: any) {
@@ -249,7 +280,7 @@ export default function PontoPage() {
       }
     } finally {
       setSubmitting(false);
-      setPendingAction(null);
+
     }
   }
 
@@ -288,15 +319,23 @@ export default function PontoPage() {
 
           {/* Checkin time info */}
           {isCheckedIn && status?.checkedInSince && (
-            <div className="mb-6 flex items-center justify-center gap-1 text-xs text-ber-gray">
+            <div className="mb-2 flex items-center justify-center gap-1 text-xs text-ber-gray">
               <Clock size={12} />
               Entrada as {formatTime(status.checkedInSince)}
             </div>
           )}
 
+          {/* Obra info when checked in */}
+          {isCheckedIn && checkinObra && (
+            <div className="mb-6 flex items-center justify-center gap-1.5 text-xs font-semibold text-ber-teal">
+              <HardHat size={12} />
+              {checkinObra.name}
+            </div>
+          )}
+
           {/* Button */}
           <button
-            onClick={openObraModal}
+            onClick={handleToggle}
             disabled={submitting}
             className={`inline-flex items-center gap-3 rounded-xl px-10 py-4 text-lg font-bold text-white transition-all disabled:opacity-50 ${
               isCheckedIn
@@ -413,7 +452,7 @@ export default function PontoPage() {
                 Selecione a obra
               </h3>
               <button
-                onClick={() => { setShowObraModal(false); setPendingAction(null); }}
+                onClick={() => setShowObraModal(false)}
                 className="rounded p-1 text-ber-gray hover:bg-ber-gray/10"
               >
                 <X size={18} />
