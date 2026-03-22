@@ -58,7 +58,7 @@ export async function updateProgresso(req: Request, res: Response) {
   if (!obra) return res.status(404).json({ error: `Obra "${obraName}" não encontrada` });
 
   // Atualizar banco
-  await prisma.obra.update({ where: { id: obra.id }, data: { progress: valor } });
+  await prisma.obra.update({ where: { id: obra.id }, data: { progressPercent: valor } });
 
   // Atualizar Trello
   let trelloAtualizado = false;

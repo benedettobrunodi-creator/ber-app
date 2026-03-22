@@ -222,7 +222,7 @@ export async function syncProgressoFromTrello() {
       const progress = Math.min(100, Math.max(0, parseInt(match[1], 10)));
       await prisma.obra.update({
         where: { id: obra.id },
-        data: { progress },
+        data: { progressPercent: progress },
       });
       console.log(`[Trello Progresso] ${obra.name}: ${progress}%`);
       updated++;
