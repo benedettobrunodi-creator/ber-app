@@ -42,7 +42,8 @@ function Section({ title, icon: Icon, children }: any) {
 }
 
 async function fetchSafe(url: string, fallback: any = null) {
-  try { const r = await api.get(url); return r.data; } catch { return fallback; }
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000));
+  try { const r = await Promise.race([api.get(url), timeout]) as any; return r.data; } catch { return fallback; }
 }
 
 export default function DashboardPage() {
