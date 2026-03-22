@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../config/database';
 import { syncFromAgendor } from '../modules/proposals/service';
-import { syncObraFromTrello } from './trello';
+import { syncObraFromTrello, syncProgressoFromTrello } from './trello';
 import { notifyUsers } from '../modules/notifications/service';
 
 export function startScheduler() {
