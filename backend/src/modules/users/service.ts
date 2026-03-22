@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database';
 import { BCRYPT_SALT_ROUNDS } from '../../config/constants';
 import { AppError } from '../../utils/errors';
