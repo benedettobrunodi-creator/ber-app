@@ -81,7 +81,7 @@ export default function SequenciamentoPage() {
             return (
               <button
                 key={obra.id}
-                onClick={() => router.push(`/obras/${obra.id}?tab=sequenciamento`)}
+                onClick={() => router.push(`/sequenciamento/${obra.id}`)}
                 className="flex w-full items-center gap-4 rounded-lg bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ber-carbon/5">
