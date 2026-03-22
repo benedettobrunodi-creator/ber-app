@@ -33,7 +33,7 @@ export default function RecebimentosPage() {
 
   useEffect(() => {
     api.get('/obras').then(r => {
-      setObras(r.data.obras || r.data);
+      setObras(r.data.obras || r.data.data || (Array.isArray(r.data) ? r.data : []));
       setLoading(false);
     });
   }, []);
