@@ -35,6 +35,7 @@ export function startScheduler() {
     }
 
     console.log('[Scheduler] Trello sync concluído');
+    await syncProgressoFromTrello();
   });
 
   // Checklist pendente notifications — diariamente as 08h

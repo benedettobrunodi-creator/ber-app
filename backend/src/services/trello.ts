@@ -198,3 +198,84 @@ export async function syncObraFromTrello(obraId: string, boardId: string) {
     elapsed: `${elapsed}s`,
   };
 }
+
+// ─── Sync Progresso ──────────────────────────────────────────────────────────
+
+export async function syncProgressoFromTrello() {
+  const obras = await prisma.obra.findMany({
+    where: { trelloBoardId: { not: null } },
+    select: { id: true, trelloBoardId: true, name: true },
+  });
+
+  let updated = 0;
+  for (const obra of obras) {
+    try {
+      const cards = await getBoardCards(obra.trelloBoardId!);
+      const progressCard = cards.find((c) =>
+        c.name.toLowerCase().includes('progresso geral')
+      );
+      if (!progressCard) continue;
+
+      const match = progressCard.desc.match(/Progresso:\s*(\d+)/i);
+      if (!match) continue;
+
+      const progress = Math.min(100, Math.max(0, parseInt(match[1], 10)));
+      await prisma.obra.update({
+        where: { id: obra.id },
+        data: { progress },
+      });
+      console.log(`[Trello Progresso] ${obra.name}: ${progress}%`);
+      updated++;
+    } catch (err) {
+      console.error(`[Trello Progresso] Erro na obra ${obra.name}:`, err);
+    }
+  }
+  console.log(`[Trello Progresso] ${updated} obras atualizadas`);
+  return updated;
+}
+
+export async function criarCardsProgresso() {
+  const obras = await prisma.obra.findMany({
+    where: { trelloBoardId: { not: null } },
+    select: { id: true, trelloBoardId: true, name: true },
+  });
+
+  for (const obra of obras) {
+    try {
+      const [lists, cards] = await Promise.all([
+        getBoardLists(obra.trelloBoardId!),
+        getBoardCards(obra.trelloBoardId!),
+      ]);
+
+      const jaExiste = cards.find((c) =>
+        c.name.toLowerCase().includes('progresso geral')
+      );
+      if (jaExiste) {
+        console.log(`[Trello] Card já existe em: ${obra.name}`);
+        continue;
+      }
+
+      const primeiraLista = lists[0];
+      if (!primeiraLista) continue;
+
+      const key = process.env.TRELLO_API_KEY || '';
+      const token = process.env.TRELLO_TOKEN || '';
+      await fetch(
+        `https://api.trello.com/1/cards?key=${key}&token=${token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: '📊 Progresso Geral',
+            desc: 'Progresso: 0%',
+            idList: primeiraLista.id,
+            pos: 'top',
+          }),
+        }
+      );
+      console.log(`[Trello] Card criado em: ${obra.name}`);
+    } catch (err) {
+      console.error(`[Trello] Erro em ${obra.name}:`, err);
+    }
+  }
+}
