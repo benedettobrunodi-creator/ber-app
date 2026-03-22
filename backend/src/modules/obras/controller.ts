@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as obraService from './service';
+import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
 
 export async function listObras(req: Request, res: Response) {
@@ -42,4 +43,44 @@ export async function removeMember(req: Request, res: Response) {
 export async function getStats(req: Request, res: Response) {
   const stats = await obraService.getStats(req.params.id);
   sendSuccess(res, stats);
+}
+
+export async function updateProgresso(req: Request, res: Response) {
+  const { obraName, progresso } = req.body;
+  if (!obraName || progresso === undefined) {
+    return res.status(400).json({ error: 'obraName e progresso são obrigatórios' });
+  }
+  const valor = Math.min(100, Math.max(0, parseInt(progresso, 10)));
+  
+  const obra = await prisma.obra.findFirst({
+    where: { name: { contains: obraName, mode: 'insensitive' } },
+  });
+  if (!obra) return res.status(404).json({ error: `Obra "${obraName}" não encontrada` });
+
+  // Atualizar banco
+  await prisma.obra.update({ where: { id: obra.id }, data: { progress: valor } });
+
+  // Atualizar Trello
+  let trelloAtualizado = false;
+  if (obra.trelloBoardId) {
+    try {
+      const { getBoardCards } = await import('../../services/trello');
+      const key = process.env.TRELLO_API_KEY || '';
+      const token = process.env.TRELLO_TOKEN || '';
+      const cards = await getBoardCards(obra.trelloBoardId);
+      const progressCard = cards.find((c: any) => c.name.toLowerCase().includes('progresso geral'));
+      if (progressCard) {
+        await fetch(`https://api.trello.com/1/cards/${progressCard.id}?key=${key}&token=${token}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ desc: `Progresso: ${valor}%` }),
+        });
+        trelloAtualizado = true;
+      }
+    } catch (err) {
+      console.error('[updateProgresso] Erro Trello:', err);
+    }
+  }
+
+  return res.json({ obra: obra.name, progresso: valor, trelloAtualizado });
 }

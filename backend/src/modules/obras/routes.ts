@@ -20,4 +20,8 @@ router.delete('/:id/members/:userId', requireRole('coordenacao'), controller.rem
 
 router.get('/:id/stats', requireRole('gestor'), controller.getStats);
 
+
+
+router.post("/progresso", controller.updateProgresso);
+
 export default router;
