@@ -1,7 +1,11 @@
 {
-  "build": { "builder": "DOCKERFILE" },
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm ci && npx prisma generate && npm run build"
+  },
   "deploy": {
     "startCommand": "npx prisma migrate deploy && node dist/app.js",
-    "healthcheckPath": "/health"
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 60
   }
 }
