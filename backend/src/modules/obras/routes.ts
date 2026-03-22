@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requireRole('gestor'), controller.listObras);
+router.post("/progresso", controller.updateProgresso);
 router.get('/:id', requireRole('gestor'), controller.getObra);
 router.post('/', requireRole('coordenacao'), validate(createObraSchema), controller.createObra);
 router.put('/:id', requireRole('coordenacao'), validate(updateObraSchema), controller.updateObra);
@@ -22,6 +23,5 @@ router.get('/:id/stats', requireRole('gestor'), controller.getStats);
 
 
 
-router.post("/progresso", controller.updateProgresso);
 
 export default router;
