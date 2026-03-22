@@ -1,18 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import {
-  Package,
-  ArrowLeft,
-  Plus,
-  X,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  FileText,
-  StickyNote,
+  Package, ArrowLeft, Plus, X, CheckCircle, AlertTriangle,
+  XCircle, FileText, StickyNote, Camera, ImagePlus, Loader2,
 } from 'lucide-react';
 
 interface Recebimento {
@@ -26,6 +19,8 @@ interface Recebimento {
   dataEntrega: string;
   condicao: 'aprovado' | 'aprovado_com_ressalva' | 'reprovado';
   observacao?: string;
+  fotosMaterial?: string[];
+  fotoNF?: string;
   createdAt: string;
 }
 
@@ -47,6 +42,8 @@ const emptyForm = {
   condicao: 'aprovado' as const, observacao: '',
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1';
+
 export default function RecebimentosObraPage() {
   const params = useParams();
   const router = useRouter();
@@ -61,12 +58,18 @@ export default function RecebimentosObraPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
 
+  // Foto state
+  const [fotosMaterial, setFotosMaterial] = useState<string[]>([]);
+  const [fotoNF, setFotoNF] = useState<string>('');
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [uploadingNF, setUploadingNF] = useState(false);
+
+  const fotoMaterialRef = useRef<HTMLInputElement>(null);
+  const fotoNFRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!obraId) return;
-    Promise.all([
-      api.get(`/obras/${obraId}`),
-      api.get(`/obras/${obraId}/recebimentos`),
-    ])
+    Promise.all([api.get(`/obras/${obraId}`), api.get(`/obras/${obraId}/recebimentos`)])
       .then(([obraRes, recRes]) => {
         setObra(obraRes.data.data || obraRes.data);
         const data = recRes.data.data || recRes.data;
@@ -75,6 +78,53 @@ export default function RecebimentosObraPage() {
       .catch(() => setRecebimentos([]))
       .finally(() => setLoading(false));
   }, [obraId]);
+
+  const uploadFoto = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post('/uploads', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const url = res.data.data?.url || res.data.url;
+    return `${API_BASE.replace('/v1', '')}${url}`;
+  };
+
+  const handleFotoMaterial = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingMaterial(true);
+    try {
+      const urls = await Promise.all(files.map(uploadFoto));
+      setFotosMaterial(prev => [...prev, ...urls]);
+    } catch {
+      setError('Erro ao fazer upload da foto do material.');
+    } finally {
+      setUploadingMaterial(false);
+      if (fotoMaterialRef.current) fotoMaterialRef.current.value = '';
+    }
+  };
+
+  const handleFotoNF = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingNF(true);
+    try {
+      const url = await uploadFoto(file);
+      setFotoNF(url);
+    } catch {
+      setError('Erro ao fazer upload da foto da NF.');
+    } finally {
+      setUploadingNF(false);
+      if (fotoNFRef.current) fotoNFRef.current.value = '';
+    }
+  };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setFotosMaterial([]);
+    setFotoNF('');
+    setError('');
+  };
 
   const handleSubmit = async () => {
     if (!form.fornecedor || !form.material || !form.quantidade || !form.unidade || !form.dataEntrega) {
@@ -90,11 +140,12 @@ export default function RecebimentosObraPage() {
         dataNF: form.dataNF || undefined,
         numeroNF: form.numeroNF || undefined,
         observacao: form.observacao || undefined,
-        fotosMaterial: [],
+        fotosMaterial,
+        fotoNF: fotoNF || undefined,
       });
       const novo = res.data.data || res.data;
       setRecebimentos(prev => [novo, ...prev]);
-      setForm(emptyForm);
+      resetForm();
       setShowForm(false);
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Erro ao salvar recebimento.');
@@ -169,10 +220,26 @@ export default function RecebimentosObraPage() {
                     <p className="text-xs text-[var(--ber-carbon-light)] mt-0.5">{new Date(item.dataEntrega).toLocaleDateString('pt-BR')}</p>
                   </div>
                 </div>
-                {(item.numeroNF || item.observacao) && (
-                  <div className="mt-3 pt-3 border-t border-[var(--ber-border)] flex gap-4 flex-wrap">
-                    {item.numeroNF && <span className="flex items-center gap-1.5 text-xs text-[var(--ber-carbon-light)]"><FileText size={12} />NF {item.numeroNF}</span>}
-                    {item.observacao && <span className="flex items-center gap-1.5 text-xs text-[var(--ber-carbon-light)]"><StickyNote size={12} />{item.observacao}</span>}
+                {(item.numeroNF || item.observacao || (item.fotosMaterial && item.fotosMaterial.length > 0) || item.fotoNF) && (
+                  <div className="mt-3 pt-3 border-t border-[var(--ber-border)] space-y-2">
+                    <div className="flex gap-4 flex-wrap">
+                      {item.numeroNF && <span className="flex items-center gap-1.5 text-xs text-[var(--ber-carbon-light)]"><FileText size={12} />NF {item.numeroNF}</span>}
+                      {item.observacao && <span className="flex items-center gap-1.5 text-xs text-[var(--ber-carbon-light)]"><StickyNote size={12} />{item.observacao}</span>}
+                    </div>
+                    {item.fotosMaterial && item.fotosMaterial.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {item.fotosMaterial.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} alt={`Material ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-[var(--ber-border)] hover:opacity-80 transition-opacity" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {item.fotoNF && (
+                      <a href={item.fotoNF} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-[var(--ber-olive)] hover:underline">
+                        <FileText size={12} />Ver Nota Fiscal
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
@@ -186,10 +253,11 @@ export default function RecebimentosObraPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-[var(--ber-border)]">
               <h2 className="text-lg font-semibold text-[var(--ber-carbon)]">Novo Recebimento</h2>
-              <button onClick={() => { setShowForm(false); setError(''); setForm(emptyForm); }}><X size={20} className="text-[var(--ber-carbon-light)]" /></button>
+              <button onClick={() => { setShowForm(false); resetForm(); }}><X size={20} className="text-[var(--ber-carbon-light)]" /></button>
             </div>
             <div className="p-6 space-y-4">
               {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
+
               <div>
                 <label className="block text-xs font-medium text-[var(--ber-carbon-light)] mb-1.5">Material <span className="text-red-500">*</span></label>
                 <input type="text" value={form.material} onChange={e => setForm(p => ({ ...p, material: e.target.value }))} placeholder="Ex: Cimento CP-II, Vergalhão 10mm..." className="w-full border border-[var(--ber-border)] rounded-lg px-3 py-2 text-sm text-[var(--ber-carbon)] focus:outline-none focus:border-[var(--ber-olive)]" />
@@ -234,9 +302,55 @@ export default function RecebimentosObraPage() {
                 <label className="block text-xs font-medium text-[var(--ber-carbon-light)] mb-1.5">Observação</label>
                 <textarea value={form.observacao} onChange={e => setForm(p => ({ ...p, observacao: e.target.value }))} placeholder="Observações sobre o recebimento..." rows={3} className="w-full border border-[var(--ber-border)] rounded-lg px-3 py-2 text-sm text-[var(--ber-carbon)] focus:outline-none focus:border-[var(--ber-olive)] resize-none" />
               </div>
+
+              {/* Fotos do Material */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--ber-carbon-light)] mb-1.5">Fotos do Material</label>
+                <input ref={fotoMaterialRef} type="file" accept="image/*" multiple capture="environment" onChange={handleFotoMaterial} className="hidden" />
+                <button type="button" onClick={() => fotoMaterialRef.current?.click()}
+                  disabled={uploadingMaterial}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[var(--ber-border)] rounded-lg py-3 text-sm text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)] transition-colors disabled:opacity-50">
+                  {uploadingMaterial ? <><Loader2 size={16} className="animate-spin" />Enviando...</> : <><Camera size={16} />Tirar foto ou selecionar imagem</>}
+                </button>
+                {fotosMaterial.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {fotosMaterial.map((url, i) => (
+                      <div key={i} className="relative">
+                        <img src={url} alt={`Material ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-[var(--ber-border)]" />
+                        <button onClick={() => setFotosMaterial(prev => prev.filter((_, idx) => idx !== i))}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Foto da NF */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--ber-carbon-light)] mb-1.5">Foto da Nota Fiscal</label>
+                <input ref={fotoNFRef} type="file" accept="image/*" capture="environment" onChange={handleFotoNF} className="hidden" />
+                {fotoNF ? (
+                  <div className="relative inline-block">
+                    <img src={fotoNF} alt="NF" className="w-24 h-24 object-cover rounded-lg border border-[var(--ber-border)]" />
+                    <button onClick={() => setFotoNF('')}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fotoNFRef.current?.click()}
+                    disabled={uploadingNF}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[var(--ber-border)] rounded-lg py-3 text-sm text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)] transition-colors disabled:opacity-50">
+                    {uploadingNF ? <><Loader2 size={16} className="animate-spin" />Enviando...</> : <><ImagePlus size={16} />Foto da Nota Fiscal</>}
+                  </button>
+                )}
+              </div>
             </div>
+
             <div className="flex gap-3 p-6 border-t border-[var(--ber-border)]">
-              <button onClick={() => { setShowForm(false); setError(''); setForm(emptyForm); }} className="flex-1 px-4 py-2 border border-[var(--ber-border)] rounded-lg text-sm text-[var(--ber-carbon-light)] hover:bg-[var(--ber-offwhite)] transition-colors">Cancelar</button>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="flex-1 px-4 py-2 border border-[var(--ber-border)] rounded-lg text-sm text-[var(--ber-carbon-light)] hover:bg-[var(--ber-offwhite)] transition-colors">Cancelar</button>
               <button onClick={handleSubmit} disabled={submitting} className="flex-1 px-4 py-2 bg-[var(--ber-olive)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
