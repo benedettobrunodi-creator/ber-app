@@ -330,7 +330,8 @@ export default function RecebimentosObraPage() {
               {/* Foto da NF */}
               <div>
                 <label className="block text-xs font-medium text-[var(--ber-carbon-light)] mb-1.5">Foto da Nota Fiscal</label>
-                <input ref={fotoNFRef} type="file" accept="image/*" capture="environment" onChange={handleFotoNF} className="hidden" />
+                <input ref={fotoNFRef} type="file" accept="image/*" onChange={handleFotoNF} className="hidden" id="fotoNF-gallery" />
+                <input ref={fotoNFRef} type="file" accept="image/*" capture="environment" onChange={handleFotoNF} className="hidden" id="fotoNF-camera" />
                 {fotoNF ? (
                   <div className="relative inline-block">
                     <img src={fotoNF} alt="NF" className="w-24 h-24 object-cover rounded-lg border border-[var(--ber-border)]" />
@@ -340,11 +341,20 @@ export default function RecebimentosObraPage() {
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => fotoNFRef.current?.click()}
-                    disabled={uploadingNF}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[var(--ber-border)] rounded-lg py-3 text-sm text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)] transition-colors disabled:opacity-50">
-                    {uploadingNF ? <><Loader2 size={16} className="animate-spin" />Enviando...</> : <><ImagePlus size={16} />Foto da Nota Fiscal</>}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => document.getElementById('fotoNF-camera')?.click()}
+                      disabled={uploadingNF}
+                      className="flex items-center justify-center gap-2 border-2 border-dashed border-[var(--ber-border)] rounded-lg py-3 text-sm text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)] transition-colors disabled:opacity-50">
+                      {uploadingNF ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                      Tirar foto
+                    </button>
+                    <button type="button" onClick={() => document.getElementById('fotoNF-gallery')?.click()}
+                      disabled={uploadingNF}
+                      className="flex items-center justify-center gap-2 border-2 border-dashed border-[var(--ber-border)] rounded-lg py-3 text-sm text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)] transition-colors disabled:opacity-50">
+                      {uploadingNF ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                      Galeria
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
