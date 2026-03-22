@@ -243,7 +243,7 @@ export default function SequenciamentoObraPage() {
       </div>
 
       {/* Sem sequenciamento */}
-      {!seq && !showCreate && (
+      {(!seq || !seq.id) && !showCreate && (
         <div className="bg-white rounded-xl border border-[var(--ber-border)] p-12 text-center">
           <p className="text-[var(--ber-carbon-light)] text-sm mb-4">Nenhum sequenciamento configurado para esta obra.</p>
           <button onClick={handleShowCreate} className="flex items-center gap-2 px-4 py-2 bg-[var(--ber-olive)] text-white rounded-lg text-sm font-medium hover:opacity-90 mx-auto">
