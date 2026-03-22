@@ -83,20 +83,31 @@ export default function SequenciamentoObraPage() {
 
   useEffect(() => {
     if (!obraId) return;
-    Promise.all([api.get(`/obras/${obraId}`), api.get(`/obras/${obraId}/sequenciamento`)])
+    Promise.allSettled([
+      api.get(`/obras/${obraId}`),
+      api.get(`/obras/${obraId}/sequenciamento`),
+    ])
       .then(([obraRes, seqRes]) => {
-        setObra(obraRes.data.data || obraRes.data);
-        setSeq(seqRes.data.data || seqRes.data);
+        if (obraRes.status === 'fulfilled') {
+          setObra(obraRes.value.data?.data || obraRes.value.data);
+        }
+        if (seqRes.status === 'fulfilled') {
+          const seqData = seqRes.value.data?.data ?? seqRes.value.data ?? null;
+          setSeq(seqData);
+        }
       })
-      .catch(() => {})
       .finally(() => setLoading(false));
   }, [obraId]);
 
   const loadTemplates = async () => {
     try {
       const res = await api.get('/sequenciamento-templates');
-      setTemplates(res.data.data || res.data || []);
-    } catch {}
+      const data = res.data?.data ?? res.data ?? [];
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('[Sequenciamento] Erro ao carregar templates:', err);
+      setTemplates([]);
+    }
   };
 
   const handleShowCreate = async () => {
