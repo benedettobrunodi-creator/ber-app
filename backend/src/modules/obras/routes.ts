@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as controller from './controller';
+import * as faseController from './fase.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
@@ -21,7 +22,8 @@ router.delete('/:id/members/:userId', requireRole('coordenacao'), controller.rem
 
 router.get('/:id/stats', requireRole('gestor'), controller.getStats);
 
-
-
+// Fase management
+router.put('/:id/fase', requireRole('coordenacao'), faseController.updateFase);
+router.get('/:id/fase-history', requireRole('gestor'), faseController.getFaseHistory);
 
 export default router;

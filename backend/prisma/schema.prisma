@@ -54,6 +54,11 @@ model User {
   instrucoesCreated  InstrucaoTecnica[] @relation("ITCreator")
   instrucoesUpdated  InstrucaoTecnica[] @relation("ITUpdater")
   recebimentosRegistrados RecebimentoMaterial[] @relation("RecebimentoRegistrador")
+  faseHistoryChanged    ObraFaseHistory[]    @relation("FaseHistoryChanger")
+  obraFaseUpdated       Obra[]               @relation("ObraFaseUpdater")
+  conductedTouchpoints  ClientTouchpoint[]   @relation("TouchpointConductor")
+  touchpointNextActions ClientTouchpoint[]   @relation("TouchpointNextOwner")
+  createdTouchpoints    ClientTouchpoint[]   @relation("TouchpointCreator")
 
   @@map("users")
 }
@@ -73,8 +78,13 @@ model Obra {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
+  fase             String    @default("kickoff_interno") @db.VarChar(50)
+  faseUpdatedAt    DateTime? @map("fase_updated_at")
+  faseUpdatedById  String?   @map("fase_updated_by") @db.Uuid
+
   // Relations
   coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  faseUpdatedBy  User?            @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
   members     ObraMember[]
   tasks       ObraTask[]
   chatRooms   ChatRoom[]
@@ -89,6 +99,9 @@ model Obra {
   sequenciamentos ObraSequenciamento[]
   etapas          ObraEtapa[]
   recebimentos    RecebimentoMaterial[]
+  faseHistory    ObraFaseHistory[]
+  touchpoints    ClientTouchpoint[]
+  announcements  Announcement[]
 
   @@map("obras")
 }
@@ -183,10 +196,17 @@ model Announcement {
   targetRoles String[] @default(["diretoria", "coordenacao", "gestor", "campo"]) @map("target_roles")
   authorId    String?  @map("author_id") @db.Uuid
   pinned      Boolean  @default(false)
+  tipo             String    @default("interno") @db.VarChar(30)
+  obraId           String?   @map("obra_id") @db.Uuid
+  semanaReferencia DateTime? @map("semana_referencia") @db.Date
+  templateData     Json      @default("{}") @map("template_data")
+  enviadoCliente   Boolean   @default(false) @map("enviado_cliente")
+  enviadoEm        DateTime? @map("enviado_em")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   author User?              @relation(fields: [authorId], references: [id])
+  obra   Obra?              @relation(fields: [obraId], references: [id])
   reads  AnnouncementRead[]
 
   @@index([createdAt(sort: Desc)])
@@ -320,11 +340,14 @@ model TimeEntry {
 }
 
 model ChecklistTemplate {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(255)
-  type      String   @db.VarChar(50)
-  segment   String   @db.VarChar(50)
-  createdAt DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  type            String   @db.VarChar(50)
+  segment         String   @db.VarChar(50)
+  fase            String?  @db.VarChar(50)
+  responsibleRole String?  @map("responsible_role") @db.VarChar(50)
+  bluepaperDoc    Int?     @map("bluepaper_doc")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   items      ChecklistTemplateItem[]
   checklists Checklist[]
@@ -693,4 +716,49 @@ model RecebimentoMaterial {
 
   @@index([obraId])
   @@map("recebimento_materiais")
+}
+
+model ObraFaseHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  obraId       String   @map("obra_id") @db.Uuid
+  faseAnterior String?  @map("fase_anterior") @db.VarChar(50)
+  faseNova     String   @map("fase_nova") @db.VarChar(50)
+  changedBy    String?  @map("changed_by") @db.Uuid
+  changedAt    DateTime @default(now()) @map("changed_at")
+  notes        String?
+
+  obra    Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  changer User? @relation("FaseHistoryChanger", fields: [changedBy], references: [id])
+
+  @@index([obraId, changedAt(sort: Desc)])
+  @@map("obra_fase_history")
+}
+
+model ClientTouchpoint {
+  id                String    @id @default(uuid()) @db.Uuid
+  obraId            String    @map("obra_id") @db.Uuid
+  type              String    @db.VarChar(50)
+  title             String    @db.VarChar(255)
+  occurredAt        DateTime  @map("occurred_at")
+  conductedById     String?   @map("conducted_by") @db.Uuid
+  clientContacts    String[]  @default([]) @map("client_contacts")
+  architectContacts String[]  @default([]) @map("architect_contacts")
+  summary           String?
+  nextAction        String?   @map("next_action")
+  nextActionDue     DateTime? @map("next_action_due") @db.Date
+  nextActionOwnerId String?   @map("next_action_owner") @db.Uuid
+  attachments       String[]  @default([])
+  status            String    @default("realizado") @db.VarChar(20)
+  createdById       String?   @map("created_by") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra           Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  conductedBy    User? @relation("TouchpointConductor", fields: [conductedById], references: [id])
+  nextActionOwner User? @relation("TouchpointNextOwner", fields: [nextActionOwnerId], references: [id])
+  createdBy      User? @relation("TouchpointCreator", fields: [createdById], references: [id])
+
+  @@index([obraId, occurredAt(sort: Desc)])
+  @@index([nextActionDue])
+  @@map("client_touchpoints")
 }

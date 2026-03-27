@@ -20,7 +20,7 @@ import trelloRoutes from './modules/obras/trello-routes';
 import taskRoutes, { obraTaskRoutes } from './modules/tasks/routes';
 import proposalRoutes from './modules/proposals/routes';
 import meetingRoutes from './modules/meetings/routes';
-import announcementRoutes from './modules/announcements/routes';
+import announcementRoutes, { obraComunicadoRouter } from './modules/announcements/routes';
 import chatRoutes from './modules/chat/routes';
 import photoRoutes, { obraPhotoRoutes } from './modules/photos/routes';
 import timeEntryRoutes from './modules/time-entries/routes';
@@ -38,6 +38,8 @@ import { seqTemplateRouter, obraSeqRouter, obraEtapaRouter } from './modules/seq
 import normasRouter from './modules/normas/routes';
 import instrucoesRouter from './modules/instrucoes/routes';
 import recebimentoRouter, { obraRecebimentoRouter } from './modules/recebimentos/routes';
+import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/routes';
+import dashboardRoutes from './modules/dashboard/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -129,6 +131,11 @@ app.use('/v1/normas', normasRouter);
 app.use('/v1/instrucoes-tecnicas', instrucoesRouter);
 app.use('/v1/obras/:id/recebimentos', obraRecebimentoRouter);
 app.use('/v1/recebimentos', recebimentoRouter);
+app.use('/v1/obras/:id/touchpoints', obraTouchpointRouter);
+app.use('/v1/touchpoints', touchpointRoutes);
+app.use('/v1/dashboard', dashboardRoutes);
+app.use('/v1/obras/:id', obraComunicadoRouter);
+app.use('/v1/comunicados', announcementRoutes);
 
 // Generic file upload
 const uploadStorage = multer.diskStorage({

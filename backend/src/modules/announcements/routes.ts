@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as controller from './controller';
+import * as comunicadoController from './comunicado.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
@@ -16,4 +17,13 @@ router.put('/:id', requireRole('coordenacao'), validate(updateAnnouncementSchema
 router.delete('/:id', requireRole('diretoria'), controller.deleteAnnouncement);
 router.get('/:id/reads', requireRole('coordenacao'), controller.getReads);
 
+// Comunicado semanal
+router.post('/:id/enviar', requireRole('coordenacao'), comunicadoController.enviarComunicado);
+
+// Obra-scoped comunicado routes
+const obraComunicadoRouter = Router({ mergeParams: true });
+obraComunicadoRouter.use(authenticate);
+obraComunicadoRouter.post('/comunicado-semanal/gerar', requireRole('gestor'), comunicadoController.gerarComunicadoSemanal);
+
+export { obraComunicadoRouter };
 export default router;

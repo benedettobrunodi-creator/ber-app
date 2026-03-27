@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { HardHat, TrendingUp, AlertTriangle, ClipboardCheck, XCircle, CheckCircle2, Shield, Clock, Users, Package, ListOrdered, Tent } from 'lucide-react';
+import { HardHat, TrendingUp, AlertTriangle, ClipboardCheck, XCircle, CheckCircle2, Shield, Clock, Users, Package, ListOrdered, Tent, Radar } from 'lucide-react';
 
 function KPICard({ label, value, icon: Icon, color, unit }: any) {
   const colors: any = {
@@ -38,8 +38,88 @@ const safe = async (fn: () => Promise<any>, fallback: any = null) => {
   catch { return fallback; }
 };
 
+interface RadarItem {
+  obraId: string;
+  name: string;
+  client: string | null;
+  fase: string;
+  checklistProgress: { total: number; completed: number; percentual: number };
+  requiredBlocking: number;
+  lastTouchpoint: { type: string; occurredAt: string; title: string } | null;
+  nextTouchpoint: { nextActionDue: string; nextAction: string } | null;
+  overdueItems: number;
+  nextSevenDays: number;
+  semaphore: 'verde' | 'amarelo' | 'vermelho';
+}
+
+const SEMAPHORE_STYLES = {
+  verde: { bg: 'bg-green-50', border: 'border-green-300', dot: 'bg-green-500', text: 'text-green-700' },
+  amarelo: { bg: 'bg-yellow-50', border: 'border-yellow-300', dot: 'bg-yellow-500', text: 'text-yellow-700' },
+  vermelho: { bg: 'bg-red-50', border: 'border-red-300', dot: 'bg-red-500', text: 'text-red-700' },
+};
+
+const FASE_LABELS: Record<string, string> = {
+  kickoff_interno: 'Kick-Off Interno',
+  kickoff_externo: 'Kick-Off Externo',
+  suprimentos: 'Suprimentos',
+  pre_obra: 'Pré-Obra',
+  execucao: 'Execução',
+  pendencias: 'Pendências',
+  encerramento: 'Encerramento',
+};
+
+function RadarCard({ item }: { item: RadarItem }) {
+  const s = SEMAPHORE_STYLES[item.semaphore];
+  return (
+    <div className={`rounded-xl border-2 ${s.border} ${s.bg} p-4`}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="font-semibold text-[var(--ber-carbon)]">{item.name}</h3>
+          {item.client && <p className="text-xs text-[var(--ber-carbon-light)]">{item.client}</p>}
+        </div>
+        <div className={`w-4 h-4 rounded-full ${s.dot}`} title={item.semaphore} />
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-[var(--ber-carbon-light)]">Fase</span>
+          <span className="font-medium">{FASE_LABELS[item.fase] || item.fase}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--ber-carbon-light)]">Checklists</span>
+          <span className="font-medium">{item.checklistProgress.completed}/{item.checklistProgress.total} ({item.checklistProgress.percentual}%)</span>
+        </div>
+        {item.requiredBlocking > 0 && (
+          <div className={`flex justify-between ${s.text}`}>
+            <span>Bloqueando fase</span>
+            <span className="font-bold">{item.requiredBlocking}</span>
+          </div>
+        )}
+        {item.overdueItems > 0 && (
+          <div className="flex justify-between text-red-600">
+            <span>Itens vencidos</span>
+            <span className="font-bold">{item.overdueItems}</span>
+          </div>
+        )}
+        {item.lastTouchpoint && (
+          <div className="flex justify-between">
+            <span className="text-[var(--ber-carbon-light)]">Último contato</span>
+            <span className="text-xs">{new Date(item.lastTouchpoint.occurredAt).toLocaleDateString('pt-BR')}</span>
+          </div>
+        )}
+        {item.nextTouchpoint && (
+          <div className="flex justify-between">
+            <span className="text-[var(--ber-carbon-light)]">Próx. ação</span>
+            <span className="text-xs">{new Date(item.nextTouchpoint.nextActionDue).toLocaleDateString('pt-BR')}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
+  const [radar, setRadar] = useState<RadarItem[] | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -130,6 +210,13 @@ export default function DashboardPage() {
       });
     }
     load();
+
+    // Load radar data
+    safe(() => api.get('/dashboard/radar').then(r => r.data), null)
+      .then((radarData: any) => {
+        if (radarData?.data) setRadar(radarData.data);
+        else if (Array.isArray(radarData)) setRadar(radarData);
+      });
   }, []);
 
   if (!data) return (
@@ -145,6 +232,20 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-[var(--ber-carbon)]">Dashboard</h1>
         <p className="text-sm text-[var(--ber-carbon-light)] mt-1">Visão operacional em tempo real</p>
       </div>
+
+      {radar && radar.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Radar size={18} className="text-[var(--ber-olive)]" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ber-carbon-light)]">Radar de Obras</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {radar.map((item) => (
+              <RadarCard key={item.obraId} item={item} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <Section title="Obras" icon={HardHat}>
         <KPICard label="Obras ativas" value={data.obras.ativas} icon={HardHat} color="blue" />
