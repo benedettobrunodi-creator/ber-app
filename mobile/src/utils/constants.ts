@@ -4,7 +4,7 @@
 
 // Dev: ngrok tunnel pro backend local
 // Produção: trocar pra https://api.ber-app.com.br/v1
-export const API_URL = __DEV__ ? 'http://192.168.68.60:3000/v1' : 'https://api.ber-app.com.br/v1';
+export const API_URL = __DEV__ ? 'http://192.168.68.51:3000/v1' : 'https://api.ber-app.com.br/v1';
 
 // ── Role hierarchy ──────────────────────────────
 
