@@ -2,9 +2,12 @@
 // Application-wide constants
 // ──────────────────────────────────────────────
 
-// Dev: ngrok tunnel pro backend local
+// Dev externo: cloudflared quick tunnel (trycloudflare.com)
+// Dev local: http://192.168.68.51:3000/v1
 // Produção: trocar pra https://api.ber-app.com.br/v1
-export const API_URL = __DEV__ ? 'http://192.168.68.51:3000/v1' : 'https://api.ber-app.com.br/v1';
+export const API_URL = __DEV__
+  ? 'https://emerald-refined-across-ministers.trycloudflare.com/v1'
+  : 'https://api.ber-app.com.br/v1';
 
 // ── Role hierarchy ──────────────────────────────
 
