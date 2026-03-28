@@ -38,5 +38,5 @@ export const env = {
   googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+  corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',').map(s => s.trim()),
 };

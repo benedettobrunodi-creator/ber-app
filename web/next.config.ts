@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  allowedDevOrigins: ['date-blond-ensuring-former.trycloudflare.com'],
 };
 
 export default nextConfig;

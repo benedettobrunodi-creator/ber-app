@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as obraService from './service';
 import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
+import { syncProgressFromClickUp } from '../../services/clickup';
 
 export async function listObras(req: Request, res: Response) {
   const { page, limit } = parsePagination(req.query as any);
@@ -38,6 +39,16 @@ export async function addMember(req: Request, res: Response) {
 export async function removeMember(req: Request, res: Response) {
   await obraService.removeMember(req.params.id, req.params.userId);
   sendNoContent(res);
+}
+
+export async function archiveObra(req: Request, res: Response) {
+  const obra = await obraService.archiveObra(req.params.id);
+  sendSuccess(res, obra);
+}
+
+export async function syncClickUp(req: Request, res: Response) {
+  const result = await syncProgressFromClickUp();
+  sendSuccess(res, result);
 }
 
 export async function getStats(req: Request, res: Response) {

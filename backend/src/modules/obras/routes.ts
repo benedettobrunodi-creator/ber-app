@@ -21,6 +21,8 @@ router.post('/:id/members', requireRole('coordenacao'), validate(addMemberSchema
 router.delete('/:id/members/:userId', requireRole('coordenacao'), controller.removeMember);
 
 router.get('/:id/stats', requireRole('gestor'), controller.getStats);
+router.delete('/:id', requireRole('coordenacao'), controller.archiveObra);
+router.post('/sync-clickup', requireRole('coordenacao'), controller.syncClickUp);
 
 // Fase management
 router.put('/:id/fase', requireRole('coordenacao'), faseController.updateFase);

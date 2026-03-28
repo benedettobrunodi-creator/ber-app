@@ -180,6 +180,12 @@ export async function getStats(obraId: string) {
   };
 }
 
+export async function archiveObra(id: string) {
+  const existing = await prisma.obra.findUnique({ where: { id } });
+  if (!existing) throw AppError.notFound('Obra');
+  return prisma.obra.update({ where: { id }, data: { status: 'cancelada' } });
+}
+
 export async function isObraMember(obraId: string, userId: string): Promise<boolean> {
   const member = await prisma.obraMember.findUnique({
     where: { obraId_userId: { obraId, userId } },
