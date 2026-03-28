@@ -25,7 +25,12 @@ export async function listObras(page: number, limit: number, status?: string, us
     }),
     prisma.obra.count({ where }),
   ]);
-  return { obras, total };
+  // Arquivadas sempre por último
+  const sorted = [
+    ...obras.filter(o => o.status !== 'cancelada'),
+    ...obras.filter(o => o.status === 'cancelada'),
+  ];
+  return { obras: sorted, total };
 }
 
 export async function getObraById(id: string) {
