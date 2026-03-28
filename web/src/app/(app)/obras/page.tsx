@@ -93,7 +93,9 @@ export default function ObrasPage() {
       const params: Record<string, string | number> = { limit: 100 };
       if (filter) params.status = filter;
       const res = await api.get('/obras', { params });
-      setObras(res.data.data);
+      const data: Obra[] = res.data.data;
+      data.sort((a, b) => (a.status === 'cancelada' ? 1 : 0) - (b.status === 'cancelada' ? 1 : 0));
+      setObras(data);
     } catch {
       /* handled by interceptor */
     } finally {
