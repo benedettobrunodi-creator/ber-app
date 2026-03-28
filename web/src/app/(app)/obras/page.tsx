@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Plus, MapPin, Calendar, User, HardHat, Archive, RefreshCw, X } from 'lucide-react';
+import { Plus, MapPin, Calendar, User, HardHat, Archive, Trash2, RefreshCw, X, AlertTriangle } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
@@ -84,6 +84,7 @@ export default function ObrasPage() {
   const [filter, setFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmObra, setConfirmObra] = useState<Obra | null>(null);
+  const [deleteObra, setDeleteObra] = useState<Obra | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
@@ -109,6 +110,16 @@ export default function ObrasPage() {
     try {
       await api.delete(`/obras/${obra.id}`);
       setConfirmObra(null);
+      fetchObras();
+    } catch {
+      /* handled by interceptor */
+    }
+  }
+
+  async function handleDeletePermanent(obra: Obra) {
+    try {
+      await api.delete(`/obras/${obra.id}/permanent`);
+      setDeleteObra(null);
       fetchObras();
     } catch {
       /* handled by interceptor */
@@ -198,16 +209,25 @@ export default function ObrasPage() {
             const statusCfg = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
             return (
               <div key={obra.id} className="group relative rounded-lg border border-ber-offwhite bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-                {/* Archive button */}
-                {obra.status !== 'cancelada' && (
+                {/* Action buttons (visible on hover) */}
+                <div className="absolute right-2 top-2 hidden items-center gap-1 group-hover:flex">
+                  {obra.status !== 'cancelada' && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); setConfirmObra(obra); }}
+                      title="Arquivar obra"
+                      className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-amber-50 hover:text-amber-500"
+                    >
+                      <Archive size={15} />
+                    </button>
+                  )}
                   <button
-                    onClick={(e) => { e.preventDefault(); setConfirmObra(obra); }}
-                    title="Arquivar obra"
-                    className="absolute right-3 top-3 hidden rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:flex"
+                    onClick={(e) => { e.preventDefault(); setDeleteObra(obra); }}
+                    title="Excluir permanentemente"
+                    className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
-                    <Archive size={15} />
+                    <Trash2 size={15} />
                   </button>
-                )}
+                </div>
 
                 <Link href={`/obras/${obra.id}`} className="block">
                   <div className="flex items-start justify-between gap-3 pr-6">
@@ -279,6 +299,39 @@ export default function ObrasPage() {
           onConfirm={() => handleArchive(confirmObra)}
           onCancel={() => setConfirmObra(null)}
         />
+      )}
+
+      {deleteObra && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-ber-carbon">Excluir permanentemente?</h2>
+                <p className="mt-1 text-sm text-ber-gray">
+                  Esta ação é <strong>irreversível</strong>. Todos os dados da obra{' '}
+                  <strong>"{deleteObra.name}"</strong> serão excluídos definitivamente — tarefas, fotos, checklists e membros.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setDeleteObra(null)}
+                className="flex-1 rounded-md border border-ber-gray/30 px-4 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-offwhite"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDeletePermanent(deleteObra)}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Excluir definitivamente
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -185,6 +185,12 @@ export async function getStats(obraId: string) {
   };
 }
 
+export async function deleteObraPermanent(id: string) {
+  const existing = await prisma.obra.findUnique({ where: { id } });
+  if (!existing) throw AppError.notFound('Obra');
+  await prisma.obra.delete({ where: { id } });
+}
+
 export async function archiveObra(id: string) {
   const existing = await prisma.obra.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Obra');

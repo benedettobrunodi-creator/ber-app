@@ -22,6 +22,7 @@ router.delete('/:id/members/:userId', requireRole('coordenacao'), controller.rem
 
 router.get('/:id/stats', requireRole('gestor'), controller.getStats);
 router.delete('/:id', requireRole('coordenacao'), controller.archiveObra);
+router.delete('/:id/permanent', requireRole('diretoria'), controller.deleteObraPermanent);
 router.post('/sync-clickup', requireRole('coordenacao'), controller.syncClickUp);
 
 // Fase management

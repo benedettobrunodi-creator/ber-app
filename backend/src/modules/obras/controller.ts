@@ -41,6 +41,11 @@ export async function removeMember(req: Request, res: Response) {
   sendNoContent(res);
 }
 
+export async function deleteObraPermanent(req: Request, res: Response) {
+  await obraService.deleteObraPermanent(req.params.id);
+  sendNoContent(res);
+}
+
 export async function archiveObra(req: Request, res: Response) {
   const obra = await obraService.archiveObra(req.params.id);
   sendSuccess(res, obra);
