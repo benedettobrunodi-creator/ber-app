@@ -142,11 +142,11 @@ export default function ObrasPage() {
           <button
             onClick={handleSyncClickUp}
             disabled={syncing}
-            title="Sincronizar progresso do ClickUp"
+            title="Sincronizar progresso do cronograma"
             className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon transition-colors hover:bg-ber-offwhite disabled:opacity-50"
           >
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando…' : 'Sync ClickUp'}
+            {syncing ? 'Sincronizando…' : 'Sync Cronograma'}
           </button>
           <button
             onClick={() => setModalOpen(true)}
