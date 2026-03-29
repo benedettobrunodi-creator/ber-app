@@ -15,8 +15,8 @@ router.put('/me/push-token', validate(pushTokenSchema), controller.updatePushTok
 router.post('/me/change-password', validate(changePasswordSchema), controller.changePassword);
 
 router.get('/', requireRole('coordenacao'), controller.listUsers);
-router.post('/', requireRole('diretoria'), validate(createUserSchema), controller.createUser);
-router.put('/:id', requireRole('diretoria'), validate(updateUserSchema), controller.updateUser);
-router.delete('/:id', requireRole('diretoria'), controller.deleteUser);
+router.post('/', requireRole('coordenacao'), validate(createUserSchema), controller.createUser);
+router.put('/:id', requireRole('coordenacao'), validate(updateUserSchema), controller.updateUser);
+router.delete('/:id', requireRole('coordenacao'), controller.deleteUser);
 
 export default router;

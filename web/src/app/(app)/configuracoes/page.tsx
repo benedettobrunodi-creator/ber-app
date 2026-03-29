@@ -75,9 +75,10 @@ function getInitials(name: string): string {
 export default function ConfiguracoesPage() {
   const user = useAuthStore((s) => s.user);
   const isDiretoria = user?.role === 'diretoria';
+  const canManageUsers = user?.role === 'diretoria' || user?.role === 'coordenacao';
 
   const [activeTab, setActiveTab] = useState<'usuarios' | 'perfil'>(
-    isDiretoria ? 'usuarios' : 'perfil',
+    canManageUsers ? 'usuarios' : 'perfil',
   );
 
   // Users tab state
@@ -136,7 +137,7 @@ export default function ConfiguracoesPage() {
   }
 
   useEffect(() => {
-    if (activeTab === 'usuarios' && isDiretoria) {
+    if (activeTab === 'usuarios' && canManageUsers) {
       fetchUsers();
     } else if (activeTab === 'perfil') {
       fetchProfile();
@@ -263,7 +264,7 @@ export default function ConfiguracoesPage() {
 
   // --- Tabs ---
 
-  const tabs = isDiretoria
+  const tabs = canManageUsers
     ? [
         { key: 'usuarios' as const, label: 'Usuarios', icon: Users },
         { key: 'perfil' as const, label: 'Meu Perfil', icon: Settings },
@@ -275,7 +276,7 @@ export default function ConfiguracoesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black text-ber-carbon">Configuracoes</h1>
-        {activeTab === 'usuarios' && isDiretoria && (
+        {activeTab === 'usuarios' && canManageUsers && (
           <button
             onClick={openCreateModal}
             className="flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
@@ -306,7 +307,7 @@ export default function ConfiguracoesPage() {
 
       {/* Tab content */}
       <div className="mt-6">
-        {activeTab === 'usuarios' && isDiretoria && (
+        {activeTab === 'usuarios' && canManageUsers && (
           <>
             {loadingUsers ? (
               <div className="py-12 text-center text-sm text-ber-gray">
