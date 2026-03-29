@@ -21,10 +21,7 @@ export async function updateMe(req: Request, res: Response) {
 export async function createUser(req: Request, res: Response) {
   const user = await userService.createUser(req.body);
 
-  // Send welcome email in background (don't block response)
-  import('../../services/email')
-    .then((mod) => mod.sendWelcomeEmail({ to: req.body.email, name: req.body.name, tempPassword: req.body.password }))
-    .catch((err) => console.error('Email service unavailable:', err.message));
+  // TODO: Send welcome email (disabled until SMTP configured)
 
   sendCreated(res, user);
 }
