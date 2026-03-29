@@ -74,12 +74,19 @@ interface IT {
   title: string;
   discipline: string;
   objective: string | null;
+  content: string | null;
   materials: string[];
   tools: string[];
   steps: ITStep[];
   attentionPoints: string[];
   approvalCriteria: string[];
   relatedNormas: string[];
+  normas: string[];
+  epis: string[];
+  preRequisitos: string | null;
+  criteriosQualidade: string | null;
+  errosComuns: string | null;
+  fvsCode: string | null;
   status: string;
   creator: { id: string; name: string } | null;
   updater: { id: string; name: string } | null;
@@ -89,6 +96,229 @@ interface IT {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
+
+// ─── IT Detail View ──────────────────────────────────────────────────────────
+
+function CollapsibleSection({ title, accent = 'text-ber-gray', defaultOpen = false, children }: {
+  title: string; accent?: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-ber-gray/10 mt-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-3.5 w-[3px] rounded-full bg-[#5A7A7A]" />
+          <span className={`text-xs font-black uppercase tracking-widest ${accent}`}>{title}</span>
+        </div>
+        <span className="text-ber-gray text-sm">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && <div className="pb-4">{children}</div>}
+    </div>
+  );
+}
+
+function ITDetailView({ it, discColor, discLabel, statusCfg, canCreate, onBack, onEdit, onPublish }: {
+  it: IT; discColor: string; discLabel: string;
+  statusCfg: { label: string; className: string };
+  canCreate: boolean;
+  onBack: () => void; onEdit: () => void; onPublish: (s: string) => void;
+}) {
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Back */}
+      <button onClick={onBack} className="mb-4 flex items-center gap-2 text-sm text-ber-gray hover:text-ber-carbon transition-colors">
+        <ArrowLeft size={16} /> Voltar
+      </button>
+
+      <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+        {/* Faixa de disciplina topo */}
+        <div className="h-1.5 w-full" style={{ backgroundColor: '#5A7A7A' }} />
+
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-2xl font-black text-ber-carbon">{it.code}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${discColor}`}>{discLabel}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>{statusCfg.label}</span>
+                {it.fvsCode && (
+                  <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold bg-ber-olive/15 text-ber-olive">
+                    FVS: {it.fvsCode}
+                  </span>
+                )}
+              </div>
+              <h1 className="mt-1 text-base font-bold text-ber-carbon leading-tight">{it.title}</h1>
+            </div>
+            {canCreate && (
+              <div className="flex gap-1.5 shrink-0">
+                <button onClick={onEdit} className="flex items-center gap-1 rounded-md border border-ber-gray/30 px-2.5 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite">
+                  <Pencil size={11} /> Editar
+                </button>
+                {it.status === 'rascunho' && (
+                  <button onClick={() => onPublish('publicada')} className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-green-700">
+                    <CheckCircle size={11} /> Publicar
+                  </button>
+                )}
+                {it.status === 'publicada' && (
+                  <button onClick={() => onPublish('arquivada')} className="flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-600">
+                    <Archive size={11} /> Arquivar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Seções colapsáveis */}
+          <div className="space-y-0">
+
+            {/* Objetivo */}
+            {it.objective && (
+              <CollapsibleSection title="Objetivo" defaultOpen>
+                <p className="text-sm text-ber-carbon leading-relaxed">{it.objective}</p>
+                {it.content && <p className="mt-2 text-sm text-ber-carbon leading-relaxed whitespace-pre-wrap">{it.content}</p>}
+              </CollapsibleSection>
+            )}
+
+            {/* EPIs */}
+            {it.epis && it.epis.length > 0 && (
+              <CollapsibleSection title="EPIs Obrigatórios" accent="text-red-600" defaultOpen>
+                <div className="flex flex-wrap gap-2">
+                  {it.epis.map((epi, i) => (
+                    <span key={i} className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                      🦺 {epi}
+                    </span>
+                  ))}
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Pré-requisitos */}
+            {it.preRequisitos && (
+              <CollapsibleSection title="Pré-requisitos" defaultOpen>
+                <p className="text-sm text-ber-carbon leading-relaxed whitespace-pre-wrap">{it.preRequisitos}</p>
+              </CollapsibleSection>
+            )}
+
+            {/* Materiais */}
+            {it.materials && it.materials.length > 0 && (
+              <CollapsibleSection title="Materiais">
+                <ul className="space-y-1">
+                  {it.materials.map((m, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-ber-carbon">
+                      <span className="text-[#5A7A7A] mt-0.5">•</span> {m}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
+            )}
+
+            {/* Ferramentas */}
+            {it.tools && it.tools.length > 0 && (
+              <CollapsibleSection title="Ferramentas">
+                <ul className="space-y-1">
+                  {it.tools.map((t, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-ber-carbon">
+                      <span className="text-[#5A7A7A] mt-0.5">•</span> {t}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
+            )}
+
+            {/* Passo a Passo */}
+            {it.steps && it.steps.length > 0 && (
+              <CollapsibleSection title="Passo a Passo" accent="text-ber-carbon" defaultOpen>
+                <div className="space-y-3">
+                  {it.steps.map((step) => (
+                    <div key={step.order} className="flex gap-3 rounded-lg bg-ber-offwhite/60 p-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5A7A7A] text-xs font-black text-white">
+                        {step.order}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-ber-carbon">{step.title}</p>
+                        <p className="mt-0.5 text-xs text-ber-gray leading-relaxed">{step.description}</p>
+                        {step.photoUrl && (
+                          <img src={step.photoUrl} alt={step.title} className="mt-2 w-full max-h-48 rounded-lg object-cover" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Critérios de Qualidade */}
+            {(it.criteriosQualidade || (it.approvalCriteria && it.approvalCriteria.length > 0)) && (
+              <CollapsibleSection title="Critérios de Qualidade" accent="text-ber-olive">
+                {it.criteriosQualidade && (
+                  <p className="text-sm text-ber-carbon leading-relaxed whitespace-pre-wrap mb-2">{it.criteriosQualidade}</p>
+                )}
+                {it.approvalCriteria && it.approvalCriteria.length > 0 && (
+                  <ul className="space-y-1">
+                    {it.approvalCriteria.map((c, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-ber-carbon">
+                        <span className="text-ber-olive mt-0.5">✓</span> {c}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CollapsibleSection>
+            )}
+
+            {/* Erros Comuns */}
+            {it.errosComuns && (
+              <CollapsibleSection title="Erros Comuns" accent="text-red-500">
+                <p className="text-sm text-ber-carbon leading-relaxed whitespace-pre-wrap">{it.errosComuns}</p>
+              </CollapsibleSection>
+            )}
+
+            {/* Pontos de Atenção */}
+            {it.attentionPoints && it.attentionPoints.length > 0 && (
+              <CollapsibleSection title="Pontos de Atenção" accent="text-red-500">
+                <ul className="space-y-1">
+                  {it.attentionPoints.map((a, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-ber-carbon">
+                      <span className="text-red-500 mt-0.5">⚠</span> {a}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
+            )}
+
+            {/* Normas */}
+            {((it.normas && it.normas.length > 0) || (it.normasDetails && it.normasDetails.length > 0)) && (
+              <CollapsibleSection title="Normas Técnicas">
+                <div className="flex flex-wrap gap-2">
+                  {it.normas && it.normas.map((n, i) => (
+                    <span key={i} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{n}</span>
+                  ))}
+                  {it.normasDetails && it.normasDetails.map((n: Norma) => (
+                    <span key={n.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                      {n.code} — {n.title}
+                      {n.url && <a href={n.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={10} /></a>}
+                    </span>
+                  ))}
+                </div>
+              </CollapsibleSection>
+            )}
+
+          </div>
+
+          {/* Meta */}
+          <div className="mt-4 pt-3 border-t border-ber-gray/10 text-[10px] text-ber-gray flex flex-wrap gap-3">
+            {it.creator && <span>Criado por <strong>{it.creator.name}</strong></span>}
+            {it.updater && <span>Atualizado por <strong>{it.updater.name}</strong></span>}
+            <span>{new Date(it.updatedAt).toLocaleDateString('pt-BR')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function InstrucoesPage() {
   const user = useAuthStore((s) => s.user);
@@ -237,145 +467,16 @@ export default function InstrucoesPage() {
     const statusCfg = IT_STATUS[viewingIT.status] || IT_STATUS.rascunho;
 
     return (
-      <div>
-        <button
-          onClick={() => setViewingIT(null)}
-          className="mb-4 flex items-center gap-2 text-sm text-ber-gray transition-colors hover:text-ber-carbon"
-        >
-          <ArrowLeft size={16} /> Voltar
-        </button>
-
-        <div className="rounded-lg bg-white p-8 shadow-sm">
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-black text-ber-carbon">{viewingIT.code}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${discColor}`}>{discLabel}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>{statusCfg.label}</span>
-              </div>
-              <h1 className="mt-1 text-lg font-bold text-ber-carbon">{viewingIT.title}</h1>
-            </div>
-            {canCreate && (
-              <div className="flex gap-1.5">
-                <button onClick={() => { setViewingIT(null); openITForm(viewingIT); }}
-                  className="flex items-center gap-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite">
-                  <Pencil size={12} /> Editar
-                </button>
-                {viewingIT.status === 'rascunho' && (
-                  <button onClick={() => handlePublishIT(viewingIT.id, 'publicada')}
-                    className="flex items-center gap-1 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700">
-                    <CheckCircle size={12} /> Publicar
-                  </button>
-                )}
-                {viewingIT.status === 'publicada' && (
-                  <button onClick={() => handlePublishIT(viewingIT.id, 'arquivada')}
-                    className="flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600">
-                    <Archive size={12} /> Arquivar
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Objective */}
-          {viewingIT.objective && (
-            <div className="mt-6">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Objetivo</h3>
-              <p className="mt-1 text-sm text-ber-carbon">{viewingIT.objective}</p>
-            </div>
-          )}
-
-          {/* Materials */}
-          {viewingIT.materials.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Materiais</h3>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-ber-carbon">
-                {viewingIT.materials.map((m, i) => <li key={i}>{m}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Tools */}
-          {viewingIT.tools.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Ferramentas</h3>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-ber-carbon">
-                {viewingIT.tools.map((t, i) => <li key={i}>{t}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Steps */}
-          {viewingIT.steps.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Passo a Passo</h3>
-              <div className="mt-2 space-y-3">
-                {viewingIT.steps.map((step) => (
-                  <div key={step.order} className="flex gap-3 rounded-md bg-ber-offwhite/50 p-3">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ber-carbon text-xs font-bold text-white">
-                      {step.order}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-ber-carbon">{step.title}</p>
-                      <p className="mt-0.5 text-xs text-ber-gray">{step.description}</p>
-                      {step.photoUrl && (
-                        <img src={step.photoUrl} alt="" className="mt-2 h-32 rounded-md object-cover" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Attention Points */}
-          {viewingIT.attentionPoints.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-red-500">Pontos de Atenção</h3>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-ber-carbon">
-                {viewingIT.attentionPoints.map((a, i) => <li key={i}>{a}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Approval Criteria */}
-          {viewingIT.approvalCriteria.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-olive">Critérios de Aprovação</h3>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-ber-carbon">
-                {viewingIT.approvalCriteria.map((c, i) => <li key={i}>{c}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Related Normas */}
-          {viewingIT.normasDetails && viewingIT.normasDetails.length > 0 && (
-            <div className="mt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Normas Relacionadas</h3>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {viewingIT.normasDetails.map((n: Norma) => (
-                  <span key={n.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                    {n.code} — {n.title}
-                    {n.url && (
-                      <a href={n.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink size={10} />
-                      </a>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Meta */}
-          <div className="mt-6 border-t border-ber-gray/10 pt-4 text-xs text-ber-gray">
-            {viewingIT.creator && <span>Criado por {viewingIT.creator.name}</span>}
-            {viewingIT.updater && <span> | Atualizado por {viewingIT.updater.name}</span>}
-            <span> | {new Date(viewingIT.updatedAt).toLocaleDateString('pt-BR')}</span>
-          </div>
-        </div>
-      </div>
+      <ITDetailView
+        it={viewingIT}
+        discColor={discColor}
+        discLabel={discLabel}
+        statusCfg={statusCfg}
+        canCreate={canCreate}
+        onBack={() => setViewingIT(null)}
+        onEdit={() => { setViewingIT(null); openITForm(viewingIT); }}
+        onPublish={(s) => handlePublishIT(viewingIT.id, s)}
+      />
     );
   }
 

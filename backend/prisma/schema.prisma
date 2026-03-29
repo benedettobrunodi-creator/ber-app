@@ -703,22 +703,29 @@ model NormaTecnica {
 }
 
 model InstrucaoTecnica {
-  id               String   @id @default(uuid()) @db.Uuid
-  code             String   @unique @db.VarChar(20)
-  title            String   @db.VarChar(500)
-  discipline       String   @db.VarChar(50)
-  objective        String?
-  materials        Json     @default("[]")
-  tools            Json     @default("[]")
-  steps            Json     @default("[]")
-  attentionPoints  Json     @default("[]") @map("attention_points")
-  approvalCriteria Json     @default("[]") @map("approval_criteria")
-  relatedNormas    String[] @default([]) @map("related_normas") @db.Uuid
-  status           String   @default("rascunho") @db.VarChar(20)
-  createdBy        String?  @map("created_by") @db.Uuid
-  updatedBy        String?  @map("updated_by") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  id                  String   @id @default(uuid()) @db.Uuid
+  code                String   @unique @db.VarChar(20)
+  title               String   @db.VarChar(500)
+  discipline          String   @db.VarChar(50)
+  objective           String?
+  content             String?
+  materials           Json     @default("[]")
+  tools               Json     @default("[]")
+  steps               Json     @default("[]")
+  attentionPoints     Json     @default("[]") @map("attention_points")
+  approvalCriteria    Json     @default("[]") @map("approval_criteria")
+  relatedNormas       String[] @default([]) @map("related_normas") @db.Uuid
+  normas              String[] @default([]) @map("normas")
+  epis                String[] @default([]) @map("epis")
+  preRequisitos       String?  @map("pre_requisitos")
+  criteriosQualidade  String?  @map("criterios_qualidade")
+  errosComuns         String?  @map("erros_comuns")
+  fvsCode             String?  @map("fvs_code") @db.VarChar(20)
+  status              String   @default("rascunho") @db.VarChar(20)
+  createdBy           String?  @map("created_by") @db.Uuid
+  updatedBy           String?  @map("updated_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
   creator User? @relation("ITCreator", fields: [createdBy], references: [id])
   updater User? @relation("ITUpdater", fields: [updatedBy], references: [id])

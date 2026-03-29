@@ -134,7 +134,7 @@ export default function DashboardPage() {
   const totalFvsPendentes = Object.values(fvsData).reduce((a, b) => a + b, 0);
   const totalAlertas = seqData.atrasadas + qualidade.naoConformes + (totalFvsPendentes > 0 ? 1 : 0);
   const progressoMedio = obras.length
-    ? Math.round(obras.reduce((s, o) => s + (o.progress ?? 0), 0) / obras.length)
+    ? Math.round(obras.reduce((s, o) => s + (o.progressPercent ?? o.progress ?? 0), 0) / obras.length)
     : 0;
 
   if (loading) return (
@@ -204,7 +204,7 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {obras.map(obra => {
-                const pct = obra.progress ?? 0;
+                const pct = obra.progressPercent ?? obra.progress ?? 0;
                 const fvsPend = fvsData[obra.id] ?? 0;
                 const barColor = pct >= 50 ? C.teal : pct >= 20 ? C.olive : C.red;
                 const topBorder = barColor;
