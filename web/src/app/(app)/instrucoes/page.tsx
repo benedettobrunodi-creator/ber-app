@@ -236,7 +236,7 @@ function ITDetailView({ it, discColor, discLabel, statusCfg, canCreate, onBack, 
   it: IT; discColor: string; discLabel: string;
   statusCfg: { label: string; className: string };
   canCreate: boolean;
-  onBack: () => void; onEdit: () => void; onPublish: (s: string) => void;
+  onBack: () => void; onEdit: () => void; onPublish: (s: 'publicada' | 'arquivada') => void;
 }) {
   return (
     <div className="max-w-2xl mx-auto">
