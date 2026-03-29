@@ -45,6 +45,28 @@ interface TrelloBoard {
   url: string;
 }
 
+interface FvsTemplateType {
+  id: string; code: string; name: string; disciplina: string | null; bloco: number | null;
+  items?: FvsTemplateItemType[];
+}
+interface FvsTemplateItemType {
+  id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
+}
+interface ObraFvsItemType {
+  id: string; checked: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
+  templateItem: FvsTemplateItemType | null;
+  filler: { id: string; name: string } | null;
+}
+interface ObraFvs {
+  id: string; status: string; createdAt: string;
+  template: FvsTemplateType | null;
+  etapa: { id: string; name: string; discipline: string | null } | null;
+  filler: { id: string; name: string } | null;
+  gestorApprover: { id: string; name: string } | null;
+  coordApprover: { id: string; name: string } | null;
+  items: ObraFvsItemType[];
+}
+
 interface ChecklistSummary {
   id: string;
   type: string;
@@ -96,7 +118,7 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'cockpit' | 'kanban' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos';
+type TabKey = 'cockpit' | 'kanban' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs';
 
 interface TouchpointSummary {
   id: string;
@@ -296,6 +318,17 @@ export default function ObraDetailPage() {
   const [syncResult, setSyncResult] = useState<{ created: number; skipped: number } | null>(null);
 
   // Checklists state
+  // FVS
+  const [obraFvsList, setObraFvsList] = useState<ObraFvs[]>([]);
+  const [fvsFilter, setFvsFilter] = useState<string>('todos');
+  const [activeFvs, setActiveFvs] = useState<ObraFvs | null>(null);
+  const [fvsModalOpen, setFvsModalOpen] = useState(false);
+  const [fvsSubmitting, setFvsSubmitting] = useState(false);
+  const [fvsTemplates, setFvsTemplates] = useState<FvsTemplateType[]>([]);
+  const [createFvsModal, setCreateFvsModal] = useState(false);
+  const [createFvsTemplateId, setCreateFvsTemplateId] = useState('');
+  const [createFvsEtapaId, setCreateFvsEtapaId] = useState('');
+
   const [checklists, setChecklists] = useState<ChecklistSummary[]>([]);
   const [loadingChecklists, setLoadingChecklists] = useState(false);
   const [showNewChecklistModal, setShowNewChecklistModal] = useState(false);
@@ -320,6 +353,9 @@ export default function ObraDetailPage() {
   const [etapaAction, setEtapaAction] = useState<{ id: string; type: 'start' | 'submit' | 'approve' | 'reject' } | null>(null);
   const [etapaNotes, setEtapaNotes] = useState('');
   const [etapaSubmitting, setEtapaSubmitting] = useState(false);
+  // FVS inline in etapa modals
+  const [etapaFvs, setEtapaFvs] = useState<ObraFvs | null>(null);
+  const [etapaFvsLoading, setEtapaFvsLoading] = useState(false);
   // Rich modal fields
   const [rf, setRf] = useState({
     startDate: new Date().toISOString().slice(0,10),
@@ -495,6 +531,10 @@ export default function ObraDetailPage() {
       setPunchLists(plRes.data.data ?? []);
       const pendingReqRes = await api.get(`/obras/${params.id}/edit-requests/pending`).catch(() => ({ data: { data: [] } }));
       setPendingEditReqs(pendingReqRes.data.data ?? []);
+      const fvsRes = await api.get(`/obras/${params.id}/fvs`).catch(() => ({ data: { data: [] } }));
+      setObraFvsList(fvsRes.data.data ?? []);
+      const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
+      setFvsTemplates(tmplRes.data.data ?? []);
     } catch {
       /* handled by interceptor */
     } finally {
@@ -1074,7 +1114,11 @@ export default function ObraDetailPage() {
                         <div className="flex flex-wrap gap-2 rounded-lg bg-ber-offwhite/60 p-3">
                           {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct && (
                             <button
-                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); setRf(p => ({...p, startDate: new Date().toISOString().slice(0,10), fornecedor:'', numOperarios:'', condicoesIniciais:''})); setRfFotoInicial(null); }}
+                              onClick={() => {
+                                setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); setRf(p => ({...p, startDate: new Date().toISOString().slice(0,10), fornecedor:'', numOperarios:'', condicoesIniciais:''})); setRfFotoInicial(null);
+                                setEtapaFvs(null); setEtapaFvsLoading(true);
+                                api.get(`/obras/${params.id}/etapas/${etapa.id}/fvs`).then(r => setEtapaFvs(r.data.data)).catch(() => {}).finally(() => setEtapaFvsLoading(false));
+                              }}
                               className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
                             >
                               <Play size={13} /> Iniciar Etapa
@@ -1087,7 +1131,11 @@ export default function ObraDetailPage() {
                           )}
                           {isGestor && etapa.status === 'em_andamento' && (
                             <button
-                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); setRfFotosEv([]); setRf(p => ({...p, qtdExecutada:'', qtdPrevista:'', fvsPreenchida:false, hasNaoConf:false, naoConformidades:'', obsConclusao:''})); }}
+                              onClick={() => {
+                              setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); setRfFotosEv([]); setRf(p => ({...p, qtdExecutada:'', qtdPrevista:'', fvsPreenchida:false, hasNaoConf:false, naoConformidades:'', obsConclusao:''}));
+                              setEtapaFvs(null); setEtapaFvsLoading(true);
+                              api.get(`/obras/${params.id}/etapas/${etapa.id}/fvs`).then(r => setEtapaFvs(r.data.data)).catch(() => {}).finally(() => setEtapaFvsLoading(false));
+                            }}
                               className="flex items-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-bold text-white hover:bg-blue-600 shadow-sm"
                             >
                               <Send size={13} /> Enviar para Aprovação
@@ -1249,6 +1297,7 @@ export default function ObraDetailPage() {
     { key: 'sequenciamento', label: `Sequenciamento${sequenciamento ? ` (${sequenciamento.etapas.filter(e => e.status === 'aprovada').length}/${sequenciamento.etapas.length})` : ''}` },
     { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
+    { key: 'fvs', label: `FVS (${obraFvsList.length})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
@@ -2255,6 +2304,46 @@ export default function ObraDetailPage() {
                     </div>
                   </div>
                 </div>
+                {/* FVS Pré-execução inline */}
+                {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
+                {etapaFvs && (() => {
+                  const inicioItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'inicio');
+                  if (!inicioItems.length) return null;
+                  const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
+                  const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+                  const grouped: Record<string, typeof inicioItems> = {};
+                  inicioItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
+                  return (
+                    <div className="rounded-lg border-2 border-amber-200 bg-amber-50/50 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-amber-800">📋 FVS Pré-execução — {etapaFvs.template?.code}</p>
+                        <span className={`text-[10px] font-bold ${obrigChecked === obrigTotal ? 'text-green-600' : 'text-amber-700'}`}>{obrigChecked}/{obrigTotal}</span>
+                      </div>
+                      {Object.entries(grouped).map(([secao, items]) => (
+                        <div key={secao}>
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600 mb-1">{secao}</p>
+                          {items.map(item => (
+                            <label key={item.id} className="flex items-start gap-2 py-0.5 cursor-pointer">
+                              <input type="checkbox" checked={item.checked}
+                                onChange={async () => {
+                                  try {
+                                    const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
+                                    setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
+                                  } catch {}
+                                }}
+                                className="mt-0.5 h-3.5 w-3.5 rounded accent-green-500" />
+                              <span className={`text-xs leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                {item.templateItem?.descricao}
+                                {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações (opcional)</label>
                   <textarea rows={2} value={etapaNotes} onChange={e => setEtapaNotes(e.target.value)} placeholder="Observações adicionais..."
@@ -2279,14 +2368,62 @@ export default function ObraDetailPage() {
                   </div>
                 </div>
 
-                {/* FVS checkbox */}
-                <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
-                  <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
-                  <div>
-                    <p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p>
-                    <p className="text-xs text-ber-gray">Ficha de Verificação de Serviço foi preenchida e assinada</p>
-                  </div>
-                </label>
+                {/* FVS Conclusão inline */}
+                {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
+                {etapaFvs && (() => {
+                  const conclusaoItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+                  if (!conclusaoItems.length) return (
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
+                      <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
+                      <div><p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p><p className="text-xs text-ber-gray">Sem itens de conclusão nesta FVS</p></div>
+                    </label>
+                  );
+                  const obrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
+                  const obrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+                  const allDone = obrigChecked === obrigTotal;
+                  const grouped: Record<string, typeof conclusaoItems> = {};
+                  conclusaoItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
+                  // Auto-set fvsPreenchida based on checklist state
+                  if (allDone && !rf.fvsPreenchida) setRf(p => ({...p, fvsPreenchida: true}));
+                  if (!allDone && rf.fvsPreenchida) setRf(p => ({...p, fvsPreenchida: false}));
+                  return (
+                    <div className={`rounded-lg border-2 p-3 space-y-2 ${allDone ? 'border-green-400 bg-green-50/50' : 'border-blue-200 bg-blue-50/50'}`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-blue-800">📋 FVS Conclusão — {etapaFvs.template?.code}</p>
+                        <span className={`text-[10px] font-bold ${allDone ? 'text-green-600' : 'text-blue-700'}`}>{obrigChecked}/{obrigTotal} {allDone ? '✓' : ''}</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-2">
+                        {Object.entries(grouped).map(([secao, items]) => (
+                          <div key={secao}>
+                            <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 mb-1">{secao}</p>
+                            {items.map(item => (
+                              <label key={item.id} className="flex items-start gap-2 py-0.5 cursor-pointer">
+                                <input type="checkbox" checked={item.checked}
+                                  onChange={async () => {
+                                    try {
+                                      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
+                                      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
+                                    } catch {}
+                                  }}
+                                  className="mt-0.5 h-3.5 w-3.5 rounded accent-green-500" />
+                                <span className={`text-xs leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                  {item.templateItem?.descricao}
+                                  {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {!etapaFvs && !etapaFvsLoading && (
+                  <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
+                    <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
+                    <div><p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p><p className="text-xs text-ber-gray">Ficha de Verificação de Serviço foi preenchida e assinada</p></div>
+                  </label>
+                )}
 
                 {/* Não conformidades */}
                 <div>
@@ -2467,6 +2604,102 @@ export default function ObraDetailPage() {
           </div>
         </div>
       )}
+
+        {/* ─── FVS Tab ─── */}
+        {activeTab === 'fvs' && (() => {
+          const FVS_STATUS: Record<string, { label: string; color: string }> = {
+            pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
+            inicio_preenchido: { label: 'Início preenchido', color: 'bg-blue-100 text-blue-700' },
+            aguardando_gestor: { label: 'Aguardando gestor', color: 'bg-amber-100 text-amber-700' },
+            aguardando_coord: { label: 'Aguardando coord.', color: 'bg-orange-100 text-orange-700' },
+            aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
+            rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
+          };
+          const FILTERS = [
+            { key: 'todos', label: 'Todos' },
+            { key: 'pendente', label: 'Pendente' },
+            { key: 'inicio_preenchido', label: 'Em preenchimento' },
+            { key: 'aguardando_gestor', label: 'Ag. Gestor' },
+            { key: 'aguardando_coord', label: 'Ag. Coord.' },
+            { key: 'aprovada', label: 'Aprovadas' },
+            { key: 'rejeitada', label: 'Rejeitadas' },
+          ];
+          const filtered = fvsFilter === 'todos' ? obraFvsList : obraFvsList.filter(f => f.status === fvsFilter);
+          return (
+            <div>
+              {/* Header */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Fichas de Verificação de Serviço</h3>
+                {isGestor && (
+                  <button onClick={() => setCreateFvsModal(true)}
+                    className="flex items-center gap-1.5 rounded-md bg-ber-carbon px-3 py-2 text-xs font-bold text-white hover:bg-ber-black">
+                    + Nova FVS
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="mb-4 flex flex-wrap gap-2">
+                {FILTERS.map(f => (
+                  <button key={f.key} onClick={() => setFvsFilter(f.key)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${fvsFilter === f.key ? 'bg-ber-carbon text-white' : 'bg-ber-offwhite text-ber-gray hover:bg-ber-offwhite/80'}`}>
+                    {f.label} {f.key !== 'todos' ? `(${obraFvsList.filter(x => x.status === f.key).length})` : `(${obraFvsList.length})`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Cards */}
+              {filtered.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed border-ber-gray/20 p-12 text-center">
+                  <p className="text-sm text-ber-gray/60">Nenhuma FVS {fvsFilter !== 'todos' ? 'com este filtro' : 'criada para esta obra'}.</p>
+                  {isGestor && fvsFilter === 'todos' && (
+                    <button onClick={() => setCreateFvsModal(true)} className="mt-3 text-sm font-semibold text-ber-teal hover:underline">
+                      + Criar primeira FVS
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {filtered.map(fvs => {
+                    const total = fvs.items.length;
+                    const checked = fvs.items.filter(i => i.checked).length;
+                    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+                    const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
+                    const BLOCO_COLORS = ['bg-slate-100','bg-blue-50','bg-indigo-50','bg-violet-50','bg-orange-50','bg-amber-50','bg-green-50'];
+                    const blocoColor = BLOCO_COLORS[fvs.template?.bloco ?? 0] ?? 'bg-gray-50';
+                    return (
+                      <button key={fvs.id} onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
+                        className={`group rounded-xl border border-ber-gray/10 ${blocoColor} p-4 text-left shadow-sm hover:shadow-md transition-all`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{fvs.template?.code}</p>
+                            <p className="mt-0.5 text-sm font-bold text-ber-carbon leading-tight">{fvs.template?.name ?? 'FVS'}</p>
+                            {fvs.etapa && <p className="mt-0.5 text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                        </div>
+                        {/* Progress */}
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-[10px] text-ber-gray/70 mb-1">
+                            <span>{checked}/{total} itens</span>
+                            <span className="font-bold">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-black/10 overflow-hidden">
+                            <div className="h-full rounded-full bg-ber-teal transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <p className="text-[10px] text-ber-gray/60">{fvs.filler?.name ?? '—'} · {new Date(fvs.createdAt).toLocaleDateString('pt-BR')}</p>
+                          <span className="text-[10px] font-semibold text-ber-teal opacity-0 group-hover:opacity-100 transition-opacity">Abrir →</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ─── Recebimentos Tab ─── */}
         {activeTab === 'recebimentos' && (
@@ -2805,6 +3038,244 @@ export default function ObraDetailPage() {
           </div>
         </div>
       )}
+      {/* ─── FVS Detail Modal ─── */}
+      {fvsModalOpen && activeFvs && (() => {
+        const fvs = activeFvs;
+        const FVS_STATUS: Record<string, { label: string; color: string }> = {
+          pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
+          inicio_preenchido: { label: 'Início preenchido', color: 'bg-blue-100 text-blue-700' },
+          aguardando_gestor: { label: 'Aguardando gestor', color: 'bg-amber-100 text-amber-700' },
+          aguardando_coord: { label: 'Aguardando coord.', color: 'bg-orange-100 text-orange-700' },
+          aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
+          rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
+        };
+        const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
+        const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
+
+        const inicioItems = fvs.items.filter(i => i.templateItem?.momento === 'inicio');
+        const conclusaoItems = fvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+        const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
+        const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+        const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
+        const conclusaoObrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+
+        const bySecao = (items: ObraFvsItemType[]) => {
+          const map: Record<string, ObraFvsItemType[]> = {};
+          items.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (map[s] = map[s] ?? []).push(i); });
+          return map;
+        };
+
+        const toggleItem = async (itemId: string, checked: boolean) => {
+          if (isLocked) return;
+          setFvsSubmitting(true);
+          try {
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { checked: !checked });
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro ao salvar');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
+          const grouped = bySecao(sectionItems);
+          return Object.entries(grouped).map(([secao, items]) => (
+            <div key={secao} className="mb-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
+              <div className="space-y-1.5">
+                {items.map(item => (
+                  <label key={item.id} className={`flex cursor-pointer items-start gap-3 rounded-lg p-2.5 transition-colors ${
+                    item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'
+                  } ${isLocked ? 'cursor-default' : ''}`}>
+                    <input type="checkbox" checked={item.checked} disabled={isLocked || fvsSubmitting}
+                      onChange={() => toggleItem(item.id, item.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded accent-green-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                        {item.templateItem?.descricao}
+                        {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/50">(opcional)</span>}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ));
+        };
+
+        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
+          setFvsSubmitting(true);
+          try {
+            const body = type === 'reject' ? { reason } : {};
+            const r = await api.post(`/obra-fvs/${fvs.id}/${type}`, body);
+            const updated = r.data.data;
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
+            <div className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-2xl">
+              {/* Header */}
+              <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{fvs.template?.code}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                  </div>
+                  <h2 className="mt-0.5 text-base font-black text-ber-carbon">{fvs.template?.name}</h2>
+                  {fvs.etapa && <p className="text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
+                </div>
+                <button onClick={() => setFvsModalOpen(false)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* Seção Início */}
+                {inicioItems.length > 0 && (
+                  <div className="mb-6">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-ber-carbon">🟡 Pré-execução (Início)</h3>
+                      <span className={`text-xs font-semibold ${inicioObrigChecked === inicioObrigTotal ? 'text-green-600' : 'text-amber-600'}`}>
+                        {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
+                      </span>
+                    </div>
+                    {renderSection(inicioItems, 'inicio')}
+                  </div>
+                )}
+
+                {/* Seção Conclusão */}
+                {conclusaoItems.length > 0 && (
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
+                      <span className={`text-xs font-semibold ${conclusaoObrigChecked === conclusaoObrigTotal ? 'text-green-600' : 'text-blue-600'}`}>
+                        {conclusaoObrigChecked}/{conclusaoObrigTotal} obrigatórios
+                      </span>
+                    </div>
+                    {renderSection(conclusaoItems, 'conclusao')}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer — actions */}
+              <div className="shrink-0 border-t border-ber-offwhite px-6 py-4">
+                {fvsSubmitting && <p className="mb-2 text-center text-xs text-ber-gray">Salvando...</p>}
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button onClick={() => setFvsModalOpen(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
+
+                  {/* submit-inicio */}
+                  {fvs.status === 'pendente' && inicioItems.length > 0 && (
+                    <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
+                      onClick={() => doAction('submit-inicio')}
+                      className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50">
+                      ✅ Confirmar Início
+                    </button>
+                  )}
+
+                  {/* submit-conclusao */}
+                  {['pendente', 'inicio_preenchido'].includes(fvs.status) && conclusaoItems.length > 0 && (
+                    <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
+                      onClick={() => doAction('submit-conclusao')}
+                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                      📋 Enviar para Aprovação
+                    </button>
+                  )}
+
+                  {/* approve-gestor */}
+                  {fvs.status === 'aguardando_gestor' && isGestor && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor')}
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-600 disabled:opacity-50">
+                        ✅ Aprovar (Gestor)
+                      </button>
+                    </>
+                  )}
+
+                  {/* approve-coord */}
+                  {fvs.status === 'aguardando_coord' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord')}
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50">
+                        ✅ Aprovação Final
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Create FVS Modal ─── */}
+      {createFvsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
+              <h2 className="text-base font-black text-ber-carbon">Nova FVS</h2>
+              <button onClick={() => setCreateFvsModal(false)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Template FVS *</label>
+                <select value={createFvsTemplateId} onChange={e => setCreateFvsTemplateId(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none">
+                  <option value="">Selecionar template...</option>
+                  {fvsTemplates.map(t => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa da obra</label>
+                <select value={createFvsEtapaId} onChange={e => setCreateFvsEtapaId(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none">
+                  <option value="">Sem vínculo com etapa</option>
+                  {sequenciamento?.etapas?.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-ber-offwhite px-6 py-4">
+              <button onClick={() => setCreateFvsModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+              <button disabled={!createFvsTemplateId}
+                onClick={async () => {
+                  if (!createFvsTemplateId) return;
+                  const etapaId = createFvsEtapaId || (sequenciamento?.etapas?.[0]?.id ?? '');
+                  try {
+                    const r = await api.post(`/obras/${params.id}/etapas/${etapaId}/fvs`, { templateId: createFvsTemplateId });
+                    setObraFvsList(prev => [r.data.data, ...prev]);
+                    setActiveFvs(r.data.data);
+                    setFvsModalOpen(true);
+                    setCreateFvsModal(false);
+                  } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+                }}
+                className="rounded-md bg-ber-carbon px-5 py-2 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                Criar FVS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -143,6 +143,13 @@ app.use('/v1/dashboard', dashboardRoutes);
 app.use('/v1/obras/:id', obraComunicadoRouter);
 app.use('/v1/comunicados', announcementRoutes);
 
+// FVS
+import { obraFvsRouter, fvsRouter } from './modules/fvs/routes';
+import { listTemplates } from './modules/fvs/controller';
+app.use('/v1/obras/:id', obraFvsRouter);
+app.use('/v1/obra-fvs', fvsRouter);
+app.get('/v1/fvs-templates', authenticate as any, listTemplates);
+
 // Generic file upload
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, env.uploadDir),

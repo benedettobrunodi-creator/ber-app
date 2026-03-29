@@ -63,6 +63,11 @@ model User {
   punchListItems        PunchListItem[]      @relation("PunchListResponsible")
   etapaEditRequests     EtapaEditRequest[]   @relation("EtapaEditRequester")
   etapaEditResolved     EtapaEditRequest[]   @relation("EtapaEditResolver")
+  filledFvs             ObraFvs[]            @relation("FvsFiller")
+  gestorFvs             ObraFvs[]            @relation("FvsGestorApprover")
+  coordFvs              ObraFvs[]            @relation("FvsCoordApprover")
+  rejectedFvs           ObraFvs[]            @relation("FvsRejector")
+  filledFvsItems        ObraFvsItem[]        @relation("FvsItemFiller")
 
   @@map("users")
 }
@@ -107,6 +112,7 @@ model Obra {
   touchpoints    ClientTouchpoint[]
   announcements  Announcement[]
   punchLists     PunchList[]
+  obraFvs        ObraFvs[]
 
   @@map("obras")
 }
@@ -668,6 +674,7 @@ model ObraEtapa {
   approver       User?              @relation("EtapaApprover", fields: [approvedBy], references: [id])
   rejecter       User?              @relation("EtapaRejecter", fields: [rejectedBy], references: [id])
   editRequests   EtapaEditRequest[] @relation("ObraEtapaEditReq")
+  obraFvs        ObraFvs[]
 
   @@index([sequenciamentoId])
   @@index([obraId])
@@ -833,4 +840,71 @@ model EtapaEditRequest {
   resolver   User?               @relation("EtapaEditResolver", fields: [resolvedBy], references: [id])
 
   @@map("etapa_edit_requests")
+}
+
+model FvsTemplate {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String    @db.VarChar(10)
+  name       String    @db.VarChar(100)
+  disciplina String?   @db.VarChar(50)
+  bloco      Int?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  items      FvsTemplateItem[]
+  obraFvs    ObraFvs[]
+  @@map("fvs_templates")
+}
+
+model FvsTemplateItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId  String   @db.Uuid @map("template_id")
+  momento     String   @db.VarChar(20)
+  secao       String?  @db.VarChar(100)
+  descricao   String
+  obrigatorio Boolean  @default(true)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  template    FvsTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  responses   ObraFvsItem[]
+  @@map("fvs_template_items")
+}
+
+model ObraFvs {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId           String    @db.Uuid @map("obra_id")
+  etapaId          String?   @db.Uuid @map("etapa_id")
+  templateId       String?   @db.Uuid @map("template_id")
+  status           String    @default("pendente") @db.VarChar(30)
+  filledBy         String?   @db.Uuid @map("filled_by")
+  gestorApprovedBy String?   @db.Uuid @map("gestor_approved_by")
+  gestorApprovedAt DateTime? @map("gestor_approved_at")
+  coordApprovedBy  String?   @db.Uuid @map("coord_approved_by")
+  coordApprovedAt  DateTime? @map("coord_approved_at")
+  rejectedBy       String?   @db.Uuid @map("rejected_by")
+  rejectionReason  String?   @map("rejection_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  obra             Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapa            ObraEtapa?      @relation(fields: [etapaId], references: [id])
+  template         FvsTemplate?    @relation(fields: [templateId], references: [id])
+  filler           User?           @relation("FvsFiller", fields: [filledBy], references: [id])
+  gestorApprover   User?           @relation("FvsGestorApprover", fields: [gestorApprovedBy], references: [id])
+  coordApprover    User?           @relation("FvsCoordApprover", fields: [coordApprovedBy], references: [id])
+  rejector         User?           @relation("FvsRejector", fields: [rejectedBy], references: [id])
+  items            ObraFvsItem[]
+  @@map("obra_fvs")
+}
+
+model ObraFvsItem {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fvsId          String    @db.Uuid @map("fvs_id")
+  templateItemId String?   @db.Uuid @map("template_item_id")
+  momento        String    @db.VarChar(20)
+  checked        Boolean   @default(false)
+  observacao     String?
+  fotoUrl        String?   @map("foto_url")
+  filledAt       DateTime? @map("filled_at")
+  filledBy       String?   @db.Uuid @map("filled_by")
+  fvs            ObraFvs          @relation(fields: [fvsId], references: [id], onDelete: Cascade)
+  templateItem   FvsTemplateItem? @relation(fields: [templateItemId], references: [id])
+  filler         User?            @relation("FvsItemFiller", fields: [filledBy], references: [id])
+  @@map("obra_fvs_items")
 }
