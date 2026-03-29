@@ -98,7 +98,7 @@ export default function ChecklistDetailPage() {
   // Complete
   const [completing, setCompleting] = useState(false);
 
-  const API_BASE = 'http://localhost:3000';
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1').replace('/v1', '');
 
   const obraId = params.id;
   const checklistId = params.checklistId;
