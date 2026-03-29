@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 import { Plus, User, Calendar, ChevronDown } from 'lucide-react';
 
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';

@@ -1851,6 +1851,16 @@ export default function ObraDetailPage() {
 
           const ambienteFotos = selectedAmbiente ? fotos.filter(f => f.ambiente?.id === selectedAmbiente.id) : [];
 
+          // Refetch fotos + ambientes do servidor (fonte da verdade)
+          const refetchFotosAmbientes = async () => {
+            const [fRes, aRes] = await Promise.all([
+              api.get(`/obras/${params.id}/fotos`),
+              api.get(`/obras/${params.id}/ambientes`),
+            ]);
+            setFotos(fRes.data.data ?? []);
+            setAmbientes(aRes.data.data ?? []);
+          };
+
           const handleUploadFiles = async () => {
             if (!pendingFiles.length) return;
             setUploading(true);
@@ -1867,11 +1877,9 @@ export default function ObraDetailPage() {
                 categoria: uploadCategoria,
                 ...(uploadLegenda && { legenda: uploadLegenda }),
               }));
-              const r = await api.post(`/obras/${params.id}/fotos/batch`, { fotos: batch });
-              setFotos(prev => [...(r.data.data ?? []), ...prev]);
-              // Refresh ambientes for counts
-              const ambRes = await api.get(`/obras/${params.id}/ambientes`);
-              setAmbientes(ambRes.data.data ?? []);
+              await api.post(`/obras/${params.id}/fotos/batch`, { fotos: batch });
+              // Refetch completo: garante fotos com ambiente populado + _count atualizado nos pins
+              await refetchFotosAmbientes();
               setUploadModalOpen(false); setPendingFiles([]); setUploadStep('files');
               setUploadAmbienteId(''); setUploadCategoria('geral'); setUploadLegenda(''); setReferenceFoto(null);
             } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro no upload'); }
@@ -1879,6 +1887,7 @@ export default function ObraDetailPage() {
           };
 
           const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
+            e.stopPropagation(); // evita bubbling para containers pai
             if (!addAmbienteMode || !planta) return;
             const imgEl = imgRef.current;
             if (!imgEl) return;
@@ -1887,11 +1896,16 @@ export default function ObraDetailPage() {
             const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
             const nome = prompt('Nome do ambiente:');
             if (!nome?.trim()) return;
+            setAddAmbienteMode(false); // desativa antes do POST para evitar duplo disparo
             try {
-              const r = await api.post(`/obras/${params.id}/ambientes`, { nome: nome.trim(), posX, posY, plantaId: planta.id });
-              setAmbientes(prev => [...prev, r.data.data]);
-              setAddAmbienteMode(false);
-            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+              await api.post(`/obras/${params.id}/ambientes`, { nome: nome.trim(), posX, posY, plantaId: planta.id });
+              // Refetch substitui state inteiro — sem acumulação
+              const aRes = await api.get(`/obras/${params.id}/ambientes`);
+              setAmbientes(aRes.data.data ?? []);
+            } catch (e: any) {
+              setAddAmbienteMode(true); // reativa se falhou
+              alert(e?.response?.data?.error?.message ?? 'Erro');
+            }
           };
 
           const handleDeleteFoto = async (fotoId: string) => {
