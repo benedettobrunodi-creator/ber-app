@@ -1166,7 +1166,7 @@ export default function ObraDetailPage() {
                       const unlockExpiry = unlockedEtapas.get(etapa.id);
                       const isUnlocked = unlockExpiry && unlockExpiry > new Date();
                       const hasPendingReq = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
-                      const blocking = etapa.dependencies?.filter((depId: string) => {
+                      const blocking = (etapa.dependsOn ?? etapa.dependencies ?? []).filter((depId: string) => {
                         const dep = seq.etapas.find(e => e.id === depId);
                         return dep && dep.status !== 'aprovada';
                       }) ?? [];
@@ -1192,7 +1192,7 @@ export default function ObraDetailPage() {
                               </div>
                               {/* Actions */}
                               <div className="flex flex-wrap gap-1.5">
-                                {isGestorOrAbove && etapa.status === 'nao_iniciada' && !isBlocked && isFrozenCockpit && (
+                                {isGestorOrAbove && etapa.status === 'nao_iniciada' && !isBlocked && (isFrozenCockpit || isCoordOrDir) && (
                                   <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-teal px-2 py-1 text-[11px] font-semibold text-white hover:bg-ber-teal/80"><Play size={10} /> Iniciar</button>
                                 )}
                                 {isGestorOrAbove && etapa.status === 'em_andamento' && (
@@ -1204,7 +1204,18 @@ export default function ObraDetailPage() {
                                     <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-600"><XCircle size={10} /> Rejeitar</button>
                                   </>
                                 )}
-                                {isLocked && !isUnlocked && (
+                                {isLocked && !isUnlocked && isCoordOrDir && (
+                                  <button onClick={async () => {
+                                    // diretoria/coord desbloqueiam diretamente via approve-self
+                                    try {
+                                      const res = await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapa.id}/edit-request`, { motivo: 'Desbloqueio direto (autoridade)' });
+                                      const reqId = res.data.data.id;
+                                      await api.patch(`/sequenciamento/edit-requests/${reqId}`, { action: 'approve' });
+                                      setUnlockedEtapas(prev => new Map([...prev, [etapa.id, new Date(Date.now() + 30*60*1000)]]));
+                                    } catch {}
+                                  }} className="flex items-center gap-1 rounded-md bg-ber-olive/90 px-2 py-1 text-[11px] font-semibold text-white hover:bg-ber-olive">🔓 Desbloquear edição</button>
+                                )}
+                                {isLocked && !isUnlocked && !isCoordOrDir && (
                                   hasPendingReq
                                     ? <span className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">⏳ Aguardando aprovação</span>
                                     : <button onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }} className="flex items-center gap-1 rounded-md border border-ber-gray/30 px-2 py-1 text-[11px] font-medium text-ber-gray hover:bg-ber-offwhite">🔒 Solicitar edição</button>
@@ -2013,6 +2024,8 @@ export default function ObraDetailPage() {
                               <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Conclusão</p><p className="mt-0.5 text-ber-carbon">{etapa.endDate ? new Date(etapa.endDate).toLocaleDateString('pt-BR') : etapa.estimatedEndDate ? `Prev. ${new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}` : '—'}</p></div>
                               <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Duração estimada</p><p className="mt-0.5 text-ber-carbon">{etapa.estimatedDays} dia{etapa.estimatedDays !== 1 ? 's' : ''}</p></div>
                               <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Disciplina</p><p className="mt-0.5 text-ber-carbon capitalize">{DISCIPLINE_LABELS[etapa.discipline] ?? etapa.discipline}</p></div>
+                              {etapa.submitter && <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Enviado por</p><p className="mt-0.5 text-ber-carbon">{etapa.submitter.name}</p></div>}
+                              {etapa.approver && <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Aprovado por</p><p className="mt-0.5 text-ber-carbon">{etapa.approver.name}</p></div>}
                             </div>
 
                             {/* Dependencies */}
@@ -2036,12 +2049,28 @@ export default function ObraDetailPage() {
                             {(etapa.gestorNotes || etapa.coordenadorNotes || etapa.rejectionReason) && (
                               <div className="space-y-2">
                                 {etapa.rejectionReason && <div className="rounded-md bg-red-50 p-2.5 text-xs text-red-700"><strong>Rejeitada:</strong> {etapa.rejectionReason}{etapa.rejecter && <span className="text-red-400"> — {etapa.rejecter.name}</span>}</div>}
-                                {etapa.gestorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Gestor:</strong> {etapa.gestorNotes}</div>}
+                                {etapa.gestorNotes && !['sim','não','nao','true','false','yes','no'].includes(etapa.gestorNotes.toLowerCase().trim()) && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Gestor:</strong> {etapa.gestorNotes}</div>}
                                 {etapa.coordenadorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Coordenador:</strong> {etapa.coordenadorNotes}</div>}
                               </div>
                             )}
 
                             {/* Edit unlock for concluida/aprovada */}
+                            {['concluida','aprovada'].includes(etapa.status) && isCoord && (
+                              (() => {
+                                const unlockExp = unlockedEtapas.get(etapa.id);
+                                const unlocked = unlockExp && unlockExp > new Date();
+                                return unlocked
+                                  ? <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 font-medium">🔓 Edição liberada até {unlockExp!.toLocaleTimeString('pt-BR')}</div>
+                                  : <button onClick={async () => {
+                                      try {
+                                        const res = await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapa.id}/edit-request`, { motivo: 'Desbloqueio direto' });
+                                        const reqId = res.data.data.id;
+                                        await api.patch(`/sequenciamento/edit-requests/${reqId}`, { action: 'approve' });
+                                        setUnlockedEtapas(prev => new Map([...prev, [etapa.id, new Date(Date.now() + 30*60*1000)]]));
+                                      } catch {}
+                                    }} className="flex items-center gap-1.5 rounded-lg bg-ber-olive/90 px-3 py-2 text-xs font-semibold text-white hover:bg-ber-olive">🔓 Desbloquear edição (30 min)</button>;
+                              })()
+                            )}
                             {['concluida','aprovada'].includes(etapa.status) && isGestor && !isCoord && (
                               (() => {
                                 const hasPend = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
