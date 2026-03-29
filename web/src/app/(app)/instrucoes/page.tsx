@@ -587,7 +587,7 @@ export default function InstrucoesPage() {
         canCreate={canCreate}
         onBack={() => setViewingIT(null)}
         onEdit={() => { setViewingIT(null); openITForm(viewingIT); }}
-        onPublish={(s) => handlePublishIT(viewingIT.id, s)}
+        onPublish={(s) => handlePublishIT(viewingIT.id, s as 'publicada' | 'arquivada')}
       />
     );
   }

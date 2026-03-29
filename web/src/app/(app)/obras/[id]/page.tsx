@@ -152,7 +152,7 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs' | 'kanban';
 
 interface TouchpointSummary {
   id: string;
@@ -232,6 +232,7 @@ interface SeqEtapa {
   order: number;
   estimatedDays: number;
   dependsOn: string[];
+  dependencies?: string[];
   startDate: string | null;
   endDate: string | null;
   estimatedEndDate: string | null;
