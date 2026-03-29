@@ -150,6 +150,14 @@ app.use('/v1/obras/:id', obraFvsRouter);
 app.use('/v1/obra-fvs', fvsRouter);
 app.get('/v1/fvs-templates', authenticate as any, listTemplates);
 
+// BÈR Checklists — register with explicit paths to avoid catch-all conflict
+import * as berClCtrl from './modules/ber-checklists/controller';
+import { clRouter } from './modules/ber-checklists/routes';
+app.get('/v1/obras/:id/ber-checklists', authenticate as any, (req: any, res: any) => berClCtrl.listByObra(req, res));
+app.post('/v1/obras/:id/ber-checklists', authenticate as any, (req: any, res: any, next: any) => berClCtrl.createChecklist(req, res).catch(next));
+app.use('/v1/obra-ber-checklists', clRouter);
+app.get('/v1/ber-checklist-templates', authenticate as any, (req: any, res: any) => berClCtrl.listTemplates(req, res));
+
 // Generic file upload
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, env.uploadDir),

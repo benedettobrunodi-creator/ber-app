@@ -68,6 +68,8 @@ model User {
   coordFvs              ObraFvs[]            @relation("FvsCoordApprover")
   rejectedFvs           ObraFvs[]            @relation("FvsRejector")
   filledFvsItems        ObraFvsItem[]        @relation("FvsItemFiller")
+  filledBerChecklists   ObraBerChecklist[]   @relation("BerChecklistFiller")
+  filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
 
   @@map("users")
 }
@@ -113,6 +115,7 @@ model Obra {
   announcements  Announcement[]
   punchLists     PunchList[]
   obraFvs        ObraFvs[]
+  berChecklists  ObraBerChecklist[] @relation("ObraBerChecklists")
 
   @@map("obras")
 }
@@ -908,4 +911,73 @@ model ObraFvsItem {
   templateItem   FvsTemplateItem? @relation(fields: [templateItemId], references: [id])
   filler         User?            @relation("FvsItemFiller", fields: [filledBy], references: [id])
   @@map("obra_fvs_items")
+}
+
+// ─── BÈR Checklists ────────────────────────────────────────────────────────
+
+model BerChecklistTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique @db.VarChar(10)
+  name        String   @db.VarChar(150)
+  recorrente  Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  items       BerChecklistTemplateItem[]
+  checklists  ObraBerChecklist[]
+  @@map("ber_checklist_templates")
+}
+
+model BerChecklistTemplateItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId      String   @db.Uuid @map("template_id")
+  secao           String?  @db.VarChar(100)
+  descricao       String
+  fotoObrigatoria Boolean  @default(false) @map("foto_obrigatoria")
+  ordem           Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+  template        BerChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  responses       ObraBerChecklistItem[]
+  @@map("ber_checklist_template_items")
+}
+
+model ObraBerChecklist {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId        String    @db.Uuid @map("obra_id")
+  templateId    String    @db.Uuid @map("template_id")
+  status        String    @default("nao_iniciado") @db.VarChar(20)
+  filledBy      String?   @db.Uuid @map("filled_by")
+  submittedAt   DateTime? @map("submitted_at")
+  visitaNumero  Int       @default(1) @map("visita_numero")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  obra          Obra      @relation("ObraBerChecklists", fields: [obraId], references: [id], onDelete: Cascade)
+  template      BerChecklistTemplate @relation(fields: [templateId], references: [id])
+  filler        User?     @relation("BerChecklistFiller", fields: [filledBy], references: [id])
+  items         ObraBerChecklistItem[]
+  ambientes     ObraChecklistAmbiente[]
+  @@map("obra_ber_checklists")
+}
+
+model ObraBerChecklistItem {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklistId    String    @db.Uuid @map("checklist_id")
+  templateItemId String?   @db.Uuid @map("template_item_id")
+  ambiente       String?   @db.VarChar(100)
+  checked        Boolean   @default(false)
+  fotoUrl        String?   @map("foto_url")
+  observacao     String?
+  filledAt       DateTime? @map("filled_at")
+  filledBy       String?   @db.Uuid @map("filled_by")
+  checklist      ObraBerChecklist          @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  templateItem   BerChecklistTemplateItem? @relation(fields: [templateItemId], references: [id])
+  filler         User?                     @relation("BerChecklistItemFiller", fields: [filledBy], references: [id])
+  @@map("obra_ber_checklist_items")
+}
+
+model ObraChecklistAmbiente {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklistId String   @db.Uuid @map("checklist_id")
+  nome        String   @db.VarChar(100)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  checklist   ObraBerChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  @@map("obra_checklist_ambientes")
 }
