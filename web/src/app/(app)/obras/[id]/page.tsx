@@ -325,6 +325,18 @@ export default function ObraDetailPage() {
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
+  // Touchpoint modal state
+  const [showTPModal, setShowTPModal] = useState(false);
+  const [showTPHistory, setShowTPHistory] = useState(false);
+  const [savingTP, setSavingTP] = useState(false);
+  const [newTP, setNewTP] = useState({
+    type: 'reuniao_semanal',
+    occurredAt: new Date().toISOString().slice(0, 16),
+    summary: '',
+    nextAction: '',
+    nextActionDue: '',
+  });
+
   const [creatingPL, setCreatingPL] = useState<'interno' | 'cliente' | null>(null);
   const [showPLModal, setShowPLModal] = useState<PunchList | null>(null);
   const [newPLItem, setNewPLItem] = useState('');
@@ -1096,9 +1108,20 @@ export default function ObraDetailPage() {
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {/* Último touchpoint */}
                 <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Último Touchpoint com Cliente</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Touchpoints com Cliente</h3>
+                    <button
+                      onClick={() => { setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }}
+                      className="flex items-center gap-1 rounded-md bg-ber-teal/10 px-2.5 py-1 text-xs font-semibold text-ber-teal transition-colors hover:bg-ber-teal/20"
+                    >
+                      <Plus size={12} /> Registrar
+                    </button>
+                  </div>
+
                   {!lastTouchpoint ? (
-                    <p className="mt-4 text-sm italic text-ber-gray/60">Nenhum registrado.</p>
+                    <div className="mt-4 flex flex-col items-center py-4 text-center">
+                      <p className="text-sm italic text-ber-gray/60">Nenhum touchpoint registrado.</p>
+                    </div>
                   ) : (
                     <div className="mt-3 space-y-2">
                       <div className="flex items-center gap-2">
@@ -1111,7 +1134,7 @@ export default function ObraDetailPage() {
                       </div>
                       <p className="text-sm font-medium text-ber-carbon">{lastTouchpoint.title}</p>
                       {lastTouchpoint.nextAction && (
-                        <div className={`mt-2 rounded-lg p-3 ${lastTouchpoint.nextActionDue && new Date(lastTouchpoint.nextActionDue) < now ? 'bg-red-50' : 'bg-amber-50'}`}>
+                        <div className={`rounded-lg p-3 ${lastTouchpoint.nextActionDue && new Date(lastTouchpoint.nextActionDue) < now ? 'bg-red-50' : 'bg-amber-50'}`}>
                           <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Próxima ação</p>
                           <p className="mt-0.5 text-sm text-ber-carbon">{lastTouchpoint.nextAction}</p>
                           {lastTouchpoint.nextActionDue && (
@@ -1122,6 +1145,126 @@ export default function ObraDetailPage() {
                           )}
                         </div>
                       )}
+                      <button onClick={() => setShowTPHistory(true)} className="text-xs font-medium text-ber-teal hover:underline">
+                        Ver histórico completo ({touchpoints.length}) →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Modal: registrar touchpoint */}
+                  {showTPModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPModal(false)}>
+                      <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
+                          <h2 className="font-bold text-ber-carbon">Registrar Touchpoint</h2>
+                          <button onClick={() => setShowTPModal(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+                        </div>
+                        <div className="space-y-3 px-5 py-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-ber-gray">Tipo *</label>
+                              <select value={newTP.type} onChange={e => setNewTP(p => ({ ...p, type: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none">
+                                <option value="kickoff_externo">Kick-Off Externo</option>
+                                <option value="reuniao_semanal">Reunião Semanal</option>
+                                <option value="comunicado_semanal">Comunicado Semanal</option>
+                                <option value="extra_aditivo">Extra / Aditivo</option>
+                                <option value="aceite_provisorio">Aceite Provisório</option>
+                                <option value="aceite_definitivo">Aceite Definitivo</option>
+                                <option value="visita_informal">Visita Informal</option>
+                              </select>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-ber-gray">Data e hora *</label>
+                              <input type="datetime-local" value={newTP.occurredAt} onChange={e => setNewTP(p => ({ ...p, occurredAt: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-ber-gray">Resumo do que foi discutido</label>
+                              <textarea rows={3} value={newTP.summary} onChange={e => setNewTP(p => ({ ...p, summary: e.target.value }))}
+                                placeholder="Principais pontos abordados..."
+                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-ber-gray">Próxima ação</label>
+                              <input type="text" value={newTP.nextAction} onChange={e => setNewTP(p => ({ ...p, nextAction: e.target.value }))}
+                                placeholder="O que precisa acontecer..."
+                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-xs font-medium text-ber-gray">Prazo da próxima ação</label>
+                              <input type="date" value={newTP.nextActionDue} onChange={e => setNewTP(p => ({ ...p, nextActionDue: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-3 pt-1">
+                            <button onClick={() => setShowTPModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+                            <button
+                              disabled={savingTP || !newTP.occurredAt}
+                              onClick={async () => {
+                                setSavingTP(true);
+                                try {
+                                  const label = TOUCHPOINT_LABELS[newTP.type] ?? newTP.type;
+                                  const body: Record<string,any> = {
+                                    type: newTP.type,
+                                    title: label,
+                                    occurredAt: new Date(newTP.occurredAt).toISOString(),
+                                    summary: newTP.summary || undefined,
+                                    nextAction: newTP.nextAction || undefined,
+                                    nextActionDue: newTP.nextActionDue ? new Date(newTP.nextActionDue).toISOString() : undefined,
+                                  };
+                                  const res = await api.post(`/obras/${params.id}/touchpoints`, body);
+                                  setTouchpoints(prev => [res.data.data, ...prev]);
+                                  setShowTPModal(false);
+                                } catch {} finally { setSavingTP(false); }
+                              }}
+                              className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
+                            >
+                              {savingTP ? 'Salvando...' : 'Salvar'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Modal: histórico completo */}
+                  {showTPHistory && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPHistory(false)}>
+                      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
+                          <h2 className="font-bold text-ber-carbon">Histórico de Touchpoints</h2>
+                          <button onClick={() => setShowTPHistory(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto px-5 py-3 space-y-3">
+                          {touchpoints.length === 0 && <p className="py-6 text-center text-sm text-ber-gray/60">Nenhum touchpoint registrado.</p>}
+                          {touchpoints.map(tp => (
+                            <div key={tp.id} className="rounded-lg border border-ber-offwhite p-3">
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">
+                                  {TOUCHPOINT_LABELS[tp.type] ?? tp.type}
+                                </span>
+                                <span className="text-xs text-ber-gray">
+                                  {new Date(tp.occurredAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                              </div>
+                              <p className="mt-1.5 text-sm font-medium text-ber-carbon">{tp.title}</p>
+                              {tp.nextAction && (
+                                <p className="mt-1 text-xs text-ber-gray">
+                                  → {tp.nextAction}
+                                  {tp.nextActionDue && <span className="ml-1 font-semibold text-amber-600">({new Date(tp.nextActionDue).toLocaleDateString('pt-BR')})</span>}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="border-t border-ber-offwhite px-5 py-3 text-right">
+                          <button
+                            onClick={() => { setShowTPHistory(false); setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }}
+                            className="text-sm font-medium text-ber-teal hover:underline"
+                          >+ Registrar novo</button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
