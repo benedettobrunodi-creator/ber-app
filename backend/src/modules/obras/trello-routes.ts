@@ -71,4 +71,18 @@ router.get(
   }
 );
 
+// POST /v1/obras/trello/sync-progresso — força sync de progresso de todas as obras
+router.post(
+  '/trello/sync-progresso',
+  requireRole('coordenacao'),
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updated = await trelloService.syncProgressoFromTrello();
+      res.json({ data: { updated } });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;
