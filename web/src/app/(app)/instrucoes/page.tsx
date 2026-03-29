@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -109,6 +109,106 @@ interface IT {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
+
+// ─── Step Photo Upload ───────────────────────────────────────────────────────
+
+/** Comprime uma imagem para max 1MB via canvas antes de fazer upload */
+async function compressImage(file: File, maxKB = 1024): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      // Reduzir dimensões se necessário (max 1920px)
+      const MAX_DIM = 1920;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
+        else { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
+      }
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      // Comprimir iterativamente até atingir o limite
+      let quality = 0.85;
+      const tryCompress = () => {
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          if (blob.size <= maxKB * 1024 || quality <= 0.3) { resolve(blob); return; }
+          quality -= 0.1;
+          tryCompress();
+        }, 'image/jpeg', quality);
+      };
+      tryCompress();
+    };
+    img.onerror = () => resolve(file);
+    img.src = url;
+  });
+}
+
+function StepPhotoUpload({ photoUrl, onUpload, onRemove }: {
+  photoUrl?: string;
+  onUpload: (url: string) => void;
+  onRemove: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      const fd = new FormData();
+      fd.append('file', new File([compressed], file.name, { type: 'image/jpeg' }));
+      const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onUpload(r.data.data?.url ?? r.data.url);
+    } catch { alert('Erro no upload da foto'); }
+    finally { setUploading(false); if (inputRef.current) inputRef.current.value = ''; }
+  }
+
+  if (photoUrl) {
+    return (
+      <div className="mt-2 relative rounded-lg overflow-hidden border border-ber-gray/20" style={{ maxHeight: 160 }}>
+        <img src={photoUrl} alt="Foto do passo" className="w-full object-cover" style={{ maxHeight: 160 }} />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white hover:bg-red-600 transition-colors"
+          title="Remover foto"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex items-center gap-1.5 rounded-md border border-dashed border-ber-gray/40 px-3 py-1.5 text-xs text-ber-gray hover:border-ber-teal hover:text-ber-teal transition-colors disabled:opacity-50"
+      >
+        {uploading ? (
+          <><div className="h-3 w-3 animate-spin rounded-full border border-t-transparent border-ber-teal" /> Enviando...</>
+        ) : (
+          <><span>📷</span> Adicionar foto</>
+        )}
+      </button>
+    </div>
+  );
+}
 
 // ─── IT Detail View ──────────────────────────────────────────────────────────
 
@@ -659,6 +759,12 @@ export default function InstrucoesPage() {
                     <textarea value={step.description} onChange={(e) => updateListItem(itSteps, i, { ...step, description: e.target.value }, setItSteps)}
                       placeholder="Descrição detalhada..." rows={2}
                       className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                    {/* Upload de foto por passo */}
+                    <StepPhotoUpload
+                      photoUrl={step.photoUrl}
+                      onUpload={(url) => updateListItem(itSteps, i, { ...step, photoUrl: url }, setItSteps)}
+                      onRemove={() => updateListItem(itSteps, i, { ...step, photoUrl: undefined }, setItSteps)}
+                    />
                   </div>
                 ))}
                 <button type="button" onClick={() => addListItem(itSteps, { order: itSteps.length + 1, title: '', description: '' }, setItSteps)}
