@@ -93,7 +93,25 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'kanban' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos';
+type TabKey = 'cockpit' | 'kanban' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos';
+
+interface TouchpointSummary {
+  id: string;
+  type: string;
+  title: string;
+  occurredAt: string;
+  nextAction: string | null;
+  nextActionDue: string | null;
+  status: string;
+}
+
+interface Photo {
+  id: string;
+  imageUrl: string;
+  thumbnailUrl: string | null;
+  caption: string | null;
+  createdAt: string;
+}
 
 interface Recebimento {
   id: string;
@@ -241,7 +259,7 @@ export default function ObraDetailPage() {
   const user = useAuthStore((s) => s.user);
   const [obra, setObra] = useState<ObraDetail | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const initialTab = (searchParams.get('tab') as TabKey) || 'kanban';
+  const initialTab = (searchParams.get('tab') as TabKey) || 'cockpit';
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [loading, setLoading] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -285,6 +303,10 @@ export default function ObraDetailPage() {
   const [evidenciaDescricao, setEvidenciaDescricao] = useState('');
   const [evidenciaFotos, setEvidenciaFotos] = useState<string[]>([]);
   const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
+
+  // Cockpit extra state
+  const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
+  const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
 
   // Recebimentos state
   const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
@@ -350,13 +372,15 @@ export default function ObraDetailPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const [obraRes, tasksRes, checklistsRes, canteiroRes, seqRes, recebimentosRes] = await Promise.all([
+      const [obraRes, tasksRes, checklistsRes, canteiroRes, seqRes, recebimentosRes, touchpointsRes, photosRes] = await Promise.all([
         api.get(`/obras/${params.id}`),
         api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } }),
         api.get(`/obras/${params.id}/checklists`),
         api.get(`/obras/${params.id}/canteiro`),
         api.get(`/obras/${params.id}/sequenciamento`).catch(() => ({ data: { data: null } })),
         api.get(`/obras/${params.id}/recebimentos`),
+        api.get(`/obras/${params.id}/touchpoints`, { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
+        api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
       setObra(obraRes.data.data);
       setTasks(tasksRes.data.data);
@@ -364,6 +388,8 @@ export default function ObraDetailPage() {
       setCanteiroChecklists(canteiroRes.data.data);
       setSequenciamento(seqRes.data.data);
       setRecebimentos(recebimentosRes.data.data);
+      setTouchpoints(touchpointsRes.data.data ?? []);
+      setRecentPhotos(photosRes.data.data ?? []);
     } catch {
       /* handled by interceptor */
     } finally {
@@ -686,6 +712,7 @@ export default function ObraDetailPage() {
   const statusCfg = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
 
   const TABS: { key: TabKey; label: string }[] = [
+    { key: 'cockpit', label: '🎛 Cockpit' },
     { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
@@ -772,6 +799,319 @@ export default function ObraDetailPage() {
 
       {/* Tab content */}
       <div className="mt-6">
+        {activeTab === 'cockpit' && (() => {
+          // ── derived data ──────────────────────────────────────────────────
+          const now = new Date();
+          const start = obra.startDate ? new Date(obra.startDate) : null;
+          const end = obra.expectedEndDate ? new Date(obra.expectedEndDate) : null;
+          const totalDays = start && end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000)) : null;
+          const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
+          const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
+          const timelinePct = totalDays && elapsed !== null ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : null;
+
+          const taskDone = tasks.filter(t => t.status === 'done').length;
+          const taskInProgress = tasks.filter(t => t.status === 'in_progress').length;
+          const taskTodo = tasks.filter(t => t.status === 'todo').length;
+          const taskOverdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'done').length;
+
+          const lastTouchpoint = touchpoints[0] ?? null;
+
+          const FASE_LABELS: Record<string, string> = {
+            kickoff_interno: 'Kickoff Interno', kickoff_externo: 'Kickoff Externo',
+            suprimentos: 'Suprimentos', pre_obra: 'Pré-Obra', execucao: 'Execução',
+            pendencias: 'Pendências', encerramento: 'Encerramento',
+          };
+          const FASE_COLORS: Record<string, string> = {
+            kickoff_interno: 'bg-gray-100 text-gray-600', kickoff_externo: 'bg-blue-100 text-blue-700',
+            suprimentos: 'bg-orange-100 text-orange-700', pre_obra: 'bg-amber-100 text-amber-700',
+            execucao: 'bg-ber-teal/15 text-ber-teal', pendencias: 'bg-red-100 text-red-600',
+            encerramento: 'bg-ber-olive/15 text-ber-olive',
+          };
+          const fase = (obra as any).fase as string | undefined;
+          const faseLabel = fase ? (FASE_LABELS[fase] ?? fase) : null;
+          const faseBadge = fase ? (FASE_COLORS[fase] ?? 'bg-gray-100 text-gray-600') : null;
+
+          // critical checklists: required items incomplete in current phase
+          const criticalItems: { checklistName: string; itemCount: number; id: string }[] = checklists
+            .filter(c => {
+              const pending = c.items.filter(i => i.required && i.answer === null).length;
+              return pending > 0;
+            })
+            .slice(0, 5)
+            .map(c => ({
+              id: c.id,
+              checklistName: c.template?.name ?? c.type,
+              itemCount: c.items.filter(i => i.required && i.answer === null).length,
+            }));
+
+          const TOUCHPOINT_LABELS: Record<string, string> = {
+            kickoff_externo: 'Kickoff Externo', reuniao_semanal: 'Reunião Semanal',
+            comunicado_semanal: 'Comunicado Semanal', extra_aditivo: 'Aditivo',
+            aceite_provisorio: 'Aceite Provisório', aceite_definitivo: 'Aceite Definitivo',
+            visita_informal: 'Visita Informal',
+          };
+
+          return (
+            <div className="space-y-4">
+              {/* Row 1: Progresso + Timeline */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Progresso geral */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Progresso Geral</h3>
+                    {faseLabel && (
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${faseBadge}`}>{faseLabel}</span>
+                    )}
+                  </div>
+                  <div className="mt-4 flex items-end gap-3">
+                    <span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span>
+                    <span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span>
+                  </div>
+                  <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg, #B5B820, #8a8c10)' }}
+                    />
+                  </div>
+                  {timelinePct !== null && (
+                    <p className="mt-2 text-xs text-ber-gray">
+                      Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>
+                        {obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% do prazo decorrido)
+                      </span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Linha do tempo */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Linha do Tempo</h3>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-ber-gray">Início</p>
+                      <p className="mt-0.5 text-sm font-bold text-ber-carbon">
+                        {start ? start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '--'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ber-gray">Prazo Final</p>
+                      <p className={`mt-0.5 text-sm font-bold ${remaining !== null && remaining < 0 ? 'text-red-500' : 'text-ber-carbon'}`}>
+                        {end ? end.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '--'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ber-gray">Dias Decorridos</p>
+                      <p className="mt-0.5 text-2xl font-black text-ber-carbon">{elapsed ?? '--'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ber-gray">Dias Restantes</p>
+                      <p className={`mt-0.5 text-2xl font-black ${remaining !== null && remaining < 0 ? 'text-red-500' : remaining !== null && remaining < 14 ? 'text-amber-500' : 'text-ber-carbon'}`}>
+                        {remaining !== null ? (remaining < 0 ? `${Math.abs(remaining)} em atraso` : remaining) : '--'}
+                      </p>
+                    </div>
+                  </div>
+                  {timelinePct !== null && (
+                    <div className="mt-4">
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite">
+                        <div className="h-full rounded-full bg-ber-carbon/20 transition-all" style={{ width: `${timelinePct}%` }} />
+                        <div
+                          className="absolute top-0 h-full rounded-full transition-all"
+                          style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg, #B5B820, #8a8c10)', opacity: 0.85 }}
+                        />
+                      </div>
+                      <div className="mt-1 flex justify-between text-[10px] text-ber-gray">
+                        <span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Tasks + Equipe */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Resumo de tarefas */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Tarefas</h3>
+                    {taskOverdue > 0 && (
+                      <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">
+                        ⚠ {taskOverdue} atrasada{taskOverdue > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-green-50 p-3">
+                      <p className="text-3xl font-black text-green-600">{taskDone}</p>
+                      <p className="mt-1 text-xs font-medium text-green-700">Concluídas</p>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 p-3">
+                      <p className="text-3xl font-black text-amber-500">{taskInProgress}</p>
+                      <p className="mt-1 text-xs font-medium text-amber-600">Em andamento</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-3xl font-black text-gray-400">{taskTodo}</p>
+                      <p className="mt-1 text-xs font-medium text-gray-500">Pendentes</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('kanban')}
+                    className="mt-3 text-xs font-medium text-ber-teal hover:underline"
+                  >
+                    Ver Kanban completo →
+                  </button>
+                </div>
+
+                {/* Equipe */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Equipe Alocada</h3>
+                  {obra.members.length === 0 ? (
+                    <p className="mt-4 text-sm text-ber-gray">Nenhum membro alocado.</p>
+                  ) : (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {obra.members.map(m => (
+                        <div key={m.user.id} className="flex items-center gap-2">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white">
+                            {m.user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-ber-carbon leading-tight">{m.user.name.split(' ')[0]}</p>
+                            <p className="text-[10px] text-ber-gray capitalize">{m.user.role}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {obra.coordinator && (
+                    <div className="mt-3 border-t border-ber-offwhite pt-3 flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ber-carbon text-xs font-bold text-white">
+                        {obra.coordinator.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-ber-carbon">{obra.coordinator.name}</p>
+                        <p className="text-[10px] text-ber-gray">Coordenador</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 3: Touchpoint + Checklists críticos */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Último touchpoint */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Último Touchpoint com Cliente</h3>
+                  {!lastTouchpoint ? (
+                    <p className="mt-4 text-sm italic text-ber-gray/60">Nenhum registrado.</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">
+                          {TOUCHPOINT_LABELS[lastTouchpoint.type] ?? lastTouchpoint.type}
+                        </span>
+                        <span className="text-xs text-ber-gray">
+                          {new Date(lastTouchpoint.occurredAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-ber-carbon">{lastTouchpoint.title}</p>
+                      {lastTouchpoint.nextAction && (
+                        <div className={`mt-2 rounded-lg p-3 ${lastTouchpoint.nextActionDue && new Date(lastTouchpoint.nextActionDue) < now ? 'bg-red-50' : 'bg-amber-50'}`}>
+                          <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Próxima ação</p>
+                          <p className="mt-0.5 text-sm text-ber-carbon">{lastTouchpoint.nextAction}</p>
+                          {lastTouchpoint.nextActionDue && (
+                            <p className={`mt-0.5 text-xs font-semibold ${new Date(lastTouchpoint.nextActionDue) < now ? 'text-red-600' : 'text-amber-600'}`}>
+                              Prazo: {new Date(lastTouchpoint.nextActionDue).toLocaleDateString('pt-BR')}
+                              {new Date(lastTouchpoint.nextActionDue) < now ? ' ⚠ VENCIDO' : ''}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Checklists críticos */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Checklists Críticos Pendentes</h3>
+                    <button onClick={() => setActiveTab('checklists')} className="text-xs font-medium text-ber-teal hover:underline">Ver todos →</button>
+                  </div>
+                  {criticalItems.length === 0 ? (
+                    <div className="mt-4 flex items-center gap-2 text-sm text-ber-olive font-medium">
+                      <span>✅</span> Sem pendências críticas na fase atual
+                    </div>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {criticalItems.map(item => (
+                        <li key={item.id} className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2">
+                          <p className="text-xs font-medium text-ber-carbon truncate flex-1 mr-2">{item.checklistName}</p>
+                          <span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                            {item.itemCount} pendente{item.itemCount > 1 ? 's' : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 4: Fotos + Medições */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {/* Últimas fotos */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Últimas Fotos</h3>
+                    <button onClick={() => setActiveTab('fotos')} className="text-xs font-medium text-ber-teal hover:underline">Ver galeria →</button>
+                  </div>
+                  {recentPhotos.length === 0 ? (
+                    <div className="mt-4 flex h-24 items-center justify-center rounded-lg bg-ber-offwhite">
+                      <p className="text-sm text-ber-gray/50">Nenhuma foto registrada</p>
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {recentPhotos.map(photo => (
+                        <a key={photo.id} href={photo.imageUrl} target="_blank" rel="noopener noreferrer"
+                          className="block aspect-square overflow-hidden rounded-lg bg-ber-offwhite hover:opacity-80 transition-opacity">
+                          <img
+                            src={photo.thumbnailUrl ?? photo.imageUrl}
+                            alt={photo.caption ?? 'Foto da obra'}
+                            className="h-full w-full object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-right text-xs text-ber-gray">{obra._count.photos} foto{obra._count.photos !== 1 ? 's' : ''} no total</p>
+                </div>
+
+                {/* Medições */}
+                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Medições / Recebimentos</h3>
+                  {recebimentos.length === 0 ? (
+                    <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {/* Último recebimento */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p>
+                        <div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3">
+                          <p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p>
+                          <p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p>
+                          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>
+                            {(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-ber-gray">
+                        <span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''} registrado{recebimentos.length !== 1 ? 's' : ''}</span>
+                        <button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {activeTab === 'kanban' && (
           <div>
             <div className="mb-4 flex justify-end">
