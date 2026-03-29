@@ -59,6 +59,8 @@ model User {
   conductedTouchpoints  ClientTouchpoint[]   @relation("TouchpointConductor")
   touchpointNextActions ClientTouchpoint[]   @relation("TouchpointNextOwner")
   createdTouchpoints    ClientTouchpoint[]   @relation("TouchpointCreator")
+  createdPunchLists     PunchList[]          @relation("PunchListCreator")
+  punchListItems        PunchListItem[]      @relation("PunchListResponsible")
 
   @@map("users")
 }
@@ -102,6 +104,7 @@ model Obra {
   faseHistory    ObraFaseHistory[]
   touchpoints    ClientTouchpoint[]
   announcements  Announcement[]
+  punchLists     PunchList[]
 
   @@map("obras")
 }
@@ -717,6 +720,39 @@ model RecebimentoMaterial {
 
   @@index([obraId])
   @@map("recebimento_materiais")
+}
+
+model PunchList {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  type      String   @db.VarChar(20)
+  status    String   @default("pendente") @db.VarChar(20)
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra    Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  creator User?           @relation("PunchListCreator", fields: [createdBy], references: [id])
+  items   PunchListItem[]
+
+  @@index([obraId])
+  @@map("punch_lists")
+}
+
+model PunchListItem {
+  id            String    @id @default(uuid()) @db.Uuid
+  punchListId   String    @map("punch_list_id") @db.Uuid
+  descricao     String
+  responsibleId String?   @map("responsible_id") @db.Uuid
+  status        String    @default("aberto") @db.VarChar(20)
+  resolvedAt    DateTime? @map("resolved_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  punchList   PunchList @relation(fields: [punchListId], references: [id], onDelete: Cascade)
+  responsible User?     @relation("PunchListResponsible", fields: [responsibleId], references: [id])
+
+  @@index([punchListId])
+  @@map("punch_list_items")
 }
 
 model ObraFaseHistory {

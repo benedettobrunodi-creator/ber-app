@@ -113,6 +113,23 @@ interface Photo {
   createdAt: string;
 }
 
+interface PunchListItem {
+  id: string;
+  descricao: string;
+  status: 'aberto' | 'resolvido';
+  resolvedAt: string | null;
+  responsible: { id: string; name: string } | null;
+}
+
+interface PunchList {
+  id: string;
+  type: 'interno' | 'cliente';
+  status: 'pendente' | 'em_andamento' | 'concluido';
+  createdAt: string;
+  creator: { id: string; name: string } | null;
+  items: PunchListItem[];
+}
+
 interface Recebimento {
   id: string;
   fornecedor: string;
@@ -307,6 +324,11 @@ export default function ObraDetailPage() {
   // Cockpit extra state
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
+  const [punchLists, setPunchLists] = useState<PunchList[]>([]);
+  const [creatingPL, setCreatingPL] = useState<'interno' | 'cliente' | null>(null);
+  const [showPLModal, setShowPLModal] = useState<PunchList | null>(null);
+  const [newPLItem, setNewPLItem] = useState('');
+  const [addingPLItem, setAddingPLItem] = useState(false);
 
   // Recebimentos state
   const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
@@ -390,6 +412,8 @@ export default function ObraDetailPage() {
       setRecebimentos(recebimentosRes.data.data);
       setTouchpoints(touchpointsRes.data.data ?? []);
       setRecentPhotos(photosRes.data.data ?? []);
+      const plRes = await api.get(`/obras/${params.id}/punch-lists`).catch(() => ({ data: { data: [] } }));
+      setPunchLists(plRes.data.data ?? []);
     } catch {
       /* handled by interceptor */
     } finally {
@@ -1083,6 +1107,184 @@ export default function ObraDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Row 3b: Punch List */}
+              {(() => {
+                const plInterno = punchLists.find(p => p.type === 'interno');
+                const plCliente = punchLists.find(p => p.type === 'cliente');
+                const daysToEnd = remaining;
+                const isDeliveryDay = daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 1;
+                const isPrePunchList = daysToEnd !== null && daysToEnd > 1 && daysToEnd <= 7;
+
+                async function handleCreatePL(type: 'interno' | 'cliente') {
+                  setCreatingPL(type);
+                  try {
+                    const res = await api.post(`/obras/${params.id}/punch-lists`, { type });
+                    setPunchLists(prev => [...prev, res.data.data]);
+                    setShowPLModal(res.data.data);
+                  } catch {} finally { setCreatingPL(null); }
+                }
+
+                async function handleToggleItem(plId: string, itemId: string, current: 'aberto' | 'resolvido') {
+                  const newStatus = current === 'aberto' ? 'resolvido' : 'aberto';
+                  try {
+                    await api.patch(`/punch-list-items/${itemId}`, { status: newStatus });
+                    setPunchLists(prev => prev.map(pl => pl.id === plId
+                      ? { ...pl, items: pl.items.map(i => i.id === itemId ? { ...i, status: newStatus, resolvedAt: newStatus === 'resolvido' ? new Date().toISOString() : null } : i) }
+                      : pl));
+                    if (showPLModal?.id === plId) {
+                      setShowPLModal(prev => prev ? { ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, status: newStatus } : i) } : prev);
+                    }
+                  } catch {}
+                }
+
+                async function handleAddPLItem(pl: PunchList) {
+                  if (!newPLItem.trim()) return;
+                  setAddingPLItem(true);
+                  try {
+                    const res = await api.post(`/punch-lists/${pl.id}/items`, { descricao: newPLItem.trim() });
+                    const item = res.data.data;
+                    setPunchLists(prev => prev.map(p => p.id === pl.id ? { ...p, items: [...p.items, item] } : p));
+                    setShowPLModal(prev => prev?.id === pl.id ? { ...prev, items: [...prev.items, item] } : prev);
+                    setNewPLItem('');
+                  } catch {} finally { setAddingPLItem(false); }
+                }
+
+                function PLCard({ pl, label, colorClass }: { pl: PunchList; label: string; colorClass: string }) {
+                  const total = pl.items.length;
+                  const resolved = pl.items.filter(i => i.status === 'resolvido').length;
+                  const pct = total > 0 ? Math.round((resolved / total) * 100) : 0;
+                  return (
+                    <div className={`rounded-lg border p-3 ${colorClass}`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-ber-carbon">{label}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${pl.status === 'concluido' ? 'bg-green-100 text-green-700' : pl.status === 'em_andamento' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {pl.status === 'concluido' ? '✅ Concluído' : pl.status === 'em_andamento' ? 'Em andamento' : 'Pendente'}
+                        </span>
+                      </div>
+                      {total > 0 && (
+                        <>
+                          <div className="mt-2 flex items-center justify-between text-xs text-ber-gray">
+                            <span>{resolved}/{total} resolvidos</span><span>{pct}%</span>
+                          </div>
+                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/60">
+                            <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </>
+                      )}
+                      <button onClick={() => setShowPLModal(pl)} className="mt-2 text-xs font-medium text-ber-teal hover:underline">
+                        {total === 0 ? 'Adicionar itens →' : 'Ver itens →'}
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
+
+                    {/* Alerts */}
+                    {isDeliveryDay && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2">
+                        <span className="text-base">🔴</span>
+                        <p className="text-sm font-bold text-red-700">Punch List com Cliente — hoje é dia da entrega!</p>
+                      </div>
+                    )}
+                    {isPrePunchList && !isDeliveryDay && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2">
+                        <span className="text-base">⚠️</span>
+                        <p className="text-sm font-semibold text-amber-700">Faltam {daysToEnd} dia{daysToEnd !== 1 ? 's' : ''} — iniciar Punch List Interno agora</p>
+                      </div>
+                    )}
+
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {/* Punch List Interno */}
+                      <div>
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Interno (pré-entrega)</p>
+                        {plInterno ? (
+                          <PLCard pl={plInterno} label="Punch List Interno" colorClass="border-amber-200 bg-amber-50/50" />
+                        ) : (
+                          <button
+                            onClick={() => handleCreatePL('interno')}
+                            disabled={creatingPL === 'interno'}
+                            className="w-full rounded-lg border border-dashed border-amber-300 py-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-50"
+                          >
+                            {creatingPL === 'interno' ? 'Criando...' : '+ Criar Punch List Interno'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Punch List Cliente */}
+                      <div>
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Com cliente (entrega)</p>
+                        {plCliente ? (
+                          <PLCard pl={plCliente} label="Punch List com Cliente" colorClass="border-red-200 bg-red-50/50" />
+                        ) : (
+                          <button
+                            onClick={() => handleCreatePL('cliente')}
+                            disabled={creatingPL === 'cliente'}
+                            className="w-full rounded-lg border border-dashed border-red-300 py-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {creatingPL === 'cliente' ? 'Criando...' : '+ Criar Punch List com Cliente'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Modal de itens */}
+                    {showPLModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowPLModal(null)}>
+                        <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
+                            <h2 className="font-bold text-ber-carbon">
+                              Punch List {showPLModal.type === 'interno' ? 'Interno' : 'com Cliente'}
+                            </h2>
+                            <button onClick={() => setShowPLModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+                          </div>
+                          <div className="max-h-80 overflow-y-auto px-5 py-3 space-y-2">
+                            {showPLModal.items.length === 0 && (
+                              <p className="py-4 text-center text-sm text-ber-gray/60">Nenhum item ainda. Adicione abaixo.</p>
+                            )}
+                            {showPLModal.items.map(item => (
+                              <div key={item.id} className="flex items-start gap-3">
+                                <button
+                                  onClick={() => handleToggleItem(showPLModal.id, item.id, item.status)}
+                                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${item.status === 'resolvido' ? 'border-ber-olive bg-ber-olive text-white' : 'border-ber-gray/40'}`}
+                                >
+                                  {item.status === 'resolvido' && <Check size={12} />}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm ${item.status === 'resolvido' ? 'line-through text-ber-gray/50' : 'text-ber-carbon'}`}>{item.descricao}</p>
+                                  {item.responsible && <p className="text-[10px] text-ber-gray">{item.responsible.name}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="border-t border-ber-offwhite px-5 py-3">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newPLItem}
+                                onChange={e => setNewPLItem(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAddPLItem(showPLModal)}
+                                placeholder="Nova pendência..."
+                                className="flex-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                              />
+                              <button
+                                onClick={() => handleAddPLItem(showPLModal)}
+                                disabled={addingPLItem || !newPLItem.trim()}
+                                className="rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
+                              >
+                                {addingPLItem ? '...' : 'Add'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Row 4: Fotos + Medições */}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
