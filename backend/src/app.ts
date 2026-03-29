@@ -186,7 +186,7 @@ const genericUpload = multer({
   storage: uploadStorage,
   limits: { fileSize: env.maxFileSize },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
     cb(null, allowed.includes(file.mimetype));
   },
 });

@@ -1,7 +1,26 @@
 import { Request, Response } from 'express';
+import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AppError } from '../../utils/errors';
+
+function convertPdfToImage(pdfPath: string): string {
+  const dir = path.dirname(pdfPath);
+  const base = path.basename(pdfPath, '.pdf');
+  const outPath = path.join(dir, `${base}.png`);
+  try {
+    execSync(`magick -density 150 "${pdfPath}[0]" -quality 90 -background white -alpha remove "${outPath}"`, { timeout: 30000 });
+    if (fs.existsSync(outPath)) {
+      fs.unlinkSync(pdfPath); // remover PDF original
+      return outPath;
+    }
+  } catch (e) {
+    console.error('PDF conversion failed:', e);
+  }
+  return pdfPath; // fallback: retorna o PDF se conversão falhar
+}
 
 const AUTOR_SELECT = { id: true, name: true, avatarUrl: true } as const;
 
@@ -19,8 +38,19 @@ export async function listPlantas(req: Request, res: Response) {
 
 // POST /v1/obras/:id/plantas  { fileUrl }
 export async function createPlanta(req: Request, res: Response) {
-  const { fileUrl } = req.body;
-  if (!fileUrl) throw AppError.badRequest('fileUrl obrigatório');
+  // Aceita fileUrl no body OU arquivo multipart (req.file)
+  let fileUrl = req.body?.fileUrl;
+  if (!fileUrl && (req as any).file) {
+    let filePath = (req as any).file.path || path.join(process.env.UPLOAD_DIR || './uploads', (req as any).file.filename);
+    // Converter PDF para imagem automaticamente
+    if ((req as any).file.mimetype === 'application/pdf' || (req as any).file.originalname?.endsWith('.pdf')) {
+      const converted = convertPdfToImage(filePath);
+      fileUrl = `/uploads/${path.basename(converted)}`;
+    } else {
+      fileUrl = `/uploads/${(req as any).file.filename}`;
+    }
+  }
+  if (!fileUrl) throw AppError.badRequest('fileUrl ou arquivo obrigatório');
   const planta = await prisma.obraPlanta.create({
     data: { obraId: req.params.id, fileUrl },
     include: { ambientes: true },
@@ -126,8 +156,11 @@ export async function listFotos(req: Request, res: Response) {
 
 // POST /v1/obras/:id/fotos  { fileUrl, ambienteId?, categoria?, legenda?, tiradaEm? }
 export async function createFoto(req: Request, res: Response) {
-  const { fileUrl, ambienteId, categoria, legenda, tiradaEm } = req.body;
+  let { fileUrl, ambienteId, categoria, legenda, tiradaEm } = req.body;
   const userId = (req as any).user?.id;
+  if (!fileUrl && (req as any).file) {
+    fileUrl = `/uploads/${(req as any).file.filename}`;
+  }
   if (!fileUrl) throw AppError.badRequest('fileUrl obrigatório');
 
   const foto = await prisma.obraFoto.create({

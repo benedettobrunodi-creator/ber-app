@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -353,6 +353,7 @@ export default function ObraDetailPage() {
 
   // Checklists state
   // Fotos
+  const imgRef = useRef<HTMLImageElement>(null);
   const [plantas, setPlantas] = useState<ObraPlanta[]>([]);
   const [ambientes, setAmbientes] = useState<ObraAmbiente[]>([]);
   const [fotos, setFotos] = useState<ObraFoto[]>([]);
@@ -1879,7 +1880,9 @@ export default function ObraDetailPage() {
 
           const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
             if (!addAmbienteMode || !planta) return;
-            const rect = e.currentTarget.getBoundingClientRect();
+            const imgEl = imgRef.current;
+            if (!imgEl) return;
+            const rect = imgEl.getBoundingClientRect();
             const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
             const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
             const nome = prompt('Nome do ambiente:');
@@ -1966,30 +1969,38 @@ export default function ObraDetailPage() {
                           onChange={e => { const f = e.target.files?.[0]; if (f) handlePlantaUpload(f); }} />
                       </label>
                     ) : (
-                      <div className="relative rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm"
-                        onClick={handleAddAmbiente}
-                        style={{ cursor: addAmbienteMode ? 'crosshair' : 'default' }}>
-                        <img src={planta.fileUrl} alt="Planta" className="w-full h-auto" />
-                        {/* Pins */}
-                        {ambientes.filter(a => a.plantaId === planta.id).map((amb, idx) => {
-                          const pinColor = getPinColor(amb);
-                          const isSelected = selectedAmbiente?.id === amb.id;
-                          return (
-                            <button key={amb.id}
-                              onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
-                              className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
-                              style={{ left: `${amb.posX}%`, top: `${amb.posY}%` }}
-                              title={amb.nome}>
-                              <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                                style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
-                                <span className="text-[9px] font-black text-white">{amb._count.fotos}</span>
-                              </div>
-                              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                {amb.nome}
-                              </div>
-                            </button>
-                          );
-                        })}
+                      <div className="rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm">
+                        {/* Wrapper relativo à imagem — pins posicionados AQUI dentro */}
+                        <div className="relative"
+                          onClick={handleAddAmbiente}
+                          style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
+                          <img
+                            ref={imgRef}
+                            src={planta.fileUrl}
+                            alt="Planta"
+                            className="w-full h-auto block"
+                          />
+                          {/* Pins — absolutamente posicionados dentro do wrapper da imagem */}
+                          {ambientes.filter(a => a.plantaId === planta.id).map((amb) => {
+                            const pinColor = getPinColor(amb);
+                            const isSelected = selectedAmbiente?.id === amb.id;
+                            return (
+                              <button key={amb.id}
+                                onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
+                                className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
+                                style={{ left: `${amb.posX}%`, top: `${amb.posY}%` }}
+                                title={amb.nome}>
+                                <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
+                                  style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
+                                  <span className="text-[9px] font-black text-white">{amb._count.fotos}</span>
+                                </div>
+                                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                  {amb.nome}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
