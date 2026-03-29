@@ -26,7 +26,7 @@ function getOAuth2Client() {
   return oauth2Client;
 }
 
-function buildWelcomeHtml(name: string, tempPassword: string): string {
+function buildWelcomeHtml(name: string, tempPassword: string, email: string): string {
   const appUrl = process.env.FRONTEND_URL || 'https://ber-app.vercel.app';
 
   return `
@@ -39,21 +39,52 @@ function buildWelcomeHtml(name: string, tempPassword: string): string {
       <div style="background: #fff; padding: 32px; border-radius: 12px; margin-top: 16px;">
         <h2 style="color: #2D2D2D; font-size: 18px; margin: 0 0 16px;">Bem-vindo(a), ${name}!</h2>
         <p style="color: #2D2D2D; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
-          Sua conta no <strong>BÈR App</strong> foi criada. Use as credenciais abaixo para acessar o sistema:
+          Sua conta no <strong>BÈR App</strong> foi criada. Use as credenciais abaixo para acessar:
         </p>
 
         <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 8px; font-size: 13px; color: #868686;">Senha temporária:</p>
+          <p style="margin: 0 0 4px; font-size: 13px; color: #868686;">Email:</p>
+          <p style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: #2D2D2D;">${email}</p>
+          <p style="margin: 0 0 4px; font-size: 13px; color: #868686;">Senha:</p>
           <p style="margin: 0; font-size: 18px; font-weight: 700; color: #2D2D2D; font-family: monospace; letter-spacing: 1px;">${tempPassword}</p>
         </div>
 
-        <p style="color: #868686; font-size: 12px; line-height: 1.5; margin: 16px 0;">
-          Recomendamos alterar sua senha no primeiro acesso em <strong>Configurações &gt; Meu Perfil</strong>.
-        </p>
-
-        <a href="${appUrl}/login" style="display: inline-block; background: #B5B820; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; margin-top: 8px;">
+        <a href="${appUrl}/login" style="display: inline-block; background: #B5B820; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; margin-top: 8px;">
           Acessar BÈR App
         </a>
+      </div>
+
+      <div style="background: #fff; padding: 24px 32px; border-radius: 12px; margin-top: 16px;">
+        <h3 style="color: #2D2D2D; font-size: 15px; margin: 0 0 16px;">Como instalar no celular</h3>
+
+        <div style="margin-bottom: 16px;">
+          <p style="color: #2D2D2D; font-size: 13px; font-weight: 700; margin: 0 0 6px;">iPhone (Safari):</p>
+          <ol style="color: #2D2D2D; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
+            <li>Abra <strong>${appUrl.replace('https://', '')}</strong> no <strong>Safari</strong></li>
+            <li>Toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima)</li>
+            <li>Role e toque em <strong>"Adicionar à Tela de Início"</strong></li>
+            <li>Toque em <strong>"Adicionar"</strong></li>
+          </ol>
+        </div>
+
+        <div>
+          <p style="color: #2D2D2D; font-size: 13px; font-weight: 700; margin: 0 0 6px;">Android (Chrome):</p>
+          <ol style="color: #2D2D2D; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
+            <li>Abra <strong>${appUrl.replace('https://', '')}</strong> no <strong>Chrome</strong></li>
+            <li>Toque nos <strong>3 pontos</strong> no canto superior</li>
+            <li>Toque em <strong>"Instalar aplicativo"</strong></li>
+          </ol>
+        </div>
+
+        <p style="color: #868686; font-size: 11px; line-height: 1.5; margin: 16px 0 0;">
+          Após instalar, o BÈR App aparece como ícone na tela inicial do celular, igual a um app normal.
+        </p>
+      </div>
+
+      <div style="background: #fff; padding: 20px 32px; border-radius: 12px; margin-top: 16px;">
+        <p style="color: #868686; font-size: 12px; line-height: 1.5; margin: 0;">
+          Recomendamos alterar sua senha no primeiro acesso em <strong>Configurações &gt; Meu Perfil &gt; Alterar Senha</strong>.
+        </p>
       </div>
 
       <p style="text-align: center; color: #868686; font-size: 11px; margin-top: 24px;">
@@ -71,7 +102,7 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void
     const gmail = google.gmail({ version: 'v1', auth });
 
     const subject = 'Bem-vindo ao BÈR App';
-    const htmlBody = buildWelcomeHtml(name, tempPassword);
+    const htmlBody = buildWelcomeHtml(name, tempPassword, to);
 
     const rawMessage = [
       `From: BÈR App <bruno@ber-engenharia.com.br>`,
