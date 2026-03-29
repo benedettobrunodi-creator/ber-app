@@ -1031,24 +1031,94 @@ export default function ObraDetailPage() {
                 {/* Expand panel */}
                 {!editMode && isExpanded && (
                   <div className="border-t border-ber-offwhite px-4 pb-4 pt-3 space-y-3">
-                    {/* Status + change */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
-                        <StatusIcon size={12} /> {statusCfg.label}
-                      </span>
-                      {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && isFrozen && (
-                        <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-teal px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-ber-teal/80"><Play size={12} /> Iniciar</button>
-                      )}
-                      {isGestor && etapa.status === 'em_andamento' && (
-                        <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }} className="flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"><Send size={12} /> Enviar p/ Aprovação</button>
-                      )}
-                      {isCoord && etapa.status === 'aguardando_aprovacao' && (
-                        <>
-                          <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-olive px-2.5 py-1.5 text-xs font-semibold text-ber-black hover:bg-ber-olive/80"><Check size={12} /> Aprovar</button>
-                          <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-600"><XCircle size={12} /> Rejeitar</button>
-                        </>
-                      )}
-                    </div>
+                    {/* ── Action buttons ── always visible, no freeze requirement for coord/dir */}
+                    {(() => {
+                      const canAct = isFrozen || isCoord;
+                      const hasAction =
+                        (isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct) ||
+                        (isGestor && etapa.status === 'em_andamento') ||
+                        (isCoord && etapa.status === 'aguardando_aprovacao') ||
+                        ['concluida', 'aprovada'].includes(etapa.status);
+                      if (!hasAction) return null;
+                      return (
+                        <div className="flex flex-wrap gap-2 rounded-lg bg-ber-offwhite/60 p-3">
+                          {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct && (
+                            <button
+                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }}
+                              className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
+                            >
+                              <Play size={13} /> Iniciar Etapa
+                            </button>
+                          )}
+                          {isGestor && etapa.status === 'nao_iniciada' && isBlocked && (
+                            <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
+                              <Lock size={12} /> Aguardando: {getBlockingEtapas(etapa).join(', ')}
+                            </span>
+                          )}
+                          {isGestor && etapa.status === 'em_andamento' && (
+                            <button
+                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }}
+                              className="flex items-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-bold text-white hover:bg-blue-600 shadow-sm"
+                            >
+                              <Send size={13} /> Enviar para Aprovação
+                            </button>
+                          )}
+                          {isCoord && etapa.status === 'aguardando_aprovacao' && (
+                            <>
+                              <button
+                                onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }}
+                                className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
+                              >
+                                <Check size={13} /> Aprovar Etapa
+                              </button>
+                              <button
+                                onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }}
+                                className="flex items-center gap-1.5 rounded-md bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600 shadow-sm"
+                              >
+                                <XCircle size={13} /> Rejeitar
+                              </button>
+                            </>
+                          )}
+                          {['concluida', 'aprovada'].includes(etapa.status) && isCoord && (
+                            (() => {
+                              const exp = unlockedEtapas.get(etapa.id);
+                              const ok = exp && exp > new Date();
+                              return ok
+                                ? <span className="text-xs font-semibold text-green-600">🔓 Liberado até {exp!.toLocaleTimeString('pt-BR')}</span>
+                                : <button
+                                    onClick={async () => {
+                                      try {
+                                        const r1 = await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapa.id}/edit-request`, { motivo: 'Desbloqueio direto' });
+                                        await api.patch(`/sequenciamento/edit-requests/${r1.data.data.id}`, { action: 'approve' });
+                                        setUnlockedEtapas(prev => new Map([...prev, [etapa.id, new Date(Date.now() + 30 * 60 * 1000)]]));
+                                      } catch {}
+                                    }}
+                                    className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-2 text-xs font-bold text-ber-black hover:bg-ber-olive/80 shadow-sm"
+                                  >
+                                    🔓 Desbloquear edição (30 min)
+                                  </button>;
+                            })()
+                          )}
+                          {['concluida', 'aprovada'].includes(etapa.status) && isGestor && !isCoord && (
+                            (() => {
+                              const pending = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
+                              const exp = unlockedEtapas.get(etapa.id);
+                              const ok = exp && exp > new Date();
+                              return pending
+                                ? <span className="text-xs font-semibold text-amber-600">⏳ Solicitação pendente — aguardando aprovação</span>
+                                : ok
+                                  ? <span className="text-xs font-semibold text-green-600">🔓 Edição liberada até {exp!.toLocaleTimeString('pt-BR')}</span>
+                                  : <button
+                                      onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }}
+                                      className="flex items-center gap-1.5 rounded-md border border-ber-gray/40 bg-white px-3 py-2 text-xs font-semibold text-ber-gray hover:bg-ber-offwhite shadow-sm"
+                                    >
+                                      🔒 Solicitar edição
+                                    </button>;
+                            })()
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Dates */}
                     <div className="grid grid-cols-2 gap-3 text-sm">
