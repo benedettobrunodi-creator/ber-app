@@ -827,13 +827,12 @@ export default function ObraDetailPage() {
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'cockpit', label: '🎛 Cockpit' },
-    { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
-    { key: 'fotos', label: `Fotos (${obra._count.photos})` },
-    { key: 'equipe', label: `Equipe (${obra.members.length})` },
-    { key: 'checklists', label: `Checklists (${checklists.length})` },
-    { key: 'canteiro', label: `Canteiro (${canteiroChecklists.length})` },
     { key: 'sequenciamento', label: `Sequenciamento${sequenciamento ? ` (${sequenciamento.etapas.filter(e => e.status === 'aprovada').length}/${sequenciamento.etapas.length})` : ''}` },
+    { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
+    { key: 'checklists', label: `Checklists (${checklists.length})` },
+    { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
+    { key: 'equipe', label: `Equipe (${obra.members.length})` },
   ];
 
   return (
