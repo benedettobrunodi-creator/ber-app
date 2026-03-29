@@ -118,7 +118,7 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'cockpit' | 'kanban' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs';
 
 interface TouchpointSummary {
   id: string;
@@ -1296,7 +1296,6 @@ export default function ObraDetailPage() {
     { key: 'cockpit', label: '🎛 Cockpit' },
     { key: 'sequenciamento', label: `Sequenciamento${sequenciamento ? ` (${sequenciamento.etapas.filter(e => e.status === 'aprovada').length}/${sequenciamento.etapas.length})` : ''}` },
     { key: 'fvs', label: `FVS (${obraFvsList.length})` },
-    { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },

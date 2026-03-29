@@ -8,12 +8,14 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package, FolderOpen, ChevronDown, ChevronRight,
+  Kanban,
   type LucideIcon,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
+  { label: 'Kanban', href: '/kanban', icon: Kanban },
   { label: 'Recebimentos', href: '/recebimentos', icon: Package },
   { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
   { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
