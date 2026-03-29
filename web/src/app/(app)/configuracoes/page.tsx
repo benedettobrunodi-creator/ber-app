@@ -272,17 +272,18 @@ export default function ConfiguracoesPage() {
     : [{ key: 'perfil' as const, label: 'Meu Perfil', icon: Settings }];
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-ber-carbon">Configuracoes</h1>
+        <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Configuracoes</h1>
         {activeTab === 'usuarios' && canManageUsers && (
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+            className="flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white transition-colors hover:opacity-90"
           >
             <UserPlus size={16} />
-            Novo Usuario
+            <span className="hidden sm:inline">Novo Usuario</span>
+            <span className="sm:hidden">Novo</span>
           </button>
         )}
       </div>
@@ -321,7 +322,49 @@ export default function ConfiguracoesPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+              <>
+              <div className="space-y-3 md:hidden">
+                {users.map((u) => (
+                  <div key={u.id} className="rounded-lg bg-white p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      {u.avatarUrl ? (
+                        <img src={u.avatarUrl} alt={u.name} className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
+                          {getInitials(u.name)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-ber-carbon truncate">{u.name}</p>
+                        <p className="text-xs text-ber-gray truncate">{u.email}</p>
+                      </div>
+                      {u.isActive ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Ativo</span>
+                      ) : (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">Inativo</span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}>
+                          <Shield size={10} />
+                          {ROLE_LABELS[u.role]}
+                        </span>
+                        {u.phone && <span className="text-xs text-ber-gray">{u.phone}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEditModal(u)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-ber-olive text-xs font-semibold text-white">Editar</button>
+                        <button onClick={() => handleToggleActive(u)} className={`min-h-[44px] rounded-lg px-3 text-xs font-semibold text-white ${u.isActive ? 'bg-red-500' : 'bg-green-600'}`}>
+                          {u.isActive ? 'Desativar' : 'Reativar'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto rounded-lg bg-white shadow-sm md:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
@@ -339,7 +382,6 @@ export default function ConfiguracoesPage() {
                         key={u.id}
                         className="border-b border-ber-gray/5 last:border-0"
                       >
-                        {/* Avatar + Name */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             {u.avatarUrl ? (
@@ -358,11 +400,7 @@ export default function ConfiguracoesPage() {
                             </span>
                           </div>
                         </td>
-
-                        {/* Email */}
                         <td className="px-6 py-4 text-ber-gray">{u.email}</td>
-
-                        {/* Role badge */}
                         <td className="px-6 py-4">
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}
@@ -371,13 +409,9 @@ export default function ConfiguracoesPage() {
                             {ROLE_LABELS[u.role]}
                           </span>
                         </td>
-
-                        {/* Phone */}
                         <td className="px-6 py-4 text-ber-gray">
                           {u.phone || '-'}
                         </td>
-
-                        {/* Status */}
                         <td className="px-6 py-4">
                           {u.isActive ? (
                             <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
@@ -389,8 +423,6 @@ export default function ConfiguracoesPage() {
                             </span>
                           )}
                         </td>
-
-                        {/* Actions */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <button
@@ -414,6 +446,7 @@ export default function ConfiguracoesPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </>
         )}
@@ -572,8 +605,8 @@ export default function ConfiguracoesPage() {
 
       {/* User modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">
                 {editingUser ? 'Editar Usuario' : 'Novo Usuario'}

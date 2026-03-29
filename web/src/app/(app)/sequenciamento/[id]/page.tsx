@@ -216,14 +216,14 @@ export default function SequenciamentoObraPage() {
   const isFrozen = !!seq?.frozenAt;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <button onClick={() => router.push('/sequenciamento')} className="flex items-center gap-2 text-sm text-[var(--ber-carbon-light)] hover:text-[var(--ber-carbon)] mb-4 transition-colors">
           <ArrowLeft size={16} />Sequenciamento
         </button>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--ber-carbon)]">{obra?.name || 'Obra'}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--ber-carbon)]">{obra?.name || 'Obra'}</h1>
             {seq?.template && <p className="text-sm text-[var(--ber-carbon-light)] mt-1">{seq.template.name} — {seq.template.segment}</p>}
           </div>
           <div className="flex gap-2">
@@ -372,8 +372,8 @@ export default function SequenciamentoObraPage() {
 
       {/* Modal Submeter */}
       {submitModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+          <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-[var(--ber-border)]">
               <h2 className="text-lg font-semibold text-[var(--ber-carbon)]">Submeter: {submitModal.name}</h2>
               <button onClick={() => setSubmitModal(null)}><X size={20} className="text-[var(--ber-carbon-light)]" /></button>
@@ -420,8 +420,8 @@ export default function SequenciamentoObraPage() {
 
       {/* Modal Rejeitar */}
       {rejectModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+          <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-[var(--ber-border)]">
               <h2 className="text-lg font-semibold text-[var(--ber-carbon)]">Rejeitar: {rejectModal.name}</h2>
               <button onClick={() => setRejectModal(null)}><X size={20} className="text-[var(--ber-carbon-light)]" /></button>

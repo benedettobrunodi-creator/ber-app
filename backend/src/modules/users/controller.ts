@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as userService from './service';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
+import { sendWelcomeEmail } from '../../services/email';
 
 export async function listUsers(req: Request, res: Response) {
   const { page, limit } = parsePagination(req.query as { page?: string; limit?: string });
@@ -20,6 +21,14 @@ export async function updateMe(req: Request, res: Response) {
 
 export async function createUser(req: Request, res: Response) {
   const user = await userService.createUser(req.body);
+
+  // Send welcome email in background (don't block response)
+  sendWelcomeEmail({
+    to: req.body.email,
+    name: req.body.name,
+    tempPassword: req.body.password,
+  });
+
   sendCreated(res, user);
 }
 

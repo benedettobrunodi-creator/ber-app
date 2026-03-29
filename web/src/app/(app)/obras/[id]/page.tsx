@@ -1410,7 +1410,7 @@ export default function ObraDetailPage() {
   ];
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -1421,7 +1421,7 @@ export default function ObraDetailPage() {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-black text-ber-carbon">{obra.name}</h1>
+            <h1 className="text-xl md:text-2xl font-black text-ber-carbon">{obra.name}</h1>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-opacity ${statusCfg.badge} ${updatingStatus ? 'animate-pulse opacity-60' : ''}`}>
               {updatingStatus ? 'Salvando...' : statusCfg.label}
             </span>
@@ -1673,8 +1673,8 @@ export default function ObraDetailPage() {
 
               {/* ── Touchpoint modals ── */}
               {showTPModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPModal(false)}>
-                  <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4" onClick={() => setShowTPModal(false)}>
+                  <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Registrar Touchpoint</h2><button onClick={() => setShowTPModal(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
                     <div className="space-y-3 px-5 py-4">
                       <div><label className="text-xs font-medium text-ber-gray">Tipo *</label><select value={newTP.type} onChange={e => setNewTP(p => ({...p, type: e.target.value}))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"><option value="kickoff_externo">Kick-Off Externo</option><option value="reuniao_semanal">Reunião Semanal</option><option value="comunicado_semanal">Comunicado Semanal</option><option value="extra_aditivo">Extra / Aditivo</option><option value="aceite_provisorio">Aceite Provisório</option><option value="aceite_definitivo">Aceite Definitivo</option><option value="visita_informal">Visita Informal</option></select></div>
@@ -1691,8 +1691,8 @@ export default function ObraDetailPage() {
                 </div>
               )}
               {showTPHistory && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPHistory(false)}>
-                  <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4" onClick={() => setShowTPHistory(false)}>
+                  <div className="w-full max-w-lg rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Histórico de Touchpoints</h2><button onClick={() => setShowTPHistory(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
                     <div className="max-h-[60vh] overflow-y-auto px-5 py-3 space-y-3">
                       {touchpoints.length === 0 && <p className="py-6 text-center text-sm text-ber-gray/60">Nenhum touchpoint.</p>}
@@ -1705,8 +1705,8 @@ export default function ObraDetailPage() {
 
               {/* ── Edit Request modal ── */}
               {editReqModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setEditReqModal(null)}>
-                  <div className="w-full max-w-sm rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4" onClick={() => setEditReqModal(null)}>
+                  <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
                       <h2 className="font-bold text-ber-carbon">Solicitar Edição</h2>
                       <button onClick={() => setEditReqModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
@@ -1738,8 +1738,8 @@ export default function ObraDetailPage() {
 
               {/* ── Punch List modal ── */}
               {showPLModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowPLModal(null)}>
-                  <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4" onClick={() => setShowPLModal(null)}>
+                  <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Punch List {showPLModal.type === 'interno' ? 'Interno' : 'com Cliente'}</h2><button onClick={() => setShowPLModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
                     <div className="max-h-80 overflow-y-auto px-5 py-3 space-y-2">
                       {showPLModal.items.length === 0 && <p className="py-4 text-center text-sm text-ber-gray/60">Nenhum item. Adicione abaixo.</p>}
@@ -2174,8 +2174,8 @@ export default function ObraDetailPage() {
 
               {/* UPLOAD MODAL */}
               {uploadModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-                  <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+                  <div className="w-full max-w-lg rounded-t-2xl md:rounded-xl bg-white shadow-2xl overflow-hidden max-h-[90dvh] overflow-y-auto">
                     <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-3">
                       <h3 className="text-sm font-bold text-ber-carbon">Nova Foto</h3>
                       <button onClick={() => { setUploadModalOpen(false); setPendingFiles([]); }} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={16} /></button>
@@ -2291,8 +2291,8 @@ export default function ObraDetailPage() {
 
             {/* Add Member Modal */}
             {showAddMemberModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-                <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+                <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
                     <h2 className="font-bold text-ber-carbon">Adicionar Membro</h2>
                     <button onClick={() => setShowAddMemberModal(false)} className="text-ber-gray hover:text-ber-carbon">
@@ -2586,8 +2586,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Confirm Freeze Modal ─── */}
       {confirmFreeze && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="px-6 py-5">
               <div className="mb-3 flex items-center gap-2">
                 <Snowflake size={20} className="text-blue-600" />
@@ -2620,8 +2620,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Confirm Remove Etapa Modal ─── */}
       {removingEtapaId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="px-6 py-5">
               <h2 className="mb-2 text-lg font-black text-ber-carbon">Remover Etapa?</h2>
               <p className="text-sm text-ber-gray">
@@ -2648,8 +2648,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Add Etapa Modal ─── */}
       {showAddEtapa && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">Adicionar Etapa</h2>
               <button
@@ -2727,8 +2727,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Etapa Action Modal (Rich Forms) ─── */}
       {etapaAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+          <div className="w-full max-w-lg rounded-t-2xl md:rounded-xl bg-white shadow-2xl max-h-[90dvh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4 shrink-0">
               <div>
@@ -3055,8 +3055,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Sequenciamento Template Modal ─── */}
       {showSeqModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">Iniciar Sequenciamento</h2>
               <button
@@ -3297,8 +3297,8 @@ export default function ObraDetailPage() {
 
             {/* Detail overlay */}
             {recebimentoDetail && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+                <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
                     <h2 className="text-lg font-black text-ber-carbon">Detalhes do Recebimento</h2>
                     <button onClick={() => setRecebimentoDetail(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
@@ -3336,8 +3336,8 @@ export default function ObraDetailPage() {
 
             {/* Registration modal */}
             {showRecebimentoForm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+                <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
                     <h2 className="text-lg font-black text-ber-carbon">Registrar Recebimento</h2>
                     <button onClick={() => setShowRecebimentoForm(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
@@ -3428,8 +3428,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Trello Board Picker Modal ─── */}
       {showTrelloModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">Vincular Board do Trello</h2>
               <button
@@ -3502,8 +3502,8 @@ export default function ObraDetailPage() {
 
       {/* ─── New Checklist Modal ─── */}
       {showNewChecklistModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">Novo Checklist</h2>
               <button
@@ -3632,8 +3632,8 @@ export default function ObraDetailPage() {
         const pct = cl.items.length > 0 ? Math.round(checkedCount / cl.items.length * 100) : 0;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-            <div className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+            <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-t-2xl md:rounded-xl bg-white shadow-2xl">
               {/* Header */}
               <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
                 <div>
@@ -3853,8 +3853,8 @@ export default function ObraDetailPage() {
         };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-            <div className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+            <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-t-2xl md:rounded-xl bg-white shadow-2xl">
               {/* Header */}
               <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
                 <div>
@@ -3965,8 +3965,8 @@ export default function ObraDetailPage() {
 
       {/* ─── Create FVS Modal ─── */}
       {createFvsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-base font-black text-ber-carbon">Nova FVS</h2>
               <button onClick={() => setCreateFvsModal(false)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>

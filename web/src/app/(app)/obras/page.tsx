@@ -48,8 +48,8 @@ interface ConfirmDialogProps {
 }
 function ConfirmDialog({ obraName, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
         <div className="flex items-start justify-between">
           <h2 className="text-base font-bold text-ber-carbon">Arquivar obra?</h2>
           <button onClick={onCancel} className="text-ber-gray hover:text-ber-carbon">
@@ -147,10 +147,10 @@ export default function ObrasPage() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-black text-ber-carbon">Obras</h1>
+        <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Obras</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={handleSyncClickUp}
@@ -302,8 +302,8 @@ export default function ObrasPage() {
       )}
 
       {deleteObra && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={20} className="text-red-600" />

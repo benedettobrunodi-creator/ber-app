@@ -595,8 +595,8 @@ export default function InstrucoesPage() {
   // ─── Main page ────────────────────────────────────────────────────────────
 
   return (
-    <div>
-      <h1 className="text-2xl font-black text-ber-carbon">Instruções Técnicas</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Instruções Técnicas</h1>
       <p className="mt-1 text-sm text-ber-gray">
         Biblioteca de instruções técnicas BER
       </p>
@@ -669,8 +669,8 @@ export default function InstrucoesPage() {
 
       {/* ─── IT Form Modal ─── */}
       {showITForm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 py-8">
-          <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-start justify-center overflow-y-auto bg-black/40 md:py-8">
+          <div className="w-full max-w-2xl rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">
                 {editingIT ? `Editar ${editingIT.code}` : 'Nova Instrução Técnica'}

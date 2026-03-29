@@ -63,8 +63,8 @@ export default function NovaReuniaoModal({ proposals, onClose, onCreated }: Prop
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
+      <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
           <h2 className="text-lg font-black text-ber-carbon">Nova Reunião</h2>
           <button

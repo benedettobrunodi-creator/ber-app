@@ -164,7 +164,7 @@ export default function RecebimentosObraPage() {
   );
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <button onClick={() => router.push('/recebimentos')} className="flex items-center gap-2 text-sm text-[var(--ber-carbon-light)] hover:text-[var(--ber-carbon)] mb-4 transition-colors">
           <ArrowLeft size={16} />
@@ -172,7 +172,7 @@ export default function RecebimentosObraPage() {
         </button>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--ber-carbon)]">{obra?.name || 'Obra'}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[var(--ber-carbon)]">{obra?.name || 'Obra'}</h1>
             <p className="text-sm text-[var(--ber-carbon-light)] mt-1">{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''} registrado{recebimentos.length !== 1 ? 's' : ''}</p>
           </div>
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[var(--ber-olive)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
@@ -249,8 +249,8 @@ export default function RecebimentosObraPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+          <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-[var(--ber-border)]">
               <h2 className="text-lg font-semibold text-[var(--ber-carbon)]">Novo Recebimento</h2>
               <button onClick={() => { setShowForm(false); resetForm(); }}><X size={20} className="text-[var(--ber-carbon-light)]" /></button>

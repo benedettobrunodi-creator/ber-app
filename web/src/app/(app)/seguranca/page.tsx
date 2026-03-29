@@ -453,10 +453,10 @@ export default function SegurancaPage() {
   // --- Render ---
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-ber-carbon">Segurança do Trabalho</h1>
+        <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Segurança do Trabalho</h1>
         <div className="flex gap-2">
           <button
             onClick={() => handleExport(activeTab === 'incidents' ? 'incidentes' : activeTab === 'trainings' ? 'treinamentos' : activeTab)}
@@ -740,8 +740,8 @@ export default function SegurancaPage() {
 
       {/* ===== APR MODAL ===== */}
       {aprModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Nova APR</h2>
               <button onClick={() => setAprModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -810,8 +810,8 @@ export default function SegurancaPage() {
 
       {/* ===== EPI MODAL ===== */}
       {epiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Entrega de EPI</h2>
               <button onClick={() => setEpiModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -869,8 +869,8 @@ export default function SegurancaPage() {
 
       {/* ===== INCIDENT MODAL ===== */}
       {incidentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Incidente</h2>
               <button onClick={() => setIncidentModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -958,8 +958,8 @@ export default function SegurancaPage() {
 
       {/* ===== TRAINING MODAL ===== */}
       {trainingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Treinamento</h2>
               <button onClick={() => setTrainingModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">

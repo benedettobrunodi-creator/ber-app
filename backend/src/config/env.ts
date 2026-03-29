@@ -37,6 +37,8 @@ export const env = {
   googleCalendarId: process.env.GOOGLE_CALENDAR_ID,
   googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
 
+  gmailOAuthToken: process.env.GMAIL_OAUTH_TOKEN,
+
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
   corsOrigin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow localhost, trycloudflare.com tunnels, and configured origins

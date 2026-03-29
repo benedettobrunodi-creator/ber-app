@@ -159,7 +159,7 @@ export default function ChecklistsPage() {
     return (
       <div className="p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-black text-ber-carbon">Checklists BÈR</h1>
+          <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Checklists BÈR</h1>
           <p className="mt-0.5 text-sm text-ber-gray">Selecione uma obra para ver seus checklists</p>
         </div>
 
@@ -330,8 +330,8 @@ export default function ChecklistsPage() {
         });
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
-            <div className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-2xl">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
+            <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-t-2xl md:rounded-xl bg-white shadow-2xl">
               {/* Header */}
               <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
                 <div>

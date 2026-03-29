@@ -301,8 +301,8 @@ export default function PontoPage() {
   const isCheckedIn = status?.isCheckedIn ?? false;
 
   return (
-    <div>
-      <h1 className="text-2xl font-black text-ber-carbon">Ponto</h1>
+    <div className="p-4 md:p-6">
+      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Ponto</h1>
 
       {/* Card central */}
       <div className="mx-auto mt-8 max-w-md">
@@ -403,7 +403,27 @@ export default function PontoPage() {
       <div className="mx-auto mt-8 max-w-2xl">
         <h2 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Historico</h2>
         {historyGroups.length > 0 ? (
-          <div className="mt-3 overflow-hidden rounded-lg bg-white shadow-sm">
+          <>
+          <div className="mt-3 space-y-2 md:hidden">
+            {historyGroups.map((group) => {
+              const checkins = group.entries.filter((e) => e.type === 'checkin');
+              const checkouts = group.entries.filter((e) => e.type === 'checkout');
+              return (
+                <div key={group.date} className="rounded-lg bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-ber-carbon">{formatDate(group.entries[0].timestamp)}</span>
+                    <span className="text-sm font-semibold text-ber-carbon">{group.totalHours != null ? formatHours(group.totalHours) : '--'}</span>
+                  </div>
+                  <div className="mt-2 flex gap-4 text-xs text-ber-gray">
+                    <span>Entrada: <span className="font-mono text-ber-carbon">{checkins.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
+                    <span>Saida: <span className="font-mono text-ber-carbon">{checkouts.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop table */}
+          <div className="mt-3 hidden overflow-hidden rounded-lg bg-white shadow-sm md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase tracking-wide text-ber-gray">
@@ -435,6 +455,7 @@ export default function PontoPage() {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <div className="mt-3 rounded-lg bg-white p-4 text-center text-sm text-ber-gray/60 shadow-sm">
             Nenhum registro anterior
@@ -444,8 +465,8 @@ export default function PontoPage() {
 
       {/* Modal selecao de obra */}
       {showObraModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 p-0 md:p-4">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[85dvh] overflow-y-auto">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-ber-carbon">
                 <HardHat size={18} className="mr-2 inline" />
