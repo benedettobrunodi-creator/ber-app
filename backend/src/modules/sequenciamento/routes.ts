@@ -38,4 +38,17 @@ obraEtapaRouter.patch('/:etapaId/submit', requireRole('gestor'), validate(submit
 obraEtapaRouter.patch('/:etapaId/approve', requireRole('coordenacao'), validate(approveEtapaSchema), controller.approveEtapa);
 obraEtapaRouter.patch('/:etapaId/reject', requireRole('coordenacao'), validate(rejectEtapaSchema), controller.rejectEtapa);
 
-export { templateRouter as seqTemplateRouter, obraSeqRouter, obraEtapaRouter };
+// ─── Edit-request routes ────────────────────────────────────────────────────
+import * as editReqCtrl from './edit-request.controller';
+const editReqRouter = Router({ mergeParams: true });
+editReqRouter.use(authenticate);
+editReqRouter.get('/pending', requireRole('gestor'), editReqCtrl.getPendingForObra);
+
+obraSeqRouter.get('/etapas/:etapaId/edit-request', requireRole('gestor'), editReqCtrl.getEditRequests);
+obraSeqRouter.post('/etapas/:etapaId/edit-request', requireRole('gestor'), editReqCtrl.createEditRequest);
+
+const globalEditReqRouter = Router();
+globalEditReqRouter.use(authenticate);
+globalEditReqRouter.patch('/:id', requireRole('coordenacao'), editReqCtrl.resolveEditRequest);
+
+export { templateRouter as seqTemplateRouter, obraSeqRouter, obraEtapaRouter, editReqRouter, globalEditReqRouter };

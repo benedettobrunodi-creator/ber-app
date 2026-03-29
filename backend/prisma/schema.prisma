@@ -61,6 +61,8 @@ model User {
   createdTouchpoints    ClientTouchpoint[]   @relation("TouchpointCreator")
   createdPunchLists     PunchList[]          @relation("PunchListCreator")
   punchListItems        PunchListItem[]      @relation("PunchListResponsible")
+  etapaEditRequests     EtapaEditRequest[]   @relation("EtapaEditRequester")
+  etapaEditResolved     EtapaEditRequest[]   @relation("EtapaEditResolver")
 
   @@map("users")
 }
@@ -652,6 +654,7 @@ model ObraEtapa {
   submitter      User?              @relation("EtapaSubmitter", fields: [submittedBy], references: [id])
   approver       User?              @relation("EtapaApprover", fields: [approvedBy], references: [id])
   rejecter       User?              @relation("EtapaRejecter", fields: [rejectedBy], references: [id])
+  editRequests   EtapaEditRequest[] @relation("ObraEtapaEditReq")
 
   @@index([sequenciamentoId])
   @@index([obraId])
@@ -798,4 +801,23 @@ model ClientTouchpoint {
   @@index([obraId, occurredAt(sort: Desc)])
   @@index([nextActionDue])
   @@map("client_touchpoints")
+}
+
+model EtapaEditRequest {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  etapaId         String    @db.Uuid @map("etapa_id")
+  requestedBy     String    @db.Uuid @map("requested_by")
+  status          String    @default("pending")
+  motivo          String?
+  rejectionReason String?   @map("rejection_reason")
+  resolvedBy      String?   @db.Uuid @map("resolved_by")
+  resolvedAt      DateTime? @map("resolved_at")
+  unlockedUntil   DateTime? @map("unlocked_until")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  etapa      ObraEtapa           @relation("ObraEtapaEditReq", fields: [etapaId], references: [id], onDelete: Cascade)
+  requester  User                @relation("EtapaEditRequester", fields: [requestedBy], references: [id])
+  resolver   User?               @relation("EtapaEditResolver", fields: [resolvedBy], references: [id])
+
+  @@map("etapa_edit_requests")
 }

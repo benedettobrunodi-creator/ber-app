@@ -34,7 +34,7 @@ import {
   trainingRouter,
   segurancaRouter,
 } from './modules/safety/routes';
-import { seqTemplateRouter, obraSeqRouter, obraEtapaRouter } from './modules/sequenciamento/routes';
+import { seqTemplateRouter, obraSeqRouter, obraEtapaRouter, editReqRouter, globalEditReqRouter } from './modules/sequenciamento/routes';
 import normasRouter from './modules/normas/routes';
 import instrucoesRouter from './modules/instrucoes/routes';
 import recebimentoRouter, { obraRecebimentoRouter } from './modules/recebimentos/routes';
@@ -128,6 +128,8 @@ app.use('/v1/seguranca', segurancaRouter);
 app.use('/v1/sequenciamento-templates', seqTemplateRouter);
 app.use('/v1/obras/:id/sequenciamento', obraSeqRouter);
 app.use('/v1/obras/:id/etapas', obraEtapaRouter);
+app.use('/v1/obras/:obraId/edit-requests', editReqRouter);
+app.use('/v1/sequenciamento/edit-requests', globalEditReqRouter);
 app.use('/v1/normas', normasRouter);
 app.use('/v1/instrucoes-tecnicas', instrucoesRouter);
 app.use('/v1/obras/:id/recebimentos', obraRecebimentoRouter);

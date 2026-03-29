@@ -328,11 +328,18 @@ export default function ObraDetailPage() {
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
-  // Sequenciamento accordion
+  // Sequenciamento accordion + edit requests
   const [expandedEtapaId, setExpandedEtapaId] = useState<string | null>(null);
+  const [editReqModal, setEditReqModal] = useState<{ etapaId: string; etapaName: string } | null>(null);
+  const [editReqMotivo, setEditReqMotivo] = useState('');
+  const [sendingEditReq, setSendingEditReq] = useState(false);
+  const [editReqSent, setEditReqSent] = useState<Set<string>>(new Set());
+  const [unlockedEtapas, setUnlockedEtapas] = useState<Map<string, Date>>(new Map()); // etapaId -> unlockedUntil
+  const [pendingEditReqs, setPendingEditReqs] = useState<{id:string;etapa:{id:string;name:string};requester:{id:string;name:string};motivo:string|null;createdAt:string}[]>([]);
+  const [resolvingReqId, setResolvingReqId] = useState<string | null>(null);
 
   // Cockpit drag-and-drop order
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'equipe', 'touchpoint', 'checklists', 'punchlist', 'fotos', 'medicoes'];
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
   const storageKey = `cockpit-order-${params.id}-${typeof window !== 'undefined' ? (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : '') : ''}`;
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
@@ -474,6 +481,8 @@ export default function ObraDetailPage() {
       setRecentPhotos(photosRes.data.data ?? []);
       const plRes = await api.get(`/obras/${params.id}/punch-lists`).catch(() => ({ data: { data: [] } }));
       setPunchLists(plRes.data.data ?? []);
+      const pendingReqRes = await api.get(`/obras/${params.id}/edit-requests/pending`).catch(() => ({ data: { data: [] } }));
+      setPendingEditReqs(pendingReqRes.data.data ?? []);
     } catch {
       /* handled by interceptor */
     } finally {
@@ -1064,6 +1073,160 @@ export default function ObraDetailPage() {
                 {recebimentos.length === 0 ? <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p> : <div className="mt-3 space-y-2"><div><p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p><div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3"><p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p><p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p><span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>{(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}</span></div></div><div className="flex items-center justify-between text-xs text-ber-gray"><span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''}</span><button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button></div></div>}
               </div>
             ),
+            sequenciamento: (() => {
+              const seq = sequenciamento;
+              if (!seq) return (
+                <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Sequenciamento</h3>
+                  <p className="mt-3 text-sm italic text-ber-gray/60">Sem sequenciamento definido.</p>
+                  <button onClick={() => setActiveTab('sequenciamento')} className="mt-2 text-xs font-medium text-ber-teal hover:underline">Iniciar →</button>
+                </div>
+              );
+              const isCoordOrDir = user?.role === 'coordenacao' || user?.role === 'diretoria';
+              const isGestorOrAbove = ['gestor','coordenacao','diretoria'].includes(user?.role ?? '');
+              const isFrozenCockpit = !!seq.frozenAt;
+              const total = seq.etapas.length;
+              const approved = seq.etapas.filter(e => e.status === 'aprovada').length;
+              const pct = total > 0 ? Math.round((approved/total)*100) : 0;
+
+              async function sendEditReq(etapaId: string, motivo: string) {
+                setSendingEditReq(true);
+                try {
+                  await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapaId}/edit-request`, { motivo });
+                  setEditReqSent(prev => new Set([...prev, etapaId]));
+                  setEditReqModal(null);
+                } catch {} finally { setSendingEditReq(false); }
+              }
+
+              async function resolveReq(reqId: string, action: 'approve' | 'reject', rejectionReason?: string) {
+                setResolvingReqId(reqId);
+                try {
+                  const res = await api.patch(`/sequenciamento/edit-requests/${reqId}`, { action, rejectionReason });
+                  if (action === 'approve') {
+                    const unlockedUntil = new Date(res.data.data.unlockedUntil);
+                    setUnlockedEtapas(prev => new Map([...prev, [res.data.data.etapaId, unlockedUntil]]));
+                  }
+                  setPendingEditReqs(prev => prev.filter(r => r.id !== reqId));
+                  fetchData();
+                } catch {} finally { setResolvingReqId(null); }
+              }
+
+              return (
+                <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Sequenciamento</h3>
+                    <div className="flex items-center gap-2">
+                      {pendingEditReqs.length > 0 && isCoordOrDir && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                          {pendingEditReqs.length} solicit.
+                        </span>
+                      )}
+                      <button onClick={() => setActiveTab('sequenciamento')} className="text-xs font-medium text-ber-teal hover:underline">Ver completo →</button>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-3">
+                    <div className="mb-1 flex justify-between text-xs text-ber-gray"><span>{approved}/{total} aprovadas</span><span className="font-bold text-ber-olive">{pct}%</span></div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-olive transition-all" style={{width:`${pct}%`}} /></div>
+                  </div>
+
+                  {/* Pending edit requests for coord/dir */}
+                  {isCoordOrDir && pendingEditReqs.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Solicitações de edição pendentes</p>
+                      {pendingEditReqs.map(req => (
+                        <div key={req.id} className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-ber-carbon">{req.etapa.name}</p>
+                            <p className="text-[10px] text-ber-gray">{req.requester.name}{req.motivo ? ` — ${req.motivo}` : ''}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button disabled={resolvingReqId === req.id} onClick={() => resolveReq(req.id, 'approve')} className="rounded bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-green-600 disabled:opacity-50">✓</button>
+                            <button disabled={resolvingReqId === req.id} onClick={() => resolveReq(req.id, 'reject')} className="rounded bg-red-400 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-red-500 disabled:opacity-50">✗</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Etapas accordion */}
+                  <div className="mt-3 space-y-1">
+                    {seq.etapas.slice(0,8).map((etapa, idx) => {
+                      const ETAPA_STATUS_MAP: Record<string,{label:string;cls:string}> = {
+                        nao_iniciada: {label:'Não iniciada', cls:'bg-gray-100 text-gray-500'},
+                        em_andamento: {label:'Em andamento', cls:'bg-blue-100 text-blue-700'},
+                        aguardando_aprovacao: {label:'Aguard. aprovação', cls:'bg-amber-100 text-amber-700'},
+                        concluida: {label:'Concluída', cls:'bg-ber-teal/10 text-ber-teal'},
+                        aprovada: {label:'Aprovada', cls:'bg-green-100 text-green-700'},
+                      };
+                      const sCfg = ETAPA_STATUS_MAP[etapa.status] ?? ETAPA_STATUS_MAP.nao_iniciada;
+                      const isExpandedCock = expandedEtapaId === `cockpit-${etapa.id}`;
+                      const isLocked = ['concluida','aprovada'].includes(etapa.status);
+                      const unlockExpiry = unlockedEtapas.get(etapa.id);
+                      const isUnlocked = unlockExpiry && unlockExpiry > new Date();
+                      const hasPendingReq = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
+                      const blocking = etapa.dependencies?.filter((depId: string) => {
+                        const dep = seq.etapas.find(e => e.id === depId);
+                        return dep && dep.status !== 'aprovada';
+                      }) ?? [];
+                      const isBlocked = etapa.status === 'nao_iniciada' && blocking.length > 0;
+                      return (
+                        <div key={etapa.id} className="rounded-lg border border-ber-offwhite">
+                          <button
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-ber-offwhite/60 transition-colors"
+                            onClick={() => setExpandedEtapaId(isExpandedCock ? null : `cockpit-${etapa.id}`)}
+                          >
+                            <span className="w-5 shrink-0 text-center text-[11px] font-bold text-ber-gray/60">{idx+1}</span>
+                            <span className="flex-1 text-xs font-medium text-ber-carbon truncate">{etapa.name}</span>
+                            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${sCfg.cls}`}>{sCfg.label}</span>
+                            <ChevronDown size={13} className={`shrink-0 text-ber-gray/40 transition-transform ${isExpandedCock ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {isExpandedCock && (
+                            <div className="border-t border-ber-offwhite px-3 pb-3 pt-2 space-y-2">
+                              {/* Dates */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div><span className="text-ber-gray">Início: </span><span className="font-medium text-ber-carbon">{etapa.startDate ? new Date(etapa.startDate).toLocaleDateString('pt-BR') : '—'}</span></div>
+                                <div><span className="text-ber-gray">Conclusão: </span><span className="font-medium text-ber-carbon">{etapa.endDate ? new Date(etapa.endDate).toLocaleDateString('pt-BR') : '—'}</span></div>
+                              </div>
+                              {/* Actions */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {isGestorOrAbove && etapa.status === 'nao_iniciada' && !isBlocked && isFrozenCockpit && (
+                                  <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-teal px-2 py-1 text-[11px] font-semibold text-white hover:bg-ber-teal/80"><Play size={10} /> Iniciar</button>
+                                )}
+                                {isGestorOrAbove && etapa.status === 'em_andamento' && (
+                                  <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }} className="flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600"><Send size={10} /> Enviar p/ Aprovação</button>
+                                )}
+                                {isCoordOrDir && etapa.status === 'aguardando_aprovacao' && (
+                                  <>
+                                    <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-green-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-green-600"><Check size={10} /> Aprovar</button>
+                                    <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-600"><XCircle size={10} /> Rejeitar</button>
+                                  </>
+                                )}
+                                {isLocked && !isUnlocked && (
+                                  hasPendingReq
+                                    ? <span className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600">⏳ Aguardando aprovação</span>
+                                    : <button onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }} className="flex items-center gap-1 rounded-md border border-ber-gray/30 px-2 py-1 text-[11px] font-medium text-ber-gray hover:bg-ber-offwhite">🔒 Solicitar edição</button>
+                                )}
+                                {isLocked && isUnlocked && (
+                                  <span className="rounded-md bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-600">🔓 Edição liberada</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {seq.etapas.length > 8 && (
+                      <button onClick={() => setActiveTab('sequenciamento')} className="mt-1 w-full text-center text-xs font-medium text-ber-teal hover:underline">
+                        +{seq.etapas.length - 8} etapas — ver completo →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })(),
             punchlist: (
               <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
@@ -1127,6 +1290,39 @@ export default function ObraDetailPage() {
                       {touchpoints.map(tp => <div key={tp.id} className="rounded-lg border border-ber-offwhite p-3"><div className="flex items-center gap-2"><span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">{TOUCHPOINT_LABELS[tp.type] ?? tp.type}</span><span className="text-xs text-ber-gray">{new Date(tp.occurredAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}</span></div><p className="mt-1.5 text-sm font-medium text-ber-carbon">{tp.title}</p>{tp.nextAction && <p className="mt-1 text-xs text-ber-gray">→ {tp.nextAction}{tp.nextActionDue && <span className="ml-1 font-semibold text-amber-600">({new Date(tp.nextActionDue).toLocaleDateString('pt-BR')})</span>}</p>}</div>)}
                     </div>
                     <div className="border-t border-ber-offwhite px-5 py-3 text-right"><button onClick={() => { setShowTPHistory(false); setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }} className="text-sm font-medium text-ber-teal hover:underline">+ Registrar novo</button></div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Edit Request modal ── */}
+              {editReqModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setEditReqModal(null)}>
+                  <div className="w-full max-w-sm rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
+                      <h2 className="font-bold text-ber-carbon">Solicitar Edição</h2>
+                      <button onClick={() => setEditReqModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+                    </div>
+                    <div className="px-5 py-4 space-y-3">
+                      <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                        <p className="font-bold">🔒 Etapa com acesso restrito</p>
+                        <p className="mt-1">A etapa <strong>{editReqModal.etapaName}</strong> está {sequenciamento?.etapas.find(e => e.id === editReqModal.etapaId)?.status}. Para editar, é necessária aprovação do coordenador ou diretoria.</p>
+                        <p className="mt-1">Após aprovação, você terá <strong>30 minutos</strong> para realizar as edições.</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-ber-gray">Motivo da solicitação</label>
+                        <textarea rows={3} value={editReqMotivo} onChange={e => setEditReqMotivo(e.target.value)} placeholder="Explique por que precisa editar esta etapa..." className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-1">
+                        <button onClick={() => setEditReqModal(null)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+                        <button
+                          disabled={sendingEditReq}
+                          onClick={() => { if (editReqModal) { const { etapaId } = editReqModal; sendingEditReq || (async () => { setSendingEditReq(true); try { await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapaId}/edit-request`, { motivo: editReqMotivo || undefined }); setEditReqSent(prev => new Set([...prev, etapaId])); setEditReqModal(null); } catch {} finally { setSendingEditReq(false); } })(); }}}
+                          className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
+                        >
+                          {sendingEditReq ? 'Enviando...' : 'Enviar solicitação'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1843,6 +2039,20 @@ export default function ObraDetailPage() {
                                 {etapa.gestorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Gestor:</strong> {etapa.gestorNotes}</div>}
                                 {etapa.coordenadorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Coordenador:</strong> {etapa.coordenadorNotes}</div>}
                               </div>
+                            )}
+
+                            {/* Edit unlock for concluida/aprovada */}
+                            {['concluida','aprovada'].includes(etapa.status) && isGestor && !isCoord && (
+                              (() => {
+                                const hasPend = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
+                                const unlockExp = unlockedEtapas.get(etapa.id);
+                                const unlocked = unlockExp && unlockExp > new Date();
+                                return hasPend
+                                  ? <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 font-medium">⏳ Solicitação de edição pendente — aguardando aprovação</div>
+                                  : unlocked
+                                    ? <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 font-medium">🔓 Edição liberada até {unlockExp!.toLocaleTimeString('pt-BR')}</div>
+                                    : <button onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }} className="flex items-center gap-1.5 rounded-lg border border-ber-gray/30 bg-ber-offwhite px-3 py-2 text-xs font-medium text-ber-gray hover:bg-white">🔒 Editar (requer autorização)</button>;
+                              })()
                             )}
 
                             {/* Blocked warning */}
