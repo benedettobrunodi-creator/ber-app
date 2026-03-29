@@ -328,6 +328,9 @@ export default function ObraDetailPage() {
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
+  // Sequenciamento accordion
+  const [expandedEtapaId, setExpandedEtapaId] = useState<string | null>(null);
+
   // Cockpit drag-and-drop order
   const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'equipe', 'touchpoint', 'checklists', 'punchlist', 'fotos', 'medicoes'];
   const storageKey = `cockpit-order-${params.id}-${typeof window !== 'undefined' ? (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : '') : ''}`;
@@ -1682,12 +1685,18 @@ export default function ObraDetailPage() {
                     const isCoord = user?.role === 'coordenacao' || user?.role === 'diretoria';
                     const isEditing = editMode && editingEtapaId === etapa.id;
 
+                    const isExpanded = expandedEtapaId === etapa.id;
+
                     return (
                       <div
                         key={etapa.id}
-                        className={`rounded-lg bg-white p-4 shadow-sm ${isBlocked && !editMode ? 'border border-red-200 opacity-60' : ''} ${editMode ? 'border border-dashed border-ber-gray/30' : ''}`}
+                        className={`rounded-lg bg-white shadow-sm ${isBlocked && !editMode ? 'border border-red-200 opacity-60' : ''} ${editMode ? 'border border-dashed border-ber-gray/30' : 'border border-transparent'}`}
                       >
-                        <div className="flex items-start gap-3">
+                        {/* Clickable header row */}
+                        <div
+                          className={`flex cursor-pointer items-start gap-3 p-4 ${!editMode ? 'hover:bg-ber-offwhite/50 transition-colors' : ''}`}
+                          onClick={() => !editMode && setExpandedEtapaId(isExpanded ? null : etapa.id)}
+                        >
                           {/* Number + reorder */}
                           <div className="flex flex-col items-center gap-0.5">
                             {editMode && (
@@ -1750,158 +1759,105 @@ export default function ObraDetailPage() {
                               <>
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-semibold text-ber-carbon">{etapa.name}</p>
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${discColor}`}>
-                                    {discLabel}
-                                  </span>
-                                  <span className="text-[10px] text-ber-gray">{etapa.estimatedDays}d estimados</span>
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${discColor}`}>{discLabel}</span>
+                                  <span className="text-[10px] text-ber-gray">{etapa.estimatedDays}d</span>
+                                  {!editMode && (
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusCfg.className}`}>
+                                      <StatusIcon size={10} /> {statusCfg.label}
+                                    </span>
+                                  )}
                                 </div>
 
-                                {!editMode && (
-                                  <>
-                                    {/* Status badge */}
-                                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
-                                        <StatusIcon size={12} />
-                                        {statusCfg.label}
-                                      </span>
-                                      {etapa.startDate && (
-                                        <span className="text-xs text-ber-gray">
-                                          Início: {new Date(etapa.startDate).toLocaleDateString('pt-BR')}
-                                        </span>
-                                      )}
-                                      {etapa.estimatedEndDate && etapa.status === 'em_andamento' && (
-                                        <span className="text-xs text-ber-gray">
-                                          Previsão: {new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}
-                                        </span>
-                                      )}
-                                      {etapa.endDate && (
-                                        <span className="text-xs text-ber-olive font-medium">
-                                          Concluída: {new Date(etapa.endDate).toLocaleDateString('pt-BR')}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {isBlocked && (
-                                      <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
-                                        <Lock size={11} />
-                                        Aguardando: {blocking.join(', ')}
-                                      </p>
-                                    )}
-
-                                    {etapa.rejectionReason && (
-                                      <div className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-700">
-                                        <strong>Rejeitada:</strong> {etapa.rejectionReason}
-                                        {etapa.rejecter && <span className="text-red-500"> — {etapa.rejecter.name}</span>}
-                                      </div>
-                                    )}
-
-                                    {etapa.gestorNotes && (
-                                      <p className="mt-1.5 text-xs text-ber-gray">
-                                        <strong>Gestor:</strong> {etapa.gestorNotes}
-                                      </p>
-                                    )}
-                                    {etapa.coordenadorNotes && (
-                                      <p className="mt-1 text-xs text-ber-gray">
-                                        <strong>Coordenador:</strong> {etapa.coordenadorNotes}
-                                      </p>
-                                    )}
-
-                                    {/* Evidencias */}
-                                    {(etapa.evidenciaDescricao || etapa.evidenciaFotos.length > 0) && (
-                                      <div className="mt-2 rounded-md bg-ber-offwhite p-2.5">
-                                        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1.5">
-                                          <ImageIcon size={10} />
-                                          Evidencia
-                                          {etapa.evidenciaRegistradaEm && (
-                                            <span className="font-normal normal-case ml-1">
-                                              — {new Date(etapa.evidenciaRegistradaEm).toLocaleDateString('pt-BR')}
-                                            </span>
-                                          )}
-                                        </div>
-                                        {etapa.evidenciaDescricao && (
-                                          <p className="text-xs text-ber-carbon mb-1.5">{etapa.evidenciaDescricao}</p>
-                                        )}
-                                        {etapa.evidenciaFotos.length > 0 && (
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {etapa.evidenciaFotos.map((url, i) => (
-                                              <a
-                                                key={i}
-                                                href={url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block h-14 w-14 overflow-hidden rounded border border-ber-gray/15 hover:opacity-80 transition"
-                                              >
-                                                <img src={url} alt={`Evidencia ${i + 1}`} className="h-full w-full object-cover" />
-                                              </a>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </>
-                                )}
                               </>
                             )}
                           </div>
 
-                          {/* Actions */}
+                          {/* Edit-mode action buttons */}
                           <div className="flex shrink-0 gap-1.5">
                             {editMode && !isEditing && (
                               <>
-                                <button
-                                  onClick={() => startEditingEtapa(etapa)}
-                                  className="rounded p-1.5 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
-                                  title="Editar"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setRemovingEtapaId(etapa.id)}
-                                  className="rounded p-1.5 text-ber-gray transition-colors hover:bg-red-50 hover:text-red-500"
-                                  title="Remover"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                <button onClick={() => startEditingEtapa(etapa)} className="rounded p-1.5 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon" title="Editar"><Pencil size={14} /></button>
+                                <button onClick={() => setRemovingEtapaId(etapa.id)} className="rounded p-1.5 text-ber-gray transition-colors hover:bg-red-50 hover:text-red-500" title="Remover"><Trash2 size={14} /></button>
                               </>
                             )}
+                            {/* Chevron toggle (view mode only) */}
                             {!editMode && (
-                              <>
-                                {etapa.status === 'nao_iniciada' && !isBlocked && isGestor && isFrozen && (
-                                  <button
-                                    onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }}
-                                    className="flex items-center gap-1 rounded-md bg-ber-teal px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-ber-teal/80"
-                                  >
-                                    <Play size={12} /> Iniciar
-                                  </button>
-                                )}
-                                {etapa.status === 'em_andamento' && isGestor && (
-                                  <button
-                                    onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }}
-                                    className="flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
-                                  >
-                                    <Send size={12} /> Enviar para Aprovação
-                                  </button>
-                                )}
-                                {etapa.status === 'aguardando_aprovacao' && isCoord && (
-                                  <>
-                                    <button
-                                      onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }}
-                                      className="flex items-center gap-1 rounded-md bg-ber-olive px-2.5 py-1.5 text-xs font-semibold text-ber-black transition-colors hover:bg-ber-olive/80"
-                                    >
-                                      <Check size={12} /> Aprovar
-                                    </button>
-                                    <button
-                                      onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }}
-                                      className="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600"
-                                    >
-                                      <XCircle size={12} /> Rejeitar
-                                    </button>
-                                  </>
-                                )}
-                              </>
+                              <span className="ml-1 shrink-0 text-ber-gray/50 transition-transform" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                <ChevronDown size={16} />
+                              </span>
                             )}
                           </div>
-                        </div>
+                        </div>{/* end header row */}
+
+                        {/* Expand panel */}
+                        {!editMode && isExpanded && (
+                          <div className="border-t border-ber-offwhite px-4 pb-4 pt-3 space-y-3">
+                            {/* Status + change */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
+                                <StatusIcon size={12} /> {statusCfg.label}
+                              </span>
+                              {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && isFrozen && (
+                                <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-teal px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-ber-teal/80"><Play size={12} /> Iniciar</button>
+                              )}
+                              {isGestor && etapa.status === 'em_andamento' && (
+                                <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }} className="flex items-center gap-1 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"><Send size={12} /> Enviar p/ Aprovação</button>
+                              )}
+                              {isCoord && etapa.status === 'aguardando_aprovacao' && (
+                                <>
+                                  <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-ber-olive px-2.5 py-1.5 text-xs font-semibold text-ber-black hover:bg-ber-olive/80"><Check size={12} /> Aprovar</button>
+                                  <button onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }} className="flex items-center gap-1 rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-600"><XCircle size={12} /> Rejeitar</button>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Dates */}
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Início real</p><p className="mt-0.5 text-ber-carbon">{etapa.startDate ? new Date(etapa.startDate).toLocaleDateString('pt-BR') : '—'}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Conclusão</p><p className="mt-0.5 text-ber-carbon">{etapa.endDate ? new Date(etapa.endDate).toLocaleDateString('pt-BR') : etapa.estimatedEndDate ? `Prev. ${new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}` : '—'}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Duração estimada</p><p className="mt-0.5 text-ber-carbon">{etapa.estimatedDays} dia{etapa.estimatedDays !== 1 ? 's' : ''}</p></div>
+                              <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Disciplina</p><p className="mt-0.5 text-ber-carbon capitalize">{DISCIPLINE_LABELS[etapa.discipline] ?? etapa.discipline}</p></div>
+                            </div>
+
+                            {/* Dependencies */}
+                            {etapa.dependencies && etapa.dependencies.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Dependências</p>
+                                <div className="mt-1 flex flex-wrap gap-1.5">
+                                  {etapa.dependencies.map((depId: string) => {
+                                    const dep = sequenciamento!.etapas.find(e => e.id === depId);
+                                    return dep ? (
+                                      <span key={depId} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${dep.status === 'aprovada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                                        {dep.status === 'aprovada' ? '✓' : '⏳'} {dep.name}
+                                      </span>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Notes */}
+                            {(etapa.gestorNotes || etapa.coordenadorNotes || etapa.rejectionReason) && (
+                              <div className="space-y-2">
+                                {etapa.rejectionReason && <div className="rounded-md bg-red-50 p-2.5 text-xs text-red-700"><strong>Rejeitada:</strong> {etapa.rejectionReason}{etapa.rejecter && <span className="text-red-400"> — {etapa.rejecter.name}</span>}</div>}
+                                {etapa.gestorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Gestor:</strong> {etapa.gestorNotes}</div>}
+                                {etapa.coordenadorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Coordenador:</strong> {etapa.coordenadorNotes}</div>}
+                              </div>
+                            )}
+
+                            {/* Blocked warning */}
+                            {isBlocked && <p className="flex items-center gap-1 text-xs text-red-500"><Lock size={11} /> Aguardando: {blocking.join(', ')}</p>}
+
+                            {/* Evidências */}
+                            {(etapa.evidenciaDescricao || etapa.evidenciaFotos.length > 0) && (
+                              <div className="rounded-md bg-ber-offwhite p-2.5">
+                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Evidência{etapa.evidenciaRegistradaEm && ` — ${new Date(etapa.evidenciaRegistradaEm).toLocaleDateString('pt-BR')}`}</p>
+                                {etapa.evidenciaDescricao && <p className="mb-1.5 text-xs text-ber-carbon">{etapa.evidenciaDescricao}</p>}
+                                {etapa.evidenciaFotos.length > 0 && <div className="flex flex-wrap gap-1.5">{etapa.evidenciaFotos.map((url: string, i: number) => <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block h-14 w-14 overflow-hidden rounded border border-ber-gray/15 hover:opacity-80"><img src={url} alt={`Evidência ${i+1}`} className="h-full w-full object-cover" /></a>)}</div>}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
