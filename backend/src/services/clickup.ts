@@ -56,7 +56,7 @@ async function getListProgress(listId: string): Promise<{ total: number; done: n
     const res = await fetch(url, { headers: headers() });
     if (!res.ok) break;
 
-    const data: { tasks: ClickUpTask[]; last_page?: boolean } = await res.json();
+    const data = await res.json() as { tasks: ClickUpTask[]; last_page?: boolean };
     const tasks = data.tasks || [];
 
     for (const task of tasks) {
@@ -93,7 +93,7 @@ export async function syncProgressFromClickUp(): Promise<SyncResult> {
   if (!foldersRes.ok) {
     throw new Error(`ClickUp API error: ${foldersRes.status} ${await foldersRes.text()}`);
   }
-  const foldersData: { folders: ClickUpFolder[] } = await foldersRes.json();
+  const foldersData = await foldersRes.json() as { folders: ClickUpFolder[] };
 
   // 2. Filtrar apenas pastas de obras reais
   const obraFolders = foldersData.folders.filter(f => extractObraName(f.name));

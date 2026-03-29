@@ -50,7 +50,7 @@ async function fetchAllTasks(listId: string): Promise<ClickUpTask[]> {
     const res = await fetch(url, { headers: headers() });
     if (!res.ok) break;
 
-    const data: { tasks: ClickUpTask[]; last_page?: boolean } = await res.json();
+    const data = await res.json() as { tasks: ClickUpTask[]; last_page?: boolean };
     if (!data.tasks?.length) break;
     tasks.push(...data.tasks);
     if (data.last_page || data.tasks.length < 100) break;
@@ -66,7 +66,7 @@ async function getFirstList(folderId: string): Promise<{ id: string; name: strin
     headers: headers(),
   });
   if (!res.ok) return null;
-  const data: { lists: { id: string; name: string }[] } = await res.json();
+  const data = await res.json() as { lists: { id: string; name: string }[] };
   return data.lists?.[0] ?? null;
 }
 

@@ -6,6 +6,7 @@ export const createSequenciamentoSchema = z.object({
 
 export const startEtapaSchema = z.object({
   gestorNotes: z.string().optional(),
+  startDate: z.string().optional(),
 });
 
 export const submitEtapaSchema = z.object({
