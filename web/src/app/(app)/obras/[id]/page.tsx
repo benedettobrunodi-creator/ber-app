@@ -53,7 +53,7 @@ interface FvsTemplateItemType {
   id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
 }
 interface ObraFvsItemType {
-  id: string; checked: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
+  id: string; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
   templateItem: FvsTemplateItemType | null;
   filler: { id: string; name: string } | null;
 }
@@ -1295,9 +1295,9 @@ export default function ObraDetailPage() {
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'cockpit', label: '🎛 Cockpit' },
     { key: 'sequenciamento', label: `Sequenciamento${sequenciamento ? ` (${sequenciamento.etapas.filter(e => e.status === 'aprovada').length}/${sequenciamento.etapas.length})` : ''}` },
+    { key: 'fvs', label: `FVS (${obraFvsList.length})` },
     { key: 'kanban', label: `Kanban (${obra._count.tasks})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
-    { key: 'fvs', label: `FVS (${obraFvsList.length})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
@@ -2310,7 +2310,7 @@ export default function ObraDetailPage() {
                   const inicioItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'inicio');
                   if (!inicioItems.length) return null;
                   const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
-                  const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+                  const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
                   const grouped: Record<string, typeof inicioItems> = {};
                   inicioItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
                   return (
@@ -2323,20 +2323,30 @@ export default function ObraDetailPage() {
                         <div key={secao}>
                           <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600 mb-1">{secao}</p>
                           {items.map(item => (
-                            <label key={item.id} className="flex items-start gap-2 py-0.5 cursor-pointer">
-                              <input type="checkbox" checked={item.checked}
+                            <div key={item.id} className="flex items-start gap-2 py-0.5">
+                              <input type="checkbox" checked={item.checked} disabled={item.na}
                                 onChange={async () => {
                                   try {
                                     const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
                                     setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
                                   } catch {}
                                 }}
-                                className="mt-0.5 h-3.5 w-3.5 rounded accent-green-500" />
-                              <span className={`text-xs leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
+                              <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                                 {item.templateItem?.descricao}
                                 {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                               </span>
-                            </label>
+                              <button type="button"
+                                onClick={async () => {
+                                  try {
+                                    const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { na: !item.na });
+                                    setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
+                                  } catch {}
+                                }}
+                                className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                N/A
+                              </button>
+                            </div>
                           ))}
                         </div>
                       ))}
@@ -2379,7 +2389,7 @@ export default function ObraDetailPage() {
                     </label>
                   );
                   const obrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
-                  const obrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+                  const obrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
                   const allDone = obrigChecked === obrigTotal;
                   const grouped: Record<string, typeof conclusaoItems> = {};
                   conclusaoItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
@@ -2397,20 +2407,30 @@ export default function ObraDetailPage() {
                           <div key={secao}>
                             <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 mb-1">{secao}</p>
                             {items.map(item => (
-                              <label key={item.id} className="flex items-start gap-2 py-0.5 cursor-pointer">
-                                <input type="checkbox" checked={item.checked}
+                              <div key={item.id} className="flex items-start gap-2 py-0.5">
+                                <input type="checkbox" checked={item.checked} disabled={item.na}
                                   onChange={async () => {
                                     try {
                                       const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
                                       setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
                                     } catch {}
                                   }}
-                                  className="mt-0.5 h-3.5 w-3.5 rounded accent-green-500" />
-                                <span className={`text-xs leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
+                                <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                                   {item.templateItem?.descricao}
                                   {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                                 </span>
-                              </label>
+                                <button type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { na: !item.na });
+                                      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
+                                    } catch {}
+                                  }}
+                                  className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                  N/A
+                                </button>
+                              </div>
                             ))}
                           </div>
                         ))}
@@ -2662,7 +2682,7 @@ export default function ObraDetailPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {filtered.map(fvs => {
                     const total = fvs.items.length;
-                    const checked = fvs.items.filter(i => i.checked).length;
+                    const checked = fvs.items.filter(i => i.checked || i.na).length;
                     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
                     const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
                     const BLOCO_COLORS = ['bg-slate-100','bg-blue-50','bg-indigo-50','bg-violet-50','bg-orange-50','bg-amber-50','bg-green-50'];
@@ -3055,9 +3075,9 @@ export default function ObraDetailPage() {
         const inicioItems = fvs.items.filter(i => i.templateItem?.momento === 'inicio');
         const conclusaoItems = fvs.items.filter(i => i.templateItem?.momento === 'conclusao');
         const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
-        const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+        const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
         const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
-        const conclusaoObrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && i.checked).length;
+        const conclusaoObrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
 
         const bySecao = (items: ObraFvsItemType[]) => {
           const map: Record<string, ObraFvsItemType[]> = {};
@@ -3065,11 +3085,16 @@ export default function ObraDetailPage() {
           return map;
         };
 
-        const toggleItem = async (itemId: string, checked: boolean) => {
+        const toggleItem = async (itemId: string, field: 'checked' | 'na') => {
           if (isLocked) return;
+          const item = fvs.items.find(i => i.id === itemId);
+          if (!item) return;
           setFvsSubmitting(true);
           try {
-            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { checked: !checked });
+            const body = field === 'na'
+              ? { na: !item.na }
+              : { checked: !item.checked };
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, body);
             const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
@@ -3085,19 +3110,37 @@ export default function ObraDetailPage() {
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
               <div className="space-y-1.5">
                 {items.map(item => (
-                  <label key={item.id} className={`flex cursor-pointer items-start gap-3 rounded-lg p-2.5 transition-colors ${
-                    item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'
-                  } ${isLocked ? 'cursor-default' : ''}`}>
-                    <input type="checkbox" checked={item.checked} disabled={isLocked || fvsSubmitting}
-                      onChange={() => toggleItem(item.id, item.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded accent-green-500" />
+                  <div key={item.id} className={`flex items-start gap-2 rounded-lg p-2.5 transition-colors ${
+                    item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'
+                  }`}>
+                    {/* Checkbox */}
+                    <input type="checkbox" checked={item.checked} disabled={isLocked || fvsSubmitting || item.na}
+                      onChange={() => toggleItem(item.id, 'checked')}
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
+                    {/* Description */}
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                      <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                         {item.templateItem?.descricao}
-                        {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/50">(opcional)</span>}
+                        {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
                       </p>
                     </div>
-                  </label>
+                    {/* N/A toggle */}
+                    {!isLocked && (
+                      <button type="button" disabled={fvsSubmitting}
+                        onClick={() => toggleItem(item.id, 'na')}
+                        title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
+                          item.na
+                            ? 'bg-gray-300 text-gray-600'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                        }`}>
+                        N/A
+                      </button>
+                    )}
+                    {isLocked && item.na && (
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

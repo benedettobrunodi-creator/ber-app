@@ -99,6 +99,9 @@ export async function createSequenciamento(
     include: seqInclude,
   });
 
+  // Auto-provision FVS for all etapas (fire and forget — don't block response)
+  import('../fvs/auto-provision').then(({ autoProvisionFvs }) => autoProvisionFvs(obraId)).catch(console.error);
+
   return sequenciamento;
 }
 
@@ -170,7 +173,7 @@ export async function addEtapa(
     data: { order: { increment: 1 } },
   });
 
-  await prisma.obraEtapa.create({
+  const newEtapa = await prisma.obraEtapa.create({
     data: {
       sequenciamentoId: seq.id,
       obraId,
@@ -181,6 +184,9 @@ export async function addEtapa(
       status: 'nao_iniciada',
     },
   });
+
+  // Auto-provision FVS for this new etapa
+  import('../fvs/auto-provision').then(({ autoProvisionFvs }) => autoProvisionFvs(obraId)).catch(console.error);
 
   return getSequenciamento(obraId);
 }

@@ -899,6 +899,7 @@ model ObraFvsItem {
   templateItemId String?   @db.Uuid @map("template_item_id")
   momento        String    @db.VarChar(20)
   checked        Boolean   @default(false)
+  na             Boolean   @default(false)
   observacao     String?
   fotoUrl        String?   @map("foto_url")
   filledAt       DateTime? @map("filled_at")

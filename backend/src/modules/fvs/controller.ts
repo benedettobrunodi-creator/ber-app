@@ -104,15 +104,22 @@ export async function checkItem(req: Request, res: Response) {
   if (!fvs) throw AppError.notFound('FVS não encontrada');
   if (['aprovada', 'rejeitada'].includes(fvs.status)) throw AppError.badRequest('FVS encerrada');
 
+  const { na } = req.body;
+  // Toggling na clears checked; toggling checked clears na
+  const updateData: any = { filledAt: new Date(), filledBy: userId };
+  if (na !== undefined) {
+    updateData.na = na;
+    if (na) updateData.checked = false; // na = true → uncheck
+  } else {
+    updateData.checked = checked ?? true;
+    if (checked) updateData.na = false; // checking → clear na
+  }
+  if (observacao !== undefined) updateData.observacao = observacao;
+  if (fotoUrl !== undefined) updateData.fotoUrl = fotoUrl;
+
   const item = await prisma.obraFvsItem.update({
     where: { id: itemId },
-    data: {
-      checked: checked ?? true,
-      observacao: observacao ?? undefined,
-      fotoUrl: fotoUrl ?? undefined,
-      filledAt: new Date(),
-      filledBy: userId,
-    },
+    data: updateData,
     include: { templateItem: true },
   });
   sendSuccess(res, item);
@@ -127,7 +134,8 @@ export async function submitInicio(req: Request, res: Response) {
   });
   if (!fvs) throw AppError.notFound('FVS não encontrada');
 
-  const unchecked = fvs.items.filter(i => i.momento === 'inicio' && i.templateItem?.obrigatorio && !i.checked);
+  // Item is "done" if checked=true OR na=true (not applicable)
+  const unchecked = fvs.items.filter(i => i.momento === 'inicio' && i.templateItem?.obrigatorio && !i.checked && !(i as any).na);
   if (unchecked.length > 0) {
     throw AppError.badRequest(`${unchecked.length} item(s) obrigatório(s) de pré-execução não marcados`);
   }
@@ -149,7 +157,7 @@ export async function submitConclusao(req: Request, res: Response) {
   });
   if (!fvs) throw AppError.notFound('FVS não encontrada');
 
-  const unchecked = fvs.items.filter(i => i.momento === 'conclusao' && i.templateItem?.obrigatorio && !i.checked);
+  const unchecked = fvs.items.filter(i => i.momento === 'conclusao' && i.templateItem?.obrigatorio && !i.checked && !(i as any).na);
   if (unchecked.length > 0) {
     throw AppError.badRequest(`${unchecked.length} item(s) obrigatório(s) de conclusão não marcados`);
   }
@@ -190,6 +198,14 @@ export async function approveCoord(req: Request, res: Response) {
     include: FVS_INCLUDE,
   });
   sendSuccess(res, updated);
+}
+
+// POST /obras/:id/fvs/auto-provision
+export async function autoProvision(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const { autoProvisionFvs } = await import('./auto-provision');
+  const result = await autoProvisionFvs(obraId);
+  sendSuccess(res, result);
 }
 
 // POST /obra-fvs/:fvsId/reject
