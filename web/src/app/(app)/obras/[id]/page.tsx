@@ -342,6 +342,16 @@ export default function ObraDetailPage() {
     condicao: 'aprovado', observacao: '', fotosMaterial: [] as string[], fotoNF: '',
   });
 
+  // Equipe state
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [allUsers, setAllUsers] = useState<{ id: string; name: string; email: string; role: string }[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [memberRole, setMemberRole] = useState('membro');
+  const [addingMember, setAddingMember] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
   const [editingEtapaId, setEditingEtapaId] = useState<string | null>(null);
@@ -500,6 +510,39 @@ export default function ObraDetailPage() {
   async function handleResync() {
     if (!obra?.trelloBoardId) return;
     await handleTrelloSync(obra.trelloBoardId);
+  }
+
+  // ─── Equipe ──────────────────────────────────────────────────────────────
+
+  async function openAddMemberModal() {
+    setShowAddMemberModal(true);
+    setUserSearch('');
+    setSelectedUserId('');
+    setMemberRole('membro');
+    if (allUsers.length) return;
+    setLoadingUsers(true);
+    try {
+      const res = await api.get('/users', { params: { limit: 200 } });
+      setAllUsers(res.data.data ?? res.data);
+    } catch {} finally { setLoadingUsers(false); }
+  }
+
+  async function handleAddMember() {
+    if (!selectedUserId) return;
+    setAddingMember(true);
+    try {
+      await api.post(`/obras/${params.id}/members`, { userId: selectedUserId, role: memberRole });
+      setShowAddMemberModal(false);
+      fetchData();
+    } catch {} finally { setAddingMember(false); }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    setRemovingMemberId(userId);
+    try {
+      await api.delete(`/obras/${params.id}/members/${userId}`);
+      fetchData();
+    } catch {} finally { setRemovingMemberId(null); }
   }
 
   // ─── Canteiro ───────────────────────────────────────────────────────────
@@ -1461,26 +1504,144 @@ export default function ObraDetailPage() {
         )}
 
         {activeTab === 'equipe' && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">
+                Equipe Alocada ({obra.members.length})
+              </h3>
+              <button
+                onClick={openAddMemberModal}
+                className="flex items-center gap-2 rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-ber-black"
+              >
+                <Plus size={14} /> Adicionar membro
+              </button>
+            </div>
+
             {obra.members.length === 0 ? (
-              <p className="col-span-full py-12 text-center text-sm text-ber-gray">
-                Nenhum membro na equipe desta obra.
-              </p>
+              <div className="flex flex-col items-center py-14 text-center">
+                <User size={40} className="text-ber-gray/30" />
+                <p className="mt-3 text-sm text-ber-gray">Nenhum membro alocado nesta obra.</p>
+                <button onClick={openAddMemberModal} className="mt-2 text-sm font-medium text-ber-teal hover:underline">
+                  Adicionar primeiro membro
+                </button>
+              </div>
             ) : (
-              obra.members.map((m) => (
-                <div
-                  key={m.user.id}
-                  className="flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white uppercase">
-                    {m.user.name.charAt(0)}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {obra.members.map((m) => (
+                  <div key={m.user.id} className="flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white uppercase">
+                      {m.user.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ber-carbon">{m.user.name}</p>
+                      <p className="text-xs text-ber-gray capitalize">{m.user.role}</p>
+                    </div>
+                    {canChangeStatus && (
+                      <button
+                        onClick={() => handleRemoveMember(m.user.id)}
+                        disabled={removingMemberId === m.user.id}
+                        className="shrink-0 rounded p-1.5 text-ber-gray/40 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                        title="Remover membro"
+                      >
+                        {removingMemberId === m.user.id ? <span className="text-xs">...</span> : <X size={15} />}
+                      </button>
+                    )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ber-carbon">{m.user.name}</p>
-                    <p className="text-xs text-ber-gray">{m.user.role}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Add Member Modal */}
+            {showAddMemberModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+                  <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
+                    <h2 className="font-bold text-ber-carbon">Adicionar Membro</h2>
+                    <button onClick={() => setShowAddMemberModal(false)} className="text-ber-gray hover:text-ber-carbon">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="px-5 py-4 space-y-4">
+                    {/* Search */}
+                    <div>
+                      <label className="text-xs font-medium text-ber-gray">Buscar colaborador</label>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={userSearch}
+                        onChange={e => setUserSearch(e.target.value)}
+                        placeholder="Nome ou email..."
+                        className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                      />
+                    </div>
+
+                    {/* User list */}
+                    <div className="max-h-52 overflow-y-auto space-y-1 rounded-md border border-ber-gray/20 p-1">
+                      {loadingUsers ? (
+                        <p className="py-4 text-center text-xs text-ber-gray">Carregando...</p>
+                      ) : (() => {
+                        const already = new Set(obra.members.map(m => m.user.id));
+                        const filtered = allUsers.filter(u =>
+                          !already.has(u.id) &&
+                          (userSearch === '' ||
+                            u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                            u.email.toLowerCase().includes(userSearch.toLowerCase()))
+                        );
+                        if (!filtered.length) return (
+                          <p className="py-4 text-center text-xs text-ber-gray">
+                            {userSearch ? 'Nenhum resultado.' : 'Todos os usuários já estão na equipe.'}
+                          </p>
+                        );
+                        return filtered.map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => setSelectedUserId(u.id)}
+                            className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors ${selectedUserId === u.id ? 'bg-ber-teal text-white' : 'hover:bg-ber-offwhite'}`}
+                          >
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selectedUserId === u.id ? 'bg-white/20 text-white' : 'bg-ber-teal/10 text-ber-teal'}`}>
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{u.name}</p>
+                              <p className={`truncate text-[10px] ${selectedUserId === u.id ? 'text-white/70' : 'text-ber-gray'}`}>{u.email}</p>
+                            </div>
+                          </button>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* Role */}
+                    <div>
+                      <label className="text-xs font-medium text-ber-gray">Função nesta obra</label>
+                      <select
+                        value={memberRole}
+                        onChange={e => setMemberRole(e.target.value)}
+                        className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                      >
+                        <option value="gestor">Gestor de Obra</option>
+                        <option value="membro">Mestre de Obras</option>
+                        <option value="coordenador">Comprador</option>
+                        <option value="membro">Analista</option>
+                        <option value="membro">Campo</option>
+                      </select>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-1">
+                      <button onClick={() => setShowAddMemberModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleAddMember}
+                        disabled={!selectedUserId || addingMember}
+                        className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
+                      >
+                        <Plus size={14} />
+                        {addingMember ? 'Adicionando...' : 'Adicionar'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))
+              </div>
             )}
           </div>
         )}
