@@ -525,6 +525,8 @@ export default function ObraDetailPage() {
   const [editingEtapaId, setEditingEtapaId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDays, setEditDays] = useState(0);
+  const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
+  const [inlineDays, setInlineDays] = useState(0);
   const [showAddEtapa, setShowAddEtapa] = useState(false);
   const [newEtapaName, setNewEtapaName] = useState('');
   const [newEtapaDiscipline, setNewEtapaDiscipline] = useState('outro');
@@ -875,6 +877,15 @@ export default function ObraDetailPage() {
     } catch {}
   }
 
+  async function saveInlineDays(etapaId: string) {
+    if (inlineDays < 1) return;
+    try {
+      await api.put(`/obras/${params.id}/etapas/${etapaId}`, { estimatedDays: inlineDays });
+      setEditingDaysId(null);
+      fetchSeq();
+    } catch {}
+  }
+
   async function handleMoveEtapa(etapaId: string, direction: 'up' | 'down') {
     if (!sequenciamento) return;
     const ids = sequenciamento.etapas.map((e) => e.id);
@@ -1143,7 +1154,28 @@ export default function ObraDetailPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold text-ber-carbon">{etapa.name}</p>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${discColor}`}>{discLabel}</span>
-                          <span className="text-[10px] text-ber-gray">{etapa.estimatedDays}d</span>
+                          {editingDaysId === etapa.id ? (
+                            <span className="inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="number" min={1} max={999}
+                                value={inlineDays}
+                                onChange={e => setInlineDays(parseInt(e.target.value) || 1)}
+                                onKeyDown={e => { if (e.key === 'Enter') saveInlineDays(etapa.id); if (e.key === 'Escape') setEditingDaysId(null); }}
+                                onBlur={() => saveInlineDays(etapa.id)}
+                                autoFocus
+                                className="w-12 rounded border border-ber-teal px-1.5 py-0.5 text-[11px] text-center text-ber-carbon focus:outline-none"
+                              />
+                              <span className="text-[10px] text-ber-gray">d</span>
+                            </span>
+                          ) : (
+                            <button
+                              title="Clique para editar prazo"
+                              onClick={e => { e.stopPropagation(); if (etapa.status !== 'aprovada') { setEditingDaysId(etapa.id); setInlineDays(etapa.estimatedDays); } }}
+                              className={`text-[10px] text-ber-gray rounded px-1 py-0.5 transition-colors ${etapa.status !== 'aprovada' ? 'hover:bg-ber-offwhite hover:text-ber-teal cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {etapa.estimatedDays}d {etapa.status !== 'aprovada' && <span className="opacity-0 group-hover:opacity-60 text-[8px]">✎</span>}
+                            </button>
+                          )}
                           {!editMode && (
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusCfg.className}`}>
                               <StatusIcon size={10} /> {statusCfg.label}
@@ -3101,7 +3133,17 @@ export default function ObraDetailPage() {
             { key: 'aprovada', label: 'Aprovadas' },
             { key: 'rejeitada', label: 'Rejeitadas' },
           ];
-          const filtered = fvsFilter === 'todos' ? obraFvsList : obraFvsList.filter(f => f.status === fvsFilter);
+          const sortFvs = (list: typeof obraFvsList) => [...list].sort((a, b) => {
+            const parseCode = (code: string) => {
+              const m = code.match(/FVS_(\d+)([A-Z]?)/i);
+              if (!m) return [0, ''];
+              return [parseInt(m[1]), m[2] || ''];
+            };
+            const [na, sa] = parseCode(a.template?.code ?? '');
+            const [nb, sb] = parseCode(b.template?.code ?? '');
+            return na !== nb ? (na as number) - (nb as number) : (sa as string).localeCompare(sb as string);
+          });
+          const filtered = sortFvs(fvsFilter === 'todos' ? obraFvsList : obraFvsList.filter(f => f.status === fvsFilter));
           return (
             <div>
               {/* Header */}
@@ -3142,14 +3184,38 @@ export default function ObraDetailPage() {
                     const checked = fvs.items.filter(i => i.checked || i.na).length;
                     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
                     const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
-                    const BLOCO_COLORS = ['bg-slate-100','bg-blue-50','bg-indigo-50','bg-violet-50','bg-orange-50','bg-amber-50','bg-green-50'];
-                    const blocoColor = BLOCO_COLORS[fvs.template?.bloco ?? 0] ?? 'bg-gray-50';
+                    // Cor de borda superior por bloco disciplinar
+                    const BLOCO_ACCENT = [
+                      '#6B7280', // 0 - cinza (geral)
+                      '#3B82F6', // 1 - azul (estrutura)
+                      '#8B5CF6', // 2 - roxo (elétrica bruta)
+                      '#A855F7', // 3 - violeta (elétrica acabamento)
+                      '#F97316', // 4 - laranja (cabeamento/hidráulica)
+                      '#EAB308', // 5 - amarelo (sprinkler/SDAI)
+                      '#10B981', // 6 - verde (drywall/forro)
+                      '#5A7A7A', // 7 - teal BÈR (AC/revestimento)
+                      '#B5B820', // 8 - oliva BÈR (marcenaria/pintura)
+                      '#EF4444', // 9 - vermelho (entrega/comissionamento)
+                    ];
+                    // Cor da borda lateral esquerda por STATUS
+                    const STATUS_ACCENT: Record<string, string> = {
+                      pendente: '#D1D5DB',
+                      inicio_preenchido: '#3B82F6',
+                      aguardando_gestor: '#F97316',
+                      aguardando_coord: '#A855F7',
+                      aprovada: '#10B981',
+                      rejeitada: '#EF4444',
+                    };
+                    const blocoAccent = BLOCO_ACCENT[fvs.template?.bloco ?? 0] ?? '#6B7280';
+                    const statusAccent = STATUS_ACCENT[fvs.status] ?? '#D1D5DB';
+                    const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
                     return (
                       <button key={fvs.id} onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
-                        className={`group rounded-xl border border-ber-gray/10 ${blocoColor} p-4 text-left shadow-sm hover:shadow-md transition-all`}>
+                        className="group rounded-xl bg-white p-4 text-left shadow-sm hover:shadow-md transition-all overflow-hidden"
+                        style={{ borderLeft: `4px solid ${statusAccent}`, borderTop: `3px solid ${blocoAccent}`, border: `1px solid #e5e7eb`, borderLeftWidth: '4px', borderTopWidth: '3px', borderTopColor: blocoAccent, borderLeftColor: statusAccent }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{fvs.template?.code}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: blocoAccent }}>{fvs.template?.code}</p>
                             <p className="mt-0.5 text-sm font-bold text-ber-carbon leading-tight">{fvs.template?.name ?? 'FVS'}</p>
                             {fvs.etapa && <p className="mt-0.5 text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
                           </div>
@@ -3159,15 +3225,15 @@ export default function ObraDetailPage() {
                         <div className="mt-3">
                           <div className="flex items-center justify-between text-[10px] text-ber-gray/70 mb-1">
                             <span>{checked}/{total} itens</span>
-                            <span className="font-bold">{pct}%</span>
+                            <span className="font-bold" style={{ color: pct === 100 ? '#10B981' : 'inherit' }}>{pct}%</span>
                           </div>
-                          <div className="h-1.5 w-full rounded-full bg-black/10 overflow-hidden">
-                            <div className="h-full rounded-full bg-ber-teal transition-all" style={{ width: `${pct}%` }} />
+                          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                           </div>
                         </div>
                         <div className="mt-2 flex items-center justify-between">
-                          <p className="text-[10px] text-ber-gray/60">{fvs.filler?.name ?? '—'} · {new Date(fvs.createdAt).toLocaleDateString('pt-BR')}</p>
-                          <span className="text-[10px] font-semibold text-ber-teal opacity-0 group-hover:opacity-100 transition-opacity">Abrir →</span>
+                          <p className="text-[10px] text-ber-gray/60">{new Date(fvs.createdAt).toLocaleDateString('pt-BR')}</p>
+                          <span className="text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: blocoAccent }}>Abrir →</span>
                         </div>
                       </button>
                     );
