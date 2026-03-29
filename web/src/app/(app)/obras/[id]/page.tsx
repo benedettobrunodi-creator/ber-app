@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import CockpitBlock from '@/components/obras/CockpitBlock';
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -325,6 +328,38 @@ export default function ObraDetailPage() {
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
+  // Cockpit drag-and-drop order
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'equipe', 'touchpoint', 'checklists', 'punchlist', 'fotos', 'medicoes'];
+  const storageKey = `cockpit-order-${params.id}-${typeof window !== 'undefined' ? (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : '') : ''}`;
+  const [blockOrder, setBlockOrder] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
+    try {
+      const saved = localStorage.getItem(`cockpit-order-${params.id}`);
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (Array.isArray(parsed) && parsed.length === DEFAULT_BLOCK_ORDER.length) return parsed;
+    } catch {}
+    return DEFAULT_BLOCK_ORDER;
+  });
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setBlockOrder(prev => {
+      const oldIdx = prev.indexOf(active.id as string);
+      const newIdx = prev.indexOf(over.id as string);
+      const next = arrayMove(prev, oldIdx, newIdx);
+      localStorage.setItem(`cockpit-order-${params.id}`, JSON.stringify(next));
+      return next;
+    });
+  }
+  function resetBlockOrder() {
+    setBlockOrder(DEFAULT_BLOCK_ORDER);
+    localStorage.removeItem(`cockpit-order-${params.id}`);
+  }
+
   // Touchpoint modal state
   const [showTPModal, setShowTPModal] = useState(false);
   const [showTPHistory, setShowTPHistory] = useState(false);
@@ -879,7 +914,6 @@ export default function ObraDetailPage() {
       {/* Tab content */}
       <div className="mt-6">
         {activeTab === 'cockpit' && (() => {
-          // ── derived data ──────────────────────────────────────────────────
           const now = new Date();
           const start = obra.startDate ? new Date(obra.startDate) : null;
           const end = obra.expectedEndDate ? new Date(obra.expectedEndDate) : null;
@@ -887,7 +921,6 @@ export default function ObraDetailPage() {
           const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
           const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
           const timelinePct = totalDays && elapsed !== null ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : null;
-
           const taskDone = tasks.filter(t => t.status === 'done').length;
           const taskInProgress = tasks.filter(t => t.status === 'in_progress').length;
           const taskTodo = tasks.filter(t => t.status === 'todo').length;
@@ -895,643 +928,226 @@ export default function ObraDetailPage() {
           const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
           const topOverdue = tasks
             .filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== 'done')
-            .sort((a, b) => {
-              const pa = PRIORITY_ORDER[a.priority] ?? 2;
-              const pb = PRIORITY_ORDER[b.priority] ?? 2;
-              if (pa !== pb) return pa - pb;
-              return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
-            })
+            .sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2) || new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
             .slice(0, 5)
-            .map(t => ({
-              ...t,
-              daysLate: Math.floor((now.getTime() - new Date(t.dueDate!).getTime()) / 86400000),
-            }));
-
+            .map(t => ({ ...t, daysLate: Math.floor((now.getTime() - new Date(t.dueDate!).getTime()) / 86400000) }));
           const lastTouchpoint = touchpoints[0] ?? null;
-
-          const FASE_LABELS: Record<string, string> = {
-            kickoff_interno: 'Kickoff Interno', kickoff_externo: 'Kickoff Externo',
-            suprimentos: 'Suprimentos', pre_obra: 'Pré-Obra', execucao: 'Execução',
-            pendencias: 'Pendências', encerramento: 'Encerramento',
-          };
-          const FASE_COLORS: Record<string, string> = {
-            kickoff_interno: 'bg-gray-100 text-gray-600', kickoff_externo: 'bg-blue-100 text-blue-700',
-            suprimentos: 'bg-orange-100 text-orange-700', pre_obra: 'bg-amber-100 text-amber-700',
-            execucao: 'bg-ber-teal/15 text-ber-teal', pendencias: 'bg-red-100 text-red-600',
-            encerramento: 'bg-ber-olive/15 text-ber-olive',
-          };
+          const FASE_LABELS: Record<string, string> = { kickoff_interno: 'Kickoff Interno', kickoff_externo: 'Kickoff Externo', suprimentos: 'Suprimentos', pre_obra: 'Pré-Obra', execucao: 'Execução', pendencias: 'Pendências', encerramento: 'Encerramento' };
+          const FASE_COLORS: Record<string, string> = { kickoff_interno: 'bg-gray-100 text-gray-600', kickoff_externo: 'bg-blue-100 text-blue-700', suprimentos: 'bg-orange-100 text-orange-700', pre_obra: 'bg-amber-100 text-amber-700', execucao: 'bg-ber-teal/15 text-ber-teal', pendencias: 'bg-red-100 text-red-600', encerramento: 'bg-ber-olive/15 text-ber-olive' };
           const fase = (obra as any).fase as string | undefined;
           const faseLabel = fase ? (FASE_LABELS[fase] ?? fase) : null;
           const faseBadge = fase ? (FASE_COLORS[fase] ?? 'bg-gray-100 text-gray-600') : null;
+          const criticalItems = checklists.filter(c => c.items.filter(i => i.required && i.answer === null).length > 0).slice(0, 5).map(c => ({ id: c.id, checklistName: c.template?.name ?? c.type, itemCount: c.items.filter(i => i.required && i.answer === null).length }));
+          const TOUCHPOINT_LABELS: Record<string, string> = { kickoff_externo: 'Kick-Off Externo', reuniao_semanal: 'Reunião Semanal', comunicado_semanal: 'Comunicado Semanal', extra_aditivo: 'Extra/Aditivo', aceite_provisorio: 'Aceite Provisório', aceite_definitivo: 'Aceite Definitivo', visita_informal: 'Visita Informal' };
+          const plInterno = punchLists.find(p => p.type === 'interno');
+          const plCliente = punchLists.find(p => p.type === 'cliente');
+          const daysToEnd = remaining;
+          const isDeliveryDay = daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 1;
+          const isPrePunchList = daysToEnd !== null && daysToEnd > 1 && daysToEnd <= 7;
 
-          // critical checklists: required items incomplete in current phase
-          const criticalItems: { checklistName: string; itemCount: number; id: string }[] = checklists
-            .filter(c => {
-              const pending = c.items.filter(i => i.required && i.answer === null).length;
-              return pending > 0;
-            })
-            .slice(0, 5)
-            .map(c => ({
-              id: c.id,
-              checklistName: c.template?.name ?? c.type,
-              itemCount: c.items.filter(i => i.required && i.answer === null).length,
-            }));
+          async function handleCreatePL(type: 'interno' | 'cliente') {
+            setCreatingPL(type);
+            try {
+              const res = await api.post(`/obras/${params.id}/punch-lists`, { type });
+              setPunchLists(prev => [...prev, res.data.data]);
+              setShowPLModal(res.data.data);
+            } catch {} finally { setCreatingPL(null); }
+          }
+          async function handleToggleItem(plId: string, itemId: string, current: 'aberto' | 'resolvido') {
+            const newStatus = current === 'aberto' ? 'resolvido' : 'aberto';
+            try {
+              await api.patch(`/punch-list-items/${itemId}`, { status: newStatus });
+              setPunchLists(prev => prev.map(pl => pl.id === plId ? { ...pl, items: pl.items.map(i => i.id === itemId ? { ...i, status: newStatus } : i) } : pl));
+              if (showPLModal?.id === plId) setShowPLModal(prev => prev ? { ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, status: newStatus } : i) } : prev);
+            } catch {}
+          }
+          async function handleAddPLItem(pl: PunchList) {
+            if (!newPLItem.trim()) return;
+            setAddingPLItem(true);
+            try {
+              const res = await api.post(`/punch-lists/${pl.id}/items`, { descricao: newPLItem.trim() });
+              setPunchLists(prev => prev.map(p => p.id === pl.id ? { ...p, items: [...p.items, res.data.data] } : p));
+              setShowPLModal(prev => prev?.id === pl.id ? { ...prev, items: [...prev.items, res.data.data] } : prev);
+              setNewPLItem('');
+            } catch {} finally { setAddingPLItem(false); }
+          }
 
-          const TOUCHPOINT_LABELS: Record<string, string> = {
-            kickoff_externo: 'Kickoff Externo', reuniao_semanal: 'Reunião Semanal',
-            comunicado_semanal: 'Comunicado Semanal', extra_aditivo: 'Aditivo',
-            aceite_provisorio: 'Aceite Provisório', aceite_definitivo: 'Aceite Definitivo',
-            visita_informal: 'Visita Informal',
+          function PLCard({ pl, label, colorClass }: { pl: PunchList; label: string; colorClass: string }) {
+            const total = pl.items.length; const resolved = pl.items.filter(i => i.status === 'resolvido').length; const pct = total > 0 ? Math.round((resolved / total) * 100) : 0;
+            return (
+              <div className={`rounded-lg border p-3 ${colorClass}`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-ber-carbon">{label}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${pl.status === 'concluido' ? 'bg-green-100 text-green-700' : pl.status === 'em_andamento' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>{pl.status === 'concluido' ? '✅ Concluído' : pl.status === 'em_andamento' ? 'Em andamento' : 'Pendente'}</span>
+                </div>
+                {total > 0 && (<><div className="mt-2 flex justify-between text-xs text-ber-gray"><span>{resolved}/{total} resolvidos</span><span>{pct}%</span></div><div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/60"><div className="h-full rounded-full bg-ber-olive" style={{ width: `${pct}%` }} /></div></>)}
+                <button onClick={() => setShowPLModal(pl)} className="mt-2 text-xs font-medium text-ber-teal hover:underline">{total === 0 ? 'Adicionar itens →' : 'Ver itens →'}</button>
+              </div>
+            );
+          }
+
+          // ── block definitions ─────────────────────────────────────────────
+          const BLOCK_SPAN: Record<string, 1 | 2> = { punchlist: 2 };
+          const blocks: Record<string, React.ReactNode> = {
+            progresso: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Progresso Geral</h3>{faseLabel && <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${faseBadge}`}>{faseLabel}</span>}</div>
+                <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
+                <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
+                {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
+              </div>
+            ),
+            timeline: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Linha do Tempo</h3>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div><p className="text-xs text-ber-gray">Início</p><p className="mt-0.5 text-sm font-bold text-ber-carbon">{start ? start.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '--'}</p></div>
+                  <div><p className="text-xs text-ber-gray">Prazo Final</p><p className={`mt-0.5 text-sm font-bold ${remaining !== null && remaining < 0 ? 'text-red-500' : 'text-ber-carbon'}`}>{end ? end.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '--'}</p></div>
+                  <div><p className="text-xs text-ber-gray">Dias Decorridos</p><p className="mt-0.5 text-2xl font-black text-ber-carbon">{elapsed ?? '--'}</p></div>
+                  <div><p className="text-xs text-ber-gray">Dias Restantes</p><p className={`mt-0.5 text-2xl font-black ${remaining !== null && remaining < 0 ? 'text-red-500' : remaining !== null && remaining < 14 ? 'text-amber-500' : 'text-ber-carbon'}`}>{remaining !== null ? (remaining < 0 ? `${Math.abs(remaining)}d atraso` : remaining) : '--'}</p></div>
+                </div>
+                {timelinePct !== null && <div className="mt-4"><div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-carbon/20" style={{width:`${timelinePct}%`}}/><div className="absolute top-0 h-full rounded-full" style={{width:`${obra.progressPercent}%`,background:'linear-gradient(90deg,#B5B820,#8a8c10)',opacity:0.85}}/></div><div className="mt-1 flex justify-between text-[10px] text-ber-gray"><span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span></div></div>}
+              </div>
+            ),
+            tasks: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Tarefas</h3>{taskOverdue > 0 && <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">⚠ {taskOverdue} atrasada{taskOverdue > 1 ? 's' : ''}</span>}</div>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-green-50 p-3"><p className="text-3xl font-black text-green-600">{taskDone}</p><p className="mt-1 text-xs font-medium text-green-700">Concluídas</p></div>
+                  <div className="rounded-lg bg-amber-50 p-3"><p className="text-3xl font-black text-amber-500">{taskInProgress}</p><p className="mt-1 text-xs font-medium text-amber-600">Em andamento</p></div>
+                  <div className="rounded-lg bg-gray-50 p-3"><p className="text-3xl font-black text-gray-400">{taskTodo}</p><p className="mt-1 text-xs font-medium text-gray-500">Pendentes</p></div>
+                </div>
+                {topOverdue.length > 0 && <ul className="mt-4 space-y-1.5">{topOverdue.map(t => <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-red-50 px-3 py-2"><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-red-700">{t.title}</p>{t.assignee && <p className="text-[10px] text-red-400">{t.assignee.name.split(' ')[0]}</p>}</div><span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700 whitespace-nowrap">+{t.daysLate}d</span></li>)}</ul>}
+                <button onClick={() => setActiveTab('kanban')} className="mt-3 text-xs font-medium text-ber-teal hover:underline">Ver Kanban completo →</button>
+              </div>
+            ),
+            equipe: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Equipe Alocada</h3>
+                {obra.members.length === 0 ? <p className="mt-4 text-sm text-ber-gray">Nenhum membro alocado.</p> : <div className="mt-4 flex flex-wrap gap-3">{obra.members.map(m => <div key={m.user.id} className="flex items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white">{m.user.name.charAt(0)}</div><div><p className="text-xs font-semibold text-ber-carbon">{m.user.name.split(' ')[0]}</p><p className="text-[10px] text-ber-gray capitalize">{m.user.role}</p></div></div>)}</div>}
+                {obra.coordinator && <div className="mt-3 border-t border-ber-offwhite pt-3 flex items-center gap-2"><div className="flex h-7 w-7 items-center justify-center rounded-full bg-ber-carbon text-xs font-bold text-white">{obra.coordinator.name.charAt(0)}</div><div><p className="text-xs font-semibold text-ber-carbon">{obra.coordinator.name}</p><p className="text-[10px] text-ber-gray">Coordenador</p></div></div>}
+              </div>
+            ),
+            touchpoint: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Touchpoints com Cliente</h3>
+                  <button onClick={() => { setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }} className="flex items-center gap-1 rounded-md bg-ber-teal/10 px-2.5 py-1 text-xs font-semibold text-ber-teal hover:bg-ber-teal/20"><Plus size={12} /> Registrar</button>
+                </div>
+                {!lastTouchpoint ? <p className="mt-4 text-sm italic text-ber-gray/60">Nenhum touchpoint registrado.</p> : (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2"><span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">{TOUCHPOINT_LABELS[lastTouchpoint.type] ?? lastTouchpoint.type}</span><span className="text-xs text-ber-gray">{new Date(lastTouchpoint.occurredAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+                    <p className="text-sm font-medium text-ber-carbon">{lastTouchpoint.title}</p>
+                    {lastTouchpoint.nextAction && <div className={`rounded-lg p-3 ${lastTouchpoint.nextActionDue && new Date(lastTouchpoint.nextActionDue) < now ? 'bg-red-50' : 'bg-amber-50'}`}><p className="text-xs font-bold uppercase tracking-wide text-amber-700">Próxima ação</p><p className="mt-0.5 text-sm text-ber-carbon">{lastTouchpoint.nextAction}</p>{lastTouchpoint.nextActionDue && <p className={`mt-0.5 text-xs font-semibold ${new Date(lastTouchpoint.nextActionDue) < now ? 'text-red-600' : 'text-amber-600'}`}>Prazo: {new Date(lastTouchpoint.nextActionDue).toLocaleDateString('pt-BR')}{new Date(lastTouchpoint.nextActionDue) < now ? ' ⚠ VENCIDO' : ''}</p>}</div>}
+                    <button onClick={() => setShowTPHistory(true)} className="text-xs font-medium text-ber-teal hover:underline">Ver histórico ({touchpoints.length}) →</button>
+                  </div>
+                )}
+              </div>
+            ),
+            checklists: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Checklists Críticos</h3><button onClick={() => setActiveTab('checklists')} className="text-xs font-medium text-ber-teal hover:underline">Ver todos →</button></div>
+                {criticalItems.length === 0 ? <div className="mt-4 flex items-center gap-2 text-sm text-ber-olive font-medium"><span>✅</span> Sem pendências críticas</div> : <ul className="mt-3 space-y-2">{criticalItems.map(item => <li key={item.id} className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2"><p className="text-xs font-medium text-ber-carbon truncate flex-1 mr-2">{item.checklistName}</p><span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700">{item.itemCount}p</span></li>)}</ul>}
+              </div>
+            ),
+            fotos: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Últimas Fotos</h3><button onClick={() => setActiveTab('fotos')} className="text-xs font-medium text-ber-teal hover:underline">Ver galeria →</button></div>
+                {recentPhotos.length === 0 ? <div className="mt-4 flex h-24 items-center justify-center rounded-lg bg-ber-offwhite"><p className="text-sm text-ber-gray/50">Sem fotos</p></div> : <div className="mt-3 grid grid-cols-3 gap-2">{recentPhotos.map(photo => <a key={photo.id} href={photo.imageUrl} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-lg bg-ber-offwhite hover:opacity-80"><img src={photo.thumbnailUrl ?? photo.imageUrl} alt={photo.caption ?? 'Foto'} className="h-full w-full object-cover" /></a>)}</div>}
+                <p className="mt-2 text-right text-xs text-ber-gray">{obra._count.photos} foto{obra._count.photos !== 1 ? 's' : ''}</p>
+              </div>
+            ),
+            medicoes: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Medições / Recebimentos</h3>
+                {recebimentos.length === 0 ? <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p> : <div className="mt-3 space-y-2"><div><p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p><div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3"><p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p><p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p><span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>{(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}</span></div></div><div className="flex items-center justify-between text-xs text-ber-gray"><span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''}</span><button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button></div></div>}
+              </div>
+            ),
+            punchlist: (
+              <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
+                {isDeliveryDay && <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2"><span>🔴</span><p className="text-sm font-bold text-red-700">Punch List com Cliente — hoje é dia da entrega!</p></div>}
+                {isPrePunchList && !isDeliveryDay && <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span>⚠️</span><p className="text-sm font-semibold text-amber-700">Faltam {daysToEnd} dia{daysToEnd !== 1 ? 's' : ''} — iniciar Punch List Interno agora</p></div>}
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div><p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Interno (pré-entrega)</p>{plInterno ? <PLCard pl={plInterno} label="Punch List Interno" colorClass="border-amber-200 bg-amber-50/50" /> : <button onClick={() => handleCreatePL('interno')} disabled={creatingPL === 'interno'} className="w-full rounded-lg border border-dashed border-amber-300 py-3 text-xs font-medium text-amber-600 hover:bg-amber-50 disabled:opacity-50">{creatingPL === 'interno' ? 'Criando...' : '+ Criar Punch List Interno'}</button>}</div>
+                  <div><p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Com cliente (entrega)</p>{plCliente ? <PLCard pl={plCliente} label="Punch List com Cliente" colorClass="border-red-200 bg-red-50/50" /> : <button onClick={() => handleCreatePL('cliente')} disabled={creatingPL === 'cliente'} className="w-full rounded-lg border border-dashed border-red-300 py-3 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">{creatingPL === 'cliente' ? 'Criando...' : '+ Criar Punch List com Cliente'}</button>}</div>
+                </div>
+              </div>
+            ),
           };
 
           return (
-            <div className="space-y-4">
-              {/* Row 1: Progresso + Timeline */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Progresso geral */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Progresso Geral</h3>
-                    {faseLabel && (
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${faseBadge}`}>{faseLabel}</span>
-                    )}
-                  </div>
-                  <div className="mt-4 flex items-end gap-3">
-                    <span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span>
-                    <span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span>
-                  </div>
-                  <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg, #B5B820, #8a8c10)' }}
-                    />
-                  </div>
-                  {timelinePct !== null && (
-                    <p className="mt-2 text-xs text-ber-gray">
-                      Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>
-                        {obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% do prazo decorrido)
-                      </span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Linha do tempo */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Linha do Tempo</h3>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-ber-gray">Início</p>
-                      <p className="mt-0.5 text-sm font-bold text-ber-carbon">
-                        {start ? start.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '--'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ber-gray">Prazo Final</p>
-                      <p className={`mt-0.5 text-sm font-bold ${remaining !== null && remaining < 0 ? 'text-red-500' : 'text-ber-carbon'}`}>
-                        {end ? end.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '--'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ber-gray">Dias Decorridos</p>
-                      <p className="mt-0.5 text-2xl font-black text-ber-carbon">{elapsed ?? '--'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ber-gray">Dias Restantes</p>
-                      <p className={`mt-0.5 text-2xl font-black ${remaining !== null && remaining < 0 ? 'text-red-500' : remaining !== null && remaining < 14 ? 'text-amber-500' : 'text-ber-carbon'}`}>
-                        {remaining !== null ? (remaining < 0 ? `${Math.abs(remaining)} em atraso` : remaining) : '--'}
-                      </p>
-                    </div>
-                  </div>
-                  {timelinePct !== null && (
-                    <div className="mt-4">
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite">
-                        <div className="h-full rounded-full bg-ber-carbon/20 transition-all" style={{ width: `${timelinePct}%` }} />
-                        <div
-                          className="absolute top-0 h-full rounded-full transition-all"
-                          style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg, #B5B820, #8a8c10)', opacity: 0.85 }}
-                        />
-                      </div>
-                      <div className="mt-1 flex justify-between text-[10px] text-ber-gray">
-                        <span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            <div>
+              {/* Toolbar */}
+              <div className="mb-4 flex justify-end">
+                <button onClick={resetBlockOrder} className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-1.5 text-xs font-medium text-ber-gray transition-colors hover:bg-ber-offwhite">
+                  <RotateCcw size={12} /> Resetar layout
+                </button>
               </div>
 
-              {/* Row 2: Tasks + Equipe */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Resumo de tarefas */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Tarefas</h3>
-                    {taskOverdue > 0 && (
-                      <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">
-                        ⚠ {taskOverdue} atrasada{taskOverdue > 1 ? 's' : ''}
-                      </span>
-                    )}
+              {/* Sortable grid */}
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={blockOrder} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {blockOrder.map(id => (
+                      <CockpitBlock key={id} id={id} colSpan={BLOCK_SPAN[id] ?? 1}>
+                        {blocks[id]}
+                      </CockpitBlock>
+                    ))}
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-green-50 p-3">
-                      <p className="text-3xl font-black text-green-600">{taskDone}</p>
-                      <p className="mt-1 text-xs font-medium text-green-700">Concluídas</p>
-                    </div>
-                    <div className="rounded-lg bg-amber-50 p-3">
-                      <p className="text-3xl font-black text-amber-500">{taskInProgress}</p>
-                      <p className="mt-1 text-xs font-medium text-amber-600">Em andamento</p>
-                    </div>
-                    <div className="rounded-lg bg-gray-50 p-3">
-                      <p className="text-3xl font-black text-gray-400">{taskTodo}</p>
-                      <p className="mt-1 text-xs font-medium text-gray-500">Pendentes</p>
+                </SortableContext>
+              </DndContext>
+
+              {/* ── Touchpoint modals ── */}
+              {showTPModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPModal(false)}>
+                  <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Registrar Touchpoint</h2><button onClick={() => setShowTPModal(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
+                    <div className="space-y-3 px-5 py-4">
+                      <div><label className="text-xs font-medium text-ber-gray">Tipo *</label><select value={newTP.type} onChange={e => setNewTP(p => ({...p, type: e.target.value}))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"><option value="kickoff_externo">Kick-Off Externo</option><option value="reuniao_semanal">Reunião Semanal</option><option value="comunicado_semanal">Comunicado Semanal</option><option value="extra_aditivo">Extra / Aditivo</option><option value="aceite_provisorio">Aceite Provisório</option><option value="aceite_definitivo">Aceite Definitivo</option><option value="visita_informal">Visita Informal</option></select></div>
+                      <div><label className="text-xs font-medium text-ber-gray">Data e hora *</label><input type="datetime-local" value={newTP.occurredAt} onChange={e => setNewTP(p => ({...p, occurredAt: e.target.value}))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" /></div>
+                      <div><label className="text-xs font-medium text-ber-gray">Resumo</label><textarea rows={3} value={newTP.summary} onChange={e => setNewTP(p => ({...p, summary: e.target.value}))} placeholder="Principais pontos abordados..." className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" /></div>
+                      <div><label className="text-xs font-medium text-ber-gray">Próxima ação</label><input type="text" value={newTP.nextAction} onChange={e => setNewTP(p => ({...p, nextAction: e.target.value}))} placeholder="O que precisa acontecer..." className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" /></div>
+                      <div><label className="text-xs font-medium text-ber-gray">Prazo</label><input type="date" value={newTP.nextActionDue} onChange={e => setNewTP(p => ({...p, nextActionDue: e.target.value}))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" /></div>
+                      <div className="flex justify-end gap-3 pt-1">
+                        <button onClick={() => setShowTPModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+                        <button disabled={savingTP || !newTP.occurredAt} onClick={async () => { setSavingTP(true); try { const label = TOUCHPOINT_LABELS[newTP.type] ?? newTP.type; const res = await api.post(`/obras/${params.id}/touchpoints`, { type: newTP.type, title: label, occurredAt: new Date(newTP.occurredAt).toISOString(), summary: newTP.summary || undefined, nextAction: newTP.nextAction || undefined, nextActionDue: newTP.nextActionDue ? new Date(newTP.nextActionDue).toISOString() : undefined }); setTouchpoints(prev => [res.data.data, ...prev]); setShowTPModal(false); } catch {} finally { setSavingTP(false); } }} className="rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50">{savingTP ? 'Salvando...' : 'Salvar'}</button>
+                      </div>
                     </div>
                   </div>
-                  {topOverdue.length > 0 && (
-                    <ul className="mt-4 space-y-1.5">
-                      {topOverdue.map(t => (
-                        <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-red-50 px-3 py-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold text-red-700">{t.title}</p>
-                            {t.assignee && (
-                              <p className="text-[10px] text-red-400">{t.assignee.name.split(' ')[0]}</p>
-                            )}
-                          </div>
-                          <span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700 whitespace-nowrap">
-                            +{t.daysLate}d
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <button
-                    onClick={() => setActiveTab('kanban')}
-                    className="mt-3 text-xs font-medium text-ber-teal hover:underline"
-                  >
-                    Ver Kanban completo →
-                  </button>
                 </div>
-
-                {/* Equipe */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Equipe Alocada</h3>
-                  {obra.members.length === 0 ? (
-                    <p className="mt-4 text-sm text-ber-gray">Nenhum membro alocado.</p>
-                  ) : (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      {obra.members.map(m => (
-                        <div key={m.user.id} className="flex items-center gap-2">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white">
-                            {m.user.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-ber-carbon leading-tight">{m.user.name.split(' ')[0]}</p>
-                            <p className="text-[10px] text-ber-gray capitalize">{m.user.role}</p>
-                          </div>
-                        </div>
-                      ))}
+              )}
+              {showTPHistory && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPHistory(false)}>
+                  <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Histórico de Touchpoints</h2><button onClick={() => setShowTPHistory(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
+                    <div className="max-h-[60vh] overflow-y-auto px-5 py-3 space-y-3">
+                      {touchpoints.length === 0 && <p className="py-6 text-center text-sm text-ber-gray/60">Nenhum touchpoint.</p>}
+                      {touchpoints.map(tp => <div key={tp.id} className="rounded-lg border border-ber-offwhite p-3"><div className="flex items-center gap-2"><span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">{TOUCHPOINT_LABELS[tp.type] ?? tp.type}</span><span className="text-xs text-ber-gray">{new Date(tp.occurredAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}</span></div><p className="mt-1.5 text-sm font-medium text-ber-carbon">{tp.title}</p>{tp.nextAction && <p className="mt-1 text-xs text-ber-gray">→ {tp.nextAction}{tp.nextActionDue && <span className="ml-1 font-semibold text-amber-600">({new Date(tp.nextActionDue).toLocaleDateString('pt-BR')})</span>}</p>}</div>)}
                     </div>
-                  )}
-                  {obra.coordinator && (
-                    <div className="mt-3 border-t border-ber-offwhite pt-3 flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ber-carbon text-xs font-bold text-white">
-                        {obra.coordinator.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-ber-carbon">{obra.coordinator.name}</p>
-                        <p className="text-[10px] text-ber-gray">Coordenador</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 3: Touchpoint + Checklists críticos */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Último touchpoint */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Touchpoints com Cliente</h3>
-                    <button
-                      onClick={() => { setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }}
-                      className="flex items-center gap-1 rounded-md bg-ber-teal/10 px-2.5 py-1 text-xs font-semibold text-ber-teal transition-colors hover:bg-ber-teal/20"
-                    >
-                      <Plus size={12} /> Registrar
-                    </button>
+                    <div className="border-t border-ber-offwhite px-5 py-3 text-right"><button onClick={() => { setShowTPHistory(false); setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }} className="text-sm font-medium text-ber-teal hover:underline">+ Registrar novo</button></div>
                   </div>
-
-                  {!lastTouchpoint ? (
-                    <div className="mt-4 flex flex-col items-center py-4 text-center">
-                      <p className="text-sm italic text-ber-gray/60">Nenhum touchpoint registrado.</p>
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">
-                          {TOUCHPOINT_LABELS[lastTouchpoint.type] ?? lastTouchpoint.type}
-                        </span>
-                        <span className="text-xs text-ber-gray">
-                          {new Date(lastTouchpoint.occurredAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium text-ber-carbon">{lastTouchpoint.title}</p>
-                      {lastTouchpoint.nextAction && (
-                        <div className={`rounded-lg p-3 ${lastTouchpoint.nextActionDue && new Date(lastTouchpoint.nextActionDue) < now ? 'bg-red-50' : 'bg-amber-50'}`}>
-                          <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Próxima ação</p>
-                          <p className="mt-0.5 text-sm text-ber-carbon">{lastTouchpoint.nextAction}</p>
-                          {lastTouchpoint.nextActionDue && (
-                            <p className={`mt-0.5 text-xs font-semibold ${new Date(lastTouchpoint.nextActionDue) < now ? 'text-red-600' : 'text-amber-600'}`}>
-                              Prazo: {new Date(lastTouchpoint.nextActionDue).toLocaleDateString('pt-BR')}
-                              {new Date(lastTouchpoint.nextActionDue) < now ? ' ⚠ VENCIDO' : ''}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      <button onClick={() => setShowTPHistory(true)} className="text-xs font-medium text-ber-teal hover:underline">
-                        Ver histórico completo ({touchpoints.length}) →
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Modal: registrar touchpoint */}
-                  {showTPModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPModal(false)}>
-                      <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
-                          <h2 className="font-bold text-ber-carbon">Registrar Touchpoint</h2>
-                          <button onClick={() => setShowTPModal(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                        </div>
-                        <div className="space-y-3 px-5 py-4">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="col-span-2">
-                              <label className="text-xs font-medium text-ber-gray">Tipo *</label>
-                              <select value={newTP.type} onChange={e => setNewTP(p => ({ ...p, type: e.target.value }))}
-                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none">
-                                <option value="kickoff_externo">Kick-Off Externo</option>
-                                <option value="reuniao_semanal">Reunião Semanal</option>
-                                <option value="comunicado_semanal">Comunicado Semanal</option>
-                                <option value="extra_aditivo">Extra / Aditivo</option>
-                                <option value="aceite_provisorio">Aceite Provisório</option>
-                                <option value="aceite_definitivo">Aceite Definitivo</option>
-                                <option value="visita_informal">Visita Informal</option>
-                              </select>
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-xs font-medium text-ber-gray">Data e hora *</label>
-                              <input type="datetime-local" value={newTP.occurredAt} onChange={e => setNewTP(p => ({ ...p, occurredAt: e.target.value }))}
-                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-xs font-medium text-ber-gray">Resumo do que foi discutido</label>
-                              <textarea rows={3} value={newTP.summary} onChange={e => setNewTP(p => ({ ...p, summary: e.target.value }))}
-                                placeholder="Principais pontos abordados..."
-                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-xs font-medium text-ber-gray">Próxima ação</label>
-                              <input type="text" value={newTP.nextAction} onChange={e => setNewTP(p => ({ ...p, nextAction: e.target.value }))}
-                                placeholder="O que precisa acontecer..."
-                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-xs font-medium text-ber-gray">Prazo da próxima ação</label>
-                              <input type="date" value={newTP.nextActionDue} onChange={e => setNewTP(p => ({ ...p, nextActionDue: e.target.value }))}
-                                className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-3 pt-1">
-                            <button onClick={() => setShowTPModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
-                            <button
-                              disabled={savingTP || !newTP.occurredAt}
-                              onClick={async () => {
-                                setSavingTP(true);
-                                try {
-                                  const label = TOUCHPOINT_LABELS[newTP.type] ?? newTP.type;
-                                  const body: Record<string,any> = {
-                                    type: newTP.type,
-                                    title: label,
-                                    occurredAt: new Date(newTP.occurredAt).toISOString(),
-                                    summary: newTP.summary || undefined,
-                                    nextAction: newTP.nextAction || undefined,
-                                    nextActionDue: newTP.nextActionDue ? new Date(newTP.nextActionDue).toISOString() : undefined,
-                                  };
-                                  const res = await api.post(`/obras/${params.id}/touchpoints`, body);
-                                  setTouchpoints(prev => [res.data.data, ...prev]);
-                                  setShowTPModal(false);
-                                } catch {} finally { setSavingTP(false); }
-                              }}
-                              className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
-                            >
-                              {savingTP ? 'Salvando...' : 'Salvar'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Modal: histórico completo */}
-                  {showTPHistory && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowTPHistory(false)}>
-                      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
-                          <h2 className="font-bold text-ber-carbon">Histórico de Touchpoints</h2>
-                          <button onClick={() => setShowTPHistory(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                        </div>
-                        <div className="max-h-[60vh] overflow-y-auto px-5 py-3 space-y-3">
-                          {touchpoints.length === 0 && <p className="py-6 text-center text-sm text-ber-gray/60">Nenhum touchpoint registrado.</p>}
-                          {touchpoints.map(tp => (
-                            <div key={tp.id} className="rounded-lg border border-ber-offwhite p-3">
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">
-                                  {TOUCHPOINT_LABELS[tp.type] ?? tp.type}
-                                </span>
-                                <span className="text-xs text-ber-gray">
-                                  {new Date(tp.occurredAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                </span>
-                              </div>
-                              <p className="mt-1.5 text-sm font-medium text-ber-carbon">{tp.title}</p>
-                              {tp.nextAction && (
-                                <p className="mt-1 text-xs text-ber-gray">
-                                  → {tp.nextAction}
-                                  {tp.nextActionDue && <span className="ml-1 font-semibold text-amber-600">({new Date(tp.nextActionDue).toLocaleDateString('pt-BR')})</span>}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="border-t border-ber-offwhite px-5 py-3 text-right">
-                          <button
-                            onClick={() => { setShowTPHistory(false); setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }}
-                            className="text-sm font-medium text-ber-teal hover:underline"
-                          >+ Registrar novo</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              )}
 
-                {/* Checklists críticos */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Checklists Críticos Pendentes</h3>
-                    <button onClick={() => setActiveTab('checklists')} className="text-xs font-medium text-ber-teal hover:underline">Ver todos →</button>
+              {/* ── Punch List modal ── */}
+              {showPLModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowPLModal(null)}>
+                  <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4"><h2 className="font-bold text-ber-carbon">Punch List {showPLModal.type === 'interno' ? 'Interno' : 'com Cliente'}</h2><button onClick={() => setShowPLModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button></div>
+                    <div className="max-h-80 overflow-y-auto px-5 py-3 space-y-2">
+                      {showPLModal.items.length === 0 && <p className="py-4 text-center text-sm text-ber-gray/60">Nenhum item. Adicione abaixo.</p>}
+                      {showPLModal.items.map(item => <div key={item.id} className="flex items-start gap-3"><button onClick={() => handleToggleItem(showPLModal.id, item.id, item.status)} className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${item.status === 'resolvido' ? 'border-ber-olive bg-ber-olive text-white' : 'border-ber-gray/40'}`}>{item.status === 'resolvido' && <Check size={12} />}</button><div className="flex-1 min-w-0"><p className={`text-sm ${item.status === 'resolvido' ? 'line-through text-ber-gray/50' : 'text-ber-carbon'}`}>{item.descricao}</p>{item.responsible && <p className="text-[10px] text-ber-gray">{item.responsible.name}</p>}</div></div>)}
+                    </div>
+                    <div className="border-t border-ber-offwhite px-5 py-3"><div className="flex gap-2"><input type="text" value={newPLItem} onChange={e => setNewPLItem(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddPLItem(showPLModal)} placeholder="Nova pendência..." className="flex-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" /><button onClick={() => handleAddPLItem(showPLModal)} disabled={addingPLItem || !newPLItem.trim()} className="rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50">{addingPLItem ? '...' : 'Add'}</button></div></div>
                   </div>
-                  {criticalItems.length === 0 ? (
-                    <div className="mt-4 flex items-center gap-2 text-sm text-ber-olive font-medium">
-                      <span>✅</span> Sem pendências críticas na fase atual
-                    </div>
-                  ) : (
-                    <ul className="mt-3 space-y-2">
-                      {criticalItems.map(item => (
-                        <li key={item.id} className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2">
-                          <p className="text-xs font-medium text-ber-carbon truncate flex-1 mr-2">{item.checklistName}</p>
-                          <span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700">
-                            {item.itemCount} pendente{item.itemCount > 1 ? 's' : ''}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
-              </div>
-
-              {/* Row 3b: Punch List */}
-              {(() => {
-                const plInterno = punchLists.find(p => p.type === 'interno');
-                const plCliente = punchLists.find(p => p.type === 'cliente');
-                const daysToEnd = remaining;
-                const isDeliveryDay = daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 1;
-                const isPrePunchList = daysToEnd !== null && daysToEnd > 1 && daysToEnd <= 7;
-
-                async function handleCreatePL(type: 'interno' | 'cliente') {
-                  setCreatingPL(type);
-                  try {
-                    const res = await api.post(`/obras/${params.id}/punch-lists`, { type });
-                    setPunchLists(prev => [...prev, res.data.data]);
-                    setShowPLModal(res.data.data);
-                  } catch {} finally { setCreatingPL(null); }
-                }
-
-                async function handleToggleItem(plId: string, itemId: string, current: 'aberto' | 'resolvido') {
-                  const newStatus = current === 'aberto' ? 'resolvido' : 'aberto';
-                  try {
-                    await api.patch(`/punch-list-items/${itemId}`, { status: newStatus });
-                    setPunchLists(prev => prev.map(pl => pl.id === plId
-                      ? { ...pl, items: pl.items.map(i => i.id === itemId ? { ...i, status: newStatus, resolvedAt: newStatus === 'resolvido' ? new Date().toISOString() : null } : i) }
-                      : pl));
-                    if (showPLModal?.id === plId) {
-                      setShowPLModal(prev => prev ? { ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, status: newStatus } : i) } : prev);
-                    }
-                  } catch {}
-                }
-
-                async function handleAddPLItem(pl: PunchList) {
-                  if (!newPLItem.trim()) return;
-                  setAddingPLItem(true);
-                  try {
-                    const res = await api.post(`/punch-lists/${pl.id}/items`, { descricao: newPLItem.trim() });
-                    const item = res.data.data;
-                    setPunchLists(prev => prev.map(p => p.id === pl.id ? { ...p, items: [...p.items, item] } : p));
-                    setShowPLModal(prev => prev?.id === pl.id ? { ...prev, items: [...prev.items, item] } : prev);
-                    setNewPLItem('');
-                  } catch {} finally { setAddingPLItem(false); }
-                }
-
-                function PLCard({ pl, label, colorClass }: { pl: PunchList; label: string; colorClass: string }) {
-                  const total = pl.items.length;
-                  const resolved = pl.items.filter(i => i.status === 'resolvido').length;
-                  const pct = total > 0 ? Math.round((resolved / total) * 100) : 0;
-                  return (
-                    <div className={`rounded-lg border p-3 ${colorClass}`}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-ber-carbon">{label}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${pl.status === 'concluido' ? 'bg-green-100 text-green-700' : pl.status === 'em_andamento' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {pl.status === 'concluido' ? '✅ Concluído' : pl.status === 'em_andamento' ? 'Em andamento' : 'Pendente'}
-                        </span>
-                      </div>
-                      {total > 0 && (
-                        <>
-                          <div className="mt-2 flex items-center justify-between text-xs text-ber-gray">
-                            <span>{resolved}/{total} resolvidos</span><span>{pct}%</span>
-                          </div>
-                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/60">
-                            <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                        </>
-                      )}
-                      <button onClick={() => setShowPLModal(pl)} className="mt-2 text-xs font-medium text-ber-teal hover:underline">
-                        {total === 0 ? 'Adicionar itens →' : 'Ver itens →'}
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
-
-                    {/* Alerts */}
-                    {isDeliveryDay && (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2">
-                        <span className="text-base">🔴</span>
-                        <p className="text-sm font-bold text-red-700">Punch List com Cliente — hoje é dia da entrega!</p>
-                      </div>
-                    )}
-                    {isPrePunchList && !isDeliveryDay && (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2">
-                        <span className="text-base">⚠️</span>
-                        <p className="text-sm font-semibold text-amber-700">Faltam {daysToEnd} dia{daysToEnd !== 1 ? 's' : ''} — iniciar Punch List Interno agora</p>
-                      </div>
-                    )}
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {/* Punch List Interno */}
-                      <div>
-                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Interno (pré-entrega)</p>
-                        {plInterno ? (
-                          <PLCard pl={plInterno} label="Punch List Interno" colorClass="border-amber-200 bg-amber-50/50" />
-                        ) : (
-                          <button
-                            onClick={() => handleCreatePL('interno')}
-                            disabled={creatingPL === 'interno'}
-                            className="w-full rounded-lg border border-dashed border-amber-300 py-3 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-50"
-                          >
-                            {creatingPL === 'interno' ? 'Criando...' : '+ Criar Punch List Interno'}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Punch List Cliente */}
-                      <div>
-                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ber-gray">Com cliente (entrega)</p>
-                        {plCliente ? (
-                          <PLCard pl={plCliente} label="Punch List com Cliente" colorClass="border-red-200 bg-red-50/50" />
-                        ) : (
-                          <button
-                            onClick={() => handleCreatePL('cliente')}
-                            disabled={creatingPL === 'cliente'}
-                            className="w-full rounded-lg border border-dashed border-red-300 py-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {creatingPL === 'cliente' ? 'Criando...' : '+ Criar Punch List com Cliente'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Modal de itens */}
-                    {showPLModal && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowPLModal(null)}>
-                        <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
-                            <h2 className="font-bold text-ber-carbon">
-                              Punch List {showPLModal.type === 'interno' ? 'Interno' : 'com Cliente'}
-                            </h2>
-                            <button onClick={() => setShowPLModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                          </div>
-                          <div className="max-h-80 overflow-y-auto px-5 py-3 space-y-2">
-                            {showPLModal.items.length === 0 && (
-                              <p className="py-4 text-center text-sm text-ber-gray/60">Nenhum item ainda. Adicione abaixo.</p>
-                            )}
-                            {showPLModal.items.map(item => (
-                              <div key={item.id} className="flex items-start gap-3">
-                                <button
-                                  onClick={() => handleToggleItem(showPLModal.id, item.id, item.status)}
-                                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${item.status === 'resolvido' ? 'border-ber-olive bg-ber-olive text-white' : 'border-ber-gray/40'}`}
-                                >
-                                  {item.status === 'resolvido' && <Check size={12} />}
-                                </button>
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-sm ${item.status === 'resolvido' ? 'line-through text-ber-gray/50' : 'text-ber-carbon'}`}>{item.descricao}</p>
-                                  {item.responsible && <p className="text-[10px] text-ber-gray">{item.responsible.name}</p>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="border-t border-ber-offwhite px-5 py-3">
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={newPLItem}
-                                onChange={e => setNewPLItem(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleAddPLItem(showPLModal)}
-                                placeholder="Nova pendência..."
-                                className="flex-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                              />
-                              <button
-                                onClick={() => handleAddPLItem(showPLModal)}
-                                disabled={addingPLItem || !newPLItem.trim()}
-                                className="rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
-                              >
-                                {addingPLItem ? '...' : 'Add'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Row 4: Fotos + Medições */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Últimas fotos */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Últimas Fotos</h3>
-                    <button onClick={() => setActiveTab('fotos')} className="text-xs font-medium text-ber-teal hover:underline">Ver galeria →</button>
-                  </div>
-                  {recentPhotos.length === 0 ? (
-                    <div className="mt-4 flex h-24 items-center justify-center rounded-lg bg-ber-offwhite">
-                      <p className="text-sm text-ber-gray/50">Nenhuma foto registrada</p>
-                    </div>
-                  ) : (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {recentPhotos.map(photo => (
-                        <a key={photo.id} href={photo.imageUrl} target="_blank" rel="noopener noreferrer"
-                          className="block aspect-square overflow-hidden rounded-lg bg-ber-offwhite hover:opacity-80 transition-opacity">
-                          <img
-                            src={photo.thumbnailUrl ?? photo.imageUrl}
-                            alt={photo.caption ?? 'Foto da obra'}
-                            className="h-full w-full object-cover"
-                          />
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-2 text-right text-xs text-ber-gray">{obra._count.photos} foto{obra._count.photos !== 1 ? 's' : ''} no total</p>
-                </div>
-
-                {/* Medições */}
-                <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Medições / Recebimentos</h3>
-                  {recebimentos.length === 0 ? (
-                    <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      {/* Último recebimento */}
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p>
-                        <div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3">
-                          <p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p>
-                          <p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p>
-                          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>
-                            {(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-ber-gray">
-                        <span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''} registrado{recebimentos.length !== 1 ? 's' : ''}</span>
-                        <button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           );
         })()}
 
-        {activeTab === 'kanban' && (
+                {activeTab === 'kanban' && (
           <div>
             <div className="mb-4 flex justify-end">
               <button
