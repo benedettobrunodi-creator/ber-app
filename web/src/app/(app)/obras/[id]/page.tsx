@@ -320,6 +320,18 @@ export default function ObraDetailPage() {
   const [etapaAction, setEtapaAction] = useState<{ id: string; type: 'start' | 'submit' | 'approve' | 'reject' } | null>(null);
   const [etapaNotes, setEtapaNotes] = useState('');
   const [etapaSubmitting, setEtapaSubmitting] = useState(false);
+  // Rich modal fields
+  const [rf, setRf] = useState({
+    startDate: new Date().toISOString().slice(0,10),
+    fornecedor: '', numOperarios: '', condicoesIniciais: '', fotoInicialUrl: '',
+    endDate: new Date().toISOString().slice(0,10),
+    qtdExecutada: '', qtdPrevista: '', fvsPreenchida: false,
+    hasNaoConf: false, naoConformidades: '', obsConclusao: '',
+    obsAprovador: '',
+  });
+  const [rfFotosEv, setRfFotosEv] = useState<string[]>([]);
+  const [rfFotoInicial, setRfFotoInicial] = useState<string | null>(null);
+  const [uploadingRf, setUploadingRf] = useState(false);
   const [evidenciaDescricao, setEvidenciaDescricao] = useState('');
   const [evidenciaFotos, setEvidenciaFotos] = useState<string[]>([]);
   const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
@@ -681,13 +693,29 @@ export default function ObraDetailPage() {
     try {
       const { id, type } = etapaAction;
       const body: Record<string, any> = {};
-      if (type === 'start') body.gestorNotes = etapaNotes;
-      if (type === 'submit') {
-        body.gestorNotes = etapaNotes;
-        if (evidenciaDescricao.trim()) body.evidenciaDescricao = evidenciaDescricao;
-        if (evidenciaFotos.length > 0) body.evidenciaFotos = evidenciaFotos;
+      if (type === 'start') {
+        body.startDate = rf.startDate;
+        body.fornecedor = rf.fornecedor || undefined;
+        body.numOperarios = rf.numOperarios ? parseInt(rf.numOperarios) : undefined;
+        body.condicoesIniciais = rf.condicoesIniciais || undefined;
+        body.fotoInicialUrl = rfFotoInicial || undefined;
+        body.gestorNotes = etapaNotes || undefined;
       }
-      if (type === 'approve') body.coordenadorNotes = etapaNotes;
+      if (type === 'submit') {
+        body.qtdExecutada = rf.qtdExecutada || undefined;
+        body.qtdPrevista = rf.qtdPrevista || undefined;
+        body.fvsPreenchida = rf.fvsPreenchida;
+        body.naoConformidades = rf.hasNaoConf ? rf.naoConformidades : undefined;
+        body.fotosEvidencia = rfFotosEv;
+        body.obsConclusao = rf.obsConclusao || undefined;
+        body.evidenciaDescricao = rf.obsConclusao || undefined;
+        body.evidenciaFotos = rfFotosEv;
+        body.gestorNotes = etapaNotes || undefined;
+      }
+      if (type === 'approve') {
+        body.coordenadorNotes = etapaNotes || undefined;
+        body.obsAprovador = rf.obsAprovador || undefined;
+      }
       if (type === 'reject') {
         body.rejectionReason = etapaNotes;
       }
@@ -696,6 +724,8 @@ export default function ObraDetailPage() {
       setEtapaNotes('');
       setEvidenciaDescricao('');
       setEvidenciaFotos([]);
+      setRfFotosEv([]);
+      setRfFotoInicial(null);
       fetchSeq();
     } catch {} finally { setEtapaSubmitting(false); }
   }
@@ -1044,7 +1074,7 @@ export default function ObraDetailPage() {
                         <div className="flex flex-wrap gap-2 rounded-lg bg-ber-offwhite/60 p-3">
                           {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct && (
                             <button
-                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); }}
+                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); setRf(p => ({...p, startDate: new Date().toISOString().slice(0,10), fornecedor:'', numOperarios:'', condicoesIniciais:''})); setRfFotoInicial(null); }}
                               className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
                             >
                               <Play size={13} /> Iniciar Etapa
@@ -1057,7 +1087,7 @@ export default function ObraDetailPage() {
                           )}
                           {isGestor && etapa.status === 'em_andamento' && (
                             <button
-                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); }}
+                              onClick={() => { setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); setRfFotosEv([]); setRf(p => ({...p, qtdExecutada:'', qtdPrevista:'', fvsPreenchida:false, hasNaoConf:false, naoConformidades:'', obsConclusao:''})); }}
                               className="flex items-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-bold text-white hover:bg-blue-600 shadow-sm"
                             >
                               <Send size={13} /> Enviar para Aprovação
@@ -2156,113 +2186,221 @@ export default function ObraDetailPage() {
         </div>
       )}
 
-      {/* ─── Etapa Action Modal ─── */}
+      {/* ─── Etapa Action Modal (Rich Forms) ─── */}
       {etapaAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-              <h2 className="text-lg font-black text-ber-carbon">
-                {etapaAction.type === 'start' && 'Iniciar Etapa'}
-                {etapaAction.type === 'submit' && 'Enviar para Aprovação'}
-                {etapaAction.type === 'approve' && 'Aprovar Etapa'}
-                {etapaAction.type === 'reject' && 'Rejeitar Etapa'}
-              </h2>
-              <button
-                onClick={() => setEtapaAction(null)}
-                className="rounded p-1 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
-              >
-                <X size={18} />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
+          <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4 shrink-0">
+              <div>
+                <h2 className="text-base font-black text-ber-carbon">
+                  {etapaAction.type === 'start' && '🚀 Iniciar Etapa'}
+                  {etapaAction.type === 'submit' && '📋 Concluir e Enviar para Aprovação'}
+                  {etapaAction.type === 'approve' && '✅ Aprovar Etapa'}
+                  {etapaAction.type === 'reject' && '❌ Rejeitar Etapa'}
+                </h2>
+                <p className="text-xs text-ber-gray mt-0.5">
+                  {sequenciamento?.etapas.find(e => e.id === etapaAction.id)?.name ?? ''}
+                </p>
+              </div>
+              <button onClick={() => setEtapaAction(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
             </div>
-            <div className="px-6 py-5 space-y-4">
-              {/* Evidence fields — only for submit */}
-              {etapaAction.type === 'submit' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-ber-carbon">
-                      Descricao da evidencia
-                    </label>
-                    <textarea
-                      value={evidenciaDescricao}
-                      onChange={(e) => setEvidenciaDescricao(e.target.value)}
-                      rows={3}
-                      placeholder="Descreva o que foi executado nesta etapa..."
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                    />
-                  </div>
 
+            {/* Body */}
+            <div className="overflow-y-auto px-6 py-4 space-y-4">
+
+              {/* ── INICIAR ── */}
+              {etapaAction.type === 'start' && (<>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Data real de início *</label>
+                    <input type="date" value={rf.startDate} onChange={e => setRf(p => ({...p, startDate: e.target.value}))}
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Nº de operários</label>
+                    <input type="number" min={0} value={rf.numOperarios} onChange={e => setRf(p => ({...p, numOperarios: e.target.value}))}
+                      placeholder="Ex: 3"
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fornecedor / equipe executando</label>
+                    <input type="text" value={rf.fornecedor} onChange={e => setRf(p => ({...p, fornecedor: e.target.value}))}
+                      placeholder="Ex: Equipe Hidráulica A, Fornecedor X"
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Condições iniciais / pré-requisitos atendidos</label>
+                    <textarea rows={3} value={rf.condicoesIniciais} onChange={e => setRf(p => ({...p, condicoesIniciais: e.target.value}))}
+                      placeholder="Descreva as condições iniciais e quais pré-requisitos foram verificados..."
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Foto do estado inicial (opcional)</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      {rfFotoInicial && <img src={rfFotoInicial} alt="Inicial" className="h-16 w-16 rounded-lg object-cover border border-ber-gray/20" />}
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-ber-gray/30 px-3 py-2 text-xs font-medium text-ber-gray hover:bg-ber-offwhite">
+                        <Camera size={13} /> {uploadingRf ? 'Enviando...' : rfFotoInicial ? 'Trocar foto' : 'Adicionar foto'}
+                        <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploadingRf}
+                          onChange={async e => {
+                            const file = e.target.files?.[0]; if (!file) return;
+                            setUploadingRf(true);
+                            try {
+                              const fd = new FormData(); fd.append('file', file);
+                              const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                              setRfFotoInicial(r.data.data?.url ?? r.data.url);
+                            } catch {} finally { setUploadingRf(false); }
+                          }} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações (opcional)</label>
+                  <textarea rows={2} value={etapaNotes} onChange={e => setEtapaNotes(e.target.value)} placeholder="Observações adicionais..."
+                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                </div>
+              </>)}
+
+              {/* ── CONCLUIR (submit) ── */}
+              {etapaAction.type === 'submit' && (<>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-ber-carbon">
-                      Fotos de evidencia
-                    </label>
-                    {evidenciaFotos.length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        {evidenciaFotos.map((url, i) => (
-                          <div key={i} className="relative group">
-                            <img src={url} alt={`Foto ${i + 1}`} className="h-16 w-16 rounded border border-ber-gray/15 object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setEvidenciaFotos((prev) => prev.filter((_, j) => j !== i))}
-                              className="absolute -right-1.5 -top-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-[10px]"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        ))}
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Qtd. prevista</label>
+                    <input type="text" value={rf.qtdPrevista} onChange={e => setRf(p => ({...p, qtdPrevista: e.target.value}))}
+                      placeholder="Ex: 120m²"
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Qtd. executada *</label>
+                    <input type="text" value={rf.qtdExecutada} onChange={e => setRf(p => ({...p, qtdExecutada: e.target.value}))}
+                      placeholder="Ex: 118m²"
+                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                  </div>
+                </div>
+
+                {/* FVS checkbox */}
+                <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
+                  <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p>
+                    <p className="text-xs text-ber-gray">Ficha de Verificação de Serviço foi preenchida e assinada</p>
+                  </div>
+                </label>
+
+                {/* Não conformidades */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-ber-carbon">
+                    <input type="checkbox" checked={rf.hasNaoConf} onChange={e => setRf(p => ({...p, hasNaoConf: e.target.checked}))} className="h-4 w-4 rounded accent-red-500" />
+                    Houve não conformidades?
+                  </label>
+                  {rf.hasNaoConf && (
+                    <textarea rows={3} value={rf.naoConformidades} onChange={e => setRf(p => ({...p, naoConformidades: e.target.value}))}
+                      placeholder="Descreva as não conformidades encontradas..."
+                      className="mt-2 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none" />
+                  )}
+                </div>
+
+                {/* Fotos de evidência */}
+                <div>
+                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">
+                    Fotos de evidência <span className="text-red-500">* (mín. 1)</span>
+                  </label>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {rfFotosEv.map((url, i) => (
+                      <div key={i} className="group relative">
+                        <img src={url} alt={`Ev ${i+1}`} className="h-16 w-16 rounded-lg object-cover border border-ber-gray/20" />
+                        <button type="button" onClick={() => setRfFotosEv(prev => prev.filter((_,j) => j !== i))}
+                          className="absolute -right-1.5 -top-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
+                          <X size={10} />
+                        </button>
                       </div>
-                    )}
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-ber-gray/20 px-3 py-2 text-xs font-medium text-ber-carbon transition hover:bg-ber-offwhite">
-                      <Camera size={14} />
-                      {uploadingEvidencia ? 'Enviando...' : 'Adicionar fotos'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        capture="environment"
-                        onChange={handleEvidenciaUpload}
-                        disabled={uploadingEvidencia}
-                        className="hidden"
-                      />
+                    ))}
+                    <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-ber-gray/30 text-ber-gray/50 hover:border-ber-teal hover:text-ber-teal transition-colors">
+                      <Camera size={16} />
+                      <span className="text-[9px] mt-0.5">{uploadingRf ? '...' : '+ foto'}</span>
+                      <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={uploadingRf}
+                        onChange={async e => {
+                          const files = Array.from(e.target.files ?? []); if (!files.length) return;
+                          setUploadingRf(true);
+                          try {
+                            for (const file of files) {
+                              const fd = new FormData(); fd.append('file', file);
+                              const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                              setRfFotosEv(prev => [...prev, r.data.data?.url ?? r.data.url]);
+                            }
+                          } catch {} finally { setUploadingRf(false); }
+                        }} />
                     </label>
                   </div>
-                </>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações finais</label>
+                  <textarea rows={3} value={rf.obsConclusao} onChange={e => setRf(p => ({...p, obsConclusao: e.target.value}))}
+                    placeholder="Observações sobre a execução, pontos de atenção para o coordenador..."
+                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                </div>
+              </>)}
+
+              {/* ── APROVAR ── */}
+              {etapaAction.type === 'approve' && (
+                <div>
+                  <div className="mb-3 flex items-start gap-3 rounded-lg bg-green-50 p-3">
+                    <span className="text-2xl">✅</span>
+                    <div>
+                      <p className="text-sm font-semibold text-green-800">Confirmar aprovação desta etapa?</p>
+                      <p className="text-xs text-green-700 mt-0.5">A etapa passará para status <strong>Aprovada</strong> e as dependentes serão desbloqueadas.</p>
+                    </div>
+                  </div>
+                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações do aprovador (opcional)</label>
+                  <textarea rows={3} value={rf.obsAprovador} onChange={e => setRf(p => ({...p, obsAprovador: e.target.value}))}
+                    placeholder="Observações, ressalvas ou comentários para o registro..."
+                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-ber-carbon">
-                  {etapaAction.type === 'reject' ? 'Motivo da rejeicao *' : 'Observacoes' + (etapaAction.type === 'submit' ? ' *' : ' (opcional)')}
-                </label>
-                <textarea
-                  value={etapaNotes}
-                  onChange={(e) => setEtapaNotes(e.target.value)}
-                  rows={3}
-                  placeholder={
-                    etapaAction.type === 'reject'
-                      ? 'Descreva o motivo da rejeição...'
-                      : 'Adicione observações...'
-                  }
-                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setEtapaAction(null)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleEtapaAction}
-                  disabled={
-                    etapaSubmitting ||
-                    (etapaAction.type === 'submit' && !etapaNotes.trim()) ||
-                    (etapaAction.type === 'reject' && !etapaNotes.trim())
-                  }
-                  className="rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50"
-                >
-                  {etapaSubmitting ? 'Salvando...' : 'Confirmar'}
-                </button>
-              </div>
+              {/* ── REJEITAR ── */}
+              {etapaAction.type === 'reject' && (
+                <div>
+                  <div className="mb-3 flex items-start gap-3 rounded-lg bg-red-50 p-3">
+                    <span className="text-2xl">❌</span>
+                    <div>
+                      <p className="text-sm font-semibold text-red-800">Rejeitar esta etapa?</p>
+                      <p className="text-xs text-red-700 mt-0.5">A etapa voltará para <strong>Em andamento</strong> para correção pelo gestor.</p>
+                    </div>
+                  </div>
+                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Motivo da rejeição *</label>
+                  <textarea rows={4} value={etapaNotes} onChange={e => setEtapaNotes(e.target.value)}
+                    placeholder="Descreva o motivo da rejeição e o que precisa ser corrigido..."
+                    className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none" />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 border-t border-ber-offwhite px-6 py-4 shrink-0">
+              <button onClick={() => setEtapaAction(null)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+              <button
+                onClick={handleEtapaAction}
+                disabled={
+                  etapaSubmitting ||
+                  (etapaAction.type === 'submit' && rfFotosEv.length === 0) ||
+                  (etapaAction.type === 'submit' && !rf.fvsPreenchida) ||
+                  (etapaAction.type === 'reject' && !etapaNotes.trim())
+                }
+                className={`flex items-center gap-2 rounded-md px-5 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50 transition-colors ${
+                  etapaAction.type === 'reject' ? 'bg-red-500 hover:bg-red-600' :
+                  etapaAction.type === 'approve' ? 'bg-green-500 hover:bg-green-600' :
+                  'bg-ber-carbon hover:bg-ber-black'
+                }`}
+              >
+                {etapaSubmitting ? 'Salvando...' :
+                  etapaAction.type === 'start' ? '🚀 Iniciar Etapa' :
+                  etapaAction.type === 'submit' ? '📋 Enviar para Aprovação' :
+                  etapaAction.type === 'approve' ? '✅ Aprovar Etapa' :
+                  '❌ Rejeitar'}
+              </button>
             </div>
           </div>
         </div>

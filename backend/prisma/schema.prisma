@@ -649,6 +649,19 @@ model ObraEtapa {
   evidenciaFotos         String[]  @default([]) @map("evidencia_fotos")
   evidenciaRegistradaEm  DateTime? @map("evidencia_registrada_em")
 
+  // Rich transition fields
+  fornecedor           String?   @map("fornecedor")
+  numOperarios         Int?      @map("num_operarios")
+  conducoesIniciais    String?   @map("condicoes_iniciais")
+  fotoInicialUrl       String?   @map("foto_inicial_url")
+  qtdExecutada         String?   @map("qtd_executada") @db.VarChar(100)
+  qtdPrevista          String?   @map("qtd_prevista") @db.VarChar(100)
+  fvsPreenchida        Boolean   @default(false) @map("fvs_preenchida")
+  naoConformidades     String?   @map("nao_conformidades")
+  fotosEvidencia       String[]  @default([]) @map("fotos_evidencia")
+  obsConclusao         String?   @map("obs_conclusao")
+  obsAprovador         String?   @map("obs_aprovador")
+
   sequenciamento ObraSequenciamento @relation(fields: [sequenciamentoId], references: [id], onDelete: Cascade)
   obra           Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
   submitter      User?              @relation("EtapaSubmitter", fields: [submittedBy], references: [id])

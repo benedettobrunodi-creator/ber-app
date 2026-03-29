@@ -294,9 +294,13 @@ export async function startEtapa(
     where: { id: etapaId },
     data: {
       status: 'em_andamento',
-      startDate: now,
+      startDate: input.startDate ? new Date(input.startDate) : now,
       estimatedEndDate: estimatedEnd,
       gestorNotes: input.gestorNotes,
+      fornecedor: (input as any).fornecedor ?? null,
+      numOperarios: (input as any).numOperarios ?? null,
+      conducoesIniciais: (input as any).condicoesIniciais ?? null,
+      fotoInicialUrl: (input as any).fotoInicialUrl ?? null,
     },
     include: etapaInclude,
   });
@@ -329,6 +333,13 @@ export async function submitEtapa(
       rejectedBy: null,
       rejectedAt: null,
       rejectionReason: null,
+      // Rich completion fields
+      qtdExecutada: (input as any).qtdExecutada ?? null,
+      qtdPrevista: (input as any).qtdPrevista ?? null,
+      fvsPreenchida: !!(input as any).fvsPreenchida,
+      naoConformidades: (input as any).naoConformidades ?? null,
+      fotosEvidencia: (input as any).fotosEvidencia ?? [],
+      obsConclusao: (input as any).obsConclusao ?? null,
     },
     include: etapaInclude,
   });
@@ -352,6 +363,7 @@ export async function approveEtapa(
       status: 'aprovada',
       endDate: new Date(),
       coordenadorNotes: input.coordenadorNotes,
+      obsAprovador: (input as any).obsAprovador ?? null,
       approvedBy: userId,
       approvedAt: new Date(),
     },
