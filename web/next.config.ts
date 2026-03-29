@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  allowedDevOrigins: ['refer-correction-wet-mounts.trycloudflare.com'],
+  allowedDevOrigins: ['judge-holly-ringtone-chips.trycloudflare.com'],
 };
 export default nextConfig;

@@ -987,7 +987,6 @@ export default function ObraDetailPage() {
           }
 
           // ── block definitions ─────────────────────────────────────────────
-          const BLOCK_SPAN: Record<string, 1 | 2> = { punchlist: 2 };
           const blocks: Record<string, React.ReactNode> = {
             progresso: (
               <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
@@ -1088,9 +1087,9 @@ export default function ObraDetailPage() {
               {/* Sortable grid */}
               <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={blockOrder} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="flex flex-col gap-4">
                     {blockOrder.map(id => (
-                      <CockpitBlock key={id} id={id} colSpan={BLOCK_SPAN[id] ?? 1}>
+                      <CockpitBlock key={id} id={id}>
                         {blocks[id]}
                       </CockpitBlock>
                     ))}

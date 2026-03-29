@@ -8,17 +8,15 @@ import type { ReactNode } from 'react';
 interface Props {
   id: string;
   children: ReactNode;
-  colSpan?: 1 | 2;
 }
 
-export default function CockpitBlock({ id, children, colSpan = 1 }: Props) {
+export default function CockpitBlock({ id, children }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
-    gridColumn: colSpan === 2 ? 'span 2' : undefined,
   };
 
   return (
