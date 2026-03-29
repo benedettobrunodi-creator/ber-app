@@ -1,379 +1,430 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { ClipboardCheck, HardHat, CheckCircle2, Clock, Plus, X } from 'lucide-react';
+import { ChevronLeft, Camera, X, MapPin, HardHat, ClipboardCheck } from 'lucide-react';
 
-// --- Types ---
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Obra {
-  id: string;
-  name: string;
-  client: string | null;
-  status: string;
+  id: string; name: string; client: string | null; address: string | null;
+  status: string; _count: { tasks: number; members: number };
 }
 
-interface Checklist {
-  id: string;
-  obraId: string;
-  type: string;
-  segment: string | null;
-  status: string;
-  createdAt: string;
-  completedAt: string | null;
-  creator: { id: string; name: string } | null;
-  template: { id: string; name: string } | null;
-  items: { answer: string | null; required: boolean }[];
-  _count: { items: number };
+interface BerClTemplate {
+  id: string; code: string; name: string; recorrente: boolean;
+  items: BerClTemplateItem[];
+}
+interface BerClTemplateItem {
+  id: string; secao: string | null; descricao: string; fotoObrigatoria: boolean; ordem: number;
+}
+interface ObraBerClItem {
+  id: string; checked: boolean; fotoUrl: string | null; observacao: string | null; filledAt: string | null; ambiente: string | null;
+  templateItem: BerClTemplateItem | null;
+}
+interface ObraChecklistAmbiente { id: string; nome: string; ordem: number; }
+interface ObraBerChecklist {
+  id: string; status: string; visitaNumero: number; createdAt: string; submittedAt: string | null;
+  template: BerClTemplate | null;
+  filler: { id: string; name: string } | null;
+  items: ObraBerClItem[];
+  ambientes: ObraChecklistAmbiente[];
 }
 
-interface ChecklistWithObra extends Checklist {
-  obra: Obra;
-}
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-interface Template {
-  id: string;
-  name: string;
-  type: string;
-  segment: string;
-}
-
-// --- Constants ---
-
-const TYPE_FILTERS = [
-  { key: 'todos', label: 'Todos' },
-  { key: 'vistoria_inicial', label: 'Vistoria Inicial' },
-  { key: 'qualidade', label: 'Qualidade' },
-  { key: 'pre_entrega', label: 'Pre-entrega' },
-  { key: 'inauguracao', label: 'Inauguracao' },
-] as const;
-
-const TYPE_LABELS: Record<string, string> = {
-  vistoria_inicial: 'Vistoria Inicial',
-  qualidade: 'Qualidade',
-  pre_entrega: 'Pre-entrega',
-  inauguracao: 'Inauguracao',
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  planejamento: { label: 'Planejamento', className: 'bg-ber-gray/10 text-ber-gray' },
+  em_andamento: { label: 'Em andamento', className: 'bg-ber-teal/10 text-ber-teal' },
+  pausada: { label: 'Pausada', className: 'bg-amber-100 text-amber-700' },
+  concluida: { label: 'Concluída', className: 'bg-green-100 text-green-700' },
+  cancelada: { label: 'Cancelada', className: 'bg-red-100 text-red-600' },
 };
 
-// --- Helpers ---
+const CL_STATUS: Record<string, { label: string; color: string; dot: string }> = {
+  nao_iniciado:    { label: 'Não iniciado',     color: 'bg-gray-100 text-gray-500',  dot: 'bg-gray-400' },
+  em_preenchimento:{ label: 'Em preenchimento', color: 'bg-blue-100 text-blue-700',  dot: 'bg-blue-500' },
+  concluido:       { label: 'Concluído ✓',      color: 'bg-green-100 text-green-700',dot: 'bg-green-500' },
+};
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+const CARD_COLORS = ['bg-slate-50','bg-blue-50','bg-orange-50','bg-green-50','bg-red-50'];
 
-// --- Component ---
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ChecklistsPage() {
-  const router = useRouter();
-  const [allChecklists, setAllChecklists] = useState<ChecklistWithObra[]>([]);
   const [obras, setObras] = useState<Obra[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('todos');
+  const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
+  const [checklists, setChecklists] = useState<ObraBerChecklist[]>([]);
+  const [templates, setTemplates] = useState<BerClTemplate[]>([]);
+  const [clLoading, setClLoading] = useState(false);
 
-  // Modal state
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [selectedObraId, setSelectedObraId] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
+  // Detail modal
+  const [activeCl, setActiveCl] = useState<ObraBerChecklist | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [newAmbiente, setNewAmbiente] = useState('');
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const obrasRes = await api.get('/obras');
-      const allObras: Obra[] = obrasRes.data.data;
-      const activeObras = allObras.filter((o) => o.status === 'em_andamento');
-      setObras(activeObras);
+  // Load obras on mount
+  useEffect(() => {
+    api.get('/obras', { params: { limit: 100 } })
+      .then(r => {
+        const all: Obra[] = r.data.data ?? [];
+        setObras(all.filter(o => ['em_andamento','planejamento'].includes(o.status)));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
 
-      const results = await Promise.all(
-        activeObras.map(async (obra) => {
-          try {
-            const res = await api.get(`/obras/${obra.id}/checklists`);
-            return (res.data.data as Checklist[]).map((cl) => ({ ...cl, obra, obraId: obra.id }));
-          } catch {
-            return [];
-          }
-        }),
-      );
-
-      const flat = results.flat().sort((a, b) => {
-        if (a.status === 'em_andamento' && b.status !== 'em_andamento') return -1;
-        if (a.status !== 'em_andamento' && b.status === 'em_andamento') return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-
-      setAllChecklists(flat);
-    } catch {
-      /* interceptor */
-    } finally {
-      setLoading(false);
-    }
+    api.get('/ber-checklist-templates')
+      .then(r => setTemplates(r.data.data ?? []))
+      .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  async function openNewModal() {
-    setShowNewModal(true);
-    setSelectedObraId('');
-    setSelectedTemplateId('');
-    setCreateError('');
-    setLoadingTemplates(true);
+  const loadChecklists = useCallback(async (obra: Obra) => {
+    setClLoading(true);
     try {
-      const res = await api.get('/checklist-templates');
-      setTemplates(res.data.data);
-    } catch {
-      setTemplates([]);
-    } finally {
-      setLoadingTemplates(false);
-    }
-  }
+      const r = await api.get(`/obras/${obra.id}/ber-checklists`);
+      setChecklists(r.data.data ?? []);
+    } catch { setChecklists([]); }
+    finally { setClLoading(false); }
+  }, []);
 
-  async function handleCreate() {
-    if (!selectedObraId || !selectedTemplateId) return;
-    setCreating(true);
-    setCreateError('');
+  const selectObra = (obra: Obra) => {
+    setSelectedObra(obra);
+    loadChecklists(obra);
+  };
+
+  // ── Checklist actions ──
+
+  const toggleItem = async (cl: ObraBerChecklist, itemId: string) => {
+    const item = cl.items.find(i => i.id === itemId);
+    if (!item || cl.status === 'concluido') return;
+    setSubmitting(true);
     try {
-      await api.post(`/obras/${selectedObraId}/checklists`, { templateId: selectedTemplateId });
-      setShowNewModal(false);
-      await fetchData();
-    } catch (err: any) {
-      setCreateError(err?.response?.data?.error?.message || 'Erro ao criar checklist.');
-    } finally {
-      setCreating(false);
-    }
-  }
+      const r = await api.patch(`/obra-ber-checklists/${cl.id}/items/${itemId}`, { checked: !item.checked });
+      const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+      setActiveCl(updated as ObraBerChecklist);
+      setChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
+    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+    finally { setSubmitting(false); }
+  };
 
-  const filtered = activeFilter === 'todos'
-    ? allChecklists
-    : allChecklists.filter((cl) => cl.type === activeFilter);
+  const uploadPhoto = async (cl: ObraBerChecklist, itemId: string, file: File) => {
+    setSubmitting(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = up.data.data?.url ?? up.data.url;
+      const r = await api.patch(`/obra-ber-checklists/${cl.id}/items/${itemId}`, { fotoUrl: url });
+      const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+      setActiveCl(updated as ObraBerChecklist);
+      setChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
+    } catch { alert('Erro no upload'); }
+    finally { setSubmitting(false); }
+  };
 
-  const activeCount = allChecklists.filter((c) => c.status === 'em_andamento').length;
+  const submitChecklist = async (cl: ObraBerChecklist) => {
+    setSubmitting(true);
+    try {
+      const r = await api.post(`/obra-ber-checklists/${cl.id}/submit`);
+      const updated = r.data.data as ObraBerChecklist;
+      setActiveCl(updated);
+      setChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
+    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+    finally { setSubmitting(false); }
+  };
 
-  if (loading) {
+  const createChecklist = async (tmplId: string) => {
+    if (!selectedObra) return;
+    try {
+      const r = await api.post(`/obras/${selectedObra.id}/ber-checklists`, { templateId: tmplId });
+      const newCl = r.data.data as ObraBerChecklist;
+      setChecklists(prev => [...prev, newCl]);
+      setActiveCl(newCl);
+    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+  };
+
+  const addAmbiente = async (cl: ObraBerChecklist, nome: string) => {
+    try {
+      const r = await api.post(`/obra-ber-checklists/${cl.id}/ambientes`, { nome });
+      const updated = r.data.data.checklist as ObraBerChecklist;
+      setActiveCl(updated);
+      setChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
+      setNewAmbiente('');
+    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+  };
+
+  // ── RENDER: Obra grid ──────────────────────────────────────────────────────
+
+  if (!selectedObra) {
     return (
-      <div>
-        <h1 className="text-2xl font-black text-ber-carbon">Checklists de Qualidade</h1>
-        <p className="mt-4 text-sm text-ber-gray">Carregando...</p>
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-black text-ber-carbon">Checklists BÈR</h1>
+          <p className="mt-0.5 text-sm text-ber-gray">Selecione uma obra para ver seus checklists</p>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-ber-gray animate-pulse">Carregando obras...</p>
+        ) : obras.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center">
+            <HardHat size={40} className="mb-3 text-ber-gray/30" />
+            <p className="text-sm text-ber-gray">Nenhuma obra ativa encontrada.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {obras.map(obra => {
+              const sc = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
+              return (
+                <button key={obra.id} onClick={() => selectObra(obra)}
+                  className="group rounded-xl border border-ber-offwhite bg-white p-5 text-left shadow-sm transition-all hover:shadow-md hover:border-ber-teal/30">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h2 className="text-sm font-bold text-ber-carbon group-hover:text-ber-teal leading-snug">{obra.name}</h2>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.className}`}>{sc.label}</span>
+                  </div>
+                  {obra.client && <p className="text-xs text-ber-gray truncate">{obra.client}</p>}
+                  {obra.address && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px] text-ber-gray/60">
+                      <MapPin size={10} className="shrink-0" />
+                      <span className="truncate">{obra.address}</span>
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-ber-teal opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ClipboardCheck size={12} /> Ver checklists →
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
 
+  // ── RENDER: Checklist list for selected obra ───────────────────────────────
+
+  const byCode: Record<string, ObraBerChecklist[]> = {};
+  checklists.forEach(c => { const code = c.template?.code ?? '?'; (byCode[code] = byCode[code] ?? []).push(c); });
+
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-ber-carbon">Checklists de Qualidade</h1>
-          <p className="mt-0.5 text-sm text-ber-gray">
-            {allChecklists.length} checklist{allChecklists.length !== 1 ? 's' : ''}
-            {activeCount > 0 && (
-              <span className="ml-2 font-semibold text-ber-teal">{activeCount} em andamento</span>
-            )}
-          </p>
-        </div>
-        <button
-          onClick={openNewModal}
-          className="inline-flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2.5 text-sm font-bold text-white transition hover:bg-ber-olive/90"
-        >
-          <Plus size={16} />
-          Novo Checklist
-        </button>
-      </div>
-
-      {/* Filtros por tipo */}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {TYPE_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setActiveFilter(f.key)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-              activeFilter === f.key
-                ? 'bg-ber-carbon text-white'
-                : 'bg-white text-ber-gray border border-ber-gray/15 hover:border-ber-teal/30'
-            }`}
-          >
-            {f.label}
-            {f.key !== 'todos' && (
-              <span className="ml-1.5 opacity-60">
-                {allChecklists.filter((c) => c.type === f.key).length}
-              </span>
-            )}
+    <div className="flex h-full flex-col">
+      {/* Header with breadcrumb */}
+      <div className="border-b border-ber-gray/10 bg-white px-6 py-4 shrink-0">
+        <div className="flex items-center gap-2 text-sm text-ber-gray mb-1">
+          <button onClick={() => { setSelectedObra(null); setChecklists([]); setActiveCl(null); }}
+            className="flex items-center gap-1 hover:text-ber-teal transition-colors font-medium">
+            <ChevronLeft size={14} /> Checklists
           </button>
-        ))}
+          <span className="text-ber-gray/40">/</span>
+          <span className="font-semibold text-ber-carbon">{selectedObra.name}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-black text-ber-carbon">{selectedObra.name}</h1>
+            {selectedObra.client && <p className="text-xs text-ber-gray">{selectedObra.client}</p>}
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CONFIG[selectedObra.status]?.className}`}>
+            {STATUS_CONFIG[selectedObra.status]?.label}
+          </span>
+        </div>
       </div>
 
-      {/* Lista */}
-      {filtered.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center text-center">
-          <ClipboardCheck size={40} className="mb-3 text-ber-gray/30" />
-          <p className="text-sm text-ber-gray">
-            {allChecklists.length === 0
-              ? 'Nenhum checklist criado ainda.'
-              : 'Nenhum checklist neste filtro.'}
-          </p>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-2">
-          {filtered.map((cl) => {
-            const totalItems = cl._count?.items ?? 0;
-            const answeredItems = cl.items?.filter((i) => i.answer !== null).length ?? 0;
-            const progress = totalItems > 0 ? Math.round((answeredItems / totalItems) * 100) : 0;
-            const isConcluido = cl.status === 'concluido';
+      {/* Checklist cards */}
+      <div className="flex-1 overflow-auto p-6">
+        {clLoading ? (
+          <p className="text-sm text-ber-gray animate-pulse">Carregando checklists...</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {templates.map((tmpl, idx) => {
+              const instances = byCode[tmpl.code] ?? [];
+              const latest = instances[instances.length - 1] ?? null;
+              const sc = latest ? (CL_STATUS[latest.status] ?? CL_STATUS.nao_iniciado) : CL_STATUS.nao_iniciado;
+              const checkedCount = latest?.items.filter(i => i.checked).length ?? 0;
+              const totalCount = latest?.items.length ?? tmpl.items.length;
+              const pct = totalCount > 0 ? Math.round(checkedCount / totalCount * 100) : 0;
 
-            return (
-              <button
-                key={cl.id}
-                onClick={() => router.push(`/obras/${cl.obraId}/checklists/${cl.id}`)}
-                className="flex w-full items-center gap-4 rounded-lg border border-ber-gray/15 bg-white px-5 py-4 text-left transition-colors hover:border-ber-teal/30"
-              >
-                {/* Icon */}
-                {isConcluido
-                  ? <CheckCircle2 size={18} className="shrink-0 text-ber-olive" />
-                  : <Clock size={18} className="shrink-0 text-ber-teal" />
-                }
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-ber-carbon">
-                      {cl.template?.name ?? TYPE_LABELS[cl.type] ?? cl.type}
-                    </p>
-                    <span className="shrink-0 rounded bg-ber-teal/10 px-2 py-0.5 text-[10px] font-bold text-ber-teal">
-                      {cl.obra.name}
-                    </span>
+              return (
+                <div key={tmpl.id} className={`rounded-xl border border-ber-gray/10 ${CARD_COLORS[idx] ?? 'bg-gray-50'} p-4 shadow-sm`}>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{tmpl.code}</p>
+                      <p className="mt-0.5 text-sm font-bold text-ber-carbon leading-snug">{tmpl.name}</p>
+                      {tmpl.recorrente && (
+                        <span className="mt-1 inline-block rounded-full bg-ber-teal/10 px-2 py-0.5 text-[9px] font-semibold text-ber-teal">Recorrente · {instances.length} visita{instances.length !== 1 ? 's' : ''}</span>
+                      )}
+                    </div>
+                    {latest && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                    )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ber-gray">
-                    <span>{TYPE_LABELS[cl.type] ?? cl.type}</span>
-                    <span>{answeredItems}/{totalItems} itens</span>
-                    <span>{formatDate(cl.createdAt)}</span>
-                    {cl.creator && <span>{cl.creator.name.split(' ')[0]}</span>}
+
+                  {/* Instances */}
+                  {instances.length > 0 && (
+                    <div className="mb-3 space-y-1.5 max-h-32 overflow-y-auto">
+                      {instances.map(cl => {
+                        const s = CL_STATUS[cl.status] ?? CL_STATUS.nao_iniciado;
+                        const chk = cl.items.filter(i => i.checked).length;
+                        return (
+                          <button key={cl.id} onClick={() => setActiveCl(cl)}
+                            className="w-full flex items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-left hover:bg-white transition-colors shadow-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
+                              <span className="text-xs font-medium text-ber-carbon truncate">
+                                {tmpl.recorrente ? `Visita ${cl.visitaNumero}` : 'Abrir'} · {chk}/{cl.items.length}
+                              </span>
+                            </div>
+                            <span className="shrink-0 text-[10px] text-ber-gray">{new Date(cl.createdAt).toLocaleDateString('pt-BR')}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Progress bar */}
+                  {latest && (
+                    <div className="mb-3">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10">
+                        <div className="h-full rounded-full bg-ber-teal transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="mt-0.5 text-right text-[10px] text-ber-gray">{pct}%</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-2">
+                    {(tmpl.recorrente || instances.length === 0) && (
+                      <button onClick={() => createChecklist(tmpl.id)}
+                        className="flex-1 rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black transition-colors">
+                        {tmpl.recorrente && instances.length > 0 ? '+ Nova visita' : '+ Iniciar'}
+                      </button>
+                    )}
+                    {!tmpl.recorrente && instances.length > 0 && (
+                      <button onClick={() => setActiveCl(latest!)}
+                        className="flex-1 rounded-md border border-ber-gray/20 bg-white px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite transition-colors">
+                        Abrir →
+                      </button>
+                    )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-                {/* Barra de progresso */}
-                {totalItems > 0 && (
-                  <div className="w-24 shrink-0">
-                    <div className="mb-1 text-right text-xs text-ber-gray">{progress}%</div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-ber-gray/10">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          progress === 100 ? 'bg-ber-olive' : 'bg-ber-teal'
-                        }`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
+      {/* ── Detail Modal ── */}
+      {activeCl && (() => {
+        const cl = activeCl;
+        const isLocked = cl.status === 'concluido';
+        const isCl5 = cl.template?.code === 'CL_5';
+        const sc = CL_STATUS[cl.status] ?? CL_STATUS.nao_iniciado;
+        const checkedCount = cl.items.filter(i => i.checked).length;
+        const pct = cl.items.length > 0 ? Math.round(checkedCount / cl.items.length * 100) : 0;
+
+        // Group items by section+ambiente
+        const grouped: Record<string, ObraBerClItem[]> = {};
+        cl.items.forEach(i => {
+          const key = i.ambiente
+            ? `${i.templateItem?.secao ?? 'Geral'} · ${i.ambiente}`
+            : (i.templateItem?.secao ?? 'Geral');
+          (grouped[key] = grouped[key] ?? []).push(i);
+        });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
+            <div className="flex max-h-[94vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-2xl">
+              {/* Header */}
+              <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{cl.template?.code}</p>
+                    {cl.template?.recorrente && <span className="text-[10px] font-bold text-ber-teal">Visita {cl.visitaNumero}</span>}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                  </div>
+                  <h2 className="mt-0.5 text-base font-black text-ber-carbon">{cl.template?.name}</h2>
+                  <p className="text-xs text-ber-gray">{selectedObra.name} · {checkedCount}/{cl.items.length} itens · {pct}%</p>
+                </div>
+                <button onClick={() => setActiveCl(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-1 w-full bg-gray-100 shrink-0">
+                <div className="h-full bg-ber-teal transition-all" style={{ width: `${pct}%` }} />
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                {/* CL_5: add ambiente */}
+                {isCl5 && !isLocked && (
+                  <div className="flex gap-2">
+                    <input value={newAmbiente} onChange={e => setNewAmbiente(e.target.value)}
+                      placeholder="Nome do ambiente (ex: Sala de Reuniões)"
+                      className="flex-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:outline-none" />
+                    <button disabled={!newAmbiente.trim() || submitting}
+                      onClick={() => addAmbiente(cl, newAmbiente.trim())}
+                      className="rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                      + Ambiente
+                    </button>
                   </div>
                 )}
 
-                {/* Status badge */}
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    isConcluido
-                      ? 'bg-ber-olive/15 text-ber-olive'
-                      : 'bg-ber-teal/15 text-ber-teal'
-                  }`}
-                >
-                  {isConcluido ? 'Concluido' : 'Em andamento'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal Novo Checklist */}
-      {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-ber-carbon">Novo Checklist</h3>
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="rounded p-1 text-ber-gray hover:bg-ber-gray/10"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Selecionar obra */}
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ber-gray">
-                Obra
-              </label>
-              {obras.length === 0 ? (
-                <p className="text-sm text-ber-gray">Nenhuma obra em andamento.</p>
-              ) : (
-                <select
-                  value={selectedObraId}
-                  onChange={(e) => setSelectedObraId(e.target.value)}
-                  className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon focus:border-ber-olive focus:ring-1 focus:ring-ber-olive"
-                >
-                  <option value="">Selecione a obra...</option>
-                  {obras.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}{o.client ? ` — ${o.client}` : ''}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Selecionar template */}
-            <div className="mb-5">
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ber-gray">
-                Template
-              </label>
-              {loadingTemplates ? (
-                <p className="text-sm text-ber-gray">Carregando templates...</p>
-              ) : templates.length === 0 ? (
-                <p className="text-sm text-ber-gray">Nenhum template disponivel.</p>
-              ) : (
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon focus:border-ber-olive focus:ring-1 focus:ring-ber-olive"
-                >
-                  <option value="">Selecione o template...</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({TYPE_LABELS[t.type] ?? t.type})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Error */}
-            {createError && (
-              <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                {createError}
+                {/* Sections */}
+                {Object.entries(grouped).map(([secao, items]) => (
+                  <div key={secao}>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
+                    <div className="space-y-2">
+                      {items.map(item => (
+                        <div key={item.id} className={`rounded-lg border p-3 transition-colors ${item.checked ? 'border-green-200 bg-green-50' : 'border-ber-gray/10 bg-ber-offwhite/40'}`}>
+                          <div className="flex items-start gap-3">
+                            <input type="checkbox" checked={item.checked} disabled={isLocked || submitting}
+                              onChange={() => toggleItem(cl, item.id)}
+                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:opacity-40" />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                {item.templateItem?.fotoObrigatoria && <span className="mr-1 text-amber-500">📷</span>}
+                                {item.templateItem?.descricao}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {item.fotoUrl && (
+                                  <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                    <img src={item.fotoUrl} alt="" className="h-12 w-12 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
+                                  </a>
+                                )}
+                                {!isLocked && (
+                                  <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${
+                                    item.templateItem?.fotoObrigatoria
+                                      ? item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600 hover:bg-amber-50'
+                                      : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'
+                                  }`}>
+                                    <Camera size={11} />
+                                    {item.fotoUrl ? 'Trocar' : item.templateItem?.fotoObrigatoria ? 'Foto obrigatória' : '+ Foto'}
+                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(cl, item.id, f); }} />
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="rounded-lg border border-ber-gray/20 px-4 py-2 text-sm font-medium text-ber-gray transition hover:bg-ber-gray/5"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!selectedObraId || !selectedTemplateId || creating}
-                className="inline-flex items-center gap-2 rounded-lg bg-ber-olive px-5 py-2 text-sm font-bold text-white transition hover:bg-ber-olive/90 disabled:opacity-50"
-              >
-                {creating ? 'Criando...' : 'Criar Checklist'}
-              </button>
+              {/* Footer */}
+              <div className="shrink-0 border-t border-ber-offwhite px-6 py-4 flex justify-end gap-3">
+                <button onClick={() => setActiveCl(null)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
+                {!isLocked && (
+                  <button disabled={submitting} onClick={() => submitChecklist(cl)}
+                    className="rounded-md bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
+                    ✅ Concluir Checklist
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
