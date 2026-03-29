@@ -4,17 +4,17 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
-// ─── Paleta Command Center ────────────────────────────────────────────────────
+// ─── Paleta Command Center (Light) ───────────────────────────────────────────
 const C = {
-  bg:       '#111111',
-  card:     '#1E1E1E',
-  border:   '#2A2A2A',
+  bg:       '#F8F8F6',
+  card:     '#FFFFFF',
+  border:   '#E4E4E0',
   teal:     '#5A7A7A',
   olive:    '#B5B820',
   red:      '#E05555',
-  white:    '#FFFFFF',
+  white:    '#2D2D2D',   // texto principal (invertido)
   gray:     '#868686',
-  green:    '#4ADE80',
+  green:    '#3D9E5F',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ export default function DashboardPage() {
     : 0;
 
   if (loading) return (
-    <div className="flex h-full items-center justify-center gap-3 text-sm" style={{ backgroundColor: C.bg, color: C.gray }}>
+    <div className="flex h-screen items-center justify-center gap-3 text-sm" style={{ backgroundColor: C.bg, color: C.gray }}>
       <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: C.teal }} />
       Carregando Command Center...
     </div>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI STRIP ── */}
-      <div className="flex flex-wrap border-b" style={{ backgroundColor: '#111', borderColor: C.border }}>
+      <div className="flex flex-wrap border-b" style={{ backgroundColor: '#F0F0EE', borderColor: C.border }}>
         <StatBox
           value={obras.length}
           label="Obras Ativas"
@@ -212,8 +212,8 @@ export default function DashboardPage() {
                   <button
                     key={obra.id}
                     onClick={() => router.push(`/obras/${obra.id}`)}
-                    className="rounded-xl text-left transition-all hover:brightness-125"
-                    style={{ backgroundColor: C.card, borderTop: `4px solid ${topBorder}`, border: `1px solid ${C.border}`, borderTopColor: topBorder, borderTopWidth: 4 }}
+                    className="rounded-xl text-left transition-all hover:shadow-md"
+                    style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: topBorder, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                   >
                     <div className="p-4">
                       {/* Nome + dot pulsando */}
@@ -269,7 +269,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
           {/* QUALIDADE */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.teal, borderTopWidth: 4 }}>
+          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.teal, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
             <SectionTitle label="Qualidade" />
             <MetricRow label="FVS pendentes (total)" value={totalFvsPendentes} accent={totalFvsPendentes > 0 ? C.olive : C.teal} />
             <MetricRow label="Checklists em aberto" value={qualidade.pendentes} accent={qualidade.pendentes > 0 ? C.olive : C.teal} />
@@ -278,7 +278,7 @@ export default function DashboardPage() {
           </div>
 
           {/* PENDÊNCIAS */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.olive, borderTopWidth: 4 }}>
+          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.olive, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
             <SectionTitle label="Pendências" />
             <MetricRow label="Etapas aguard. aprovação" value={seqData.aguardando} accent={seqData.aguardando > 0 ? C.olive : C.teal} />
             <MetricRow label="Etapas atrasadas" value={seqData.atrasadas} accent={seqData.atrasadas > 0 ? C.red : C.teal} />
