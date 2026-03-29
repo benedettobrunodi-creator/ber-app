@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  allowedDevOrigins: ['date-blond-ensuring-former.trycloudflare.com'],
+  allowedDevOrigins: ['refer-correction-wet-mounts.trycloudflare.com'],
 };
-
 export default nextConfig;

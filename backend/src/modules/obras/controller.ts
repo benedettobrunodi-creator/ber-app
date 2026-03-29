@@ -3,6 +3,7 @@ import * as obraService from './service';
 import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
 import { syncProgressFromClickUp } from '../../services/clickup';
+import { syncTasksFromClickUp } from '../../services/clickup-tasks-sync';
 
 export async function listObras(req: Request, res: Response) {
   const { page, limit } = parsePagination(req.query as any);
@@ -53,6 +54,11 @@ export async function archiveObra(req: Request, res: Response) {
 
 export async function syncClickUp(req: Request, res: Response) {
   const result = await syncProgressFromClickUp();
+  sendSuccess(res, result);
+}
+
+export async function syncClickUpTasks(req: Request, res: Response) {
+  const result = await syncTasksFromClickUp();
   sendSuccess(res, result);
 }
 
