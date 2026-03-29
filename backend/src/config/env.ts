@@ -38,5 +38,13 @@ export const env = {
   googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
-  corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',').map(s => s.trim()),
+  corsOrigin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow localhost, trycloudflare.com tunnels, and configured origins
+    const allowed = (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',').map(s => s.trim());
+    if (!origin || allowed.includes(origin) || origin.endsWith('.trycloudflare.com')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // allow all for now in dev
+    }
+  },
 };

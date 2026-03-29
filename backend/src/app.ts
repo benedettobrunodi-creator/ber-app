@@ -150,6 +150,22 @@ app.use('/v1/obras/:id', obraFvsRouter);
 app.use('/v1/obra-fvs', fvsRouter);
 app.get('/v1/fvs-templates', authenticate as any, listTemplates);
 
+// Módulo de Fotos
+import * as fotosCtrl from './modules/fotos/controller';
+const wf = (fn: any) => (req: any, res: any, next: any) => fn(req, res).catch(next);
+app.get('/v1/obras/:id/plantas',                     authenticate as any, wf(fotosCtrl.listPlantas));
+app.post('/v1/obras/:id/plantas',                    authenticate as any, wf(fotosCtrl.createPlanta));
+app.delete('/v1/obras/:id/plantas/:plantaId',        authenticate as any, wf(fotosCtrl.deletePlanta));
+app.get('/v1/obras/:id/ambientes',                   authenticate as any, wf(fotosCtrl.listAmbientes));
+app.post('/v1/obras/:id/ambientes',                  authenticate as any, wf(fotosCtrl.createAmbiente));
+app.patch('/v1/obras/:id/ambientes/:ambienteId',     authenticate as any, wf(fotosCtrl.updateAmbiente));
+app.delete('/v1/obras/:id/ambientes/:ambienteId',    authenticate as any, wf(fotosCtrl.deleteAmbiente));
+app.get('/v1/obras/:id/fotos/referencia',            authenticate as any, wf(fotosCtrl.getFotoReferencia));
+app.get('/v1/obras/:id/fotos',                       authenticate as any, wf(fotosCtrl.listFotos));
+app.post('/v1/obras/:id/fotos',                      authenticate as any, wf(fotosCtrl.createFoto));
+app.post('/v1/obras/:id/fotos/batch',                authenticate as any, wf(fotosCtrl.createFotosBatch));
+app.delete('/v1/obras/:id/fotos/:fotoId',            authenticate as any, wf(fotosCtrl.deleteFoto));
+
 // BÈR Checklists — register with explicit paths to avoid catch-all conflict
 import * as berClCtrl from './modules/ber-checklists/controller';
 import { clRouter } from './modules/ber-checklists/routes';

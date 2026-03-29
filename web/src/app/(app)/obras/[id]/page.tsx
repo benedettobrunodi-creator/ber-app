@@ -45,6 +45,20 @@ interface TrelloBoard {
   url: string;
 }
 
+// ─── Fotos types ────────────────────────────────────────────────────────────
+interface ObraPlanta { id: string; fileUrl: string; createdAt: string; ambientes: ObraAmbiente[]; }
+interface ObraAmbiente {
+  id: string; nome: string; posX: number; posY: number; cor: string; plantaId: string | null;
+  _count: { fotos: number };
+  fotos: { tiradaEm: string | null; createdAt: string }[];
+}
+interface ObraFoto {
+  id: string; fileUrl: string; categoria: string; legenda: string | null;
+  tiradaEm: string | null; createdAt: string;
+  ambiente: ObraAmbiente | null;
+  autor: { id: string; name: string; avatarUrl: string | null } | null;
+}
+
 interface BerClTemplate {
   id: string; code: string; name: string; recorrente: boolean;
   items: BerClTemplateItem[];
@@ -338,6 +352,26 @@ export default function ObraDetailPage() {
   const [syncResult, setSyncResult] = useState<{ created: number; skipped: number } | null>(null);
 
   // Checklists state
+  // Fotos
+  const [plantas, setPlantas] = useState<ObraPlanta[]>([]);
+  const [ambientes, setAmbientes] = useState<ObraAmbiente[]>([]);
+  const [fotos, setFotos] = useState<ObraFoto[]>([]);
+  const [fotosView, setFotosView] = useState<'planta' | 'grid'>('planta');
+  const [selectedAmbiente, setSelectedAmbiente] = useState<ObraAmbiente | null>(null);
+  const [fotosLoading, setFotosLoading] = useState(false);
+  const [fullscreenFoto, setFullscreenFoto] = useState<ObraFoto | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [addAmbienteMode, setAddAmbienteMode] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadStep, setUploadStep] = useState<'files' | 'ambiente' | 'meta'>('files');
+  const [uploadAmbienteId, setUploadAmbienteId] = useState('');
+  const [uploadCategoria, setUploadCategoria] = useState('geral');
+  const [uploadLegenda, setUploadLegenda] = useState('');
+  const [referenceFoto, setReferenceFoto] = useState<ObraFoto | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [fotosAmbienteFilter, setFotosAmbienteFilter] = useState('');
+  const [fotasCatFilter, setFotosCatFilter] = useState('');
+
   // BÈR Checklists
   const [berChecklists, setBerChecklists] = useState<ObraBerChecklist[]>([]);
   const [berClTemplates, setBerClTemplates] = useState<BerClTemplate[]>([]);
@@ -563,6 +597,13 @@ export default function ObraDetailPage() {
       setObraFvsList(fvsRes.data.data ?? []);
       const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
       setFvsTemplates(tmplRes.data.data ?? []);
+      const plantasRes = await api.get(`/obras/${params.id}/plantas`).catch(() => ({ data: { data: [] } }));
+      setPlantas(plantasRes.data.data ?? []);
+      const ambientesRes = await api.get(`/obras/${params.id}/ambientes`).catch(() => ({ data: { data: [] } }));
+      setAmbientes(ambientesRes.data.data ?? []);
+      const fotosRes2 = await api.get(`/obras/${params.id}/fotos`).catch(() => ({ data: { data: [] } }));
+      setFotos(fotosRes2.data.data ?? []);
+
       const berClRes = await api.get(`/obras/${params.id}/ber-checklists`).catch(() => ({ data: { data: [] } }));
       setBerChecklists(berClRes.data.data ?? []);
       const berClTmplRes = await api.get('/ber-checklist-templates').catch(() => ({ data: { data: [] } }));
@@ -1787,11 +1828,360 @@ export default function ObraDetailPage() {
           </div>
         )}
 
-        {activeTab === 'fotos' && (
-          <div className="flex flex-col items-center py-12 text-center">
-            <p className="text-sm text-ber-gray">Galeria de fotos em desenvolvimento.</p>
-          </div>
-        )}
+        {activeTab === 'fotos' && (() => {
+          const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
+          const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
+          const planta = plantas[0] ?? null;
+          const now = Date.now();
+          const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+          const getPinColor = (amb: ObraAmbiente) => {
+            if (amb._count.fotos === 0) return '#9CA3AF'; // gray
+            const lastDate = amb.fotos[0]?.tiradaEm ?? amb.fotos[0]?.createdAt;
+            if (!lastDate) return '#9CA3AF';
+            return (now - new Date(lastDate).getTime()) < SEVEN_DAYS ? '#22C55E' : '#F59E0B'; // green or yellow
+          };
+
+          const filteredFotos = fotos.filter(f => {
+            if (fotosAmbienteFilter && f.ambiente?.id !== fotosAmbienteFilter) return false;
+            if (fotasCatFilter && f.categoria !== fotasCatFilter) return false;
+            return true;
+          });
+
+          const ambienteFotos = selectedAmbiente ? fotos.filter(f => f.ambiente?.id === selectedAmbiente.id) : [];
+
+          const handleUploadFiles = async () => {
+            if (!pendingFiles.length) return;
+            setUploading(true);
+            try {
+              const urls: string[] = [];
+              for (const file of pendingFiles) {
+                const fd = new FormData(); fd.append('file', file);
+                const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                urls.push(up.data.data?.url ?? up.data.url);
+              }
+              const batch = urls.map(url => ({
+                fileUrl: url,
+                ...(uploadAmbienteId && { ambienteId: uploadAmbienteId }),
+                categoria: uploadCategoria,
+                ...(uploadLegenda && { legenda: uploadLegenda }),
+              }));
+              const r = await api.post(`/obras/${params.id}/fotos/batch`, { fotos: batch });
+              setFotos(prev => [...(r.data.data ?? []), ...prev]);
+              // Refresh ambientes for counts
+              const ambRes = await api.get(`/obras/${params.id}/ambientes`);
+              setAmbientes(ambRes.data.data ?? []);
+              setUploadModalOpen(false); setPendingFiles([]); setUploadStep('files');
+              setUploadAmbienteId(''); setUploadCategoria('geral'); setUploadLegenda(''); setReferenceFoto(null);
+            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro no upload'); }
+            finally { setUploading(false); }
+          };
+
+          const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
+            if (!addAmbienteMode || !planta) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
+            const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
+            const nome = prompt('Nome do ambiente:');
+            if (!nome?.trim()) return;
+            try {
+              const r = await api.post(`/obras/${params.id}/ambientes`, { nome: nome.trim(), posX, posY, plantaId: planta.id });
+              setAmbientes(prev => [...prev, r.data.data]);
+              setAddAmbienteMode(false);
+            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+          };
+
+          const handleDeleteFoto = async (fotoId: string) => {
+            if (!confirm('Excluir esta foto?')) return;
+            try {
+              await api.delete(`/obras/${params.id}/fotos/${fotoId}`);
+              setFotos(prev => prev.filter(f => f.id !== fotoId));
+              setFullscreenFoto(null);
+              const ambRes = await api.get(`/obras/${params.id}/ambientes`);
+              setAmbientes(ambRes.data.data ?? []);
+            } catch { alert('Erro ao excluir'); }
+          };
+
+          const handlePlantaUpload = async (file: File) => {
+            const fd = new FormData(); fd.append('file', file);
+            try {
+              const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+              const url = up.data.data?.url ?? up.data.url;
+              const r = await api.post(`/obras/${params.id}/plantas`, { fileUrl: url });
+              setPlantas(prev => [r.data.data, ...prev]);
+            } catch { alert('Erro no upload da planta'); }
+          };
+
+          // Check reference foto when ambiente+categoria change
+          const checkReference = async (ambId: string, cat: string) => {
+            if (!ambId || !cat) { setReferenceFoto(null); return; }
+            try {
+              const r = await api.get(`/obras/${params.id}/fotos/referencia?ambienteId=${ambId}&categoria=${cat}`);
+              setReferenceFoto(r.data.data ?? null);
+            } catch { setReferenceFoto(null); }
+          };
+
+          return (
+            <div>
+              {/* Header */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Fotos ({fotos.length})</h3>
+                  <div className="flex rounded-md border border-ber-gray/20 overflow-hidden">
+                    <button onClick={() => setFotosView('planta')}
+                      className={`px-3 py-1 text-xs font-semibold transition ${fotosView === 'planta' ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-offwhite'}`}>
+                      🗺️ Planta
+                    </button>
+                    <button onClick={() => setFotosView('grid')}
+                      className={`px-3 py-1 text-xs font-semibold transition ${fotosView === 'grid' ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-offwhite'}`}>
+                      📷 Grid
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {planta && (
+                    <button onClick={() => setAddAmbienteMode(!addAmbienteMode)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${addAmbienteMode ? 'bg-amber-500 text-white animate-pulse' : 'border border-ber-gray/20 text-ber-gray hover:bg-ber-offwhite'}`}>
+                      {addAmbienteMode ? '📍 Clique na planta...' : '+ Ambiente'}
+                    </button>
+                  )}
+                  <button onClick={() => { setUploadModalOpen(true); setUploadStep('files'); setPendingFiles([]); }}
+                    className="rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black">
+                    + Foto
+                  </button>
+                </div>
+              </div>
+
+              {/* VISTA PLANTA */}
+              {fotosView === 'planta' && (
+                <div className="flex gap-4 flex-col lg:flex-row">
+                  {/* Planta */}
+                  <div className="flex-1 min-w-0">
+                    {!planta ? (
+                      <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ber-gray/30 py-16 cursor-pointer hover:border-ber-teal/50 transition">
+                        <span className="text-3xl mb-2">🏗️</span>
+                        <span className="text-sm font-semibold text-ber-gray">Upload da planta baixa</span>
+                        <span className="text-[10px] text-ber-gray/60 mt-0.5">JPG, PNG ou PDF</span>
+                        <input type="file" accept="image/*,.pdf" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handlePlantaUpload(f); }} />
+                      </label>
+                    ) : (
+                      <div className="relative rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm"
+                        onClick={handleAddAmbiente}
+                        style={{ cursor: addAmbienteMode ? 'crosshair' : 'default' }}>
+                        <img src={planta.fileUrl} alt="Planta" className="w-full h-auto" />
+                        {/* Pins */}
+                        {ambientes.filter(a => a.plantaId === planta.id).map((amb, idx) => {
+                          const pinColor = getPinColor(amb);
+                          const isSelected = selectedAmbiente?.id === amb.id;
+                          return (
+                            <button key={amb.id}
+                              onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
+                              className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
+                              style={{ left: `${amb.posX}%`, top: `${amb.posY}%` }}
+                              title={amb.nome}>
+                              <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
+                                style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
+                                <span className="text-[9px] font-black text-white">{amb._count.fotos}</span>
+                              </div>
+                              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                {amb.nome}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Painel lateral */}
+                  {selectedAmbiente && (
+                    <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white shadow-sm overflow-hidden">
+                      <div className="border-b border-ber-offwhite px-4 py-3 flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-bold text-ber-carbon">{selectedAmbiente.nome}</h4>
+                          <p className="text-[10px] text-ber-gray">{ambienteFotos.length} foto{ambienteFotos.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
+                      </div>
+                      <div className="max-h-[500px] overflow-y-auto p-3 space-y-3">
+                        {ambienteFotos.length === 0 ? (
+                          <p className="text-xs text-ber-gray text-center py-6">Nenhuma foto neste ambiente.</p>
+                        ) : ambienteFotos.map(foto => (
+                          <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
+                            className="w-full rounded-lg overflow-hidden border border-ber-gray/10 hover:shadow-md transition text-left">
+                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                            <div className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[9px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
+                                <span className="text-[10px] text-ber-gray">{foto.tiradaEm ? new Date(foto.tiradaEm).toLocaleDateString('pt-BR') : ''}</span>
+                              </div>
+                              {foto.legenda && <p className="mt-1 text-xs text-ber-carbon truncate">{foto.legenda}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VISTA GRID */}
+              {fotosView === 'grid' && (
+                <div>
+                  {/* Filtros */}
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <select value={fotosAmbienteFilter} onChange={e => setFotosAmbienteFilter(e.target.value)}
+                      className="rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-xs text-ber-carbon">
+                      <option value="">Todos os ambientes</option>
+                      {ambientes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                    </select>
+                    <select value={fotasCatFilter} onChange={e => setFotosCatFilter(e.target.value)}
+                      className="rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-xs text-ber-carbon">
+                      <option value="">Todas as categorias</option>
+                      {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
+                    </select>
+                  </div>
+                  {filteredFotos.length === 0 ? (
+                    <div className="flex flex-col items-center py-12 text-center">
+                      <span className="text-3xl mb-2">📷</span>
+                      <p className="text-sm text-ber-gray">Nenhuma foto {(fotosAmbienteFilter || fotasCatFilter) ? 'com esses filtros' : 'ainda'}.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+                      {filteredFotos.map(foto => (
+                        <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
+                          className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white shadow-sm hover:shadow-md transition text-left">
+                          <div className="relative aspect-square">
+                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition" />
+                          </div>
+                          <div className="px-2.5 py-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[8px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
+                              {foto.ambiente && <span className="text-[8px] text-ber-gray truncate">{foto.ambiente.nome}</span>}
+                            </div>
+                            {foto.legenda && <p className="mt-0.5 text-[10px] text-ber-carbon truncate">{foto.legenda}</p>}
+                            <p className="text-[9px] text-ber-gray/50">{foto.tiradaEm ? new Date(foto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* FULLSCREEN MODAL */}
+              {fullscreenFoto && (() => {
+                const list = selectedAmbiente ? ambienteFotos : filteredFotos;
+                const idx = list.findIndex(f => f.id === fullscreenFoto.id);
+                const prev = idx > 0 ? list[idx - 1] : null;
+                const next = idx < list.length - 1 ? list[idx + 1] : null;
+                return (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setFullscreenFoto(null)}>
+                    <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(null); }}
+                      className="absolute top-4 right-4 z-10 rounded-full bg-white/20 p-2 text-white hover:bg-white/30"><X size={20} /></button>
+                    {prev && (
+                      <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(prev); }}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">←</button>
+                    )}
+                    {next && (
+                      <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(next); }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">→</button>
+                    )}
+                    <div className="max-h-[90vh] max-w-[90vw] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+                      <img src={fullscreenFoto.fileUrl} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                      <div className="mt-3 text-center text-white">
+                        {fullscreenFoto.ambiente && <span className="text-sm font-semibold">{fullscreenFoto.ambiente.nome}</span>}
+                        <span className="mx-2 text-white/40">·</span>
+                        <span className="text-sm">{CAT_LABELS[fullscreenFoto.categoria] ?? fullscreenFoto.categoria}</span>
+                        {fullscreenFoto.tiradaEm && <>
+                          <span className="mx-2 text-white/40">·</span>
+                          <span className="text-sm">{new Date(fullscreenFoto.tiradaEm).toLocaleDateString('pt-BR')}</span>
+                        </>}
+                        {fullscreenFoto.autor && <>
+                          <span className="mx-2 text-white/40">·</span>
+                          <span className="text-xs text-white/70">{fullscreenFoto.autor.name}</span>
+                        </>}
+                        {fullscreenFoto.legenda && <p className="mt-1 text-xs text-white/80 italic">{fullscreenFoto.legenda}</p>}
+                        <button onClick={() => handleDeleteFoto(fullscreenFoto.id)}
+                          className="mt-2 rounded-md bg-red-500/80 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500">
+                          🗑️ Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* UPLOAD MODAL */}
+              {uploadModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3">
+                  <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-3">
+                      <h3 className="text-sm font-bold text-ber-carbon">Nova Foto</h3>
+                      <button onClick={() => { setUploadModalOpen(false); setPendingFiles([]); }} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={16} /></button>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      {/* Step 1: Files */}
+                      {uploadStep === 'files' && (
+                        <div>
+                          <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ber-gray/30 py-8 cursor-pointer hover:border-ber-teal/50 transition">
+                            <span className="text-2xl mb-1">📷</span>
+                            <span className="text-sm font-semibold text-ber-gray">Selecione fotos</span>
+                            <span className="text-[10px] text-ber-gray/60">Câmera ou galeria · múltiplas fotos</span>
+                            <input type="file" accept="image/*" multiple capture="environment" className="hidden"
+                              onChange={e => { const files = Array.from(e.target.files ?? []); if (files.length) { setPendingFiles(files); setUploadStep('ambiente'); } }} />
+                          </label>
+                          {pendingFiles.length > 0 && (
+                            <p className="mt-2 text-xs text-ber-teal font-semibold">{pendingFiles.length} foto{pendingFiles.length > 1 ? 's' : ''} selecionada{pendingFiles.length > 1 ? 's' : ''}</p>
+                          )}
+                        </div>
+                      )}
+                      {/* Step 2: Ambiente + Categoria */}
+                      {uploadStep === 'ambiente' && (
+                        <div className="space-y-3">
+                          <p className="text-xs text-ber-gray font-semibold">{pendingFiles.length} foto{pendingFiles.length > 1 ? 's' : ''} selecionada{pendingFiles.length > 1 ? 's' : ''}</p>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Ambiente</label>
+                            <select value={uploadAmbienteId} onChange={e => { setUploadAmbienteId(e.target.value); checkReference(e.target.value, uploadCategoria); }}
+                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm">
+                              <option value="">Sem ambiente</option>
+                              {ambientes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Categoria</label>
+                            <select value={uploadCategoria} onChange={e => { setUploadCategoria(e.target.value); checkReference(uploadAmbienteId, e.target.value); }}
+                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm">
+                              {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Legenda (opcional)</label>
+                            <input value={uploadLegenda} onChange={e => setUploadLegenda(e.target.value)}
+                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm" placeholder="Ex: Quadro QD-01 instalado" />
+                          </div>
+                          {referenceFoto && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <p className="text-[10px] font-bold text-amber-700 mb-1">📷 Foto anterior — mesmo ângulo</p>
+                              <img src={referenceFoto.fileUrl} alt="" className="w-full h-24 object-cover rounded" />
+                              <p className="mt-1 text-[9px] text-amber-600">{referenceFoto.tiradaEm ? new Date(referenceFoto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
+                            </div>
+                          )}
+                          <button onClick={handleUploadFiles} disabled={uploading}
+                            className="w-full rounded-md bg-ber-carbon py-2.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                            {uploading ? 'Enviando...' : `Enviar ${pendingFiles.length} foto${pendingFiles.length > 1 ? 's' : ''}`}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {activeTab === 'equipe' && (
           <div>

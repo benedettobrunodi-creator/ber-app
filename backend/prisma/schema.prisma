@@ -69,6 +69,7 @@ model User {
   rejectedFvs           ObraFvs[]            @relation("FvsRejector")
   filledFvsItems        ObraFvsItem[]        @relation("FvsItemFiller")
   filledBerChecklists   ObraBerChecklist[]   @relation("BerChecklistFiller")
+  fotosEnviadas         ObraFoto[]           @relation("FotoAutor")
   filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
 
   @@map("users")
@@ -116,6 +117,9 @@ model Obra {
   punchLists     PunchList[]
   obraFvs        ObraFvs[]
   berChecklists  ObraBerChecklist[] @relation("ObraBerChecklists")
+  plantas        ObraPlanta[]       @relation("ObraPlantas")
+  ambientes      ObraAmbiente[]     @relation("ObraAmbientes")
+  fotosObra      ObraFoto[]         @relation("ObraFotos")
 
   @@map("obras")
 }
@@ -980,4 +984,47 @@ model ObraChecklistAmbiente {
   createdAt   DateTime @default(now()) @map("created_at")
   checklist   ObraBerChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   @@map("obra_checklist_ambientes")
+}
+
+// ─── Módulo de Fotos ───────────────────────────────────────────────────────
+
+model ObraPlanta {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId    String   @db.Uuid @map("obra_id")
+  fileUrl   String   @map("file_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  obra      Obra     @relation("ObraPlantas", fields: [obraId], references: [id], onDelete: Cascade)
+  ambientes ObraAmbiente[]
+  @@map("obra_plantas")
+}
+
+model ObraAmbiente {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId    String     @db.Uuid @map("obra_id")
+  plantaId  String?    @db.Uuid @map("planta_id")
+  nome      String     @db.VarChar(100)
+  posX      Float      @default(0) @map("pos_x")
+  posY      Float      @default(0) @map("pos_y")
+  cor       String     @default("#6B7280") @db.VarChar(20)
+  createdAt DateTime   @default(now()) @map("created_at")
+  obra      Obra       @relation("ObraAmbientes", fields: [obraId], references: [id], onDelete: Cascade)
+  planta    ObraPlanta? @relation(fields: [plantaId], references: [id], onDelete: SetNull)
+  fotos     ObraFoto[]
+  @@map("obra_ambientes")
+}
+
+model ObraFoto {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId     String       @db.Uuid @map("obra_id")
+  ambienteId String?      @db.Uuid @map("ambiente_id")
+  categoria  String       @default("geral") @db.VarChar(50)
+  fileUrl    String       @map("file_url")
+  legenda    String?
+  tiradaPor  String?      @db.Uuid @map("tirada_por")
+  tiradaEm   DateTime?    @db.Date @map("tirada_em")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  obra       Obra         @relation("ObraFotos", fields: [obraId], references: [id], onDelete: Cascade)
+  ambiente   ObraAmbiente? @relation(fields: [ambienteId], references: [id], onDelete: SetNull)
+  autor      User?        @relation("FotoAutor", fields: [tiradaPor], references: [id], onDelete: SetNull)
+  @@map("obra_fotos")
 }
