@@ -35,6 +35,23 @@ export interface TrelloCard {
   members: TrelloMember[];
   pos: number;
   labels: { id: string; name: string; color: string }[];
+  badges?: {
+    checkItems: number;
+    checkItemsChecked: number;
+  };
+}
+
+export interface TrelloCheckItem {
+  id: string;
+  name: string;
+  state: 'complete' | 'incomplete';
+}
+
+export interface TrelloChecklist {
+  id: string;
+  name: string;
+  idCard: string;
+  checkItems: TrelloCheckItem[];
 }
 
 // ─── Client ──────────────────────────────────────────────────────────────────
@@ -83,7 +100,13 @@ export async function getBoardLists(boardId: string): Promise<TrelloList[]> {
 
 export async function getBoardCards(boardId: string): Promise<TrelloCard[]> {
   return trelloFetch<TrelloCard[]>(
-    `/boards/${boardId}/cards?fields=id,name,desc,due,dueComplete,closed,idList,idMembers,pos,labels&members=true&member_fields=id,fullName,username`
+    `/boards/${boardId}/cards?fields=id,name,desc,due,dueComplete,closed,idList,idMembers,pos,labels,badges&members=true&member_fields=id,fullName,username`
+  );
+}
+
+export async function getBoardChecklists(boardId: string): Promise<TrelloChecklist[]> {
+  return trelloFetch<TrelloChecklist[]>(
+    `/boards/${boardId}/checklists?fields=id,name,idCard&checkItem_fields=id,name,state`
   );
 }
 
@@ -201,6 +224,11 @@ export async function syncObraFromTrello(obraId: string, boardId: string) {
 
 // ─── Sync Progresso ──────────────────────────────────────────────────────────
 
+function isMetaCard(name: string): boolean {
+  const n = name.toLowerCase();
+  return n.includes('progresso geral') || n.startsWith('📊');
+}
+
 export async function syncProgressoFromTrello() {
   const obras = await prisma.obra.findMany({
     where: { trelloBoardId: { not: null } },
@@ -210,21 +238,65 @@ export async function syncProgressoFromTrello() {
   let updated = 0;
   for (const obra of obras) {
     try {
-      const cards = await getBoardCards(obra.trelloBoardId!);
-      const progressCard = cards.find((c) =>
-        c.name.toLowerCase().includes('progresso geral')
-      );
-      if (!progressCard) continue;
+      const [cards, lists, checklists] = await Promise.all([
+        getBoardCards(obra.trelloBoardId!),
+        getBoardLists(obra.trelloBoardId!),
+        getBoardChecklists(obra.trelloBoardId!),
+      ]);
 
-      const match = progressCard.desc.match(/Progresso:\s*(\d+)/i);
-      if (!match) continue;
+      const listMap = new Map(lists.map((l) => [l.id, l.name]));
+      const openCards = cards.filter((c) => !c.closed && !isMetaCard(c.name));
 
-      const progress = Math.min(100, Math.max(0, parseInt(match[1], 10)));
+      if (openCards.length === 0) continue;
+
+      // Strategy 1: Checklist-based progress (most accurate — what Clara updates)
+      // Sum all checklist items across all cards
+      let totalCheckItems = 0;
+      let checkedItems = 0;
+
+      for (const cl of checklists) {
+        // Only count checklists from open, non-meta cards
+        const card = openCards.find((c) => c.id === cl.idCard);
+        if (!card) continue;
+        for (const item of cl.checkItems) {
+          totalCheckItems++;
+          if (item.state === 'complete') checkedItems++;
+        }
+      }
+
+      let progress: number;
+
+      if (totalCheckItems > 0) {
+        // Use checklist completion as primary progress source
+        progress = Math.round((checkedItems / totalCheckItems) * 100);
+        console.log(`[Trello Progresso] ${obra.name}: ${checkedItems}/${totalCheckItems} checklist items = ${progress}%`);
+      } else {
+        // Strategy 2: Fallback — card-based progress (cards in done lists / total)
+        let doneCards = 0;
+        for (const card of openCards) {
+          const listName = listMap.get(card.idList) || '';
+          if (mapListToStatus(listName) === 'done') doneCards++;
+        }
+        progress = Math.round((doneCards / openCards.length) * 100);
+        console.log(`[Trello Progresso] ${obra.name}: ${doneCards}/${openCards.length} cards done = ${progress}% (fallback)`);
+      }
+
+      // Strategy 3: If there's a "Progresso Geral" card with explicit value, prefer it
+      const metaCard = cards.find((c) => isMetaCard(c.name));
+      if (metaCard) {
+        const match = metaCard.desc.match(/Progresso:\s*(\d+)/i);
+        if (match) {
+          const explicit = Math.min(100, Math.max(0, parseInt(match[1], 10)));
+          progress = explicit;
+          console.log(`[Trello Progresso] ${obra.name}: card explícito = ${progress}% (override)`);
+        }
+      }
+
+      progress = Math.min(100, Math.max(0, progress));
       await prisma.obra.update({
         where: { id: obra.id },
         data: { progressPercent: progress },
       });
-      console.log(`[Trello Progresso] ${obra.name}: ${progress}%`);
       updated++;
     } catch (err) {
       console.error(`[Trello Progresso] Erro na obra ${obra.name}:`, err);
