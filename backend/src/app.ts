@@ -11,7 +11,8 @@ import fs from 'fs';
 import { env } from './config/env';
 import { prisma } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
-import { bootstrapUsers } from './seeds/bootstrap';
+// bootstrap removido do startup — usuários iniciais gerenciados via prisma/seed-users.sql
+// import { bootstrapUsers } from './seeds/bootstrap';
 
 // Route imports
 import authRoutes from './modules/auth/routes';
@@ -291,9 +292,6 @@ async function start() {
   try {
     await prisma.$connect();
     console.log('[DB] Connected to PostgreSQL');
-
-    // Bootstrap: cria usuários iniciais se não existirem (preserva password_hash)
-    await bootstrapUsers();
 
     server.listen(env.port, () => {
       console.log(`[Server] Running on port ${env.port} (${env.nodeEnv})`);
