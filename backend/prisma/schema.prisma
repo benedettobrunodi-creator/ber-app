@@ -120,6 +120,8 @@ model Obra {
   plantas        ObraPlanta[]       @relation("ObraPlantas")
   ambientes      ObraAmbiente[]     @relation("ObraAmbientes")
   fotosObra      ObraFoto[]         @relation("ObraFotos")
+  medicoes       Medicao[]          @relation("ObraMedicoes")
+  medicaoItens   MedicaoItem[]      @relation("ObraMedicaoItens")
 
   @@map("obras")
 }
@@ -1034,4 +1036,54 @@ model ObraFoto {
   ambiente   ObraAmbiente? @relation(fields: [ambienteId], references: [id], onDelete: SetNull)
   autor      User?        @relation("FotoAutor", fields: [tiradaPor], references: [id], onDelete: SetNull)
   @@map("obra_fotos")
+}
+
+// ── MEDIÇÃO DE CONTRATO ──────────────────────────────────────────────────────
+
+model Medicao {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId        String    @db.Uuid @map("obra_id")
+  numero        String    @db.VarChar(10)
+  periodoInicio DateTime  @map("periodo_inicio") @db.Date
+  periodoFim    DateTime  @map("periodo_fim") @db.Date
+  status        String    @default("rascunho") @db.VarChar(20)
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  obra         Obra               @relation("ObraMedicoes", fields: [obraId], references: [id], onDelete: Cascade)
+  lancamentos  MedicaoLancamento[]
+
+  @@map("medicoes")
+}
+
+model MedicaoItem {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId       String    @db.Uuid @map("obra_id")
+  numero       String    @db.VarChar(20)
+  descricao    String
+  valorOrcado  Decimal   @default(0) @map("valor_orcado") @db.Decimal(14, 2)
+  tipo         String    @default("subitem") @db.VarChar(10)
+  ordem        Int       @default(0)
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+
+  obra         Obra               @relation("ObraMedicaoItens", fields: [obraId], references: [id], onDelete: Cascade)
+  lancamentos  MedicaoLancamento[]
+
+  @@map("medicao_itens")
+}
+
+model MedicaoLancamento {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId              String    @db.Uuid @map("item_id")
+  medicaoId           String    @db.Uuid @map("medicao_id")
+  percentualExecutado Decimal   @default(0) @map("percentual_executado") @db.Decimal(5, 2)
+  valorMedido         Decimal   @default(0) @map("valor_medido") @db.Decimal(14, 2)
+  criadoEm           DateTime  @default(now()) @map("criado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+
+  item    MedicaoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  medicao Medicao     @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, medicaoId])
+  @@map("medicao_lancamentos")
 }

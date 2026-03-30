@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
@@ -1468,12 +1469,12 @@ export default function ObraDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-1 border-b border-ber-gray/20">
+      <div className="mt-6 flex gap-1 border-b border-ber-gray/20 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`shrink-0 px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === tab.key
                 ? 'border-b-2 border-ber-olive text-ber-carbon'
                 : 'text-ber-gray hover:text-ber-carbon'
@@ -1482,6 +1483,13 @@ export default function ObraDetailPage() {
             {tab.label}
           </button>
         ))}
+        {/* Medição — página dedicada */}
+        <Link
+          href={`/obras/${params.id}/medicao`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          📊 Medição
+        </Link>
       </div>
 
       {/* Tab content */}
