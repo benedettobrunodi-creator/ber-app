@@ -122,6 +122,7 @@ export default function PontoPage() {
     return new Date().toISOString().split('T')[0];
   });
   const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'xlsx' | 'csv'>('xlsx');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -159,14 +160,16 @@ export default function PontoPage() {
           userIds: Array.from(selectedUserIds).join(','),
           startDate: exportStartDate,
           endDate: exportEndDate,
+          format: exportFormat,
         },
         responseType: 'blob',
       });
+      const ext = exportFormat === 'csv' ? 'csv' : 'xlsx';
       const blob = new Blob([res.data]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `relatorio-ponto-${exportStartDate}-${exportEndDate}.xlsx`;
+      a.download = `relatorio-ponto-${exportStartDate}-${exportEndDate}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -588,15 +591,33 @@ export default function PontoPage() {
               </div>
             </div>
 
-            {/* Export button */}
-            <button
-              onClick={handleExport}
-              disabled={exporting || selectedUserIds.size === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-ber-olive px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ber-olive/90 disabled:opacity-50"
-            >
-              <Download size={16} />
-              {exporting ? 'Exportando...' : 'Exportar Excel'}
-            </button>
+            {/* Format toggle + Export button */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex rounded-lg border border-ber-gray/20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExportFormat('xlsx')}
+                  className={`px-3 py-2 text-xs font-semibold transition min-h-[36px] ${exportFormat === 'xlsx' ? 'bg-ber-olive text-white' : 'bg-white text-ber-gray hover:bg-ber-gray/5'}`}
+                >
+                  Excel (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportFormat('csv')}
+                  className={`px-3 py-2 text-xs font-semibold transition min-h-[36px] border-l border-ber-gray/20 ${exportFormat === 'csv' ? 'bg-ber-olive text-white' : 'bg-white text-ber-gray hover:bg-ber-gray/5'}`}
+                >
+                  CSV
+                </button>
+              </div>
+              <button
+                onClick={handleExport}
+                disabled={exporting || selectedUserIds.size === 0}
+                className="inline-flex items-center gap-2 rounded-lg bg-ber-olive px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ber-olive/90 disabled:opacity-50 min-h-[44px]"
+              >
+                <Download size={16} />
+                {exporting ? 'Exportando...' : `Exportar ${exportFormat === 'csv' ? 'CSV' : 'Excel'}`}
+              </button>
+            </div>
           </div>
         </div>
       )}
