@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { ChevronDown, ChevronRight, Plus, Send, ArrowLeft, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Send, ArrowLeft, Upload, Pencil, Check, X } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,6 +133,12 @@ export default function MedicaoPage() {
   const [showImport, setShowImport] = useState(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Edição de período
+  const [editPeriodo, setEditPeriodo] = useState(false);
+  const [periodoInicio, setPeriodoInicio] = useState('');
+  const [periodoFim, setPeriodoFim] = useState('');
+  const [savingPeriodo, setSavingPeriodo] = useState(false);
+
   const canEdit = true; // TODO: check role from authStore
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -156,6 +162,9 @@ export default function MedicaoPage() {
     const res = await api.get(`/medicoes/${id}`);
     const d: MedicaoDetalhe = res.data.data;
     setDetalhe(d);
+    // Init período inputs
+    setPeriodoInicio(d.periodoInicio.split('T')[0]);
+    setPeriodoFim(d.periodoFim.split('T')[0]);
     // Init editPct from lançamento atual
     const init: Record<string, string> = {};
     for (const item of d.itens) {
@@ -213,6 +222,24 @@ export default function MedicaoPage() {
     await api.patch(`/medicoes/${selectedId}/status`, { status: 'enviada' });
     await loadDetalhe(selectedId);
     await loadMedicoes();
+  }
+
+  // ── Salvar período ────────────────────────────────────────────────────────
+
+  async function savePeriodo() {
+    if (!selectedId) return;
+    setSavingPeriodo(true);
+    try {
+      await api.patch(`/medicoes/${selectedId}`, {
+        periodo_inicio: periodoInicio,
+        periodo_fim: periodoFim,
+      });
+      setEditPeriodo(false);
+      await loadDetalhe(selectedId);
+      await loadMedicoes();
+    } finally {
+      setSavingPeriodo(false);
+    }
   }
 
   // ── Collapse groups ───────────────────────────────────────────────────────
@@ -318,12 +345,55 @@ export default function MedicaoPage() {
       {detalhe && (
         <>
           {/* Sub-header: quinzena info */}
-          <div className="border-b border-gray-100 bg-white px-4 md:px-6 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="border-b border-gray-100 bg-white px-4 md:px-6 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm font-bold text-gray-900">{detalhe.numero}</span>
-              <span className="text-xs text-gray-400">
-                {new Date(detalhe.periodoInicio).toLocaleDateString('pt-BR')} – {new Date(detalhe.periodoFim).toLocaleDateString('pt-BR')}
-              </span>
+
+              {/* Data editável */}
+              {editPeriodo ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={periodoInicio}
+                    onChange={(e) => setPeriodoInicio(e.target.value)}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
+                  />
+                  <span className="text-xs text-gray-400">–</span>
+                  <input
+                    type="date"
+                    value={periodoFim}
+                    onChange={(e) => setPeriodoFim(e.target.value)}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={savePeriodo}
+                    disabled={savingPeriodo}
+                    className="flex items-center justify-center h-7 w-7 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    title="Confirmar"
+                  >
+                    <Check size={13} />
+                  </button>
+                  <button
+                    onClick={() => { setEditPeriodo(false); }}
+                    className="flex items-center justify-center h-7 w-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
+                    title="Cancelar"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditPeriodo(true)}
+                  className="group flex items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+                  title="Editar período"
+                >
+                  <span>
+                    {new Date(detalhe.periodoInicio).toLocaleDateString('pt-BR')} – {new Date(detalhe.periodoFim).toLocaleDateString('pt-BR')}
+                  </span>
+                  <Pencil size={11} className="text-gray-400 group-hover:text-green-600 transition-colors" />
+                </button>
+              )}
+
               <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[detalhe.status]}`}>
                 {STATUS_LABELS[detalhe.status]}
               </span>
@@ -339,8 +409,31 @@ export default function MedicaoPage() {
             )}
           </div>
 
+          {/* ── Empty state: sem itens de orçamento ── */}
+          {detalhe.itens.length === 0 && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center px-6 py-16">
+              <div className="rounded-full bg-gray-100 p-4">
+                <Upload size={28} className="text-gray-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Nenhum item de orçamento cadastrado</p>
+                <p className="mt-1 text-xs text-gray-400">Importe a planilha de orçamento para começar a medir.</p>
+              </div>
+              <button
+                onClick={() => setShowImport(true)}
+                className="flex items-center gap-2 rounded-lg bg-green-700 px-5 py-3 text-sm font-semibold text-white min-h-[44px] hover:bg-green-800"
+              >
+                <Upload size={16} /> Importar Orçamento
+              </button>
+              <p className="text-[11px] text-gray-400 max-w-xs">
+                Cole os itens em formato TSV:<br />
+                <code className="font-mono">Nº{'\t'}Descrição{'\t'}Valor</code>
+              </p>
+            </div>
+          )}
+
           {/* ── Tabela ── */}
-          <div className="flex-1 overflow-auto">
+          {detalhe.itens.length > 0 && <div className="flex-1 overflow-auto">
             <table className="w-full min-w-[700px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-gray-800 text-white">
                 <tr>
@@ -469,7 +562,7 @@ export default function MedicaoPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </div>}
 
           {/* ── Footer sticky ── */}
           <div className="border-t-2 border-gray-200 bg-gray-900 px-4 md:px-6 py-3">

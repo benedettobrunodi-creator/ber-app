@@ -211,6 +211,30 @@ export async function saveLancamentos(req: Request, res: Response, next?: any) {
   sendSuccess(res, { ok: true });
 }
 
+// ── PATCH /v1/medicoes/:id ────────────────────────────────────────────────────
+
+export async function updateMedicao(req: Request, res: Response, next?: any) {
+  const { id } = req.params;
+  const { periodo_inicio, periodo_fim, numero } = req.body;
+
+  const medicao = await prisma.medicao.findUnique({ where: { id } });
+  if (!medicao) throw AppError.notFound('Medição');
+  if (medicao.status === 'aprovada' || medicao.status === 'faturada' || medicao.status === 'paga') {
+    throw AppError.forbidden('Medição aprovada não pode ser editada');
+  }
+
+  const updated = await prisma.medicao.update({
+    where: { id },
+    data: {
+      ...(periodo_inicio ? { periodoInicio: new Date(periodo_inicio) } : {}),
+      ...(periodo_fim ? { periodoFim: new Date(periodo_fim) } : {}),
+      ...(numero ? { numero } : {}),
+    },
+  });
+
+  sendSuccess(res, updated);
+}
+
 // ── PATCH /v1/medicoes/:id/status ────────────────────────────────────────────
 
 export async function updateStatus(req: Request, res: Response, next?: any) {
