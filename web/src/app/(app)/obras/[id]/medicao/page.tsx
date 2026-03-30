@@ -107,26 +107,14 @@ function ImportModal({ obraId, onClose, onSuccess }: { obraId: string; onClose: 
         const itens = parseTsvText(raw);
         setFileItens(itens);
       } else if (ext === 'xlsx' || ext === 'xls') {
-        const XLSX = (await import('xlsx'));
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        // Detectar linha de cabeçalho — pular se primeira célula não é número/string numérica
-        const dataRows = rows.filter((r) => r.length >= 3 && r[0] !== '' && r[1] !== '');
-        const itens = dataRows.map((r, i) => {
-          const num = String(r[0]).trim();
-          const desc = String(r[1]).trim();
-          const val = parseFloat(String(r[2]).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-          if (!num || !desc) throw new Error(`Linha ${i + 1}: Nº ou Descrição vazio`);
-          return {
-            numero: num,
-            descricao: desc,
-            valor_orcado: val,
-            tipo: num.includes('.') ? 'subitem' : 'grupo',
-          };
-        });
-        setFileItens(itens);
+        // Import dinâmico do módulo isolado — xlsx NÃO entra no bundle inicial da página
+        try {
+          const { parseXlsxFile } = await import('@/lib/xlsx-parser');
+          const itens = await parseXlsxFile(file);
+          setFileItens(itens);
+        } catch (ex: any) {
+          throw new Error(ex.message || 'Não foi possível ler o arquivo Excel. Tente .csv ou .tsv.');
+        }
       } else {
         setErr('Formato não suportado. Use .xlsx, .xls, .csv ou .tsv');
       }
