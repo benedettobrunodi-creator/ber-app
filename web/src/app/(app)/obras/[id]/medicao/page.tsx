@@ -62,25 +62,90 @@ const STATUS_COLORS: Record<string, string> = {
 
 // ── Import Modal ──────────────────────────────────────────────────────────────
 
+// ── helpers de parse ─────────────────────────────────────────────────────────
+
+function parseTsvText(raw: string) {
+  const lines = raw.trim().split('\n').filter(Boolean);
+  return lines.map((line, i) => {
+    // suporta tab ou ponto-e-vírgula ou vírgula como separador
+    const sep = line.includes('\t') ? '\t' : line.includes(';') ? ';' : ',';
+    const parts = line.split(sep);
+    if (parts.length < 3) throw new Error(`Linha ${i + 1}: esperado Nº, Descrição e Valor`);
+    const num = parts[0].trim();
+    return {
+      numero: num,
+      descricao: parts[1].trim(),
+      valor_orcado: parseFloat(parts[2].replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0,
+      tipo: num.includes('.') ? 'subitem' : 'grupo',
+    };
+  });
+}
+
+// ── ImportModal ───────────────────────────────────────────────────────────────
+
 function ImportModal({ obraId, onClose, onSuccess }: { obraId: string; onClose: () => void; onSuccess: () => void }) {
+  const [tab, setTab] = useState<'texto' | 'arquivo'>('texto');
   const [text, setText] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [fileItens, setFileItens] = useState<any[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setErr('');
+    setFileItens(null);
+    setFileName('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const ext = file.name.split('.').pop()?.toLowerCase();
+
+    try {
+      if (ext === 'csv' || ext === 'tsv') {
+        const raw = await file.text();
+        const itens = parseTsvText(raw);
+        setFileItens(itens);
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const XLSX = (await import('xlsx'));
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Detectar linha de cabeçalho — pular se primeira célula não é número/string numérica
+        const dataRows = rows.filter((r) => r.length >= 3 && r[0] !== '' && r[1] !== '');
+        const itens = dataRows.map((r, i) => {
+          const num = String(r[0]).trim();
+          const desc = String(r[1]).trim();
+          const val = parseFloat(String(r[2]).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+          if (!num || !desc) throw new Error(`Linha ${i + 1}: Nº ou Descrição vazio`);
+          return {
+            numero: num,
+            descricao: desc,
+            valor_orcado: val,
+            tipo: num.includes('.') ? 'subitem' : 'grupo',
+          };
+        });
+        setFileItens(itens);
+      } else {
+        setErr('Formato não suportado. Use .xlsx, .xls, .csv ou .tsv');
+      }
+    } catch (ex: any) {
+      setErr(ex.message || 'Erro ao ler arquivo');
+    }
+  }
 
   async function handleImport() {
     setErr('');
     try {
-      const lines = text.trim().split('\n').filter(Boolean);
-      const itens = lines.map((line, i) => {
-        const parts = line.split('\t');
-        if (parts.length < 3) throw new Error(`Linha ${i + 1} inválida`);
-        return {
-          numero: parts[0].trim(),
-          descricao: parts[1].trim(),
-          valor_orcado: parseFloat(parts[2].replace(/[R$\s.]/g, '').replace(',', '.')),
-          tipo: parts[0].trim().includes('.') ? 'subitem' : 'grupo',
-        };
-      });
+      let itens: any[];
+      if (tab === 'texto') {
+        itens = parseTsvText(text);
+      } else {
+        if (!fileItens || fileItens.length === 0) throw new Error('Nenhum item carregado do arquivo');
+        itens = fileItens;
+      }
+      if (itens.length === 0) throw new Error('Nenhum item encontrado');
       setSaving(true);
       await api.post(`/obras/${obraId}/medicao-itens/bulk`, { itens });
       onSuccess();
@@ -90,26 +155,111 @@ function ImportModal({ obraId, onClose, onSuccess }: { obraId: string; onClose: 
     }
   }
 
+  const canImport = tab === 'texto' ? text.trim().length > 0 : (fileItens !== null && fileItens.length > 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl">
-        <h3 className="mb-1 text-lg font-bold text-gray-900">Importar Orçamento</h3>
-        <p className="mb-4 text-sm text-gray-500">Cole os itens em formato TSV: <code>Nº TAB Descrição TAB Valor</code></p>
-        <textarea
-          rows={10}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={"1\tSERVIÇOS PRELIMINARES\t4384.00\n1.1\tART\t2200.00"}
-          className="w-full rounded-lg border border-gray-200 p-3 text-sm font-mono focus:border-green-500 focus:outline-none"
-        />
-        {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
-        <div className="mt-4 flex gap-3">
-          <button onClick={onClose} className="flex-1 min-h-[44px] rounded-lg border border-gray-200 text-sm font-medium text-gray-600">
-            Cancelar
-          </button>
-          <button onClick={handleImport} disabled={saving || !text.trim()} className="flex-1 min-h-[44px] rounded-lg bg-green-700 text-sm font-semibold text-white disabled:opacity-50">
-            {saving ? 'Importando...' : 'Importar'}
-          </button>
+      <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl md:rounded-xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-0">
+          <h3 className="text-lg font-bold text-gray-900">Importar Orçamento</h3>
+          <p className="mt-0.5 text-sm text-gray-500">Formato: <code className="text-xs font-mono bg-gray-100 px-1 rounded">Nº · Descrição · Valor</code></p>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-4 flex border-b border-gray-200 px-6">
+          {(['texto', 'arquivo'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setErr(''); }}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === t ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t === 'texto' ? '📋 Colar texto' : '📂 Arquivo'}
+            </button>
+          ))}
+        </div>
+
+        <div className="px-6 py-4">
+          {/* Aba texto */}
+          {tab === 'texto' && (
+            <>
+              <p className="mb-2 text-xs text-gray-400">Cole os itens em TSV (tab), CSV (vírgula) ou semicolon (ponto-e-vírgula)</p>
+              <textarea
+                rows={10}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={"1\tSERVIÇOS PRELIMINARES\t4384.00\n1.1\tART - Anotação de Resp. Técnica\t2200.00"}
+                className="w-full rounded-lg border border-gray-200 p-3 text-sm font-mono focus:border-green-500 focus:outline-none resize-none"
+              />
+            </>
+          )}
+
+          {/* Aba arquivo */}
+          {tab === 'arquivo' && (
+            <div>
+              <p className="mb-3 text-xs text-gray-400">Formatos aceitos: <strong>.xlsx, .xls, .csv, .tsv</strong><br />Primeira coluna: Nº · Segunda: Descrição · Terceira: Valor</p>
+              <label className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors ${
+                fileItens ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-400 hover:bg-green-50/40'
+              }`}>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.tsv"
+                  onChange={handleFile}
+                  className="hidden"
+                />
+                {fileItens ? (
+                  <>
+                    <span className="text-3xl">✅</span>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-green-700">{fileName}</p>
+                      <p className="text-xs text-green-600">{fileItens.length} itens carregados</p>
+                    </div>
+                    <span className="text-xs text-gray-400 underline">Clique para trocar o arquivo</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-3xl">📂</span>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-gray-700">Clique para selecionar</p>
+                      <p className="text-xs text-gray-400">.xlsx · .xls · .csv · .tsv</p>
+                    </div>
+                  </>
+                )}
+              </label>
+
+              {/* Preview dos primeiros itens */}
+              {fileItens && fileItens.length > 0 && (
+                <div className="mt-3 rounded-lg border border-gray-100 overflow-hidden">
+                  <p className="bg-gray-50 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    Prévia ({Math.min(fileItens.length, 5)} de {fileItens.length})
+                  </p>
+                  <div className="divide-y divide-gray-50">
+                    {fileItens.slice(0, 5).map((it, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                        <span className="w-8 font-mono text-gray-400 shrink-0">{it.numero}</span>
+                        <span className="flex-1 text-gray-700 truncate">{it.descricao}</span>
+                        <span className="text-gray-500 shrink-0">{it.valor_orcado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+
+          <div className="mt-4 flex gap-3">
+            <button onClick={onClose} className="flex-1 min-h-[44px] rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button onClick={handleImport} disabled={saving || !canImport} className="flex-1 min-h-[44px] rounded-lg bg-green-700 text-sm font-semibold text-white disabled:opacity-50 hover:bg-green-800">
+              {saving ? 'Importando...' : `Importar${fileItens && tab === 'arquivo' ? ` (${fileItens.length})` : ''}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
