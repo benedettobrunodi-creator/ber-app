@@ -40,8 +40,8 @@ const NAV_ITEMS = [
 const BOTTOM_NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
+  { label: 'Ponto', href: '/ponto', icon: Clock },
   { label: 'Kanban', href: '/kanban', icon: Kanban },
-  { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { label: 'Config', href: '/configuracoes', icon: Settings },
 ];
 
