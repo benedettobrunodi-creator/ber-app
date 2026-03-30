@@ -262,7 +262,7 @@ export async function exportTimeEntries(params: { userIds?: string[]; startDate:
           ? checkoutTime.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })
           : '',
         totalHoras: totalHours,
-        obra: (ci as any).obra?.name || '',
+        obra: (ci as any).obra?.name || 'Escritório',
         endereco: ci.address || '',
       });
     }

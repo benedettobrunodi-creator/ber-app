@@ -69,7 +69,7 @@ export async function exportToExcel(req: Request, res: Response) {
   // ── CSV ──────────────────────────────────────────────────────────────────
   if (format === 'csv') {
     const lines: string[] = [
-      'Nome,Data,Entrada,Saída,Total Horas,Obra,Localização',
+      'Nome,Data,Entrada,Saída,Total Horas,Local (Obra/Escritório),Localização GPS',
     ];
     for (const [, userData] of Object.entries(grouped)) {
       for (const pair of userData.pairs) {
@@ -102,8 +102,8 @@ export async function exportToExcel(req: Request, res: Response) {
     { header: 'Entrada', key: 'entrada', width: 12 },
     { header: 'Saída', key: 'saida', width: 12 },
     { header: 'Total Horas', key: 'totalHoras', width: 15 },
-    { header: 'Obra', key: 'obra', width: 25 },
-    { header: 'Localização', key: 'endereco', width: 40 },
+    { header: 'Local (Obra/Escritório)', key: 'obra', width: 28 },
+    { header: 'Localização GPS', key: 'endereco', width: 40 },
   ];
 
   // Aba consolidada "Todos"

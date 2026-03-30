@@ -266,11 +266,14 @@ export default function PontoPage() {
         });
       });
 
-      await api.post('/time-entries/checkin', {
+      const payload: Record<string, any> = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        obraId,
-      });
+      };
+      // obraId vazio = Escritório (sem obra)
+      if (obraId) payload.obraId = obraId;
+
+      await api.post('/time-entries/checkin', payload);
 
       await fetchData();
     } catch (err: any) {
@@ -328,11 +331,11 @@ export default function PontoPage() {
             </div>
           )}
 
-          {/* Obra info when checked in */}
-          {isCheckedIn && checkinObra && (
+          {/* Local when checked in */}
+          {isCheckedIn && (
             <div className="mb-6 flex items-center justify-center gap-1.5 text-xs font-semibold text-ber-teal">
-              <HardHat size={12} />
-              {checkinObra.name}
+              {checkinObra ? <HardHat size={12} /> : <span>🏢</span>}
+              {checkinObra ? checkinObra.name : 'Escritório'}
             </div>
           )}
 
@@ -385,7 +388,11 @@ export default function PontoPage() {
                     {e.type === 'checkin' ? 'Entrada' : 'Saida'}
                   </span>
                   <span className="font-mono font-semibold text-ber-carbon">{formatTime(e.timestamp)}</span>
-                  {e.obra && <span className="text-xs text-ber-teal">{e.obra.name}</span>}
+                  {e.type === 'checkin' && (
+                    <span className="text-xs text-ber-teal">
+                      {e.obra ? e.obra.name : 'Escritório'}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -483,20 +490,36 @@ export default function PontoPage() {
               </button>
             </div>
 
+            {/* Opção Escritório — sempre visível no topo */}
+            <button
+              onClick={() => handleConfirmWithObra('')}
+              className="mb-3 flex w-full items-center gap-3 rounded-lg border-2 border-ber-olive/30 bg-ber-olive/5 px-4 py-3 text-left transition-colors hover:border-ber-olive/60 hover:bg-ber-olive/10 min-h-[52px]"
+            >
+              <span className="text-xl">🏢</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-ber-carbon">Escritório</p>
+                <p className="text-xs text-ber-gray">Trabalho no escritório BÈR</p>
+              </div>
+            </button>
+
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
+              <HardHat size={12} />
+              Obras em andamento
+            </div>
+
             {loadingObras ? (
-              <div className="py-8 text-center text-sm text-ber-gray">Carregando obras...</div>
+              <div className="py-6 text-center text-sm text-ber-gray">Carregando obras...</div>
             ) : obras.length === 0 ? (
-              <div className="py-8 text-center">
-                <HardHat size={32} className="mx-auto mb-2 text-ber-gray/30" />
+              <div className="py-4 text-center">
                 <p className="text-sm text-ber-gray">Nenhuma obra em andamento.</p>
               </div>
             ) : (
-              <div className="max-h-72 space-y-1 overflow-y-auto">
+              <div className="max-h-64 space-y-1 overflow-y-auto">
                 {obras.map((obra) => (
                   <button
                     key={obra.id}
                     onClick={() => handleConfirmWithObra(obra.id)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-ber-gray/10 px-4 py-3 text-left transition-colors hover:border-ber-olive/30 hover:bg-ber-olive/5"
+                    className="flex w-full items-center gap-3 rounded-lg border border-ber-gray/10 px-4 py-3 text-left transition-colors hover:border-ber-olive/30 hover:bg-ber-olive/5 min-h-[52px]"
                   >
                     <HardHat size={16} className="shrink-0 text-ber-teal" />
                     <div className="min-w-0 flex-1">
