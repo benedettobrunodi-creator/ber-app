@@ -33,14 +33,14 @@ const NAV_ITEMS = [
   { label: 'Normas Técnicas', href: '/normas', icon: BookOpen },
   { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
   { label: 'Segurança do Trabalho', href: '/seguranca', icon: ShieldCheck },
-  { label: 'Registro de Ponto', href: '/ponto', icon: Clock },
+  { label: 'Apontamento de Horas', href: '/ponto', icon: Clock },
   { label: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 
 const BOTTOM_NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
-  { label: 'Ponto', href: '/ponto', icon: Clock },
+  { label: 'Apontamento', href: '/ponto', icon: Clock },
   { label: 'Kanban', href: '/kanban', icon: Kanban },
   { label: 'Config', href: '/configuracoes', icon: Settings },
 ];

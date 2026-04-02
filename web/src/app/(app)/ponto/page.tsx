@@ -96,7 +96,7 @@ function groupByDay(entries: TimeEntry[]): DayGroup[] {
 
 // --- Component ---
 
-export default function PontoPage() {
+export default function ApontamentoPage() {
   const user = useAuthStore((s) => s.user);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -169,7 +169,7 @@ export default function PontoPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `relatorio-ponto-${exportStartDate}-${exportEndDate}.${ext}`;
+      a.download = `relatorio-apontamento-${exportStartDate}-${exportEndDate}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -232,7 +232,7 @@ export default function PontoPage() {
         } else if (err?.code === 2 || err?.code === 3) {
           setError('Nao foi possivel obter a localizacao. Tente novamente.');
         } else {
-          setError(err?.response?.data?.error?.message || 'Erro ao registrar ponto.');
+          setError(err?.response?.data?.error?.message || 'Erro ao registrar apontamento.');
         }
       } finally {
         setSubmitting(false);
@@ -282,7 +282,7 @@ export default function PontoPage() {
       } else if (err?.code === 2 || err?.code === 3) {
         setError('Nao foi possivel obter a localizacao. Tente novamente.');
       } else {
-        setError(err?.response?.data?.error?.message || 'Erro ao registrar ponto.');
+        setError(err?.response?.data?.error?.message || 'Erro ao registrar apontamento.');
       }
     } finally {
       setSubmitting(false);
@@ -298,7 +298,7 @@ export default function PontoPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-black text-ber-carbon">Ponto</h1>
+        <h1 className="text-2xl font-black text-ber-carbon">Apontamento de Horas</h1>
         <div className="mt-6 py-12 text-center text-sm text-ber-gray">Carregando...</div>
       </div>
     );
@@ -308,7 +308,15 @@ export default function PontoPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Ponto</h1>
+      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Apontamento de Horas</h1>
+
+      {/* ── Banner jurídico (Harvey recomendação) ── */}
+      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 items-start">
+        <span className="text-amber-500 mt-0.5 shrink-0 text-base">⚖️</span>
+        <p className="text-xs text-amber-800 leading-relaxed">
+          <strong>Aviso:</strong> Os lançamentos de horas neste aplicativo têm finalidade exclusiva de apuração de honorários e emissão de nota fiscal pelos prestadores de serviço. Não constituem controle de jornada de trabalho, nem implicam reconhecimento de vínculo empregatício.
+        </p>
+      </div>
 
       {/* Card central */}
       <div className="mx-auto mt-8 max-w-md">
@@ -327,7 +335,7 @@ export default function PontoPage() {
           {isCheckedIn && status?.checkedInSince && (
             <div className="mb-2 flex items-center justify-center gap-1 text-xs text-ber-gray">
               <Clock size={12} />
-              Entrada as {formatTime(status.checkedInSince)}
+              Em serviço desde {formatTime(status.checkedInSince)}
             </div>
           )}
 
@@ -353,14 +361,14 @@ export default function PontoPage() {
             {submitting
               ? 'Registrando...'
               : isCheckedIn
-                ? 'Registrar Saida'
-                : 'Registrar Entrada'}
+                ? 'Fim do Serviço'
+                : 'Início do Serviço'}
           </button>
 
           {/* Location note */}
           <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-ber-gray/70">
             <MapPin size={10} />
-            Localizacao sera solicitada ao registrar
+            Localização será solicitada ao iniciar o serviço
           </div>
 
           {/* Error */}
@@ -385,7 +393,7 @@ export default function PontoPage() {
                     e.type === 'checkin' ? 'bg-ber-olive/15 text-ber-olive' : 'bg-red-50 text-red-500'
                   }`}>
                     {e.type === 'checkin' ? <LogIn size={10} /> : <LogOut size={10} />}
-                    {e.type === 'checkin' ? 'Entrada' : 'Saida'}
+                    {e.type === 'checkin' ? 'Início' : 'Fim'}
                   </span>
                   <span className="font-mono font-semibold text-ber-carbon">{formatTime(e.timestamp)}</span>
                   {e.type === 'checkin' && (
@@ -425,8 +433,8 @@ export default function PontoPage() {
                     <span className="text-sm font-semibold text-ber-carbon">{group.totalHours != null ? formatHours(group.totalHours) : '--'}</span>
                   </div>
                   <div className="mt-2 flex gap-4 text-xs text-ber-gray">
-                    <span>Entrada: <span className="font-mono text-ber-carbon">{checkins.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
-                    <span>Saida: <span className="font-mono text-ber-carbon">{checkouts.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
+                    <span>Início: <span className="font-mono text-ber-carbon">{checkins.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
+                    <span>Fim: <span className="font-mono text-ber-carbon">{checkouts.map((e) => formatTime(e.timestamp)).join(', ') || '--'}</span></span>
                   </div>
                 </div>
               );
@@ -438,8 +446,8 @@ export default function PontoPage() {
               <thead>
                 <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase tracking-wide text-ber-gray">
                   <th className="px-4 py-3 text-left">Data</th>
-                  <th className="px-4 py-3 text-left">Entrada</th>
-                  <th className="px-4 py-3 text-left">Saida</th>
+                  <th className="px-4 py-3 text-left">Início do Serviço</th>
+                  <th className="px-4 py-3 text-left">Fim do Serviço</th>
                   <th className="px-4 py-3 text-right">Total</th>
                 </tr>
               </thead>
@@ -536,12 +544,12 @@ export default function PontoPage() {
         </div>
       )}
 
-      {/* Exportar Relatorio - only for diretoria/coordenacao */}
+      {/* Exportar Relatório de Apontamento - only for diretoria/coordenacao */}
       {canExport && (
         <div className="mx-auto mt-8 max-w-2xl">
           <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-ber-gray">
             <Download size={14} />
-            Exportar Relatorio
+            Exportar Relatório de Apontamento
           </h2>
 
           <div className="mt-3 rounded-lg bg-white p-6 shadow-sm">
