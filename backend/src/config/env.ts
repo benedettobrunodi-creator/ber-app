@@ -28,8 +28,9 @@ export const env = {
   firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY,
   firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 
-  trelloApiKey: process.env.TRELLO_API_KEY,
-  trelloToken: process.env.TRELLO_TOKEN,
+  trelloApiKey: process.env.TRELLO_API_KEY,   // legado — mantido para compatibilidade
+  trelloToken: process.env.TRELLO_TOKEN,       // legado
+  clickupApiKey: process.env.CLICKUP_API_KEY, // novo workspace BÈR ENGENHARIA
 
   agendorApiToken: process.env.AGENDOR_API_TOKEN,
   agendorBaseUrl: process.env.AGENDOR_BASE_URL || 'https://api.agendor.com.br/v3',

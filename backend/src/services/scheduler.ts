@@ -1,7 +1,8 @@
 import cron from 'node-cron';
 import { prisma } from '../config/database';
 import { syncFromAgendor } from '../modules/proposals/service';
-import { syncObraFromTrello, syncProgressoFromTrello } from './trello';
+import { syncProgressoFromClickUp } from './clickup';
+// import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
 
 export function startScheduler() {
@@ -16,26 +17,15 @@ export function startScheduler() {
     }
   });
 
-  // Trello sync — a cada 1 hora
+  // ClickUp sync — a cada 1 hora (substituiu Trello)
   cron.schedule('0 * * * *', async () => {
-    const obras = await prisma.obra.findMany({
-      where: { trelloBoardId: { not: null } },
-      select: { id: true, name: true, trelloBoardId: true },
-    });
-
-    console.log(`[Scheduler] Trello sync iniciado — ${obras.length} obras`);
-
-    for (const obra of obras) {
-      try {
-        const result = await syncObraFromTrello(obra.id, obra.trelloBoardId!);
-        console.log(`[Scheduler] Trello sync "${obra.name}" — ${result.created} criados, ${result.skipped} pulados`);
-      } catch (err) {
-        console.error(`[Scheduler] Trello sync "${obra.name}" falhou:`, (err as Error).message);
-      }
+    console.log('[Scheduler] ClickUp sync iniciado...');
+    try {
+      const result = await syncProgressoFromClickUp();
+      console.log(`[Scheduler] ClickUp sync concluído — ${result.synced} obras sincronizadas, ${result.errors} erros`);
+    } catch (err) {
+      console.error('[Scheduler] ClickUp sync falhou:', (err as Error).message);
     }
-
-    console.log('[Scheduler] Trello sync concluído');
-    await syncProgressoFromTrello();
   });
 
   // Checklist pendente notifications — diariamente as 08h
@@ -49,7 +39,7 @@ export function startScheduler() {
     }
   });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), Trello (*/1h), Checklist notifications (08h)');
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (*/1h), Checklist notifications (08h)');
 }
 
 async function checkPendingChecklists() {
