@@ -8,7 +8,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package, FolderOpen, ChevronDown, ChevronRight,
-  Kanban, Menu, X,
+  Kanban, Menu, X, TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
   { label: 'Segurança do Trabalho', href: '/seguranca', icon: ShieldCheck },
   { label: 'Apontamento de Horas', href: '/ponto', icon: Clock },
+  { label: 'DRE', href: '/dre', icon: TrendingUp },
   { label: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 

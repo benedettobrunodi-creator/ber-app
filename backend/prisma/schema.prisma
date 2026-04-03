@@ -71,6 +71,7 @@ model User {
   filledBerChecklists   ObraBerChecklist[]   @relation("BerChecklistFiller")
   fotosEnviadas         ObraFoto[]           @relation("FotoAutor")
   filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
+  dreUpdates            DreValue[]             @relation("DreUpdater")
 
   @@map("users")
 }
@@ -1086,4 +1087,21 @@ model MedicaoLancamento {
 
   @@unique([itemId, medicaoId])
   @@map("medicao_lancamentos")
+}
+
+// ─── DRE (Demonstrativo de Resultados) ──────────────────────────────────────
+
+model DreValue {
+  id        String   @id @default(uuid()) @db.Uuid
+  rowKey    String   @map("row_key") @db.VarChar(20)
+  colKey    String   @map("col_key") @db.VarChar(20)
+  value     Float    @default(0)
+  kpi       Float?
+  updatedBy String?  @map("updated_by") @db.Uuid
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  updater   User?    @relation("DreUpdater", fields: [updatedBy], references: [id])
+
+  @@unique([rowKey, colKey])
+  @@map("dre_values")
 }
