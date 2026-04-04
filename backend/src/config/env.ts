@@ -23,6 +23,7 @@ export const env = {
   s3AccessKey: process.env.S3_ACCESS_KEY,
   s3SecretKey: process.env.S3_SECRET_KEY,
   s3Region: process.env.S3_REGION || 'auto',
+  s3PublicUrl: process.env.S3_PUBLIC_URL || '',
 
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
   firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY,

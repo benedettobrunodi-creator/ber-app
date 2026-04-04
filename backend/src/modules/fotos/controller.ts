@@ -1,32 +1,24 @@
 import { Request, Response } from 'express';
-import { execSync } from 'child_process';
 import path from 'path';
-import fs from 'fs';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AppError } from '../../utils/errors';
+import { uploadToR2, isR2Configured } from '../../services/storage';
 
-/** Converts a relative /uploads/ path to a full URL */
-function toFullUrl(relativePath: string): string {
-  if (relativePath.startsWith('http')) return relativePath;
-  return `${env.backendUrl}${relativePath}`;
+/** Ensures a file URL is absolute */
+function toFullUrl(urlOrPath: string): string {
+  if (urlOrPath.startsWith('http')) return urlOrPath;
+  return `${env.backendUrl}${urlOrPath}`;
 }
 
-function convertPdfToImage(pdfPath: string): string {
-  const dir = path.dirname(pdfPath);
-  const base = path.basename(pdfPath, '.pdf');
-  const outPath = path.join(dir, `${base}.png`);
-  try {
-    execSync(`magick -density 150 "${pdfPath}[0]" -quality 90 -background white -alpha remove "${outPath}"`, { timeout: 30000 });
-    if (fs.existsSync(outPath)) {
-      fs.unlinkSync(pdfPath); // remover PDF original
-      return outPath;
-    }
-  } catch (e) {
-    console.error('PDF conversion failed:', e);
+/** Upload a multer file to R2 (memory buffer) or return disk path */
+async function uploadFile(file: Express.Multer.File): Promise<string> {
+  if (isR2Configured() && file.buffer) {
+    return uploadToR2(file.buffer, file.originalname, file.mimetype);
   }
-  return pdfPath; // fallback: retorna o PDF se conversão falhar
+  // Fallback: disk storage
+  return toFullUrl(`/uploads/${file.filename}`);
 }
 
 const AUTOR_SELECT = { id: true, name: true, avatarUrl: true } as const;
@@ -43,19 +35,11 @@ export async function listPlantas(req: Request, res: Response) {
   sendSuccess(res, plantas);
 }
 
-// POST /v1/obras/:id/plantas  { fileUrl }
+// POST /v1/obras/:id/plantas  { fileUrl } or multipart file
 export async function createPlanta(req: Request, res: Response) {
-  // Aceita fileUrl no body OU arquivo multipart (req.file)
   let fileUrl = req.body?.fileUrl;
   if (!fileUrl && (req as any).file) {
-    let filePath = (req as any).file.path || path.join(process.env.UPLOAD_DIR || './uploads', (req as any).file.filename);
-    // Converter PDF para imagem automaticamente
-    if ((req as any).file.mimetype === 'application/pdf' || (req as any).file.originalname?.endsWith('.pdf')) {
-      const converted = convertPdfToImage(filePath);
-      fileUrl = toFullUrl(`/uploads/${path.basename(converted)}`);
-    } else {
-      fileUrl = toFullUrl(`/uploads/${(req as any).file.filename}`);
-    }
+    fileUrl = await uploadFile((req as any).file);
   }
   if (!fileUrl) throw AppError.badRequest('fileUrl ou arquivo obrigatório');
   fileUrl = toFullUrl(fileUrl);
@@ -167,7 +151,7 @@ export async function createFoto(req: Request, res: Response) {
   let { fileUrl, ambienteId, categoria, legenda, tiradaEm } = req.body;
   const userId = (req as any).user?.id;
   if (!fileUrl && (req as any).file) {
-    fileUrl = toFullUrl(`/uploads/${(req as any).file.filename}`);
+    fileUrl = await uploadFile((req as any).file);
   }
   if (!fileUrl) throw AppError.badRequest('fileUrl obrigatório');
   fileUrl = toFullUrl(fileUrl);
