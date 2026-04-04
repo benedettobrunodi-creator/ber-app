@@ -207,7 +207,9 @@ app.post('/v1/uploads', authenticate, genericUpload.single('file'), (req, res) =
   if (!req.file) {
     return res.status(400).json({ error: { code: 'NO_FILE', message: 'Nenhum arquivo enviado' } });
   }
-  res.status(201).json({ data: { url: `/uploads/${req.file.filename}` } });
+  const relPath = `/uploads/${req.file.filename}`;
+  const fullUrl = `${env.backendUrl}${relPath}`;
+  res.status(201).json({ data: { url: fullUrl } });
 });
 
 // 404 handler

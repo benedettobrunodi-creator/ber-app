@@ -40,6 +40,7 @@ export const env = {
 
   gmailOAuthToken: process.env.GMAIL_OAUTH_TOKEN,
 
+  backendUrl: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || '3000'}`,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
   corsOrigin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow localhost, trycloudflare.com tunnels, and configured origins

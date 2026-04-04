@@ -3,8 +3,15 @@ import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { prisma } from '../../config/database';
+import { env } from '../../config/env';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AppError } from '../../utils/errors';
+
+/** Converts a relative /uploads/ path to a full URL */
+function toFullUrl(relativePath: string): string {
+  if (relativePath.startsWith('http')) return relativePath;
+  return `${env.backendUrl}${relativePath}`;
+}
 
 function convertPdfToImage(pdfPath: string): string {
   const dir = path.dirname(pdfPath);
@@ -45,12 +52,13 @@ export async function createPlanta(req: Request, res: Response) {
     // Converter PDF para imagem automaticamente
     if ((req as any).file.mimetype === 'application/pdf' || (req as any).file.originalname?.endsWith('.pdf')) {
       const converted = convertPdfToImage(filePath);
-      fileUrl = `/uploads/${path.basename(converted)}`;
+      fileUrl = toFullUrl(`/uploads/${path.basename(converted)}`);
     } else {
-      fileUrl = `/uploads/${(req as any).file.filename}`;
+      fileUrl = toFullUrl(`/uploads/${(req as any).file.filename}`);
     }
   }
   if (!fileUrl) throw AppError.badRequest('fileUrl ou arquivo obrigatório');
+  fileUrl = toFullUrl(fileUrl);
   const planta = await prisma.obraPlanta.create({
     data: { obraId: req.params.id, fileUrl },
     include: { ambientes: true },
@@ -159,9 +167,10 @@ export async function createFoto(req: Request, res: Response) {
   let { fileUrl, ambienteId, categoria, legenda, tiradaEm } = req.body;
   const userId = (req as any).user?.id;
   if (!fileUrl && (req as any).file) {
-    fileUrl = `/uploads/${(req as any).file.filename}`;
+    fileUrl = toFullUrl(`/uploads/${(req as any).file.filename}`);
   }
   if (!fileUrl) throw AppError.badRequest('fileUrl obrigatório');
+  fileUrl = toFullUrl(fileUrl);
 
   const foto = await prisma.obraFoto.create({
     data: {
