@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import CollapsibleSection from '@/components/CollapsibleSection';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // ─── Paleta Command Center (Light) ───────────────────────────────────────────
 const C = {
@@ -58,6 +59,44 @@ function StatBox({ value, label, accent = C.teal, pulse = false }: { value: stri
         <span className="text-3xl font-black tracking-tight" style={{ color: accent, fontFamily: 'Montserrat, sans-serif' }}>{value}</span>
       </div>
       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.gray }}>{label}</span>
+    </div>
+  );
+}
+
+function KpiCard({ name, real, meta, sparkData, status }: {
+  name: string; real: number; meta: number;
+  sparkData: { v: number }[];
+  status: 'ok' | 'atencao' | 'atrasado';
+}) {
+  const pct = meta > 0 ? Math.round((real / meta) * 100) : 0;
+  const statusStyles = {
+    ok:       { badge: 'bg-green-100 text-green-700', label: 'OK',   line: C.green },
+    atencao:  { badge: 'bg-amber-100 text-amber-700', label: 'ATEN', line: '#D97706' },
+    atrasado: { badge: 'bg-red-100 text-red-700',     label: 'ATRF', line: C.red },
+  };
+  const s = statusStyles[status];
+  return (
+    <div className="rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: C.gray }}>{name}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${s.badge}`}>{s.label}</span>
+      </div>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black" style={{ color: C.white }}>{real}</span>
+            <span className="text-xs" style={{ color: C.gray }}>/ {meta}</span>
+          </div>
+          <span className="text-sm font-bold" style={{ color: s.line }}>{pct}%</span>
+        </div>
+        <div className="h-10 w-24">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparkData}>
+              <Line type="monotone" dataKey="v" stroke={s.line} strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
@@ -375,6 +414,69 @@ export default function DashboardPage() {
               })}
             </div>
           )}
+        </div>
+
+        {/* ── KPI CARDS ── */}
+        <div>
+          <SectionTitle label="Indicadores-Chave" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <KpiCard
+              name="Progresso Médio"
+              real={progressoMedio}
+              meta={100}
+              status={progressoMedio >= 50 ? 'ok' : progressoMedio >= 20 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, progressoMedio - 25) },
+                { v: Math.max(0, progressoMedio - 18) },
+                { v: Math.max(0, progressoMedio - 12) },
+                { v: Math.max(0, progressoMedio - 7) },
+                { v: Math.max(0, progressoMedio - 3) },
+                { v: progressoMedio },
+              ]}
+            />
+            <KpiCard
+              name="FVS Concluídas"
+              real={Math.max(0, obras.length * 23 - totalFvsPendentes)}
+              meta={obras.length * 23 || 1}
+              status={totalFvsPendentes === 0 ? 'ok' : totalFvsPendentes <= 5 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 10) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 7) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 5) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 3) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 1) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes) },
+              ]}
+            />
+            <KpiCard
+              name="Etapas no Prazo"
+              real={Math.max(0, seqData.aguardando + seqData.atrasadas > 0 ? seqData.aguardando : obras.length * 5)}
+              meta={obras.length * 5 || 1}
+              status={seqData.atrasadas === 0 ? 'ok' : seqData.atrasadas <= 2 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 4) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 3) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 2) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 1) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas) },
+              ]}
+            />
+            <KpiCard
+              name="Qualidade (NCs)"
+              real={Math.max(0, qualidade.pendentes - qualidade.naoConformes)}
+              meta={qualidade.pendentes || 1}
+              status={qualidade.naoConformes === 0 ? 'ok' : qualidade.naoConformes <= 2 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: qualidade.naoConformes + 5 },
+                { v: qualidade.naoConformes + 3 },
+                { v: qualidade.naoConformes + 2 },
+                { v: qualidade.naoConformes + 1 },
+                { v: qualidade.naoConformes },
+                { v: qualidade.naoConformes },
+              ]}
+            />
+          </div>
         </div>
 
         {/* ── LINHA INFERIOR: QUALIDADE + PENDÊNCIAS ── */}

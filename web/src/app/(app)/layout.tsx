@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
@@ -106,6 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
+  const { period, setPeriod, label: periodLabel } = usePeriodStore();
   const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number | null>>({});
@@ -278,6 +280,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="flex items-center gap-3">
+          {/* Period selector */}
+          <select
+            value={period}
+            onChange={e => setPeriod(e.target.value)}
+            className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold text-white border border-white/20 focus:outline-none focus:border-ber-olive cursor-pointer"
+          >
+            {Array.from({ length: 12 }, (_, i) => {
+              const d = new Date();
+              d.setMonth(d.getMonth() - 6 + i);
+              const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+              const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+              const lbl = `${MONTHS[d.getMonth()]}/${d.getFullYear().toString().slice(2)}`;
+              return <option key={val} value={val} className="bg-ber-sidebar text-white">{lbl}</option>;
+            })}
+          </select>
+
           {/* KPI Global */}
           {kpi && (
             <div className="hidden sm:flex items-center gap-2 rounded-lg px-3 py-1.5 bg-white/10">
