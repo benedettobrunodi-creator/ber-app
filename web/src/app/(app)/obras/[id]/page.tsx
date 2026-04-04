@@ -3999,12 +3999,12 @@ export default function ObraDetailPage() {
                 <div className="flex flex-wrap justify-end gap-2">
                   <button onClick={() => setFvsModalOpen(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
 
-                  {/* submit-inicio */}
+                  {/* submit-inicio — envia pré-execução para aprovação */}
                   {fvs.status === 'pendente' && inicioItems.length > 0 && (
                     <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
                       onClick={() => doAction('submit-inicio')}
                       className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50">
-                      ✅ Confirmar Início
+                      📋 Enviar Pré-execução para Aprovação
                     </button>
                   )}
 
