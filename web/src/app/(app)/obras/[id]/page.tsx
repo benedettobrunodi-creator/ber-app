@@ -1876,6 +1876,7 @@ export default function ObraDetailPage() {
         {activeTab === 'fotos' && (() => {
           const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
           const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
+          const isPdf = (url: string) => url?.toLowerCase().endsWith('.pdf');
           const planta = plantas[0] ?? null;
           const now = Date.now();
           const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -2079,7 +2080,14 @@ export default function ObraDetailPage() {
                         ) : ambienteFotos.map(foto => (
                           <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
                             className="w-full rounded-lg overflow-hidden border border-ber-gray/10 hover:shadow-md transition text-left">
-                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                            {isPdf(foto.fileUrl) ? (
+                              <div className="w-full h-32 bg-gray-100 flex flex-col items-center justify-center gap-1">
+                                <span className="text-3xl">📄</span>
+                                <span className="text-[10px] font-semibold text-ber-gray">PDF</span>
+                              </div>
+                            ) : (
+                              <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                            )}
                             <div className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[9px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
@@ -2122,7 +2130,14 @@ export default function ObraDetailPage() {
                         <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
                           className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white shadow-sm hover:shadow-md transition text-left">
                           <div className="relative aspect-square">
-                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                            {isPdf(foto.fileUrl) ? (
+                              <div className="h-full w-full bg-gray-100 flex flex-col items-center justify-center gap-1">
+                                <span className="text-4xl">📄</span>
+                                <span className="text-xs font-semibold text-ber-gray">PDF</span>
+                              </div>
+                            ) : (
+                              <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition" />
                           </div>
                           <div className="px-2.5 py-2">
@@ -2159,7 +2174,11 @@ export default function ObraDetailPage() {
                         className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">→</button>
                     )}
                     <div className="max-h-[90vh] max-w-[90vw] flex flex-col items-center" onClick={e => e.stopPropagation()}>
-                      <img src={fullscreenFoto.fileUrl} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                      {isPdf(fullscreenFoto.fileUrl) ? (
+                        <iframe src={fullscreenFoto.fileUrl} className="w-[90vw] max-w-4xl h-[75vh] rounded-lg bg-white" title="PDF" />
+                      ) : (
+                        <img src={fullscreenFoto.fileUrl} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                      )}
                       <div className="mt-3 text-center text-white">
                         {fullscreenFoto.ambiente && <span className="text-sm font-semibold">{fullscreenFoto.ambiente.nome}</span>}
                         <span className="mx-2 text-white/40">·</span>
