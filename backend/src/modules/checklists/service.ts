@@ -162,3 +162,15 @@ export async function completeChecklist(id: string) {
     },
   });
 }
+
+export async function reorderItems(checklistId: string, itemIds: string[]) {
+  await prisma.$transaction(
+    itemIds.map((id, index) =>
+      prisma.checklistItem.update({ where: { id }, data: { order: index + 1 } })
+    )
+  );
+  return prisma.checklist.findUnique({
+    where: { id: checklistId },
+    include: { items: { orderBy: { order: 'asc' } } },
+  });
+}

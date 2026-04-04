@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Plus, User, Calendar, ChevronDown } from 'lucide-react';
+import { Plus, User, Calendar, ChevronDown, GripVertical } from 'lucide-react';
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -13,6 +23,7 @@ interface Task {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  position?: number;
   dueDate: string | null;
   assignee: { id: string; name: string } | null;
   obraId?: string;
@@ -51,6 +62,74 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
+/* ─── Sortable Task Card ─── */
+
+function SortableTaskCard({ task, obraName }: { task: Task; obraName?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { status: task.status },
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}
+      className={`group rounded-lg border-l-[3px] bg-white p-3 shadow-sm hover:shadow-md transition-shadow ${PRIORITY_STYLE[task.priority]}`}>
+      <div className="flex items-start gap-2">
+        <button {...listeners} className="mt-0.5 shrink-0 cursor-grab text-ber-gray/30 opacity-0 group-hover:opacity-100 transition-opacity touch-none" title="Arrastar">
+          <GripVertical size={14} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ber-carbon leading-snug">{task.title}</p>
+          {obraName && (
+            <p className="mt-1 text-[10px] font-semibold text-ber-teal truncate">{obraName}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
+            <span className={`font-semibold ${pCfg.className}`}>{pCfg.text}</span>
+            {task.assignee && (
+              <span className="flex items-center gap-1"><User size={10} />{task.assignee.name.split(' ')[0]}</span>
+            )}
+            {task.dueDate && (
+              <span className="flex items-center gap-1"><Calendar size={10} />{formatDate(task.dueDate)}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Droppable Column ─── */
+
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`min-h-[100px] rounded-lg transition-colors ${isOver ? 'bg-ber-olive/10 ring-2 ring-ber-olive/30' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Static card for overlay ─── */
+
+function TaskCardOverlay({ task }: { task: Task }) {
+  const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
+  return (
+    <div className={`rounded-lg border-l-[3px] bg-white p-3 shadow-xl ${PRIORITY_STYLE[task.priority]} w-[280px]`}>
+      <p className="text-sm font-semibold text-ber-carbon leading-snug">{task.title}</p>
+      <div className="mt-2 flex items-center gap-2 text-xs text-ber-gray">
+        <span className={`font-semibold ${pCfg.className}`}>{pCfg.text}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main ─── */
+
 export default function KanbanPage() {
   const [obras, setObras] = useState<Obra[]>([]);
   const [selectedObraId, setSelectedObraId] = useState<string>('all');
@@ -59,6 +138,12 @@ export default function KanbanPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', priority: 'medium' as TaskPriority, dueDate: '' });
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   // Load obras on mount
   useEffect(() => {
@@ -71,7 +156,6 @@ export default function KanbanPage() {
   useEffect(() => {
     setLoading(true);
     if (selectedObraId === 'all') {
-      // Fetch tasks for all obras in parallel
       if (obras.length === 0) { setLoading(false); return; }
       Promise.all(
         obras.map(o =>
@@ -91,6 +175,7 @@ export default function KanbanPage() {
   }, [selectedObraId, obras]);
 
   const selectedObra = obras.find(o => o.id === selectedObraId);
+  const obraMap = Object.fromEntries(obras.map(o => [o.id, o]));
 
   async function handleCreateTask(e: React.FormEvent) {
     e.preventDefault();
@@ -102,19 +187,72 @@ export default function KanbanPage() {
       await api.post(`/obras/${selectedObraId}/tasks`, body);
       setNewTask({ title: '', priority: 'medium', dueDate: '' });
       setShowForm(false);
-      // Refresh
       const r = await api.get(`/obras/${selectedObraId}/tasks`, { params: { limit: 200 } });
       setTasks(r.data.data ?? []);
     } catch { /* handled */ } finally { setSubmitting(false); }
   }
 
-  // Group tasks by obra for "all" view
-  const obraMap = Object.fromEntries(obras.map(o => [o.id, o]));
+  function handleDragStart(event: DragStartEvent) {
+    const task = tasks.find(t => t.id === event.active.id);
+    setActiveTask(task ?? null);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveTask(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const draggedTask = tasks.find(t => t.id === active.id);
+    if (!draggedTask) return;
+
+    // Determine target column: over might be a column ID or another task ID
+    let targetStatus: TaskStatus;
+    const overTask = tasks.find(t => t.id === over.id);
+    if (overTask) {
+      targetStatus = overTask.status;
+    } else if (KANBAN_COLUMNS.some(c => c.key === over.id)) {
+      targetStatus = over.id as TaskStatus;
+    } else {
+      return;
+    }
+
+    const oldStatus = draggedTask.status;
+    const statusChanged = oldStatus !== targetStatus;
+
+    // Optimistic update
+    setTasks(prev => {
+      const updated = prev.map(t =>
+        t.id === draggedTask.id ? { ...t, status: targetStatus } : t
+      );
+      // Reorder within column if dropping on another task
+      if (overTask && overTask.id !== draggedTask.id) {
+        const colTasks = updated.filter(t => t.status === targetStatus);
+        const oldIdx = colTasks.findIndex(t => t.id === draggedTask.id);
+        const newIdx = colTasks.findIndex(t => t.id === overTask.id);
+        if (oldIdx !== -1 && newIdx !== -1) {
+          const reordered = arrayMove(colTasks, oldIdx, newIdx);
+          const otherTasks = updated.filter(t => t.status !== targetStatus);
+          return [...otherTasks, ...reordered];
+        }
+      }
+      return updated;
+    });
+
+    // Persist to API
+    const obraId = draggedTask.obraId ?? selectedObraId;
+    if (obraId && obraId !== 'all') {
+      try {
+        const body: { position: number; status?: TaskStatus } = { position: 0 };
+        if (statusChanged) body.status = targetStatus;
+        await api.patch(`/obras/${obraId}/tasks/${draggedTask.id}/position`, body);
+      } catch { /* silent — optimistic update stays */ }
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-ber-gray/10 bg-white px-6 py-4">
+      <div className="border-b border-ber-border bg-white px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-black text-ber-carbon">Kanban</h1>
@@ -122,14 +260,13 @@ export default function KanbanPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Obra selector */}
             <div className="relative">
               <select
                 value={selectedObraId}
                 onChange={e => { setSelectedObraId(e.target.value); setShowForm(false); }}
-                className="appearance-none rounded-lg border border-ber-gray/20 bg-ber-offwhite/80 pl-3 pr-8 py-2 text-sm font-semibold text-ber-carbon focus:border-ber-teal focus:outline-none min-w-[200px]"
+                className="appearance-none rounded-lg border border-ber-gray/20 bg-ber-bg pl-3 pr-8 py-2 text-sm font-semibold text-ber-carbon focus:border-ber-teal focus:outline-none min-w-[200px]"
               >
-                <option value="all">🏗 Todas as obras ({obras.length})</option>
+                <option value="all">Todas as obras ({obras.length})</option>
                 {obras.map(o => (
                   <option key={o.id} value={o.id}>
                     {o.name} ({o._count?.tasks ?? 0})
@@ -139,7 +276,6 @@ export default function KanbanPage() {
               <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ber-gray" />
             </div>
 
-            {/* Add task (only when single obra selected) */}
             {selectedObraId !== 'all' && (
               <button
                 onClick={() => setShowForm(p => !p)}
@@ -151,18 +287,17 @@ export default function KanbanPage() {
           </div>
         </div>
 
-        {/* Tab pills for obras (when ≤ 6) */}
         {obras.length > 0 && obras.length <= 6 && (
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedObraId('all')}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selectedObraId === 'all' ? 'bg-ber-carbon text-white' : 'bg-ber-offwhite text-ber-gray hover:bg-ber-gray/10'}`}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selectedObraId === 'all' ? 'bg-ber-carbon text-white' : 'bg-ber-bg text-ber-gray hover:bg-ber-gray/10'}`}
             >
               Todas
             </button>
             {obras.map(o => (
               <button key={o.id} onClick={() => setSelectedObraId(o.id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selectedObraId === o.id ? 'bg-ber-carbon text-white' : 'bg-ber-offwhite text-ber-gray hover:bg-ber-gray/10'}`}>
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${selectedObraId === o.id ? 'bg-ber-carbon text-white' : 'bg-ber-bg text-ber-gray hover:bg-ber-gray/10'}`}>
                 {o.name}
               </button>
             ))}
@@ -172,7 +307,7 @@ export default function KanbanPage() {
 
       {/* New task form */}
       {showForm && selectedObraId !== 'all' && (
-        <div className="border-b border-ber-gray/10 bg-white px-6 py-3">
+        <div className="border-b border-ber-border bg-white px-6 py-3">
           <form onSubmit={handleCreateTask} className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[200px]">
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Título *</label>
@@ -197,7 +332,7 @@ export default function KanbanPage() {
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowForm(false)}
-                className="rounded-md px-4 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
+                className="rounded-md px-4 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-bg">Cancelar</button>
               <button type="submit" disabled={submitting}
                 className="rounded-md bg-ber-olive px-4 py-1.5 text-sm font-bold text-ber-black hover:bg-ber-olive/80 disabled:opacity-50">
                 {submitting ? 'Criando...' : 'Criar'}
@@ -224,49 +359,47 @@ export default function KanbanPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {KANBAN_COLUMNS.map(col => {
-              const colTasks = tasks.filter(t => t.status === col.key);
-              return (
-                <div key={col.key} className={`rounded-xl ${col.color} p-3`}>
-                  <div className="mb-3 flex items-center justify-between px-1">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">{col.label}</h3>
-                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-ber-gray shadow-sm">
-                      {colTasks.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {colTasks.map(task => {
-                      const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
-                      const obra = task.obraId ? obraMap[task.obraId] : null;
-                      return (
-                        <div key={task.id}
-                          className={`rounded-lg border-l-[3px] bg-white p-3 shadow-sm hover:shadow-md transition-shadow ${PRIORITY_STYLE[task.priority]}`}>
-                          <p className="text-sm font-semibold text-ber-carbon leading-snug">{task.title}</p>
-                          {/* Obra badge (only in "all" view) */}
-                          {selectedObraId === 'all' && obra && (
-                            <p className="mt-1 text-[10px] font-semibold text-ber-teal truncate">{obra.name}</p>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {KANBAN_COLUMNS.map(col => {
+                const colTasks = tasks.filter(t => t.status === col.key);
+                return (
+                  <div key={col.key} className={`rounded-xl ${col.color} p-3`}>
+                    <div className="mb-3 flex items-center justify-between px-1">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">{col.label}</h3>
+                      <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-ber-gray shadow-sm">
+                        {colTasks.length}
+                      </span>
+                    </div>
+                    <DroppableColumn id={col.key}>
+                      <SortableContext items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2">
+                          {colTasks.map(task => (
+                            <SortableTaskCard
+                              key={task.id}
+                              task={task}
+                              obraName={selectedObraId === 'all' && task.obraId ? obraMap[task.obraId]?.name : undefined}
+                            />
+                          ))}
+                          {colTasks.length === 0 && (
+                            <p className="py-6 text-center text-xs text-ber-gray/40">Sem tarefas</p>
                           )}
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
-                            <span className={`font-semibold ${pCfg.className}`}>{pCfg.text}</span>
-                            {task.assignee && (
-                              <span className="flex items-center gap-1"><User size={10} />{task.assignee.name.split(' ')[0]}</span>
-                            )}
-                            {task.dueDate && (
-                              <span className="flex items-center gap-1"><Calendar size={10} />{formatDate(task.dueDate)}</span>
-                            )}
-                          </div>
                         </div>
-                      );
-                    })}
-                    {colTasks.length === 0 && (
-                      <p className="py-6 text-center text-xs text-ber-gray/40">Sem tarefas</p>
-                    )}
+                      </SortableContext>
+                    </DroppableColumn>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+            <DragOverlay>
+              {activeTask && <TaskCardOverlay task={activeTask} />}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
     </div>

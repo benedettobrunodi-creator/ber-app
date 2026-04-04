@@ -39,3 +39,8 @@ export async function completeChecklist(req: Request, res: Response) {
   const checklist = await checklistService.completeChecklist(req.params.id);
   sendSuccess(res, checklist);
 }
+
+export async function reorderItems(req: Request, res: Response) {
+  const checklist = await checklistService.reorderItems(req.params.id, req.body.itemIds);
+  sendSuccess(res, checklist);
+}

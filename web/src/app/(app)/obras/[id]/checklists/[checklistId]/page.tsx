@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Check, X as XIcon, Clock, Camera, Plus, CheckCircle2, MessageSquare, User, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, X as XIcon, Clock, Camera, Plus, CheckCircle2, MessageSquare, User, Upload, Loader2, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -69,6 +72,18 @@ function formatDateTime(iso: string | null): string {
   });
 }
 
+// ─── Sortable wrapper ───────────────────────────────────────────────────────────
+
+function SortableItemRow({ id, children }: { id: string; children: (props: { listeners: any }) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children({ listeners })}
+    </div>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function ChecklistDetailPage() {
@@ -97,6 +112,12 @@ export default function ChecklistDetailPage() {
 
   // Complete
   const [completing, setCompleting] = useState(false);
+
+  // DnD
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1').replace('/v1', '');
 
@@ -318,6 +339,21 @@ export default function ChecklistDetailPage() {
     }
   }
 
+  // ─── Reorder items ─────────────────────────────────────────────────────────
+
+  async function handleReorderDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !checklist) return;
+    const oldIdx = checklist.items.findIndex(i => i.id === active.id);
+    const newIdx = checklist.items.findIndex(i => i.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(checklist.items, oldIdx, newIdx).map((i, idx) => ({ ...i, order: idx + 1 }));
+    setChecklist({ ...checklist, items: reordered });
+    try {
+      await api.put(`/checklists/${checklistId}/reorder`, { itemIds: reordered.map(i => i.id) });
+    } catch { /* revert on next refresh */ }
+  }
+
   // ─── Derived values ────────────────────────────────────────────────────────
 
   const items = checklist?.items ?? [];
@@ -409,20 +445,26 @@ export default function ChecklistDetailPage() {
       </div>
 
       {/* Items */}
-      <div className="space-y-4">
-        {sortedItems.map((item) => {
-          const edit = itemEdits[item.id] || { observation: '', responsibleId: '', photoUrl: '' };
-          const isSaving = savingItems[item.id] || false;
-          const isNao = item.answer === 'nao';
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorderDragEnd}>
+        <SortableContext items={sortedItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {sortedItems.map((item) => {
+              const edit = itemEdits[item.id] || { observation: '', responsibleId: '', photoUrl: '' };
+              const isSaving = savingItems[item.id] || false;
+              const isNao = item.answer === 'nao';
 
-          return (
-            <div
-              key={item.id}
-              className={`rounded-lg bg-white shadow-sm p-4 ${isNao ? 'border-l-4 border-l-red-500' : ''}`}
-            >
-              {/* Item header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
+              return (
+                <SortableItemRow key={item.id} id={item.id}>
+                  {({ listeners }) => (
+                    <div className={`rounded-lg bg-white shadow-sm p-4 ${isNao ? 'border-l-4 border-l-red-500' : ''}`}>
+                      {/* Item header */}
+                      <div className="flex items-start justify-between gap-3">
+                        {!isCompleted && (
+                          <button {...listeners} className="mt-1 shrink-0 cursor-grab text-ber-gray/30 hover:text-ber-gray transition-colors touch-none" title="Arrastar para reordenar">
+                            <GripVertical size={16} />
+                          </button>
+                        )}
+                        <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-ber-carbon">{item.title}</p>
                     {item.required && (
@@ -577,10 +619,14 @@ export default function ChecklistDetailPage() {
                   )}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+                    </div>
+                  )}
+                </SortableItemRow>
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Add Item */}
       {!isCompleted && (

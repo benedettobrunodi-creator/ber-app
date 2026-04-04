@@ -5,8 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import {
   ArrowLeft, CheckCircle, Clock, PlayCircle, AlertCircle,
-  XCircle, Lock, Camera, Loader2, X, ChevronDown, ChevronUp, Plus
+  XCircle, Lock, Camera, Loader2, X, ChevronDown, ChevronUp, Plus, GripVertical
 } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Etapa {
   id: string;
@@ -55,6 +58,16 @@ const statusConfig = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1';
 
+function SortableEtapaWrapper({ id, children }: { id: string; children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children({ listeners, isDragging })}
+    </div>
+  );
+}
+
 export default function SequenciamentoObraPage() {
   const params = useParams();
   const router = useRouter();
@@ -80,6 +93,24 @@ export default function SequenciamentoObraPage() {
   const [rejectForm, setRejectForm] = useState({ rejectionReason: '', coordenadorNotes: '' });
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [modalError, setModalError] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  async function handleReorderDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !seq) return;
+    const oldIdx = seq.etapas.findIndex(e => e.id === active.id);
+    const newIdx = seq.etapas.findIndex(e => e.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(seq.etapas, oldIdx, newIdx).map((e, i) => ({ ...e, order: i + 1 }));
+    setSeq({ ...seq, etapas: reordered });
+    try {
+      await api.put(`/obras/${obraId}/sequenciamento/reorder`, { etapaIds: reordered.map(e => e.id) });
+    } catch { /* revert on next refresh */ }
+  }
 
   useEffect(() => {
     if (!obraId) return;
@@ -292,82 +323,95 @@ export default function SequenciamentoObraPage() {
 
       {/* Lista de etapas */}
       {seq && etapas.length > 0 && (
-        <div className="space-y-2">
-          {etapas.map((etapa) => {
-            const cfg = statusConfig[etapa.status] || statusConfig.nao_iniciada;
-            const Icon = cfg.icon;
-            const isOpen = expanded[etapa.id];
-            const isActioning = actionLoading?.startsWith(etapa.id);
-            return (
-              <div key={etapa.id} className="bg-white rounded-xl border border-[var(--ber-border)] overflow-hidden">
-                <button onClick={() => setExpanded(prev => ({ ...prev, [etapa.id]: !prev[etapa.id] }))}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-[var(--ber-offwhite)] transition-colors text-left">
-                  <span className="text-xs font-bold text-[var(--ber-carbon-light)] w-6 text-center">{etapa.order}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-[var(--ber-carbon)]">{etapa.name}</span>
-                      <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.color}`}>
-                        <Icon size={10} />{cfg.label}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--ber-carbon-light)] mt-0.5">{etapa.discipline} · {etapa.estimatedDays} dia{etapa.estimatedDays !== 1 ? 's' : ''}</p>
-                  </div>
-                  {isOpen ? <ChevronUp size={16} className="text-[var(--ber-carbon-light)] flex-shrink-0" /> : <ChevronDown size={16} className="text-[var(--ber-carbon-light)] flex-shrink-0" />}
-                </button>
-                {isOpen && (
-                  <div className="border-t border-[var(--ber-border)] p-4 space-y-3">
-                    {(etapa.startDate || etapa.estimatedEndDate || etapa.endDate) && (
-                      <div className="flex gap-4 flex-wrap text-xs text-[var(--ber-carbon-light)]">
-                        {etapa.startDate && <span>Início: {new Date(etapa.startDate).toLocaleDateString('pt-BR')}</span>}
-                        {etapa.estimatedEndDate && <span>Previsão: {new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}</span>}
-                        {etapa.endDate && <span>Conclusão: {new Date(etapa.endDate).toLocaleDateString('pt-BR')}</span>}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleReorderDragEnd}>
+          <SortableContext items={etapas.map(e => e.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {etapas.map((etapa) => {
+                const cfg = statusConfig[etapa.status] || statusConfig.nao_iniciada;
+                const Icon = cfg.icon;
+                const isOpen = expanded[etapa.id];
+                const isActioning = actionLoading?.startsWith(etapa.id);
+                return (
+                  <SortableEtapaWrapper key={etapa.id} id={etapa.id}>
+                    {({ listeners }) => (
+                      <div className="bg-white rounded-xl border border-[var(--ber-border)] overflow-hidden">
+                        <div className="flex items-center">
+                          <button {...listeners} className="shrink-0 cursor-grab px-2 py-4 text-ber-gray/30 hover:text-ber-gray transition-colors touch-none" title="Arrastar para reordenar">
+                            <GripVertical size={16} />
+                          </button>
+                          <button onClick={() => setExpanded(prev => ({ ...prev, [etapa.id]: !prev[etapa.id] }))}
+                            className="flex-1 flex items-center gap-4 p-4 pl-0 hover:bg-[var(--ber-offwhite)] transition-colors text-left">
+                            <span className="text-xs font-bold text-[var(--ber-carbon-light)] w-6 text-center">{etapa.order}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-[var(--ber-carbon)]">{etapa.name}</span>
+                                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.color}`}>
+                                  <Icon size={10} />{cfg.label}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[var(--ber-carbon-light)] mt-0.5">{etapa.discipline} · {etapa.estimatedDays} dia{etapa.estimatedDays !== 1 ? 's' : ''}</p>
+                            </div>
+                            {isOpen ? <ChevronUp size={16} className="text-[var(--ber-carbon-light)] flex-shrink-0" /> : <ChevronDown size={16} className="text-[var(--ber-carbon-light)] flex-shrink-0" />}
+                          </button>
+                        </div>
+                        {isOpen && (
+                          <div className="border-t border-[var(--ber-border)] p-4 space-y-3">
+                            {(etapa.startDate || etapa.estimatedEndDate || etapa.endDate) && (
+                              <div className="flex gap-4 flex-wrap text-xs text-[var(--ber-carbon-light)]">
+                                {etapa.startDate && <span>Início: {new Date(etapa.startDate).toLocaleDateString('pt-BR')}</span>}
+                                {etapa.estimatedEndDate && <span>Previsão: {new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}</span>}
+                                {etapa.endDate && <span>Conclusão: {new Date(etapa.endDate).toLocaleDateString('pt-BR')}</span>}
+                              </div>
+                            )}
+                            {etapa.gestorNotes && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Notas do gestor</span>{etapa.gestorNotes}</div>}
+                            {etapa.rejectionReason && <div className="text-sm text-red-700 bg-red-50 rounded-lg p-3 border border-red-200"><span className="text-xs font-medium block mb-1">Motivo da rejeição</span>{etapa.rejectionReason}</div>}
+                            {etapa.coordenadorNotes && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Notas do coordenador</span>{etapa.coordenadorNotes}</div>}
+                            {etapa.evidenciaDescricao && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Evidência</span>{etapa.evidenciaDescricao}</div>}
+                            {etapa.evidenciaFotos && etapa.evidenciaFotos.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {etapa.evidenciaFotos.map((url, i) => (
+                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                    <img src={url} alt={`Evidência ${i+1}`} className="w-16 h-16 object-cover rounded-lg border border-[var(--ber-border)] hover:opacity-80 transition-opacity" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2 flex-wrap pt-1">
+                              {etapa.status === 'nao_iniciada' && isFrozen && (
+                                <button onClick={() => handleStart(etapa)} disabled={!!isActioning}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--ber-olive)] text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                                  {isActioning ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}Iniciar
+                                </button>
+                              )}
+                              {etapa.status === 'em_andamento' && (
+                                <button onClick={() => { setSubmitModal(etapa); setModalError(''); }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--ber-olive)] text-white rounded-lg text-xs font-medium hover:opacity-90">
+                                  <CheckCircle size={12} />Submeter para aprovação
+                                </button>
+                              )}
+                              {etapa.status === 'aguardando_aprovacao' && (
+                                <>
+                                  <button onClick={() => handleApprove(etapa)} disabled={!!isActioning}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                                    {isActioning ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}Aprovar
+                                  </button>
+                                  <button onClick={() => { setRejectModal(etapa); setModalError(''); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90">
+                                    <XCircle size={12} />Rejeitar
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                    {etapa.gestorNotes && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Notas do gestor</span>{etapa.gestorNotes}</div>}
-                    {etapa.rejectionReason && <div className="text-sm text-red-700 bg-red-50 rounded-lg p-3 border border-red-200"><span className="text-xs font-medium block mb-1">Motivo da rejeição</span>{etapa.rejectionReason}</div>}
-                    {etapa.coordenadorNotes && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Notas do coordenador</span>{etapa.coordenadorNotes}</div>}
-                    {etapa.evidenciaDescricao && <div className="text-sm text-[var(--ber-carbon)] bg-[var(--ber-offwhite)] rounded-lg p-3"><span className="text-xs font-medium text-[var(--ber-carbon-light)] block mb-1">Evidência</span>{etapa.evidenciaDescricao}</div>}
-                    {etapa.evidenciaFotos && etapa.evidenciaFotos.length > 0 && (
-                      <div className="flex gap-2 flex-wrap">
-                        {etapa.evidenciaFotos.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                            <img src={url} alt={`Evidência ${i+1}`} className="w-16 h-16 object-cover rounded-lg border border-[var(--ber-border)] hover:opacity-80 transition-opacity" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2 flex-wrap pt-1">
-                      {etapa.status === 'nao_iniciada' && isFrozen && (
-                        <button onClick={() => handleStart(etapa)} disabled={!!isActioning}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--ber-olive)] text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50">
-                          {isActioning ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}Iniciar
-                        </button>
-                      )}
-                      {etapa.status === 'em_andamento' && (
-                        <button onClick={() => { setSubmitModal(etapa); setModalError(''); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--ber-olive)] text-white rounded-lg text-xs font-medium hover:opacity-90">
-                          <CheckCircle size={12} />Submeter para aprovação
-                        </button>
-                      )}
-                      {etapa.status === 'aguardando_aprovacao' && (
-                        <>
-                          <button onClick={() => handleApprove(etapa)} disabled={!!isActioning}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50">
-                            {isActioning ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}Aprovar
-                          </button>
-                          <button onClick={() => { setRejectModal(etapa); setModalError(''); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90">
-                            <XCircle size={12} />Rejeitar
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  </SortableEtapaWrapper>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Modal Submeter */}
