@@ -3766,14 +3766,17 @@ export default function ObraDetailPage() {
         const fvs = activeFvs;
         const FVS_STATUS: Record<string, { label: string; color: string }> = {
           pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
-          inicio_preenchido: { label: 'Início preenchido', color: 'bg-blue-100 text-blue-700' },
-          aguardando_gestor: { label: 'Aguardando gestor', color: 'bg-amber-100 text-amber-700' },
-          aguardando_coord: { label: 'Aguardando coord.', color: 'bg-orange-100 text-orange-700' },
+          inicio_preenchido: { label: 'Início — Aguard. gestor', color: 'bg-blue-100 text-blue-700' },
+          inicio_aprovado_gestor: { label: 'Início — Aguard. coord.', color: 'bg-purple-100 text-purple-700' },
+          inicio_aprovado: { label: 'Início aprovado ✓', color: 'bg-teal-100 text-teal-700' },
+          aguardando_gestor: { label: 'Conclusão — Aguard. gestor', color: 'bg-amber-100 text-amber-700' },
+          aguardando_coord: { label: 'Conclusão — Aguard. coord.', color: 'bg-orange-100 text-orange-700' },
           aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
           rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
         };
         const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
         const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
+        const inicioAprovado = ['inicio_aprovado', 'aguardando_gestor', 'aguardando_coord', 'aprovada', 'rejeitada'].includes(fvs.status);
 
         const inicioItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
         const conclusaoItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
@@ -3851,7 +3854,7 @@ export default function ObraDetailPage() {
           ));
         };
 
-        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
+        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor-inicio' | 'approve-coord-inicio' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
           setFvsSubmitting(true);
           try {
             const body = type === 'reject' ? { reason } : {};
@@ -3893,20 +3896,27 @@ export default function ObraDetailPage() {
                         {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
                       </span>
                     </div>
-                    {fvs.status !== 'pendente' && (
-                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução confirmada</p>
+                    {fvs.status !== 'pendente' && inicioAprovado && (
+                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução aprovada pelo gestor e coordenador</p>
+                    )}
+                    {fvs.status !== 'pendente' && !inicioAprovado && (
+                      <p className="mb-2 text-xs text-blue-600 font-medium">Pré-execução enviada — aguardando aprovação</p>
                     )}
                     {renderSection(inicioItems, 'inicio')}
                   </div>
                 )}
 
-                {/* Seção Conclusão — só aparece após confirmar início */}
-                {conclusaoItems.length > 0 && fvs.status === 'pendente' && inicioItems.length > 0 && (
+                {/* Seção Conclusão — só aparece após início aprovado por gestor E coordenador */}
+                {conclusaoItems.length > 0 && !inicioAprovado && inicioItems.length > 0 && (
                   <div className="rounded-lg border border-dashed border-ber-gray/20 bg-gray-50 p-4 text-center">
-                    <p className="text-sm text-ber-gray">🔒 Confirme a Pré-execução para liberar a seção de Execução e Conclusão</p>
+                    <p className="text-sm text-ber-gray">
+                      {fvs.status === 'pendente'
+                        ? '🔒 Confirme a Pré-execução para liberar a seção de Execução e Conclusão'
+                        : '🔒 Aguardando aprovação da Pré-execução pelo gestor e coordenador'}
+                    </p>
                   </div>
                 )}
-                {conclusaoItems.length > 0 && (fvs.status !== 'pendente' || inicioItems.length === 0) && (
+                {conclusaoItems.length > 0 && (inicioAprovado || inicioItems.length === 0) && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
@@ -3998,8 +4008,44 @@ export default function ObraDetailPage() {
                     </button>
                   )}
 
-                  {/* submit-conclusao — só aparece após início confirmado (ou se não há itens de início) */}
-                  {(fvs.status === 'inicio_preenchido' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
+                  {/* approve-gestor-inicio */}
+                  {fvs.status === 'inicio_preenchido' && isGestor && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor-inicio')}
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-600 disabled:opacity-50">
+                        ✅ Aprovar Início (Gestor)
+                      </button>
+                    </>
+                  )}
+
+                  {/* approve-coord-inicio */}
+                  {fvs.status === 'inicio_aprovado_gestor' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord-inicio')}
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50">
+                        ✅ Aprovar Início (Coord.)
+                      </button>
+                    </>
+                  )}
+
+                  {/* submit-conclusao — só aparece após início aprovado (ou se não há itens de início) */}
+                  {(fvs.status === 'inicio_aprovado' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
                     <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
                       onClick={() => doAction('submit-conclusao')}
                       className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
@@ -4007,7 +4053,7 @@ export default function ObraDetailPage() {
                     </button>
                   )}
 
-                  {/* approve-gestor */}
+                  {/* approve-gestor (conclusão) */}
                   {fvs.status === 'aguardando_gestor' && isGestor && (
                     <>
                       <button disabled={fvsSubmitting}

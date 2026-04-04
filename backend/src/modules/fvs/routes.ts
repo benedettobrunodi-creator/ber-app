@@ -4,6 +4,7 @@ import { requireRole } from '../../middleware/rbac';
 import {
   listFvsByObra, getFvsByEtapa, createFvs, autoProvision,
   checkItem, addCustomItem, submitInicio, submitConclusao,
+  approveGestorInicio, approveCoordInicio,
   approveGestor, approveCoord, rejectFvs,
 } from './controller';
 
@@ -24,6 +25,8 @@ fvsRouter.patch('/:fvsId/items/:itemId', authenticate, w(checkItem));
 fvsRouter.post('/:fvsId/items', authenticate, w(addCustomItem));
 fvsRouter.post('/:fvsId/submit-inicio', authenticate, w(submitInicio));
 fvsRouter.post('/:fvsId/submit-conclusao', authenticate, w(submitConclusao));
+fvsRouter.post('/:fvsId/approve-gestor-inicio', authenticate, w(approveGestorInicio));
+fvsRouter.post('/:fvsId/approve-coord-inicio', authenticate, w(approveCoordInicio));
 fvsRouter.post('/:fvsId/approve-gestor', authenticate, w(approveGestor));
 fvsRouter.post('/:fvsId/approve-coord', authenticate, w(approveCoord));
 fvsRouter.post('/:fvsId/reject', authenticate, w(rejectFvs));
