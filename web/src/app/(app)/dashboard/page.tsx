@@ -138,14 +138,14 @@ export default function DashboardPage() {
     : 0;
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center gap-3 text-sm" style={{ backgroundColor: C.bg, color: C.gray }}>
+    <div className="flex h-screen items-center justify-center gap-3 text-sm bg-ber-bg" style={{ color: C.gray }}>
       <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: C.teal }} />
       Carregando Command Center...
     </div>
   );
 
   return (
-    <div className="min-h-screen -m-0 p-0" style={{ backgroundColor: C.bg, color: C.white }}>
+    <div className="min-h-screen -m-0 p-0 bg-ber-bg" style={{ color: C.white }}>
 
       {/* ── HEADER ── */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: C.border }}>

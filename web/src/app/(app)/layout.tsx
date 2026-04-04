@@ -12,31 +12,72 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Obras', href: '/obras', icon: HardHat },
-  { label: 'Kanban', href: '/kanban', icon: Kanban },
-  { label: 'Recebimentos', href: '/recebimentos', icon: Package },
-  { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
-  { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
-  { label: 'PMO', href: '/pmo', icon: FolderOpen, children: [
-    { label: 'Canteiro', href: '/canteiro' },
-    { label: 'Atas de Reunião', href: '/pmo/atas' },
-    { label: 'Projetos', href: '/pmo/projetos' },
-    { label: 'Documentos', href: '/pmo/documentos' },
-    { label: 'Rel. de Vistoria', href: '/pmo/vistorias' },
-    { label: 'Aprov. Amostras', href: '/pmo/amostras' },
-    { label: 'Shopdrawings', href: '/pmo/shopdrawings' },
-    { label: 'As Builts', href: '/pmo/as-builts' },
-    { label: 'Manual Proprietário', href: '/pmo/manual' },
-  ]},
-  { label: 'Normas Técnicas', href: '/normas', icon: BookOpen },
-  { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
-  { label: 'Segurança do Trabalho', href: '/seguranca', icon: ShieldCheck },
-  { label: 'Apontamento de Horas', href: '/ponto', icon: Clock },
-  { label: 'DRE', href: '/dre', icon: TrendingUp },
-  { label: 'Configurações', href: '/configuracoes', icon: Settings },
+/* ─── Sidebar navigation — grouped by section ─── */
+
+interface NavChild { label: string; href: string }
+interface NavItem {
+  label: string; href: string; icon: LucideIcon;
+  children?: NavChild[];
+  badge?: boolean;          // will show dynamic count
+}
+interface NavGroup { section: string; items: NavItem[] }
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    section: 'OBRAS',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'Obras', href: '/obras', icon: HardHat, badge: true },
+      { label: 'Kanban', href: '/kanban', icon: Kanban },
+      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
+    ],
+  },
+  {
+    section: 'GESTÃO',
+    items: [
+      { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true },
+      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true },
+      { label: 'PMO', href: '/pmo', icon: FolderOpen, children: [
+        { label: 'Canteiro', href: '/canteiro' },
+        { label: 'Atas de Reunião', href: '/pmo/atas' },
+        { label: 'Projetos', href: '/pmo/projetos' },
+        { label: 'Documentos', href: '/pmo/documentos' },
+        { label: 'Rel. de Vistoria', href: '/pmo/vistorias' },
+        { label: 'Aprov. Amostras', href: '/pmo/amostras' },
+        { label: 'Shopdrawings', href: '/pmo/shopdrawings' },
+        { label: 'As Builts', href: '/pmo/as-builts' },
+        { label: 'Manual Proprietário', href: '/pmo/manual' },
+      ]},
+      { label: 'Segurança', href: '/seguranca', icon: ShieldCheck },
+    ],
+  },
+  {
+    section: 'REFERÊNCIA',
+    items: [
+      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen },
+      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
+    ],
+  },
+  {
+    section: 'FINANCEIRO',
+    items: [
+      { label: 'Apontamento de Horas', href: '/ponto', icon: Clock },
+      { label: 'DRE', href: '/dre', icon: TrendingUp },
+    ],
+  },
 ];
+
+/* ─── Top bar views (horizontal nav) ─── */
+
+const TOP_VIEWS = [
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Obras', href: '/obras' },
+  { label: 'Kanban', href: '/kanban' },
+  { label: 'Checklists', href: '/checklists' },
+  { label: 'DRE', href: '/dre' },
+];
+
+/* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -46,16 +87,47 @@ const BOTTOM_NAV = [
   { label: 'Config', href: '/configuracoes', icon: Settings },
 ];
 
+/* ─── Badge dot helper ─── */
+
+function StatusDot({ count }: { count: number | null }) {
+  if (count === null) return null;
+  const color = count === 0 ? 'bg-ber-green' : count <= 3 ? 'bg-ber-amber' : 'bg-ber-red';
+  return (
+    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${color}`}>
+      {count}
+    </span>
+  );
+}
+
+/* ─── Component ─── */
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
   const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number | null>>({});
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  // Fetch badge counts
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchCounts = async () => {
+      try {
+        const [obrasRes] = await Promise.allSettled([
+          fetch('/api/v1/obras', { headers: { Authorization: `Bearer ${document.cookie.match(/accessToken=([^;]+)/)?.[1] ?? ''}` } }),
+        ]);
+        const obrasData = obrasRes.status === 'fulfilled' && obrasRes.value.ok ? await obrasRes.value.json() : null;
+        const obrasCount = obrasData?.data?.filter?.((o: any) => o.status === 'em_andamento')?.length ?? null;
+        setCounts({ '/obras': obrasCount });
+      } catch { /* silent */ }
+    };
+    fetchCounts();
+  }, [isAuthenticated]);
 
   function handleLogout() {
     logout();
@@ -65,65 +137,93 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return null;
 
+  /* ─── Sidebar content ─── */
   const sidebarContent = (
     <>
+      {/* Logo */}
       <div className="px-6 pt-8 pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-wider">BÈR</h1>
-            <p className="mt-0.5 text-[10px] font-semibold tracking-[0.2em] text-ber-gray uppercase">Excelência Operacional</p>
+            <h1 className="text-3xl font-black tracking-wider text-white">BÈR</h1>
+            <p className="mt-0.5 text-[10px] font-semibold tracking-[0.2em] text-gray-500 uppercase">Excelência Operacional</p>
           </div>
           <button
             onClick={() => setDrawerOpen(false)}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-ber-gray hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:text-white"
           >
             <X size={20} />
           </button>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3 overflow-y-auto pb-4">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon as LucideIcon;
-          const active = pathname.startsWith(item.href);
+      {/* Nav groups */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.section} className="mb-4">
+            <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
+              {group.section}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = pathname.startsWith(item.href);
 
-          if (item.children) {
-            return (
-              <div key={item.label}>
-                <button
-                  onClick={() => setPmoOpen(o => !o)}
-                  className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${active || pmoOpen ? 'bg-ber-olive text-white' : 'text-ber-gray hover:bg-white/10 hover:text-white'}`}
-                >
-                  <div className="flex items-center gap-3">
+                /* Collapsible group (PMO) */
+                if (item.children) {
+                  return (
+                    <div key={item.label}>
+                      <button
+                        onClick={() => setPmoOpen(o => !o)}
+                        className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${
+                          active || pmoOpen
+                            ? 'bg-ber-olive/20 text-ber-olive'
+                            : 'text-gray-400 hover:bg-ber-sidebar-hover hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </div>
+                        {pmoOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      {pmoOpen && (
+                        <div className="ml-6 mt-0.5 space-y-0.5">
+                          {item.children.map(child => (
+                            <Link key={child.href} href={child.href}
+                              className={`block rounded-lg px-3 py-2.5 min-h-[44px] flex items-center text-xs transition-colors ${
+                                pathname.startsWith(child.href)
+                                  ? 'bg-ber-olive/20 text-ber-olive'
+                                  : 'text-gray-500 hover:bg-ber-sidebar-hover hover:text-white'
+                              }`}>
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                /* Regular nav item */
+                return (
+                  <Link key={item.label} href={item.href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-ber-olive/20 text-ber-olive'
+                        : 'text-gray-400 hover:bg-ber-sidebar-hover hover:text-white'
+                    }`}>
                     <Icon size={16} />
                     <span>{item.label}</span>
-                  </div>
-                  {pmoOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </button>
-                {pmoOpen && (
-                  <div className="ml-6 mt-0.5 space-y-0.5">
-                    {item.children.map(child => (
-                      <Link key={child.href} href={child.href}
-                        className={`block rounded-lg px-3 py-2.5 min-h-[44px] flex items-center text-xs transition-colors ${pathname.startsWith(child.href) ? 'bg-white/20 text-white' : 'text-ber-gray hover:bg-white/10 hover:text-white'}`}>
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          return (
-            <Link key={item.label} href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${active ? 'bg-ber-olive text-white' : 'text-ber-gray hover:bg-white/10 hover:text-white'}`}>
-              <Icon size={16} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+                    {item.badge && <StatusDot count={counts[item.href] ?? null} />}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
+      {/* User footer */}
       <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-2 px-3 py-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ber-olive text-white text-sm font-bold">
@@ -131,9 +231,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-            <p className="text-xs text-ber-gray truncate">{user?.role}</p>
+            <p className="text-xs text-gray-500 truncate">{user?.role}</p>
           </div>
-          <button onClick={handleLogout} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-ber-gray hover:text-white transition-colors">
+          <button onClick={handleLogout} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white transition-colors">
             <LogOut size={16} />
           </button>
         </div>
@@ -142,16 +242,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex h-full min-h-dvh flex-col">
-      {/* Top header — always visible */}
-      <header className="flex h-14 shrink-0 items-center justify-between bg-ber-carbon px-4">
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-white"
-        >
-          <Menu size={22} />
-        </button>
-        <h1 className="text-xl font-black tracking-wider text-white">BÈR</h1>
+    <div className="flex h-full min-h-dvh flex-col bg-ber-bg">
+      {/* ─── Top header ─── */}
+      <header className="flex h-14 shrink-0 items-center justify-between bg-ber-sidebar px-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-white"
+          >
+            <Menu size={22} />
+          </button>
+          <h1 className="text-xl font-black tracking-wider text-white hidden sm:block">BÈR</h1>
+        </div>
+
+        {/* ─── Top bar views (desktop) ─── */}
+        <nav className="hidden md:flex items-center gap-1">
+          {TOP_VIEWS.map((view) => {
+            const active = pathname.startsWith(view.href);
+            return (
+              <Link
+                key={view.href}
+                href={view.href}
+                className={`rounded-md px-3 py-1.5 text-xs font-bold tracking-wide uppercase transition-colors ${
+                  active
+                    ? 'bg-ber-olive text-white'
+                    : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {view.label}
+              </Link>
+            );
+          })}
+        </nav>
+
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ber-olive text-white text-xs font-bold">
             {user?.name?.[0]?.toUpperCase() || 'U'}
@@ -159,7 +282,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Drawer overlay */}
+      {/* ─── Drawer overlay ─── */}
       {drawerOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50"
@@ -167,20 +290,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar — always drawer */}
+      {/* ─── Sidebar drawer ─── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-ber-carbon text-white transition-transform duration-300 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-ber-sidebar text-white transition-transform duration-300 ease-in-out ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
         {sidebarContent}
       </aside>
 
-      {/* Main content — padded for bottom nav on mobile */}
-      <main className="flex-1 overflow-auto bg-[var(--ber-offwhite)] pb-20 md:pb-0">
+      {/* ─── Main content ─── */}
+      <main className="flex-1 overflow-auto bg-ber-bg pb-20 md:pb-0">
         {children}
       </main>
 
-      {/* Bottom navigation — mobile only */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-gray/20 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+      {/* ─── Bottom navigation — mobile only ─── */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
         {BOTTOM_NAV.map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
@@ -188,7 +313,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-[10px] font-medium transition-colors ${active ? 'text-ber-olive' : 'text-ber-gray'}`}
+              className={`flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-2 text-[10px] font-medium transition-colors ${
+                active ? 'text-ber-olive' : 'text-ber-gray'
+              }`}
             >
               <Icon size={20} />
               <span>{item.label}</span>
