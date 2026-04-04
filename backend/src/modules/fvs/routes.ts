@@ -3,7 +3,7 @@ import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import {
   listFvsByObra, getFvsByEtapa, createFvs, autoProvision,
-  checkItem, submitInicio, submitConclusao,
+  checkItem, addCustomItem, submitInicio, submitConclusao,
   approveGestor, approveCoord, rejectFvs,
 } from './controller';
 
@@ -21,6 +21,7 @@ obraFvsRouter.post('/etapas/:etapaId/fvs', authenticate, requireRole('gestor'), 
 // Mounted at /v1/obra-fvs
 export const fvsRouter = Router();
 fvsRouter.patch('/:fvsId/items/:itemId', authenticate, w(checkItem));
+fvsRouter.post('/:fvsId/items', authenticate, w(addCustomItem));
 fvsRouter.post('/:fvsId/submit-inicio', authenticate, w(submitInicio));
 fvsRouter.post('/:fvsId/submit-conclusao', authenticate, w(submitConclusao));
 fvsRouter.post('/:fvsId/approve-gestor', authenticate, w(approveGestor));

@@ -88,7 +88,7 @@ interface FvsTemplateItemType {
   id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
 }
 interface ObraFvsItemType {
-  id: string; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
+  id: string; momento: string; descricao: string | null; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
   templateItem: FvsTemplateItemType | null;
   filler: { id: string; name: string } | null;
 }
@@ -393,6 +393,9 @@ export default function ObraDetailPage() {
   const [createFvsModal, setCreateFvsModal] = useState(false);
   const [createFvsTemplateId, setCreateFvsTemplateId] = useState('');
   const [createFvsEtapaId, setCreateFvsEtapaId] = useState('');
+  const [addFvsItemOpen, setAddFvsItemOpen] = useState(false);
+  const [addFvsItemDesc, setAddFvsItemDesc] = useState('');
+  const [addFvsItemMomento, setAddFvsItemMomento] = useState<'inicio' | 'conclusao'>('conclusao');
 
   const [checklists, setChecklists] = useState<ChecklistSummary[]>([]);
   const [loadingChecklists, setLoadingChecklists] = useState(false);
@@ -2805,7 +2808,7 @@ export default function ObraDetailPage() {
                 {/* FVS Pré-execução inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const inicioItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'inicio');
+                  const inicioItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
                   if (!inicioItems.length) return null;
                   const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
                   const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
@@ -2831,8 +2834,8 @@ export default function ObraDetailPage() {
                                 }}
                                 className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
                               <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                {item.templateItem?.descricao}
-                                {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                {item.templateItem?.descricao ?? item.descricao}
+                                {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                               </span>
                               <button type="button"
                                 onClick={async () => {
@@ -2879,7 +2882,7 @@ export default function ObraDetailPage() {
                 {/* FVS Conclusão inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const conclusaoItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+                  const conclusaoItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
                   if (!conclusaoItems.length) return (
                     <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
                       <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
@@ -2915,8 +2918,8 @@ export default function ObraDetailPage() {
                                   }}
                                   className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
                                 <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                  {item.templateItem?.descricao}
-                                  {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                  {item.templateItem?.descricao ?? item.descricao}
+                                  {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                                 </span>
                                 <button type="button"
                                   onClick={async () => {
@@ -3772,8 +3775,8 @@ export default function ObraDetailPage() {
         const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
         const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
 
-        const inicioItems = fvs.items.filter(i => i.templateItem?.momento === 'inicio');
-        const conclusaoItems = fvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+        const inicioItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
+        const conclusaoItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
         const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
         const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
         const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
@@ -3781,7 +3784,7 @@ export default function ObraDetailPage() {
 
         const bySecao = (items: ObraFvsItemType[]) => {
           const map: Record<string, ObraFvsItemType[]> = {};
-          items.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (map[s] = map[s] ?? []).push(i); });
+          items.forEach(i => { const s = i.templateItem?.secao ?? (i.templateItem ? 'Geral' : 'Personalizado'); (map[s] = map[s] ?? []).push(i); });
           return map;
         };
 
@@ -3820,8 +3823,9 @@ export default function ObraDetailPage() {
                     {/* Description */}
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                        {item.templateItem?.descricao}
+                        {item.templateItem?.descricao ?? item.descricao}
                         {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
+                        {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
                       </p>
                     </div>
                     {/* N/A toggle */}
@@ -3901,6 +3905,70 @@ export default function ObraDetailPage() {
                       </span>
                     </div>
                     {renderSection(conclusaoItems, 'conclusao')}
+                  </div>
+                )}
+
+                {/* Adicionar etapa customizada */}
+                {!isLocked && (
+                  <div className="mt-6 border-t border-dashed border-ber-gray/20 pt-4">
+                    {!addFvsItemOpen ? (
+                      <button
+                        onClick={() => setAddFvsItemOpen(true)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ber-gray/30 py-2.5 text-sm font-medium text-ber-gray hover:border-ber-teal hover:text-ber-teal transition-colors">
+                        + Adicionar etapa
+                      </button>
+                    ) : (
+                      <div className="space-y-3 rounded-lg bg-ber-offwhite/50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-ber-gray">Nova etapa</p>
+                        <input
+                          type="text"
+                          placeholder="Descrição da etapa..."
+                          value={addFvsItemDesc}
+                          onChange={e => setAddFvsItemDesc(e.target.value)}
+                          className="w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none"
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-semibold text-ber-gray">Momento:</label>
+                          <select
+                            value={addFvsItemMomento}
+                            onChange={e => setAddFvsItemMomento(e.target.value as 'inicio' | 'conclusao')}
+                            className="rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:outline-none">
+                            <option value="inicio">Pré-execução (Início)</option>
+                            <option value="conclusao">Execução e Conclusão</option>
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => { setAddFvsItemOpen(false); setAddFvsItemDesc(''); }}
+                            className="rounded-md px-3 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
+                            Cancelar
+                          </button>
+                          <button
+                            disabled={!addFvsItemDesc.trim() || fvsSubmitting}
+                            onClick={async () => {
+                              setFvsSubmitting(true);
+                              try {
+                                const r = await api.post(`/obra-fvs/${fvs.id}/items`, {
+                                  descricao: addFvsItemDesc.trim(),
+                                  momento: addFvsItemMomento,
+                                });
+                                const newItem = r.data.data;
+                                const updated = { ...fvs, items: [...fvs.items, newItem] };
+                                setActiveFvs(updated);
+                                setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+                                setAddFvsItemDesc('');
+                                setAddFvsItemOpen(false);
+                              } catch (e: any) {
+                                alert(e?.response?.data?.message ?? 'Erro ao adicionar etapa');
+                              } finally { setFvsSubmitting(false); }
+                            }}
+                            className="rounded-md bg-ber-carbon px-4 py-1.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                            Adicionar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

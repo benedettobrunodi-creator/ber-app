@@ -208,6 +208,33 @@ export async function autoProvision(req: Request, res: Response) {
   sendSuccess(res, result);
 }
 
+// POST /obra-fvs/:fvsId/items  — add custom item
+export async function addCustomItem(req: Request, res: Response) {
+  const { fvsId } = req.params;
+  const { descricao, momento } = req.body;
+  const userId = (req as any).user?.id;
+
+  if (!descricao?.trim()) throw AppError.badRequest('Descrição obrigatória');
+  if (!['inicio', 'conclusao'].includes(momento)) throw AppError.badRequest('Momento deve ser "inicio" ou "conclusao"');
+
+  const fvs = await prisma.obraFvs.findUnique({ where: { id: fvsId } });
+  if (!fvs) throw AppError.notFound('FVS não encontrada');
+  if (['aprovada', 'rejeitada'].includes(fvs.status)) throw AppError.badRequest('FVS encerrada');
+
+  const item = await prisma.obraFvsItem.create({
+    data: {
+      fvsId,
+      momento,
+      descricao: descricao.trim(),
+      checked: false,
+      na: false,
+      filledBy: userId,
+    },
+    include: { templateItem: true, filler: { select: { id: true, name: true } } },
+  });
+  sendCreated(res, item);
+}
+
 // POST /obra-fvs/:fvsId/reject
 export async function rejectFvs(req: Request, res: Response) {
   const { fvsId } = req.params;

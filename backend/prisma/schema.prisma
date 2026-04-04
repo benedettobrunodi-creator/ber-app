@@ -915,6 +915,7 @@ model ObraFvsItem {
   fvsId          String    @db.Uuid @map("fvs_id")
   templateItemId String?   @db.Uuid @map("template_item_id")
   momento        String    @db.VarChar(20)
+  descricao      String?
   checked        Boolean   @default(false)
   na             Boolean   @default(false)
   observacao     String?
