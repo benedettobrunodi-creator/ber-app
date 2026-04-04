@@ -1877,6 +1877,13 @@ export default function ObraDetailPage() {
           const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
           const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
           const isPdf = (url: string) => url?.toLowerCase().endsWith('.pdf');
+          // Resolve relative /uploads/ paths to the backend URL
+          const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace('/v1', '');
+          const resolveFileUrl = (url: string) => {
+            if (!url) return url;
+            if (url.startsWith('http')) return url;
+            return `${BACKEND_BASE}${url}`;
+          };
           const planta = plantas[0] ?? null;
           const now = Date.now();
           const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -2054,11 +2061,11 @@ export default function ObraDetailPage() {
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
                           {isPdf(planta.fileUrl) ? (
-                            <iframe src={planta.fileUrl} className="w-full h-[500px]" title="Planta" />
+                            <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta" />
                           ) : (
                             <img
                               ref={imgRef}
-                              src={planta.fileUrl}
+                              src={resolveFileUrl(planta.fileUrl)}
                               alt="Planta"
                               className="w-full h-auto block"
                             />
@@ -2110,7 +2117,7 @@ export default function ObraDetailPage() {
                                 <span className="text-[10px] font-semibold text-ber-gray">PDF</span>
                               </div>
                             ) : (
-                              <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
                             )}
                             <div className="px-3 py-2">
                               <div className="flex items-center gap-2">
@@ -2160,7 +2167,7 @@ export default function ObraDetailPage() {
                                 <span className="text-xs font-semibold text-ber-gray">PDF</span>
                               </div>
                             ) : (
-                              <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition" />
                           </div>
@@ -2199,9 +2206,9 @@ export default function ObraDetailPage() {
                     )}
                     <div className="max-h-[90vh] max-w-[90vw] flex flex-col items-center" onClick={e => e.stopPropagation()}>
                       {isPdf(fullscreenFoto.fileUrl) ? (
-                        <iframe src={fullscreenFoto.fileUrl} className="w-[90vw] max-w-4xl h-[75vh] rounded-lg bg-white" title="PDF" />
+                        <iframe src={resolveFileUrl(fullscreenFoto.fileUrl)} className="w-[90vw] max-w-4xl h-[75vh] rounded-lg bg-white" title="PDF" />
                       ) : (
-                        <img src={fullscreenFoto.fileUrl} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                        <img src={resolveFileUrl(fullscreenFoto.fileUrl)} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
                       )}
                       <div className="mt-3 text-center text-white">
                         {fullscreenFoto.ambiente && <span className="text-sm font-semibold">{fullscreenFoto.ambiente.nome}</span>}
@@ -2277,7 +2284,7 @@ export default function ObraDetailPage() {
                           {referenceFoto && (
                             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                               <p className="text-[10px] font-bold text-amber-700 mb-1">📷 Foto anterior — mesmo ângulo</p>
-                              <img src={referenceFoto.fileUrl} alt="" className="w-full h-24 object-cover rounded" />
+                              <img src={resolveFileUrl(referenceFoto.fileUrl)} alt="" className="w-full h-24 object-cover rounded" />
                               <p className="mt-1 text-[9px] text-amber-600">{referenceFoto.tiradaEm ? new Date(referenceFoto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
                             </div>
                           )}
