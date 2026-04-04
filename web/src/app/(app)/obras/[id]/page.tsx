@@ -2029,16 +2029,40 @@ export default function ObraDetailPage() {
                       </label>
                     ) : (
                       <div className="rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm">
+                        {/* Botão trocar planta */}
+                        <div className="flex items-center justify-end gap-2 bg-gray-50 px-3 py-1.5 border-b border-ber-gray/10">
+                          <label className="flex items-center gap-1.5 cursor-pointer rounded-md px-2.5 py-1 text-[10px] font-semibold text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors">
+                            🔄 Trocar planta
+                            <input type="file" accept="image/*,.pdf" className="hidden"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                if (!confirm('Deseja substituir a planta atual? Os ambientes serão mantidos.')) return;
+                                try {
+                                  await api.delete(`/obras/${params.id}/plantas/${planta.id}`);
+                                  const fd = new FormData(); fd.append('file', f);
+                                  const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                  const url = up.data.data?.url ?? up.data.url;
+                                  const r = await api.post(`/obras/${params.id}/plantas`, { fileUrl: url });
+                                  setPlantas([r.data.data]);
+                                } catch { alert('Erro ao trocar a planta'); }
+                              }} />
+                          </label>
+                        </div>
                         {/* Wrapper relativo à imagem — pins posicionados AQUI dentro */}
                         <div className="relative"
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
-                          <img
-                            ref={imgRef}
-                            src={planta.fileUrl}
-                            alt="Planta"
-                            className="w-full h-auto block"
-                          />
+                          {isPdf(planta.fileUrl) ? (
+                            <iframe src={planta.fileUrl} className="w-full h-[500px]" title="Planta" />
+                          ) : (
+                            <img
+                              ref={imgRef}
+                              src={planta.fileUrl}
+                              alt="Planta"
+                              className="w-full h-auto block"
+                            />
+                          )}
                           {/* Pins — absolutamente posicionados dentro do wrapper da imagem */}
                           {ambientes.filter(a => a.plantaId === planta.id).map((amb) => {
                             const pinColor = getPinColor(amb);
