@@ -3886,17 +3886,27 @@ export default function ObraDetailPage() {
                 {inicioItems.length > 0 && (
                   <div className="mb-6">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-ber-carbon">🟡 Pré-execução (Início)</h3>
+                      <h3 className="text-sm font-bold text-ber-carbon">
+                        {fvs.status === 'pendente' ? '🟡' : '✅'} Pré-execução (Início)
+                      </h3>
                       <span className={`text-xs font-semibold ${inicioObrigChecked === inicioObrigTotal ? 'text-green-600' : 'text-amber-600'}`}>
                         {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
                       </span>
                     </div>
+                    {fvs.status !== 'pendente' && (
+                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução confirmada</p>
+                    )}
                     {renderSection(inicioItems, 'inicio')}
                   </div>
                 )}
 
-                {/* Seção Conclusão */}
-                {conclusaoItems.length > 0 && (
+                {/* Seção Conclusão — só aparece após confirmar início */}
+                {conclusaoItems.length > 0 && fvs.status === 'pendente' && inicioItems.length > 0 && (
+                  <div className="rounded-lg border border-dashed border-ber-gray/20 bg-gray-50 p-4 text-center">
+                    <p className="text-sm text-ber-gray">🔒 Confirme a Pré-execução para liberar a seção de Execução e Conclusão</p>
+                  </div>
+                )}
+                {conclusaoItems.length > 0 && (fvs.status !== 'pendente' || inicioItems.length === 0) && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
@@ -3988,8 +3998,8 @@ export default function ObraDetailPage() {
                     </button>
                   )}
 
-                  {/* submit-conclusao */}
-                  {['pendente', 'inicio_preenchido'].includes(fvs.status) && conclusaoItems.length > 0 && (
+                  {/* submit-conclusao — só aparece após início confirmado (ou se não há itens de início) */}
+                  {(fvs.status === 'inicio_preenchido' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
                     <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
                       onClick={() => doAction('submit-conclusao')}
                       className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
