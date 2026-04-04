@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import api from '@/lib/api';
 import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
@@ -108,22 +109,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number | null>>({});
+  const [kpi, setKpi] = useState<{ ativas: number; total: number; atrasadas: number } | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
-  // Fetch badge counts
+  // Fetch badge counts + KPI global
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchCounts = async () => {
       try {
-        const [obrasRes] = await Promise.allSettled([
-          fetch('/api/v1/obras', { headers: { Authorization: `Bearer ${document.cookie.match(/accessToken=([^;]+)/)?.[1] ?? ''}` } }),
-        ]);
-        const obrasData = obrasRes.status === 'fulfilled' && obrasRes.value.ok ? await obrasRes.value.json() : null;
-        const obrasCount = obrasData?.data?.filter?.((o: any) => o.status === 'em_andamento')?.length ?? null;
-        setCounts({ '/obras': obrasCount });
+        const r = await api.get('/obras');
+        const all: any[] = r.data?.data ?? [];
+        const ativas = all.filter((o: any) => o.status === 'em_andamento');
+        const atrasadas = ativas.filter((o: any) => (o.progressPercent ?? o.progress ?? 0) < 20).length;
+        setCounts({ '/obras': ativas.length });
+        setKpi({ ativas: ativas.length, total: all.length, atrasadas });
       } catch { /* silent */ }
     };
     fetchCounts();
@@ -275,7 +277,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* KPI Global */}
+          {kpi && (
+            <div className="hidden sm:flex items-center gap-2 rounded-lg px-3 py-1.5 bg-white/10">
+              <span className={`text-lg font-black ${
+                kpi.atrasadas > 0 ? 'text-ber-red' : kpi.ativas > 0 ? 'text-ber-green' : 'text-gray-400'
+              }`}>
+                {kpi.ativas - kpi.atrasadas}/{kpi.ativas}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Obras em dia
+              </span>
+            </div>
+          )}
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ber-olive text-white text-xs font-bold">
             {user?.name?.[0]?.toUpperCase() || 'U'}
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import CollapsibleSection from '@/components/CollapsibleSection';
 
 // ─── Paleta Command Center (Light) ───────────────────────────────────────────
 const C = {
@@ -196,6 +197,117 @@ export default function DashboardPage() {
 
       <div className="p-6 space-y-8">
 
+        {/* ── PAINEL DE DIAGNÓSTICO ── */}
+        {!loading && (
+          <div>
+            <SectionTitle label="Diagnóstico" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* CRÍTICO */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#FEE2E2' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.red }}>Crítico</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {seqData.atrasadas > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.red }} />
+                      {seqData.atrasadas} etapa{seqData.atrasadas > 1 ? 's' : ''} atrasada{seqData.atrasadas > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {qualidade.naoConformes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.red }} />
+                      {qualidade.naoConformes} não-conformidade{qualidade.naoConformes > 1 ? 's' : ''} sem ação
+                    </p>
+                  )}
+                  {seqData.atrasadas === 0 && qualidade.naoConformes === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhum item crítico</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ATENÇÃO */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#FEF3C7' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#D97706' }}>Atenção</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {totalFvsPendentes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {totalFvsPendentes} FVS pendente{totalFvsPendentes > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {seqData.aguardando > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {seqData.aguardando} etapa{seqData.aguardando > 1 ? 's' : ''} aguard. aprovação
+                    </p>
+                  )}
+                  {qualidade.pendentes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {qualidade.pendentes} checklist{qualidade.pendentes > 1 ? 's' : ''} em aberto
+                    </p>
+                  )}
+                  {totalFvsPendentes === 0 && seqData.aguardando === 0 && qualidade.pendentes === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhum alerta</p>
+                  )}
+                </div>
+              </div>
+
+              {/* NO AZUL */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#D1FAE5' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.green }}>No Azul</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {obras.filter(o => (o.progressPercent ?? o.progress ?? 0) >= 50).map(o => (
+                    <p key={o.id} className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.green }} />
+                      {o.name} — {o.progressPercent ?? o.progress ?? 0}%
+                    </p>
+                  ))}
+                  {obras.filter(o => (o.progressPercent ?? o.progress ?? 0) >= 50).length === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhuma obra acima de 50%</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* TOP PRIORIDADES */}
+            {totalAlertas > 0 && (
+              <div className="mt-4 rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: C.red }}>
+                  Top Prioridades de Ação
+                </p>
+                <div className="space-y-2">
+                  {seqData.atrasadas > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: C.red }}>1</span>
+                      Resolver {seqData.atrasadas} etapa{seqData.atrasadas > 1 ? 's' : ''} atrasada{seqData.atrasadas > 1 ? 's' : ''} no sequenciamento
+                    </div>
+                  )}
+                  {qualidade.naoConformes > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: C.red }}>{seqData.atrasadas > 0 ? '2' : '1'}</span>
+                      Tratar {qualidade.naoConformes} não-conformidade{qualidade.naoConformes > 1 ? 's' : ''} pendente{qualidade.naoConformes > 1 ? 's' : ''}
+                    </div>
+                  )}
+                  {totalFvsPendentes > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: '#D97706' }}>
+                        {(seqData.atrasadas > 0 ? 1 : 0) + (qualidade.naoConformes > 0 ? 1 : 0) + 1}
+                      </span>
+                      Preencher {totalFvsPendentes} FVS pendente{totalFvsPendentes > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── RADAR DE OBRAS ── */}
         <div>
           <SectionTitle label="Radar de Obras" />
@@ -269,22 +381,20 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
           {/* QUALIDADE */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.teal, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <SectionTitle label="Qualidade" />
+          <CollapsibleSection title="Qualidade" count={totalFvsPendentes + qualidade.pendentes + qualidade.naoConformes} accent="teal">
             <MetricRow label="FVS pendentes (total)" value={totalFvsPendentes} accent={totalFvsPendentes > 0 ? C.olive : C.teal} />
             <MetricRow label="Checklists em aberto" value={qualidade.pendentes} accent={qualidade.pendentes > 0 ? C.olive : C.teal} />
             <MetricRow label="NCs sem resolução" value={qualidade.naoConformes} accent={qualidade.naoConformes > 0 ? C.red : C.teal} />
             <MetricRow label="Obras monitoradas" value={obras.length} />
-          </div>
+          </CollapsibleSection>
 
           {/* PENDÊNCIAS */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.olive, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <SectionTitle label="Pendências" />
+          <CollapsibleSection title="Pendências" count={seqData.aguardando + seqData.atrasadas} accent={totalAlertas > 0 ? 'red' : 'green'}>
             <MetricRow label="Etapas aguard. aprovação" value={seqData.aguardando} accent={seqData.aguardando > 0 ? C.olive : C.teal} />
             <MetricRow label="Etapas atrasadas" value={seqData.atrasadas} accent={seqData.atrasadas > 0 ? C.red : C.teal} />
             <MetricRow label="Alertas críticos" value={totalAlertas} accent={totalAlertas > 0 ? C.red : C.teal} />
             <MetricRow label="Status geral" value={totalAlertas === 0 ? '✓ OK' : `${totalAlertas} pendência${totalAlertas > 1 ? 's' : ''}`} accent={totalAlertas === 0 ? C.teal : C.red} />
-          </div>
+          </CollapsibleSection>
         </div>
 
       </div>
