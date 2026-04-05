@@ -2079,16 +2079,15 @@ export default function ObraDetailPage() {
                           </label>
                         </div>
                         {/* Wrapper relativo à imagem — pins posicionados AQUI dentro */}
-                        <div className="relative overflow-hidden"
+                        <div className="relative"
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
                           {isPdf(planta.fileUrl) ? (
                             <iframe
-                              src={`${resolveFileUrl(planta.fileUrl)}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                              className="w-full h-[600px] border-0"
+                              src={resolveFileUrl(planta.fileUrl)}
+                              className="w-full h-[500px]"
                               title="Planta"
-                              scrolling="no"
-                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto', overflow: 'hidden' }}
+                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
                             />
                           ) : (
                             <img
