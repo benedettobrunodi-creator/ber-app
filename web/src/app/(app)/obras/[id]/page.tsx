@@ -1564,7 +1564,7 @@ export default function ObraDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-1 border-b border-ber-gray/20 overflow-x-auto">
+      <div className="mt-6 flex items-center gap-1 border-b border-ber-gray/20 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -1578,6 +1578,12 @@ export default function ObraDetailPage() {
             {tab.label}
           </button>
         ))}
+        {activeTab === 'cockpit' && (
+          <button onClick={resetBlockOrder}
+            className="shrink-0 ml-auto flex items-center gap-1.5 rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-[10px] font-medium text-ber-gray hover:bg-ber-offwhite transition-colors">
+            <RotateCcw size={10} /> Resetar layout
+          </button>
+        )}
         {/* Medição — página dedicada */}
         <Link
           href={`/obras/${params.id}/medicao`}
@@ -1765,13 +1771,6 @@ export default function ObraDetailPage() {
 
           return (
             <div>
-              {/* Toolbar */}
-              <div className="mb-4 flex justify-end">
-                <button onClick={resetBlockOrder} className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-1.5 text-xs font-medium text-ber-gray transition-colors hover:bg-ber-offwhite">
-                  <RotateCcw size={12} /> Resetar layout
-                </button>
-              </div>
-
               {/* Sortable grid */}
               <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={blockOrder} strategy={rectSortingStrategy}>
