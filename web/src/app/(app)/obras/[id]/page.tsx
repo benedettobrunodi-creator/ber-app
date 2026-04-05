@@ -527,9 +527,18 @@ export default function ObraDetailPage() {
       const saved = localStorage.getItem(`cockpit-order-${params.id}`);
       const parsed = saved ? JSON.parse(saved) : null;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Merge: keep saved order + append any new blocks not yet saved
-        const missing = DEFAULT_BLOCK_ORDER.filter(b => !parsed.includes(b));
-        return [...parsed.filter((b: string) => DEFAULT_BLOCK_ORDER.includes(b)), ...missing];
+        const valid = parsed.filter((b: string) => DEFAULT_BLOCK_ORDER.includes(b));
+        const missing = DEFAULT_BLOCK_ORDER.filter(b => !valid.includes(b));
+        // Insert missing blocks at their default position
+        const merged = [...valid];
+        for (const b of missing) {
+          const defaultIdx = DEFAULT_BLOCK_ORDER.indexOf(b);
+          // Find the best position: right after the previous default block
+          const prevBlock = DEFAULT_BLOCK_ORDER[defaultIdx - 1];
+          const insertIdx = prevBlock ? merged.indexOf(prevBlock) + 1 : 0;
+          merged.splice(insertIdx, 0, b);
+        }
+        return merged;
       }
     } catch {}
     return DEFAULT_BLOCK_ORDER;
