@@ -3,8 +3,64 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
+ * Loads a PDF and returns the first page as a base64 PNG data URL.
+ * Does NOT render anything — use the dataUrl in an <img> or Konva.Image.
+ */
+export function usePdfAsImage(src: string | undefined): { dataUrl: string | null; error: boolean; loading: boolean } {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const srcRef = useRef('');
+
+  useEffect(() => {
+    if (!src || src === srcRef.current) return;
+    srcRef.current = src;
+    setDataUrl(null);
+    setError(false);
+    setLoading(true);
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+
+        const pdf = await pdfjsLib.getDocument({
+          url: src,
+          disableAutoFetch: true,
+          isEvalSupported: false,
+        }).promise;
+        const page = await pdf.getPage(1);
+
+        const scale = 2;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        if (!cancelled) {
+          setDataUrl(canvas.toDataURL('image/png'));
+        }
+        pdf.destroy();
+      } catch (err) {
+        console.error('PDF render error:', err);
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [src]);
+
+  return { dataUrl, error, loading };
+}
+
+/**
  * Renders the first page of a PDF as a static <img> (base64 PNG).
- * Uses pdfjs-dist with disabled worker (main thread) for bundler compatibility.
  */
 export default function PdfImage({
   src,
@@ -15,59 +71,7 @@ export default function PdfImage({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-  const srcRef = useRef('');
-
-  useEffect(() => {
-    if (!src || src === srcRef.current) return;
-    srcRef.current = src;
-    setDataUrl(null);
-    setError(false);
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        // Dynamic import to avoid SSR issues
-        const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
-
-        // Disable worker — runs on main thread, simpler and bundler-compatible
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-
-        const loadingTask = pdfjsLib.getDocument({
-          url: src,
-          disableAutoFetch: true,
-          isEvalSupported: false,
-        });
-        const pdf = await loadingTask.promise;
-        const page = await pdf.getPage(1);
-
-        // Render at 2x for crisp display on retina
-        const scale = 2;
-        const viewport = page.getViewport({ scale });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        const ctx = canvas.getContext('2d')!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        if (!cancelled) {
-          setDataUrl(canvas.toDataURL('image/png'));
-        }
-
-        // Cleanup
-        pdf.destroy();
-      } catch (err) {
-        console.error('PdfImage render error:', err);
-        if (!cancelled) setError(true);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [src]);
+  const { dataUrl, error, loading } = usePdfAsImage(src);
 
   if (error) {
     return (
@@ -80,7 +84,7 @@ export default function PdfImage({
     );
   }
 
-  if (!dataUrl) {
+  if (loading || !dataUrl) {
     return (
       <div className={`flex items-center justify-center bg-gray-50 animate-pulse ${className ?? ''}`} style={{ minHeight: 400, ...style }}>
         <div className="text-center">
@@ -91,12 +95,5 @@ export default function PdfImage({
     );
   }
 
-  return (
-    <img
-      src={dataUrl}
-      alt="Planta (PDF)"
-      className={className}
-      style={style}
-    />
-  );
+  return <img src={dataUrl} alt="Planta (PDF)" className={className} style={style} />;
 }

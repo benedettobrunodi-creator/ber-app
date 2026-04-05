@@ -9,7 +9,11 @@ import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCh
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
-import PdfImage from '@/components/PdfImage';
+import dynamic from 'next/dynamic';
+import { usePdfAsImage } from '@/components/PdfImage';
+
+// Konva requires window — load client-side only
+const PlantaCanvas = dynamic(() => import('@/components/PlantaCanvas'), { ssr: false });
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -329,6 +333,62 @@ const CHECKLIST_TYPE_COLORS: Record<string, string> = {
 function formatDate(iso: string | null): string {
   if (!iso) return '--';
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+/** Wrapper that resolves PDF→image and renders PlantaCanvas */
+function PlantaCanvasWrapper({
+  planta,
+  ambientes,
+  selectedId,
+  addMode,
+  onSelect,
+  onAddPin,
+  getPinColor,
+  resolveFileUrl,
+  isPdf,
+}: {
+  planta: { id: string; fileUrl: string };
+  ambientes: any[];
+  selectedId: string | null;
+  addMode: boolean;
+  onSelect: (amb: any | null) => void;
+  onAddPin: (posX: number, posY: number) => void;
+  getPinColor: (amb: any) => string;
+  resolveFileUrl: (url: string) => string;
+  isPdf: (url: string) => boolean;
+}) {
+  const resolvedUrl = resolveFileUrl(planta.fileUrl);
+  const { dataUrl: pdfDataUrl, loading: pdfLoading } = usePdfAsImage(
+    isPdf(planta.fileUrl) ? resolvedUrl : undefined
+  );
+
+  const imageSrc = isPdf(planta.fileUrl) ? pdfDataUrl : resolvedUrl;
+  const plantaAmbientes = ambientes.filter((a: any) => a.plantaId === planta.id);
+
+  if (isPdf(planta.fileUrl) && (pdfLoading || !pdfDataUrl)) {
+    return (
+      <div className="flex items-center justify-center bg-gray-50 rounded-lg" style={{ minHeight: 400 }}>
+        <div className="text-center">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+          <p className="mt-2 text-xs text-gray-500">Renderizando planta PDF...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!imageSrc) return null;
+
+  return (
+    <PlantaCanvas
+      imageSrc={imageSrc}
+      ambientes={plantaAmbientes}
+      selectedId={selectedId}
+      addMode={addMode}
+      onSelect={onSelect}
+      onAddPin={onAddPin}
+      getPinColor={getPinColor}
+    />
+  );
 }
 
 export default function ObraDetailPage() {
@@ -1941,20 +2001,7 @@ export default function ObraDetailPage() {
             finally { setUploading(false); }
           };
 
-          // Step 1: clique na planta captura a posição e abre o input de nome
-          const handleAddAmbiente = (e: React.MouseEvent<HTMLDivElement>) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!addAmbienteMode || !planta) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
-            const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
-            setPendingAmbientePos({ x: posX, y: posY });
-            setPendingAmbienteNome('');
-            setAddAmbienteMode(false);
-          };
-
-          // Step 2: confirmar nome do ambiente (chamado pelo mini-modal)
+          // Confirmar nome do ambiente (chamado pelo mini-modal)
           const confirmAddAmbiente = async () => {
             if (!pendingAmbientePos || !pendingAmbienteNome.trim() || !planta) return;
             try {
@@ -2079,50 +2126,22 @@ export default function ObraDetailPage() {
                               }} />
                           </label>
                         </div>
-                        {/* Planta image + pins — sem transform, sem overflow, sem zoom */}
-                        {/* Pins usam left/top % dentro de position:relative, fixos à imagem */}
-                        <div className="relative"
-                          onClick={handleAddAmbiente}
-                          style={{ cursor: addAmbienteMode ? 'crosshair' : 'default' }}>
-                          {isPdf(planta.fileUrl) ? (
-                            <PdfImage
-                              src={resolveFileUrl(planta.fileUrl)}
-                              className="w-full h-auto block select-none"
-                            />
-                          ) : (
-                            <img
-                              ref={imgRef}
-                              src={resolveFileUrl(planta.fileUrl)}
-                              alt="Planta"
-                              className="w-full h-auto block select-none"
-                              draggable={false}
-                            />
-                          )}
-                          {/* Pins — position:absolute com left/top em % */}
-                          {(() => {
-                            const plantaAmbientes = ambientes.filter(a => a.plantaId === planta.id);
-                            return plantaAmbientes.map((amb, idx) => {
-                              const pinColor = getPinColor(amb);
-                              const isSelected = selectedAmbiente?.id === amb.id;
-                              const seqNumber = idx + 1;
-                              return (
-                                <button key={amb.id}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
-                                  className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
-                                  style={{ left: `${amb.posX}%`, top: `${amb.posY}%`, pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
-                                  title={`${seqNumber}. ${amb.nome}`}>
-                                  <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                                    style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
-                                    <span className="text-[9px] font-black text-white">{seqNumber}</span>
-                                  </div>
-                                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                    {amb.nome} ({amb._count.fotos} fotos)
-                                  </div>
-                                </button>
-                              );
-                            });
-                          })()}
-                        </div>
+                        {/* Planta + Pins via Konva Canvas — pins são desenhados na mesma superfície */}
+                        <PlantaCanvasWrapper
+                          planta={planta}
+                          ambientes={ambientes}
+                          selectedId={selectedAmbiente?.id ?? null}
+                          addMode={addAmbienteMode}
+                          onSelect={(amb) => setSelectedAmbiente(amb)}
+                          onAddPin={(posX, posY) => {
+                            setPendingAmbientePos({ x: posX, y: posY });
+                            setPendingAmbienteNome('');
+                            setAddAmbienteMode(false);
+                          }}
+                          getPinColor={getPinColor}
+                          resolveFileUrl={resolveFileUrl}
+                          isPdf={isPdf}
+                        />
                         {/* Mini-modal: nome do ambiente após clicar na planta */}
                         {pendingAmbientePos && (
                           <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 p-3">
