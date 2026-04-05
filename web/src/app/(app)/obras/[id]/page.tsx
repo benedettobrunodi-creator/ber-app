@@ -2086,25 +2086,29 @@ export default function ObraDetailPage() {
                             />
                           )}
                           {/* Pins — absolutamente posicionados dentro do wrapper da imagem */}
-                          {ambientes.filter(a => a.plantaId === planta.id).map((amb) => {
-                            const pinColor = getPinColor(amb);
-                            const isSelected = selectedAmbiente?.id === amb.id;
-                            return (
-                              <button key={amb.id}
-                                onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
-                                className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
-                                style={{ left: `${amb.posX}%`, top: `${amb.posY}%` }}
-                                title={amb.nome}>
-                                <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                                  style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
-                                  <span className="text-[9px] font-black text-white">{amb._count.fotos}</span>
-                                </div>
-                                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                  {amb.nome}
-                                </div>
-                              </button>
-                            );
-                          })}
+                          {(() => {
+                            const plantaAmbientes = ambientes.filter(a => a.plantaId === planta.id);
+                            return plantaAmbientes.map((amb, idx) => {
+                              const pinColor = getPinColor(amb);
+                              const isSelected = selectedAmbiente?.id === amb.id;
+                              const seqNumber = idx + 1;
+                              return (
+                                <button key={amb.id}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
+                                  className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
+                                  style={{ left: `${amb.posX}%`, top: `${amb.posY}%`, pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
+                                  title={`${seqNumber}. ${amb.nome}`}>
+                                  <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
+                                    style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
+                                    <span className="text-[9px] font-black text-white">{seqNumber}</span>
+                                  </div>
+                                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                    {amb.nome} ({amb._count.fotos} fotos)
+                                  </div>
+                                </button>
+                              );
+                            });
+                          })()}
                         </div>
                         {/* Mini-modal: nome do ambiente após clicar na planta */}
                         {pendingAmbientePos && (
@@ -2138,7 +2142,10 @@ export default function ObraDetailPage() {
                     <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white shadow-sm overflow-hidden">
                       <div className="border-b border-ber-offwhite px-4 py-3 flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-bold text-ber-carbon">{selectedAmbiente.nome}</h4>
+                          <h4 className="text-sm font-bold text-ber-carbon">
+                            {(() => { const idx = ambientes.filter(a => a.plantaId === planta?.id).findIndex(a => a.id === selectedAmbiente.id); return idx >= 0 ? `${idx + 1}. ` : ''; })()}
+                            {selectedAmbiente.nome}
+                          </h4>
                           <p className="text-[10px] text-ber-gray">{ambienteFotos.length} foto{ambienteFotos.length !== 1 ? 's' : ''}</p>
                         </div>
                         <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
