@@ -9,6 +9,7 @@ import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCh
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
+import BurndownChart from '@/components/obras/BurndownChart';
 import dynamic from 'next/dynamic';
 import { usePdfAsImage } from '@/components/PdfImage';
 
@@ -518,14 +519,18 @@ export default function ObraDetailPage() {
   const [resolvingReqId, setResolvingReqId] = useState<string | null>(null);
 
   // Cockpit drag-and-drop order
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
   const storageKey = `cockpit-order-${params.id}-${typeof window !== 'undefined' ? (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : '') : ''}`;
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
     try {
       const saved = localStorage.getItem(`cockpit-order-${params.id}`);
       const parsed = saved ? JSON.parse(saved) : null;
-      if (Array.isArray(parsed) && parsed.length === DEFAULT_BLOCK_ORDER.length) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Merge: keep saved order + append any new blocks not yet saved
+        const missing = DEFAULT_BLOCK_ORDER.filter(b => !parsed.includes(b));
+        return [...parsed.filter((b: string) => DEFAULT_BLOCK_ORDER.includes(b)), ...missing];
+      }
     } catch {}
     return DEFAULT_BLOCK_ORDER;
   });
@@ -1641,6 +1646,17 @@ export default function ObraDetailPage() {
                 <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
                 <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
                 {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
+              </div>
+            ),
+            burndown: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
+                  {sequenciamento && <button onClick={() => setActiveTab('sequenciamento')} className="text-xs font-medium text-ber-teal hover:underline">Ver sequenciamento →</button>}
+                </div>
+                <div className="mt-3">
+                  <BurndownChart etapas={sequenciamento?.etapas ?? []} />
+                </div>
               </div>
             ),
             timeline: (
