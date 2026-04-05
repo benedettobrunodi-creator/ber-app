@@ -1939,11 +1939,11 @@ export default function ObraDetailPage() {
           };
 
           const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
-            e.stopPropagation(); // evita bubbling para containers pai
+            e.stopPropagation();
             if (!addAmbienteMode || !planta) return;
-            const imgEl = imgRef.current;
-            if (!imgEl) return;
-            const rect = imgEl.getBoundingClientRect();
+            // Use the wrapper div itself (e.currentTarget) for position calc,
+            // not imgRef — this works for both <img> and <iframe> plants.
+            const rect = e.currentTarget.getBoundingClientRect();
             const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
             const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
             const nome = prompt('Nome do ambiente:');
@@ -2061,7 +2061,13 @@ export default function ObraDetailPage() {
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
                           {isPdf(planta.fileUrl) ? (
-                            <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta" />
+                            <div className="relative">
+                              <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta" />
+                              {/* Overlay transparente que captura cliques sobre o iframe no modo ambiente */}
+                              {addAmbienteMode && (
+                                <div className="absolute inset-0" style={{ cursor: 'crosshair' }} />
+                              )}
+                            </div>
                           ) : (
                             <img
                               ref={imgRef}
