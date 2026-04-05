@@ -160,9 +160,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Nav groups */}
+      {/* Nav groups — campo users only see "Apontamento de Horas" */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {NAV_GROUPS.map((group) => (
+        {(user?.role === 'campo'
+          ? [{ section: 'FINANCEIRO', items: NAV_GROUPS.flatMap(g => g.items).filter(i => i.href === '/ponto') }]
+          : NAV_GROUPS
+        ).map((group) => (
           <div key={group.section} className="mb-4">
             <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
               {group.section}
@@ -259,8 +262,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="text-xl font-black tracking-wider text-white hidden sm:block">BÈR</h1>
         </div>
 
-        {/* ─── Top bar views (desktop) ─── */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* ─── Top bar views (desktop) — hidden for campo ─── */}
+        {user?.role !== 'campo' && <nav className="hidden md:flex items-center gap-1">
           {TOP_VIEWS.map((view) => {
             const active = pathname.startsWith(view.href);
             return (
@@ -277,7 +280,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-        </nav>
+        </nav>}
 
         <div className="flex items-center gap-3">
           {/* Period selector */}
@@ -339,7 +342,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* ─── Bottom navigation — mobile only ─── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-        {BOTTOM_NAV.map((item) => {
+        {(user?.role === 'campo' ? BOTTOM_NAV.filter(i => i.href === '/ponto') : BOTTOM_NAV).map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
           return (
