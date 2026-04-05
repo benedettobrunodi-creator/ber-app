@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
@@ -368,7 +368,6 @@ export default function ObraDetailPage() {
   const [addAmbienteMode, setAddAmbienteMode] = useState(false);
   const [pendingAmbientePos, setPendingAmbientePos] = useState<{ x: number; y: number } | null>(null);
   const [pendingAmbienteNome, setPendingAmbienteNome] = useState('');
-  const [plantaZoom, setPlantaZoom] = useState(1);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadStep, setUploadStep] = useState<'files' | 'ambiente' | 'meta'>('files');
   const [uploadAmbienteId, setUploadAmbienteId] = useState('');
@@ -2080,74 +2079,49 @@ export default function ObraDetailPage() {
                               }} />
                           </label>
                         </div>
-                        {/* Zoom controls */}
-                        <div className="flex items-center justify-end gap-1 bg-gray-50 px-3 py-1 border-b border-ber-gray/10">
-                          <button onClick={() => setPlantaZoom(z => Math.max(0.5, z - 0.25))}
-                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors" title="Zoom out">
-                            <ZoomOut size={14} />
-                          </button>
-                          <span className="text-[10px] font-semibold text-ber-gray w-10 text-center">{Math.round(plantaZoom * 100)}%</span>
-                          <button onClick={() => setPlantaZoom(z => Math.min(3, z + 0.25))}
-                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors" title="Zoom in">
-                            <ZoomIn size={14} />
-                          </button>
-                          {plantaZoom !== 1 && (
-                            <button onClick={() => setPlantaZoom(1)}
-                              className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors">
-                              Reset
-                            </button>
+                        {/* Planta image + pins — sem transform, sem overflow, sem zoom */}
+                        {/* Pins usam left/top % dentro de position:relative, fixos à imagem */}
+                        <div className="relative"
+                          onClick={handleAddAmbiente}
+                          style={{ cursor: addAmbienteMode ? 'crosshair' : 'default' }}>
+                          {isPdf(planta.fileUrl) ? (
+                            <PdfImage
+                              src={resolveFileUrl(planta.fileUrl)}
+                              className="w-full h-auto block select-none"
+                            />
+                          ) : (
+                            <img
+                              ref={imgRef}
+                              src={resolveFileUrl(planta.fileUrl)}
+                              alt="Planta"
+                              className="w-full h-auto block select-none"
+                              draggable={false}
+                            />
                           )}
-                        </div>
-                        {/* Scrollable container for zoomed planta */}
-                        <div className="overflow-auto" style={{ maxHeight: 600 }}>
-                          {/* Wrapper relativo — pins + imagem escalados juntos */}
-                          <div className="relative"
-                            onClick={handleAddAmbiente}
-                            style={{
-                              cursor: addAmbienteMode ? 'crosshair' : 'default',
-                              lineHeight: 0,
-                              transformOrigin: 'top left',
-                              transform: `scale(${plantaZoom})`,
-                              width: `${100 / plantaZoom}%`,
-                            }}>
-                            {isPdf(planta.fileUrl) ? (
-                              <PdfImage
-                                src={resolveFileUrl(planta.fileUrl)}
-                                className="w-full h-auto block"
-                              />
-                            ) : (
-                              <img
-                                ref={imgRef}
-                                src={resolveFileUrl(planta.fileUrl)}
-                                alt="Planta"
-                                className="w-full h-auto block"
-                              />
-                            )}
-                            {/* Pins — absolutamente posicionados dentro do wrapper */}
-                            {(() => {
-                              const plantaAmbientes = ambientes.filter(a => a.plantaId === planta.id);
-                              return plantaAmbientes.map((amb, idx) => {
-                                const pinColor = getPinColor(amb);
-                                const isSelected = selectedAmbiente?.id === amb.id;
-                                const seqNumber = idx + 1;
-                                return (
-                                  <button key={amb.id}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
-                                    style={{ left: `${amb.posX}%`, top: `${amb.posY}%`, pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
-                                    title={`${seqNumber}. ${amb.nome}`}>
-                                    <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                                      style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
-                                      <span className="text-[9px] font-black text-white">{seqNumber}</span>
-                                    </div>
-                                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                      {amb.nome} ({amb._count.fotos} fotos)
-                                    </div>
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
+                          {/* Pins — position:absolute com left/top em % */}
+                          {(() => {
+                            const plantaAmbientes = ambientes.filter(a => a.plantaId === planta.id);
+                            return plantaAmbientes.map((amb, idx) => {
+                              const pinColor = getPinColor(amb);
+                              const isSelected = selectedAmbiente?.id === amb.id;
+                              const seqNumber = idx + 1;
+                              return (
+                                <button key={amb.id}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
+                                  className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
+                                  style={{ left: `${amb.posX}%`, top: `${amb.posY}%`, pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
+                                  title={`${seqNumber}. ${amb.nome}`}>
+                                  <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
+                                    style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
+                                    <span className="text-[9px] font-black text-white">{seqNumber}</span>
+                                  </div>
+                                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                                    {amb.nome} ({amb._count.fotos} fotos)
+                                  </div>
+                                </button>
+                              );
+                            });
+                          })()}
                         </div>
                         {/* Mini-modal: nome do ambiente após clicar na planta */}
                         {pendingAmbientePos && (
