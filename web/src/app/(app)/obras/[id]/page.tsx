@@ -1973,6 +1973,15 @@ export default function ObraDetailPage() {
             }
           };
 
+          const handleDeleteAmbiente = async (ambienteId: string) => {
+            if (!confirm('Excluir este ambiente e desvincular suas fotos?')) return;
+            try {
+              await api.delete(`/obras/${params.id}/ambientes/${ambienteId}`);
+              setAmbientes(prev => prev.filter(a => a.id !== ambienteId));
+              if (selectedAmbiente?.id === ambienteId) setSelectedAmbiente(null);
+            } catch { alert('Erro ao excluir ambiente'); }
+          };
+
           const handleDeleteFoto = async (fotoId: string) => {
             if (!confirm('Excluir esta foto?')) return;
             try {
@@ -2070,12 +2079,17 @@ export default function ObraDetailPage() {
                           </label>
                         </div>
                         {/* Wrapper relativo à imagem — pins posicionados AQUI dentro */}
-                        <div className="relative"
+                        <div className="relative overflow-hidden"
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
                           {isPdf(planta.fileUrl) ? (
-                            <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta"
-                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto' }} />
+                            <iframe
+                              src={`${resolveFileUrl(planta.fileUrl)}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                              className="w-full h-[600px] border-0"
+                              title="Planta"
+                              scrolling="no"
+                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto', overflow: 'hidden' }}
+                            />
                           ) : (
                             <img
                               ref={imgRef}
@@ -2148,7 +2162,14 @@ export default function ObraDetailPage() {
                           </h4>
                           <p className="text-[10px] text-ber-gray">{ambienteFotos.length} foto{ambienteFotos.length !== 1 ? 's' : ''}</p>
                         </div>
-                        <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDeleteAmbiente(selectedAmbiente.id)}
+                            className="rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Excluir ambiente">
+                            <Trash2 size={14} />
+                          </button>
+                          <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1.5 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
+                        </div>
                       </div>
                       <div className="max-h-[500px] overflow-y-auto p-3 space-y-3">
                         {ambienteFotos.length === 0 ? (
