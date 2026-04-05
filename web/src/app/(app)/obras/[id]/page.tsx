@@ -519,30 +519,25 @@ export default function ObraDetailPage() {
   const [resolvingReqId, setResolvingReqId] = useState<string | null>(null);
 
   // Cockpit drag-and-drop order
+  const COCKPIT_LAYOUT_VERSION = 2;
+  const COCKPIT_STORAGE_KEY = `cockpit-order-${params.id}`;
+  const COCKPIT_VERSION_KEY = `cockpit-version-${params.id}`;
   const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
-
-  // Ensure blockOrder always contains all default blocks
-  function ensureAllBlocks(order: string[]): string[] {
-    const result = order.filter(b => DEFAULT_BLOCK_ORDER.includes(b));
-    for (const b of DEFAULT_BLOCK_ORDER) {
-      if (!result.includes(b)) {
-        const defaultIdx = DEFAULT_BLOCK_ORDER.indexOf(b);
-        const prevBlock = DEFAULT_BLOCK_ORDER[defaultIdx - 1];
-        const insertAt = prevBlock ? result.indexOf(prevBlock) + 1 : 0;
-        result.splice(Math.max(0, insertAt), 0, b);
-      }
-    }
-    return result;
-  }
 
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
     try {
-      // Try both possible storage keys (with and without userId)
-      const raw = localStorage.getItem(`cockpit-order-${params.id}`);
+      const savedVersion = parseInt(localStorage.getItem(COCKPIT_VERSION_KEY) ?? '0', 10);
+      if (savedVersion < COCKPIT_LAYOUT_VERSION) {
+        // Version mismatch — discard stale layout, use fresh default
+        localStorage.removeItem(COCKPIT_STORAGE_KEY);
+        localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
+        return DEFAULT_BLOCK_ORDER;
+      }
+      const raw = localStorage.getItem(COCKPIT_STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return ensureAllBlocks(parsed);
+        return parsed;
       }
     } catch {}
     return DEFAULT_BLOCK_ORDER;
@@ -558,25 +553,16 @@ export default function ObraDetailPage() {
       const oldIdx = prev.indexOf(active.id as string);
       const newIdx = prev.indexOf(over.id as string);
       const next = arrayMove(prev, oldIdx, newIdx);
-      localStorage.setItem(`cockpit-order-${params.id}`, JSON.stringify(next));
+      localStorage.setItem(COCKPIT_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
       return next;
     });
   }
   function resetBlockOrder() {
     setBlockOrder(DEFAULT_BLOCK_ORDER);
-    localStorage.removeItem(`cockpit-order-${params.id}`);
+    localStorage.removeItem(COCKPIT_STORAGE_KEY);
+    localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
   }
-
-  // Force-ensure burndown block exists in blockOrder (handles stale localStorage)
-  useEffect(() => {
-    if (!blockOrder.includes('burndown')) {
-      const idx = blockOrder.indexOf('progresso');
-      const newOrder = [...blockOrder];
-      newOrder.splice(idx >= 0 ? idx + 1 : 0, 0, 'burndown');
-      setBlockOrder(newOrder);
-      localStorage.setItem(`cockpit-order-${params.id}`, JSON.stringify(newOrder));
-    }
-  }, []);
 
   // Touchpoint modal state
   const [showTPModal, setShowTPModal] = useState(false);
