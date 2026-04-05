@@ -365,6 +365,8 @@ export default function ObraDetailPage() {
   const [fullscreenFoto, setFullscreenFoto] = useState<ObraFoto | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [addAmbienteMode, setAddAmbienteMode] = useState(false);
+  const [pendingAmbientePos, setPendingAmbientePos] = useState<{ x: number; y: number } | null>(null);
+  const [pendingAmbienteNome, setPendingAmbienteNome] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadStep, setUploadStep] = useState<'files' | 'ambiente' | 'meta'>('files');
   const [uploadAmbienteId, setUploadAmbienteId] = useState('');
@@ -1938,25 +1940,36 @@ export default function ObraDetailPage() {
             finally { setUploading(false); }
           };
 
-          const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
+          // Step 1: clique na planta captura a posição e abre o input de nome
+          const handleAddAmbiente = (e: React.MouseEvent<HTMLDivElement>) => {
             e.stopPropagation();
+            e.preventDefault();
             if (!addAmbienteMode || !planta) return;
-            // Use the wrapper div itself (e.currentTarget) for position calc,
-            // not imgRef — this works for both <img> and <iframe> plants.
             const rect = e.currentTarget.getBoundingClientRect();
             const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
             const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
-            const nome = prompt('Nome do ambiente:');
-            if (!nome?.trim()) return;
-            setAddAmbienteMode(false); // desativa antes do POST para evitar duplo disparo
+            setPendingAmbientePos({ x: posX, y: posY });
+            setPendingAmbienteNome('');
+            setAddAmbienteMode(false);
+          };
+
+          // Step 2: confirmar nome do ambiente (chamado pelo mini-modal)
+          const confirmAddAmbiente = async () => {
+            if (!pendingAmbientePos || !pendingAmbienteNome.trim() || !planta) return;
             try {
-              await api.post(`/obras/${params.id}/ambientes`, { nome: nome.trim(), posX, posY, plantaId: planta.id });
-              // Refetch substitui state inteiro — sem acumulação
+              await api.post(`/obras/${params.id}/ambientes`, {
+                nome: pendingAmbienteNome.trim(),
+                posX: pendingAmbientePos.x,
+                posY: pendingAmbientePos.y,
+                plantaId: planta.id,
+              });
               const aRes = await api.get(`/obras/${params.id}/ambientes`);
               setAmbientes(aRes.data.data ?? []);
             } catch (e: any) {
-              setAddAmbienteMode(true); // reativa se falhou
-              alert(e?.response?.data?.error?.message ?? 'Erro');
+              alert(e?.response?.data?.error?.message ?? 'Erro ao criar ambiente');
+            } finally {
+              setPendingAmbientePos(null);
+              setPendingAmbienteNome('');
             }
           };
 
@@ -2061,19 +2074,15 @@ export default function ObraDetailPage() {
                           onClick={handleAddAmbiente}
                           style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
                           {isPdf(planta.fileUrl) ? (
-                            <div className="relative">
-                              <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta" />
-                              {/* Overlay transparente que captura cliques sobre o iframe no modo ambiente */}
-                              {addAmbienteMode && (
-                                <div className="absolute inset-0" style={{ cursor: 'crosshair' }} />
-                              )}
-                            </div>
+                            <iframe src={resolveFileUrl(planta.fileUrl)} className="w-full h-[500px]" title="Planta"
+                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto' }} />
                           ) : (
                             <img
                               ref={imgRef}
                               src={resolveFileUrl(planta.fileUrl)}
                               alt="Planta"
                               className="w-full h-auto block"
+                              style={{ pointerEvents: addAmbienteMode ? 'none' : 'auto' }}
                             />
                           )}
                           {/* Pins — absolutamente posicionados dentro do wrapper da imagem */}
@@ -2097,6 +2106,29 @@ export default function ObraDetailPage() {
                             );
                           })}
                         </div>
+                        {/* Mini-modal: nome do ambiente após clicar na planta */}
+                        {pendingAmbientePos && (
+                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 p-3">
+                            <span className="text-sm font-semibold text-amber-700">📍 Nome do ambiente:</span>
+                            <input
+                              type="text"
+                              autoFocus
+                              value={pendingAmbienteNome}
+                              onChange={(e) => setPendingAmbienteNome(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') confirmAddAmbiente(); if (e.key === 'Escape') setPendingAmbientePos(null); }}
+                              placeholder="Ex: Sala, Cozinha..."
+                              className="flex-1 rounded-md border border-amber-300 px-2 py-1.5 text-sm outline-none focus:border-amber-500"
+                            />
+                            <button onClick={confirmAddAmbiente}
+                              className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-colors">
+                              Salvar
+                            </button>
+                            <button onClick={() => setPendingAmbientePos(null)}
+                              className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors">
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
