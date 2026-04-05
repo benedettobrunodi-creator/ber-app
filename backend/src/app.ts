@@ -44,6 +44,7 @@ import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/ro
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
 import dashboardRoutes from './modules/dashboard/routes';
 import dreRoutes from './modules/dre/routes';
+import rolesRoutes from './modules/roles/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -186,6 +187,7 @@ app.post('/v1/obras/:id/medicoes',           authenticate as any, (req: any, res
 app.get('/v1/obras/:id/medicao-itens',       authenticate as any, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
 app.post('/v1/obras/:id/medicao-itens/bulk', authenticate as any, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
 app.use('/v1/medicoes', medicaoRouter);
+app.use('/v1/roles', rolesRoutes);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';

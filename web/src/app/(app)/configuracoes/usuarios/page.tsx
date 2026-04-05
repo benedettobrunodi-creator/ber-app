@@ -8,6 +8,8 @@ import {
   Users, UserPlus, ArrowLeft, Save, X, Shield, Search,
 } from 'lucide-react';
 
+interface RoleOption { id: string; name: string; isSystem: boolean }
+
 interface UserRecord {
   id: string;
   name: string;
@@ -16,6 +18,8 @@ interface UserRecord {
   phone: string | null;
   avatarUrl: string | null;
   isActive: boolean;
+  customRoleId: string | null;
+  customRole?: { id: string; name: string } | null;
 }
 
 interface UserFormData {
@@ -24,6 +28,7 @@ interface UserFormData {
   password: string;
   phone: string;
   role: UserRole;
+  customRoleId: string;
 }
 
 const ROLES: UserRole[] = ['diretoria', 'coordenacao', 'gestor', 'campo'];
@@ -42,7 +47,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   campo: 'Campo',
 };
 
-const EMPTY_FORM: UserFormData = { name: '', email: '', password: '', phone: '', role: 'campo' };
+const EMPTY_FORM: UserFormData = { name: '', email: '', password: '', phone: '', role: 'campo', customRoleId: '' };
 
 function getInitials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -54,6 +59,7 @@ export default function UsuariosPage() {
   const canManage = user?.role === 'diretoria' || user?.role === 'coordenacao';
 
   const [users, setUsers] = useState<UserRecord[]>([]);
+  const [customRoles, setCustomRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState<UserRole | 'todas'>('todas');
   const [search, setSearch] = useState('');
@@ -66,8 +72,12 @@ export default function UsuariosPage() {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const res = await api.get('/users', { params: { limit: 200 } });
-      setUsers(res.data.data ?? []);
+      const [usersRes, rolesRes] = await Promise.all([
+        api.get('/users', { params: { limit: 200 } }),
+        api.get('/roles').catch(() => ({ data: { data: [] } })),
+      ]);
+      setUsers(usersRes.data.data ?? []);
+      setCustomRoles((rolesRes.data.data ?? []).map((r: any) => ({ id: r.id, name: r.name, isSystem: r.isSystem })));
     } catch { /* interceptor */ } finally {
       setLoading(false);
     }
@@ -98,7 +108,7 @@ export default function UsuariosPage() {
 
   function openEdit(u: UserRecord) {
     setEditingUser(u);
-    setForm({ name: u.name, email: u.email, password: '', phone: u.phone ?? '', role: u.role });
+    setForm({ name: u.name, email: u.email, password: '', phone: u.phone ?? '', role: u.role, customRoleId: u.customRoleId ?? '' });
     setError('');
     setModalOpen(true);
   }
@@ -121,6 +131,7 @@ export default function UsuariosPage() {
           role: form.role,
           phone: form.phone || undefined,
           isActive: editingUser.isActive,
+          customRoleId: form.customRoleId || null,
         });
       } else {
         if (!form.password || form.password.length < 6) {
@@ -373,6 +384,20 @@ export default function UsuariosPage() {
                 <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive" />
               </div>
+
+              {/* Custom role (permissions) */}
+              {customRoles.length > 0 && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ber-carbon">Permissoes (role customizada)</label>
+                  <select value={form.customRoleId} onChange={(e) => setForm({ ...form, customRoleId: e.target.value })}
+                    className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive">
+                    <option value="">Usar padrao da role ({ROLE_LABELS[form.role]})</option>
+                    {customRoles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}{r.isSystem ? ' (sistema)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Toggle status inline no edit */}
               {editingUser && (

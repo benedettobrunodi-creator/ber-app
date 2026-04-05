@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
@@ -19,6 +19,7 @@ import {
 interface NavChild { label: string; href: string }
 interface NavItem {
   label: string; href: string; icon: LucideIcon;
+  perm?: string;            // permission key from customRole.permissions
   children?: NavChild[];
   badge?: boolean;          // will show dynamic count
 }
@@ -28,18 +29,18 @@ const NAV_GROUPS: NavGroup[] = [
   {
     section: 'OBRAS',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { label: 'Obras', href: '/obras', icon: HardHat, badge: true },
-      { label: 'Kanban', href: '/kanban', icon: Kanban },
-      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
+      { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
+      { label: 'Kanban', href: '/kanban', icon: Kanban, perm: 'kanban' },
+      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
     ],
   },
   {
     section: 'GESTÃO',
     items: [
-      { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true },
-      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true },
-      { label: 'PMO', href: '/pmo', icon: FolderOpen, children: [
+      { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
+      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
+      { label: 'PMO', href: '/pmo', icon: FolderOpen, perm: 'pmo', children: [
         { label: 'Canteiro', href: '/canteiro' },
         { label: 'Atas de Reunião', href: '/pmo/atas' },
         { label: 'Projetos', href: '/pmo/projetos' },
@@ -50,28 +51,29 @@ const NAV_GROUPS: NavGroup[] = [
         { label: 'As Builts', href: '/pmo/as-builts' },
         { label: 'Manual Proprietário', href: '/pmo/manual' },
       ]},
-      { label: 'Segurança', href: '/seguranca', icon: ShieldCheck },
+      { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
   {
     section: 'REFERÊNCIA',
     items: [
-      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen },
-      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText },
+      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
+      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
     ],
   },
   {
     section: 'FINANCEIRO',
     items: [
-      { label: 'Apontamento de Horas', href: '/ponto', icon: Clock },
-      { label: 'DRE', href: '/dre', icon: TrendingUp },
+      { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
+      { label: 'DRE', href: '/dre', icon: TrendingUp, perm: 'dre' },
     ],
   },
   {
     section: 'ADMIN',
     items: [
-      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings },
-      { label: 'Configuracoes', href: '/configuracoes', icon: Settings },
+      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings, perm: 'configuracoes' },
+      { label: 'Roles', href: '/configuracoes/roles', icon: Settings, perm: 'configuracoes' },
+      { label: 'Configuracoes', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
     ],
   },
 ];
@@ -114,6 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
+  const perms = getUserPermissions(user);
   const { period, setPeriod, label: periodLabel } = usePeriodStore();
   const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -167,14 +170,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Nav groups — campo: only Ponto; gestor: no ADMIN section */}
+      {/* Nav groups — filtered by user permissions */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {(user?.role === 'campo'
-          ? [{ section: 'FINANCEIRO', items: NAV_GROUPS.flatMap(g => g.items).filter(i => i.href === '/ponto') }]
-          : user?.role === 'gestor'
-            ? NAV_GROUPS.filter(g => g.section !== 'ADMIN')
-            : NAV_GROUPS
-        ).map((group) => (
+        {NAV_GROUPS.map(g => ({
+          ...g,
+          items: g.items.filter(item => !item.perm || perms[item.perm]),
+        })).filter(g => g.items.length > 0).map((group) => (
           <div key={group.section} className="mb-4">
             <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
               {group.section}
@@ -271,9 +272,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="text-xl font-black tracking-wider text-white hidden sm:block">BÈR</h1>
         </div>
 
-        {/* ─── Top bar views (desktop) — hidden for campo ─── */}
-        {user?.role !== 'campo' && <nav className="hidden md:flex items-center gap-1">
-          {TOP_VIEWS.map((view) => {
+        {/* ─── Top bar views (desktop) — filtered by permissions ─── */}
+        <nav className="hidden md:flex items-center gap-1">
+          {TOP_VIEWS.filter(v => {
+            const permKey = v.href.replace('/', '');
+            return perms[permKey];
+          }).map((view) => {
             const active = pathname.startsWith(view.href);
             return (
               <Link
@@ -289,7 +293,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-        </nav>}
+        </nav>
 
         <div className="flex items-center gap-3">
           {/* Period selector */}
@@ -351,7 +355,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* ─── Bottom navigation — mobile only ─── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-        {(user?.role === 'campo' ? BOTTOM_NAV.filter(i => i.href === '/ponto') : BOTTOM_NAV).map((item) => {
+        {BOTTOM_NAV.filter(item => {
+          const permKey = item.href === '/configuracoes' ? 'configuracoes' : item.href.replace('/', '');
+          return perms[permKey] !== false;
+        }).map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
           return (

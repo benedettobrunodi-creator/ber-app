@@ -14,6 +14,7 @@ export const updateUserSchema = z.object({
   role: z.enum(ROLES).optional(),
   phone: z.string().optional(),
   isActive: z.boolean().optional(),
+  customRoleId: z.string().uuid().nullable().optional(),
 });
 
 export const updateProfileSchema = z.object({

@@ -14,6 +14,8 @@ const userSelect = {
   isActive: true,
   createdAt: true,
   updatedAt: true,
+  customRoleId: true,
+  customRole: { select: { id: true, name: true, permissions: true } },
 };
 
 export async function listUsers(page: number, limit: number) {

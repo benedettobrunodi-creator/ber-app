@@ -311,19 +311,34 @@ export default function ConfiguracoesPage() {
       {/* Tab content */}
       <div className="mt-6">
         {activeTab === 'usuarios' && canManageUsers && (
-          <Link href="/configuracoes/usuarios"
-            className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-olive/10">
-                <Users size={24} className="text-ber-olive" />
+          <div className="space-y-4">
+            <Link href="/configuracoes/usuarios"
+              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-olive/10">
+                  <Users size={24} className="text-ber-olive" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-ber-carbon">Gestao de Usuarios</h3>
+                  <p className="text-sm text-ber-gray">Criar, editar roles e gerenciar status dos usuarios</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-ber-carbon">Gestao de Usuarios</h3>
-                <p className="text-sm text-ber-gray">Criar, editar roles e gerenciar status dos usuarios</p>
+              <ArrowRight size={20} className="text-ber-gray" />
+            </Link>
+            <Link href="/configuracoes/roles"
+              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-teal/10">
+                  <Shield size={24} className="text-ber-teal" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-ber-carbon">Roles e Permissoes</h3>
+                  <p className="text-sm text-ber-gray">Configurar permissoes por modulo para cada role</p>
+                </div>
               </div>
-            </div>
-            <ArrowRight size={20} className="text-ber-gray" />
-          </Link>
+              <ArrowRight size={20} className="text-ber-gray" />
+            </Link>
+          </div>
         )}
 
         {activeTab === 'perfil' && (
