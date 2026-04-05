@@ -67,6 +67,13 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'DRE', href: '/dre', icon: TrendingUp },
     ],
   },
+  {
+    section: 'ADMIN',
+    items: [
+      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings },
+      { label: 'Configuracoes', href: '/configuracoes', icon: Settings },
+    ],
+  },
 ];
 
 /* ─── Top bar views (horizontal nav) ─── */
@@ -160,11 +167,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Nav groups — campo users only see "Apontamento de Horas" */}
+      {/* Nav groups — campo: only Ponto; gestor: no ADMIN section */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         {(user?.role === 'campo'
           ? [{ section: 'FINANCEIRO', items: NAV_GROUPS.flatMap(g => g.items).filter(i => i.href === '/ponto') }]
-          : NAV_GROUPS
+          : user?.role === 'gestor'
+            ? NAV_GROUPS.filter(g => g.section !== 'ADMIN')
+            : NAV_GROUPS
         ).map((group) => (
           <div key={group.section} className="mb-4">
             <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
