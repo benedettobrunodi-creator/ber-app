@@ -148,7 +148,7 @@ export default function BurndownChart({ etapas }: BurndownChartProps) {
           />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-            formatter={(value: any, name: string) => [
+            formatter={(value: any, name: any) => [
               value !== null ? `${value} etapa${value !== 1 ? 's' : ''}` : '—',
               name === 'ideal' ? 'Ideal' : 'Real',
             ]}
