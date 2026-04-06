@@ -9,28 +9,25 @@ import ExcelJS from 'exceljs';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
-const SKIP_CATEGORIES = new Set(['N', 'CONTRATO PRINCIPAL', 'RESUMO', 'EXTRAS', '']);
-
 function parseRow(row: ExcelJS.Row): {
   n: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
   const values = row.values as (string | number | null | undefined)[];
-  // colunas 1-indexed: B=2, C=3, D=4, E=5, F=6, G=7, H=8, K=11
-  const venda = Number(values[5]);
+  const tipo = String(values[3] ?? '').trim();
+  if (tipo !== 'Item') return null;
+  const descricao = String(values[7] ?? '').trim();
+  if (!descricao) return null;
+  const venda = Number(values[19]);
   if (!venda || isNaN(venda) || venda === 0) return null;
-
-  const cat = String(values[3] ?? '').trim();
-  if (!cat || SKIP_CATEGORIES.has(cat)) return null;
-
   return {
     n: String(values[2] ?? '').trim(),
-    categoria: cat,
-    descritivo: String(values[4] ?? '').trim() || null,
+    categoria: descricao,
+    descritivo: null,
     venda,
-    pctMeta: Number(values[7] ?? 0.2) || 0.2,
-    comprado: Number(values[8] ?? 0) || 0,
-    fornecedor: String(values[11] ?? '').trim() || null,
+    pctMeta: 0.2,
+    comprado: 0,
+    fornecedor: null,
   };
 }
 
@@ -52,13 +49,10 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     const { id: obraId } = req.params;
     if (!req.file) throw AppError.badRequest('Arquivo não enviado');
 
-    // Verificar obra
     const obra = await prisma.obra.findUnique({ where: { id: obraId } });
     if (!obra) throw AppError.notFound('Obra não encontrada');
 
-    // Parsear xlsx
     const wb = new ExcelJS.Workbook();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await wb.xlsx.load(req.file.buffer as any);
 
     const rows: {
@@ -68,7 +62,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 
     wb.eachSheet((ws) => {
       ws.eachRow((row, rowNum) => {
-        if (rowNum < 6) return; // pular cabeçalho
+        if (rowNum < 12) return;
         const parsed = parseRow(row);
         if (parsed) rows.push(parsed);
       });
@@ -76,7 +70,6 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 
     if (rows.length === 0) throw AppError.badRequest('Nenhuma linha válida encontrada no arquivo');
 
-    // Deletar existentes e reinserir
     await prisma.$transaction([
       prisma.comprasMeta.deleteMany({ where: { obraId } }),
       prisma.comprasMeta.createMany({
