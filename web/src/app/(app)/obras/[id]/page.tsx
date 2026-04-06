@@ -9,6 +9,12 @@ import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCh
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
+import BurndownChart from '@/components/obras/BurndownChart';
+import dynamic from 'next/dynamic';
+import { usePdfAsImage } from '@/components/PdfImage';
+
+// Konva requires window — load client-side only
+const PlantaCanvas = dynamic(() => import('@/components/PlantaCanvas'), { ssr: false });
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -88,7 +94,7 @@ interface FvsTemplateItemType {
   id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
 }
 interface ObraFvsItemType {
-  id: string; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
+  id: string; momento: string; descricao: string | null; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
   templateItem: FvsTemplateItemType | null;
   filler: { id: string; name: string } | null;
 }
@@ -330,6 +336,62 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
+/** Wrapper that resolves PDF→image and renders PlantaCanvas */
+function PlantaCanvasWrapper({
+  planta,
+  ambientes,
+  selectedId,
+  addMode,
+  onSelect,
+  onAddPin,
+  getPinColor,
+  resolveFileUrl,
+  isPdf,
+}: {
+  planta: { id: string; fileUrl: string };
+  ambientes: any[];
+  selectedId: string | null;
+  addMode: boolean;
+  onSelect: (amb: any | null) => void;
+  onAddPin: (posX: number, posY: number) => void;
+  getPinColor: (amb: any) => string;
+  resolveFileUrl: (url: string) => string;
+  isPdf: (url: string) => boolean;
+}) {
+  const resolvedUrl = resolveFileUrl(planta.fileUrl);
+  const { dataUrl: pdfDataUrl, loading: pdfLoading } = usePdfAsImage(
+    isPdf(planta.fileUrl) ? resolvedUrl : undefined
+  );
+
+  const imageSrc = isPdf(planta.fileUrl) ? pdfDataUrl : resolvedUrl;
+  const plantaAmbientes = ambientes.filter((a: any) => a.plantaId === planta.id);
+
+  if (isPdf(planta.fileUrl) && (pdfLoading || !pdfDataUrl)) {
+    return (
+      <div className="flex items-center justify-center bg-gray-50 rounded-lg" style={{ minHeight: 400 }}>
+        <div className="text-center">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+          <p className="mt-2 text-xs text-gray-500">Renderizando planta PDF...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!imageSrc) return null;
+
+  return (
+    <PlantaCanvas
+      imageSrc={imageSrc}
+      ambientes={plantaAmbientes}
+      selectedId={selectedId}
+      addMode={addMode}
+      onSelect={onSelect}
+      onAddPin={onAddPin}
+      getPinColor={getPinColor}
+    />
+  );
+}
+
 export default function ObraDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -365,6 +427,8 @@ export default function ObraDetailPage() {
   const [fullscreenFoto, setFullscreenFoto] = useState<ObraFoto | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [addAmbienteMode, setAddAmbienteMode] = useState(false);
+  const [pendingAmbientePos, setPendingAmbientePos] = useState<{ x: number; y: number } | null>(null);
+  const [pendingAmbienteNome, setPendingAmbienteNome] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadStep, setUploadStep] = useState<'files' | 'ambiente' | 'meta'>('files');
   const [uploadAmbienteId, setUploadAmbienteId] = useState('');
@@ -393,6 +457,9 @@ export default function ObraDetailPage() {
   const [createFvsModal, setCreateFvsModal] = useState(false);
   const [createFvsTemplateId, setCreateFvsTemplateId] = useState('');
   const [createFvsEtapaId, setCreateFvsEtapaId] = useState('');
+  const [addFvsItemOpen, setAddFvsItemOpen] = useState(false);
+  const [addFvsItemDesc, setAddFvsItemDesc] = useState('');
+  const [addFvsItemMomento, setAddFvsItemMomento] = useState<'inicio' | 'conclusao'>('conclusao');
 
   const [checklists, setChecklists] = useState<ChecklistSummary[]>([]);
   const [loadingChecklists, setLoadingChecklists] = useState(false);
@@ -452,14 +519,26 @@ export default function ObraDetailPage() {
   const [resolvingReqId, setResolvingReqId] = useState<string | null>(null);
 
   // Cockpit drag-and-drop order
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
-  const storageKey = `cockpit-order-${params.id}-${typeof window !== 'undefined' ? (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : '') : ''}`;
+  const COCKPIT_LAYOUT_VERSION = 2;
+  const COCKPIT_STORAGE_KEY = `cockpit-order-${params.id}`;
+  const COCKPIT_VERSION_KEY = `cockpit-version-${params.id}`;
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
+
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
     try {
-      const saved = localStorage.getItem(`cockpit-order-${params.id}`);
-      const parsed = saved ? JSON.parse(saved) : null;
-      if (Array.isArray(parsed) && parsed.length === DEFAULT_BLOCK_ORDER.length) return parsed;
+      const savedVersion = parseInt(localStorage.getItem(COCKPIT_VERSION_KEY) ?? '0', 10);
+      if (savedVersion < COCKPIT_LAYOUT_VERSION) {
+        // Version mismatch — discard stale layout, use fresh default
+        localStorage.removeItem(COCKPIT_STORAGE_KEY);
+        localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
+        return DEFAULT_BLOCK_ORDER;
+      }
+      const raw = localStorage.getItem(COCKPIT_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     } catch {}
     return DEFAULT_BLOCK_ORDER;
   });
@@ -474,13 +553,15 @@ export default function ObraDetailPage() {
       const oldIdx = prev.indexOf(active.id as string);
       const newIdx = prev.indexOf(over.id as string);
       const next = arrayMove(prev, oldIdx, newIdx);
-      localStorage.setItem(`cockpit-order-${params.id}`, JSON.stringify(next));
+      localStorage.setItem(COCKPIT_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
       return next;
     });
   }
   function resetBlockOrder() {
     setBlockOrder(DEFAULT_BLOCK_ORDER);
-    localStorage.removeItem(`cockpit-order-${params.id}`);
+    localStorage.removeItem(COCKPIT_STORAGE_KEY);
+    localStorage.setItem(COCKPIT_VERSION_KEY, String(COCKPIT_LAYOUT_VERSION));
   }
 
   // Touchpoint modal state
@@ -1469,7 +1550,7 @@ export default function ObraDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 flex gap-1 border-b border-ber-gray/20 overflow-x-auto">
+      <div className="mt-6 flex items-center gap-1 border-b border-ber-gray/20 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -1483,6 +1564,12 @@ export default function ObraDetailPage() {
             {tab.label}
           </button>
         ))}
+        {activeTab === 'cockpit' && (
+          <button onClick={resetBlockOrder}
+            className="shrink-0 ml-auto flex items-center gap-1.5 rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-[10px] font-medium text-ber-gray hover:bg-ber-offwhite transition-colors">
+            <RotateCcw size={10} /> Resetar layout
+          </button>
+        )}
         {/* Medição — página dedicada */}
         <Link
           href={`/obras/${params.id}/medicao`}
@@ -1584,6 +1671,17 @@ export default function ObraDetailPage() {
                 {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
               </div>
             ),
+            burndown: (
+              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
+                  {sequenciamento && <button onClick={() => setActiveTab('sequenciamento')} className="text-xs font-medium text-ber-teal hover:underline">Ver sequenciamento →</button>}
+                </div>
+                <div className="mt-3">
+                  <BurndownChart etapas={sequenciamento?.etapas ?? []} />
+                </div>
+              </div>
+            ),
             timeline: (
               <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Linha do Tempo</h3>
@@ -1666,13 +1764,6 @@ export default function ObraDetailPage() {
 
           return (
             <div>
-              {/* Toolbar */}
-              <div className="mb-4 flex justify-end">
-                <button onClick={resetBlockOrder} className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-1.5 text-xs font-medium text-ber-gray transition-colors hover:bg-ber-offwhite">
-                  <RotateCcw size={12} /> Resetar layout
-                </button>
-              </div>
-
               {/* Sortable grid */}
               <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={blockOrder} strategy={rectSortingStrategy}>
@@ -1880,6 +1971,14 @@ export default function ObraDetailPage() {
         {activeTab === 'fotos' && (() => {
           const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
           const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
+          const isPdf = (url: string) => url?.toLowerCase().endsWith('.pdf');
+          // Resolve relative /uploads/ paths to the backend URL
+          const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace('/v1', '');
+          const resolveFileUrl = (url: string) => {
+            if (!url) return url;
+            if (url.startsWith('http')) return url;
+            return `${BACKEND_BASE}${url}`;
+          };
           const planta = plantas[0] ?? null;
           const now = Date.now();
           const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -1934,26 +2033,33 @@ export default function ObraDetailPage() {
             finally { setUploading(false); }
           };
 
-          const handleAddAmbiente = async (e: React.MouseEvent<HTMLDivElement>) => {
-            e.stopPropagation(); // evita bubbling para containers pai
-            if (!addAmbienteMode || !planta) return;
-            const imgEl = imgRef.current;
-            if (!imgEl) return;
-            const rect = imgEl.getBoundingClientRect();
-            const posX = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
-            const posY = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
-            const nome = prompt('Nome do ambiente:');
-            if (!nome?.trim()) return;
-            setAddAmbienteMode(false); // desativa antes do POST para evitar duplo disparo
+          // Confirmar nome do ambiente (chamado pelo mini-modal)
+          const confirmAddAmbiente = async () => {
+            if (!pendingAmbientePos || !pendingAmbienteNome.trim() || !planta) return;
             try {
-              await api.post(`/obras/${params.id}/ambientes`, { nome: nome.trim(), posX, posY, plantaId: planta.id });
-              // Refetch substitui state inteiro — sem acumulação
+              await api.post(`/obras/${params.id}/ambientes`, {
+                nome: pendingAmbienteNome.trim(),
+                posX: pendingAmbientePos.x,
+                posY: pendingAmbientePos.y,
+                plantaId: planta.id,
+              });
               const aRes = await api.get(`/obras/${params.id}/ambientes`);
               setAmbientes(aRes.data.data ?? []);
             } catch (e: any) {
-              setAddAmbienteMode(true); // reativa se falhou
-              alert(e?.response?.data?.error?.message ?? 'Erro');
+              alert(e?.response?.data?.error?.message ?? 'Erro ao criar ambiente');
+            } finally {
+              setPendingAmbientePos(null);
+              setPendingAmbienteNome('');
             }
+          };
+
+          const handleDeleteAmbiente = async (ambienteId: string) => {
+            if (!confirm('Excluir este ambiente e desvincular suas fotos?')) return;
+            try {
+              await api.delete(`/obras/${params.id}/ambientes/${ambienteId}`);
+              setAmbientes(prev => prev.filter(a => a.id !== ambienteId));
+              if (selectedAmbiente?.id === ambienteId) setSelectedAmbiente(null);
+            } catch { alert('Erro ao excluir ambiente'); }
           };
 
           const handleDeleteFoto = async (fotoId: string) => {
@@ -2032,37 +2138,65 @@ export default function ObraDetailPage() {
                       </label>
                     ) : (
                       <div className="rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm">
-                        {/* Wrapper relativo à imagem — pins posicionados AQUI dentro */}
-                        <div className="relative"
-                          onClick={handleAddAmbiente}
-                          style={{ cursor: addAmbienteMode ? 'crosshair' : 'default', lineHeight: 0 }}>
-                          <img
-                            ref={imgRef}
-                            src={planta.fileUrl}
-                            alt="Planta"
-                            className="w-full h-auto block"
-                          />
-                          {/* Pins — absolutamente posicionados dentro do wrapper da imagem */}
-                          {ambientes.filter(a => a.plantaId === planta.id).map((amb) => {
-                            const pinColor = getPinColor(amb);
-                            const isSelected = selectedAmbiente?.id === amb.id;
-                            return (
-                              <button key={amb.id}
-                                onClick={(e) => { e.stopPropagation(); setSelectedAmbiente(isSelected ? null : amb); }}
-                                className="absolute -translate-x-1/2 -translate-y-1/2 group z-10"
-                                style={{ left: `${amb.posX}%`, top: `${amb.posY}%` }}
-                                title={amb.nome}>
-                                <div className={`relative flex items-center justify-center rounded-full shadow-lg transition-transform ${isSelected ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'}`}
-                                  style={{ backgroundColor: pinColor, width: 28, height: 28 }}>
-                                  <span className="text-[9px] font-black text-white">{amb._count.fotos}</span>
-                                </div>
-                                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[8px] text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">
-                                  {amb.nome}
-                                </div>
-                              </button>
-                            );
-                          })}
+                        {/* Botão trocar planta */}
+                        <div className="flex items-center justify-end gap-2 bg-gray-50 px-3 py-1.5 border-b border-ber-gray/10">
+                          <label className="flex items-center gap-1.5 cursor-pointer rounded-md px-2.5 py-1 text-[10px] font-semibold text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors">
+                            🔄 Trocar planta
+                            <input type="file" accept="image/*,.pdf" className="hidden"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                if (!confirm('Deseja substituir a planta atual? Os ambientes serão mantidos.')) return;
+                                try {
+                                  await api.delete(`/obras/${params.id}/plantas/${planta.id}`);
+                                  const fd = new FormData(); fd.append('file', f);
+                                  const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                  const url = up.data.data?.url ?? up.data.url;
+                                  const r = await api.post(`/obras/${params.id}/plantas`, { fileUrl: url });
+                                  setPlantas([r.data.data]);
+                                } catch { alert('Erro ao trocar a planta'); }
+                              }} />
+                          </label>
                         </div>
+                        {/* Planta + Pins via Konva Canvas — pins são desenhados na mesma superfície */}
+                        <PlantaCanvasWrapper
+                          planta={planta}
+                          ambientes={ambientes}
+                          selectedId={selectedAmbiente?.id ?? null}
+                          addMode={addAmbienteMode}
+                          onSelect={(amb) => setSelectedAmbiente(amb)}
+                          onAddPin={(posX, posY) => {
+                            setPendingAmbientePos({ x: posX, y: posY });
+                            setPendingAmbienteNome('');
+                            setAddAmbienteMode(false);
+                          }}
+                          getPinColor={getPinColor}
+                          resolveFileUrl={resolveFileUrl}
+                          isPdf={isPdf}
+                        />
+                        {/* Mini-modal: nome do ambiente após clicar na planta */}
+                        {pendingAmbientePos && (
+                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 p-3">
+                            <span className="text-sm font-semibold text-amber-700">📍 Nome do ambiente:</span>
+                            <input
+                              type="text"
+                              autoFocus
+                              value={pendingAmbienteNome}
+                              onChange={(e) => setPendingAmbienteNome(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') confirmAddAmbiente(); if (e.key === 'Escape') setPendingAmbientePos(null); }}
+                              placeholder="Ex: Sala, Cozinha..."
+                              className="flex-1 rounded-md border border-amber-300 px-2 py-1.5 text-sm outline-none focus:border-amber-500"
+                            />
+                            <button onClick={confirmAddAmbiente}
+                              className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-colors">
+                              Salvar
+                            </button>
+                            <button onClick={() => setPendingAmbientePos(null)}
+                              className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors">
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2072,10 +2206,20 @@ export default function ObraDetailPage() {
                     <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white shadow-sm overflow-hidden">
                       <div className="border-b border-ber-offwhite px-4 py-3 flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-bold text-ber-carbon">{selectedAmbiente.nome}</h4>
+                          <h4 className="text-sm font-bold text-ber-carbon">
+                            {(() => { const idx = ambientes.filter(a => a.plantaId === planta?.id).findIndex(a => a.id === selectedAmbiente.id); return idx >= 0 ? `${idx + 1}. ` : ''; })()}
+                            {selectedAmbiente.nome}
+                          </h4>
                           <p className="text-[10px] text-ber-gray">{ambienteFotos.length} foto{ambienteFotos.length !== 1 ? 's' : ''}</p>
                         </div>
-                        <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDeleteAmbiente(selectedAmbiente.id)}
+                            className="rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Excluir ambiente">
+                            <Trash2 size={14} />
+                          </button>
+                          <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1.5 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
+                        </div>
                       </div>
                       <div className="max-h-[500px] overflow-y-auto p-3 space-y-3">
                         {ambienteFotos.length === 0 ? (
@@ -2083,7 +2227,14 @@ export default function ObraDetailPage() {
                         ) : ambienteFotos.map(foto => (
                           <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
                             className="w-full rounded-lg overflow-hidden border border-ber-gray/10 hover:shadow-md transition text-left">
-                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                            {isPdf(foto.fileUrl) ? (
+                              <div className="w-full h-32 bg-gray-100 flex flex-col items-center justify-center gap-1">
+                                <span className="text-3xl">📄</span>
+                                <span className="text-[10px] font-semibold text-ber-gray">PDF</span>
+                              </div>
+                            ) : (
+                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
+                            )}
                             <div className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[9px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
@@ -2126,7 +2277,14 @@ export default function ObraDetailPage() {
                         <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
                           className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white shadow-sm hover:shadow-md transition text-left">
                           <div className="relative aspect-square">
-                            <img src={foto.fileUrl} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                            {isPdf(foto.fileUrl) ? (
+                              <div className="h-full w-full bg-gray-100 flex flex-col items-center justify-center gap-1">
+                                <span className="text-4xl">📄</span>
+                                <span className="text-xs font-semibold text-ber-gray">PDF</span>
+                              </div>
+                            ) : (
+                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition" />
                           </div>
                           <div className="px-2.5 py-2">
@@ -2163,7 +2321,11 @@ export default function ObraDetailPage() {
                         className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">→</button>
                     )}
                     <div className="max-h-[90vh] max-w-[90vw] flex flex-col items-center" onClick={e => e.stopPropagation()}>
-                      <img src={fullscreenFoto.fileUrl} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                      {isPdf(fullscreenFoto.fileUrl) ? (
+                        <iframe src={resolveFileUrl(fullscreenFoto.fileUrl)} className="w-[90vw] max-w-4xl h-[75vh] rounded-lg bg-white" title="PDF" />
+                      ) : (
+                        <img src={resolveFileUrl(fullscreenFoto.fileUrl)} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
+                      )}
                       <div className="mt-3 text-center text-white">
                         {fullscreenFoto.ambiente && <span className="text-sm font-semibold">{fullscreenFoto.ambiente.nome}</span>}
                         <span className="mx-2 text-white/40">·</span>
@@ -2238,7 +2400,7 @@ export default function ObraDetailPage() {
                           {referenceFoto && (
                             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                               <p className="text-[10px] font-bold text-amber-700 mb-1">📷 Foto anterior — mesmo ângulo</p>
-                              <img src={referenceFoto.fileUrl} alt="" className="w-full h-24 object-cover rounded" />
+                              <img src={resolveFileUrl(referenceFoto.fileUrl)} alt="" className="w-full h-24 object-cover rounded" />
                               <p className="mt-1 text-[9px] text-amber-600">{referenceFoto.tiradaEm ? new Date(referenceFoto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
                             </div>
                           )}
@@ -2812,7 +2974,7 @@ export default function ObraDetailPage() {
                 {/* FVS Pré-execução inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const inicioItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'inicio');
+                  const inicioItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
                   if (!inicioItems.length) return null;
                   const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
                   const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
@@ -2838,8 +3000,8 @@ export default function ObraDetailPage() {
                                 }}
                                 className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
                               <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                {item.templateItem?.descricao}
-                                {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                {item.templateItem?.descricao ?? item.descricao}
+                                {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                               </span>
                               <button type="button"
                                 onClick={async () => {
@@ -2886,7 +3048,7 @@ export default function ObraDetailPage() {
                 {/* FVS Conclusão inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const conclusaoItems = etapaFvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+                  const conclusaoItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
                   if (!conclusaoItems.length) return (
                     <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
                       <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
@@ -2922,8 +3084,8 @@ export default function ObraDetailPage() {
                                   }}
                                   className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
                                 <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                  {item.templateItem?.descricao}
-                                  {!item.templateItem?.obrigatorio && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                  {item.templateItem?.descricao ?? item.descricao}
+                                  {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
                                 </span>
                                 <button type="button"
                                   onClick={async () => {
@@ -3770,17 +3932,20 @@ export default function ObraDetailPage() {
         const fvs = activeFvs;
         const FVS_STATUS: Record<string, { label: string; color: string }> = {
           pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
-          inicio_preenchido: { label: 'Início preenchido', color: 'bg-blue-100 text-blue-700' },
-          aguardando_gestor: { label: 'Aguardando gestor', color: 'bg-amber-100 text-amber-700' },
-          aguardando_coord: { label: 'Aguardando coord.', color: 'bg-orange-100 text-orange-700' },
+          inicio_preenchido: { label: 'Início — Aguard. gestor', color: 'bg-blue-100 text-blue-700' },
+          inicio_aprovado_gestor: { label: 'Início — Aguard. coord.', color: 'bg-purple-100 text-purple-700' },
+          inicio_aprovado: { label: 'Início aprovado ✓', color: 'bg-teal-100 text-teal-700' },
+          aguardando_gestor: { label: 'Conclusão — Aguard. gestor', color: 'bg-amber-100 text-amber-700' },
+          aguardando_coord: { label: 'Conclusão — Aguard. coord.', color: 'bg-orange-100 text-orange-700' },
           aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
           rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
         };
         const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
         const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
+        const inicioAprovado = ['inicio_aprovado', 'aguardando_gestor', 'aguardando_coord', 'aprovada', 'rejeitada'].includes(fvs.status);
 
-        const inicioItems = fvs.items.filter(i => i.templateItem?.momento === 'inicio');
-        const conclusaoItems = fvs.items.filter(i => i.templateItem?.momento === 'conclusao');
+        const inicioItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
+        const conclusaoItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
         const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
         const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
         const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
@@ -3788,7 +3953,7 @@ export default function ObraDetailPage() {
 
         const bySecao = (items: ObraFvsItemType[]) => {
           const map: Record<string, ObraFvsItemType[]> = {};
-          items.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (map[s] = map[s] ?? []).push(i); });
+          items.forEach(i => { const s = i.templateItem?.secao ?? (i.templateItem ? 'Geral' : 'Personalizado'); (map[s] = map[s] ?? []).push(i); });
           return map;
         };
 
@@ -3827,8 +3992,9 @@ export default function ObraDetailPage() {
                     {/* Description */}
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                        {item.templateItem?.descricao}
+                        {item.templateItem?.descricao ?? item.descricao}
                         {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
+                        {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
                       </p>
                     </div>
                     {/* N/A toggle */}
@@ -3854,7 +4020,7 @@ export default function ObraDetailPage() {
           ));
         };
 
-        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
+        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor-inicio' | 'approve-coord-inicio' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
           setFvsSubmitting(true);
           try {
             const body = type === 'reject' ? { reason } : {};
@@ -3889,17 +4055,34 @@ export default function ObraDetailPage() {
                 {inicioItems.length > 0 && (
                   <div className="mb-6">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-ber-carbon">🟡 Pré-execução (Início)</h3>
+                      <h3 className="text-sm font-bold text-ber-carbon">
+                        {fvs.status === 'pendente' ? '🟡' : '✅'} Pré-execução (Início)
+                      </h3>
                       <span className={`text-xs font-semibold ${inicioObrigChecked === inicioObrigTotal ? 'text-green-600' : 'text-amber-600'}`}>
                         {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
                       </span>
                     </div>
+                    {fvs.status !== 'pendente' && inicioAprovado && (
+                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução aprovada pelo gestor e coordenador</p>
+                    )}
+                    {fvs.status !== 'pendente' && !inicioAprovado && (
+                      <p className="mb-2 text-xs text-blue-600 font-medium">Pré-execução enviada — aguardando aprovação</p>
+                    )}
                     {renderSection(inicioItems, 'inicio')}
                   </div>
                 )}
 
-                {/* Seção Conclusão */}
-                {conclusaoItems.length > 0 && (
+                {/* Seção Conclusão — só aparece após início aprovado por gestor E coordenador */}
+                {conclusaoItems.length > 0 && !inicioAprovado && inicioItems.length > 0 && (
+                  <div className="rounded-lg border border-dashed border-ber-gray/20 bg-gray-50 p-4 text-center">
+                    <p className="text-sm text-ber-gray">
+                      {fvs.status === 'pendente'
+                        ? '🔒 Confirme a Pré-execução para liberar a seção de Execução e Conclusão'
+                        : '🔒 Aguardando aprovação da Pré-execução pelo gestor e coordenador'}
+                    </p>
+                  </div>
+                )}
+                {conclusaoItems.length > 0 && (inicioAprovado || inicioItems.length === 0) && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
@@ -3910,6 +4093,70 @@ export default function ObraDetailPage() {
                     {renderSection(conclusaoItems, 'conclusao')}
                   </div>
                 )}
+
+                {/* Adicionar etapa customizada */}
+                {!isLocked && (
+                  <div className="mt-6 border-t border-dashed border-ber-gray/20 pt-4">
+                    {!addFvsItemOpen ? (
+                      <button
+                        onClick={() => setAddFvsItemOpen(true)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ber-gray/30 py-2.5 text-sm font-medium text-ber-gray hover:border-ber-teal hover:text-ber-teal transition-colors">
+                        + Adicionar etapa
+                      </button>
+                    ) : (
+                      <div className="space-y-3 rounded-lg bg-ber-offwhite/50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-ber-gray">Nova etapa</p>
+                        <input
+                          type="text"
+                          placeholder="Descrição da etapa..."
+                          value={addFvsItemDesc}
+                          onChange={e => setAddFvsItemDesc(e.target.value)}
+                          className="w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none"
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-semibold text-ber-gray">Momento:</label>
+                          <select
+                            value={addFvsItemMomento}
+                            onChange={e => setAddFvsItemMomento(e.target.value as 'inicio' | 'conclusao')}
+                            className="rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:outline-none">
+                            <option value="inicio">Pré-execução (Início)</option>
+                            <option value="conclusao">Execução e Conclusão</option>
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => { setAddFvsItemOpen(false); setAddFvsItemDesc(''); }}
+                            className="rounded-md px-3 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
+                            Cancelar
+                          </button>
+                          <button
+                            disabled={!addFvsItemDesc.trim() || fvsSubmitting}
+                            onClick={async () => {
+                              setFvsSubmitting(true);
+                              try {
+                                const r = await api.post(`/obra-fvs/${fvs.id}/items`, {
+                                  descricao: addFvsItemDesc.trim(),
+                                  momento: addFvsItemMomento,
+                                });
+                                const newItem = r.data.data;
+                                const updated = { ...fvs, items: [...fvs.items, newItem] };
+                                setActiveFvs(updated);
+                                setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+                                setAddFvsItemDesc('');
+                                setAddFvsItemOpen(false);
+                              } catch (e: any) {
+                                alert(e?.response?.data?.message ?? 'Erro ao adicionar etapa');
+                              } finally { setFvsSubmitting(false); }
+                            }}
+                            className="rounded-md bg-ber-carbon px-4 py-1.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                            Adicionar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Footer — actions */}
@@ -3918,17 +4165,53 @@ export default function ObraDetailPage() {
                 <div className="flex flex-wrap justify-end gap-2">
                   <button onClick={() => setFvsModalOpen(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
 
-                  {/* submit-inicio */}
+                  {/* submit-inicio — envia pré-execução para aprovação */}
                   {fvs.status === 'pendente' && inicioItems.length > 0 && (
                     <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
                       onClick={() => doAction('submit-inicio')}
                       className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50">
-                      ✅ Confirmar Início
+                      📋 Enviar Pré-execução para Aprovação
                     </button>
                   )}
 
-                  {/* submit-conclusao */}
-                  {['pendente', 'inicio_preenchido'].includes(fvs.status) && conclusaoItems.length > 0 && (
+                  {/* approve-gestor-inicio */}
+                  {fvs.status === 'inicio_preenchido' && isGestor && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor-inicio')}
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-600 disabled:opacity-50">
+                        ✅ Aprovar Início (Gestor)
+                      </button>
+                    </>
+                  )}
+
+                  {/* approve-coord-inicio */}
+                  {fvs.status === 'inicio_aprovado_gestor' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord-inicio')}
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50">
+                        ✅ Aprovar Início (Coord.)
+                      </button>
+                    </>
+                  )}
+
+                  {/* submit-conclusao — só aparece após início aprovado (ou se não há itens de início) */}
+                  {(fvs.status === 'inicio_aprovado' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
                     <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
                       onClick={() => doAction('submit-conclusao')}
                       className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
@@ -3936,7 +4219,7 @@ export default function ObraDetailPage() {
                     </button>
                   )}
 
-                  {/* approve-gestor */}
+                  {/* approve-gestor (conclusão) */}
                   {fvs.status === 'aguardando_gestor' && isGestor && (
                     <>
                       <button disabled={fvsSubmitting}

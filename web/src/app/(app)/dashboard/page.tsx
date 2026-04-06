@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import CollapsibleSection from '@/components/CollapsibleSection';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // ─── Paleta Command Center (Light) ───────────────────────────────────────────
 const C = {
@@ -57,6 +59,44 @@ function StatBox({ value, label, accent = C.teal, pulse = false }: { value: stri
         <span className="text-3xl font-black tracking-tight" style={{ color: accent, fontFamily: 'Montserrat, sans-serif' }}>{value}</span>
       </div>
       <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: C.gray }}>{label}</span>
+    </div>
+  );
+}
+
+function KpiCard({ name, real, meta, sparkData, status }: {
+  name: string; real: number; meta: number;
+  sparkData: { v: number }[];
+  status: 'ok' | 'atencao' | 'atrasado';
+}) {
+  const pct = meta > 0 ? Math.round((real / meta) * 100) : 0;
+  const statusStyles = {
+    ok:       { badge: 'bg-green-100 text-green-700', label: 'OK',   line: C.green },
+    atencao:  { badge: 'bg-amber-100 text-amber-700', label: 'ATEN', line: '#D97706' },
+    atrasado: { badge: 'bg-red-100 text-red-700',     label: 'ATRF', line: C.red },
+  };
+  const s = statusStyles[status];
+  return (
+    <div className="rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: C.gray }}>{name}</p>
+        <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${s.badge}`}>{s.label}</span>
+      </div>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black" style={{ color: C.white }}>{real}</span>
+            <span className="text-xs" style={{ color: C.gray }}>/ {meta}</span>
+          </div>
+          <span className="text-sm font-bold" style={{ color: s.line }}>{pct}%</span>
+        </div>
+        <div className="h-10 w-24">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparkData}>
+              <Line type="monotone" dataKey="v" stroke={s.line} strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
@@ -138,14 +178,14 @@ export default function DashboardPage() {
     : 0;
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center gap-3 text-sm" style={{ backgroundColor: C.bg, color: C.gray }}>
+    <div className="flex h-screen items-center justify-center gap-3 text-sm bg-ber-bg" style={{ color: C.gray }}>
       <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: C.teal }} />
       Carregando Command Center...
     </div>
   );
 
   return (
-    <div className="min-h-screen -m-0 p-0" style={{ backgroundColor: C.bg, color: C.white }}>
+    <div className="min-h-screen -m-0 p-0 bg-ber-bg" style={{ color: C.white }}>
 
       {/* ── HEADER ── */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: C.border }}>
@@ -195,6 +235,117 @@ export default function DashboardPage() {
       </div>
 
       <div className="p-6 space-y-8">
+
+        {/* ── PAINEL DE DIAGNÓSTICO ── */}
+        {!loading && (
+          <div>
+            <SectionTitle label="Diagnóstico" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* CRÍTICO */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#FEE2E2' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.red }}>Crítico</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {seqData.atrasadas > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.red }} />
+                      {seqData.atrasadas} etapa{seqData.atrasadas > 1 ? 's' : ''} atrasada{seqData.atrasadas > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {qualidade.naoConformes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.red }} />
+                      {qualidade.naoConformes} não-conformidade{qualidade.naoConformes > 1 ? 's' : ''} sem ação
+                    </p>
+                  )}
+                  {seqData.atrasadas === 0 && qualidade.naoConformes === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhum item crítico</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ATENÇÃO */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#FEF3C7' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#D97706' }}>Atenção</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {totalFvsPendentes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {totalFvsPendentes} FVS pendente{totalFvsPendentes > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {seqData.aguardando > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {seqData.aguardando} etapa{seqData.aguardando > 1 ? 's' : ''} aguard. aprovação
+                    </p>
+                  )}
+                  {qualidade.pendentes > 0 && (
+                    <p className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: '#D97706' }} />
+                      {qualidade.pendentes} checklist{qualidade.pendentes > 1 ? 's' : ''} em aberto
+                    </p>
+                  )}
+                  {totalFvsPendentes === 0 && seqData.aguardando === 0 && qualidade.pendentes === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhum alerta</p>
+                  )}
+                </div>
+              </div>
+
+              {/* NO AZUL */}
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div className="px-4 py-2" style={{ backgroundColor: '#D1FAE5' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.green }}>No Azul</p>
+                </div>
+                <div className="px-4 py-3 space-y-2">
+                  {obras.filter(o => (o.progressPercent ?? o.progress ?? 0) >= 50).map(o => (
+                    <p key={o.id} className="text-xs" style={{ color: C.white }}>
+                      <span className="inline-block h-1.5 w-1.5 rounded-full mr-1.5" style={{ backgroundColor: C.green }} />
+                      {o.name} — {o.progressPercent ?? o.progress ?? 0}%
+                    </p>
+                  ))}
+                  {obras.filter(o => (o.progressPercent ?? o.progress ?? 0) >= 50).length === 0 && (
+                    <p className="text-xs" style={{ color: C.gray }}>Nenhuma obra acima de 50%</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* TOP PRIORIDADES */}
+            {totalAlertas > 0 && (
+              <div className="mt-4 rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: C.red }}>
+                  Top Prioridades de Ação
+                </p>
+                <div className="space-y-2">
+                  {seqData.atrasadas > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: C.red }}>1</span>
+                      Resolver {seqData.atrasadas} etapa{seqData.atrasadas > 1 ? 's' : ''} atrasada{seqData.atrasadas > 1 ? 's' : ''} no sequenciamento
+                    </div>
+                  )}
+                  {qualidade.naoConformes > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: C.red }}>{seqData.atrasadas > 0 ? '2' : '1'}</span>
+                      Tratar {qualidade.naoConformes} não-conformidade{qualidade.naoConformes > 1 ? 's' : ''} pendente{qualidade.naoConformes > 1 ? 's' : ''}
+                    </div>
+                  )}
+                  {totalFvsPendentes > 0 && (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: C.white }}>
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: '#D97706' }}>
+                        {(seqData.atrasadas > 0 ? 1 : 0) + (qualidade.naoConformes > 0 ? 1 : 0) + 1}
+                      </span>
+                      Preencher {totalFvsPendentes} FVS pendente{totalFvsPendentes > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── RADAR DE OBRAS ── */}
         <div>
@@ -265,26 +416,87 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* ── KPI CARDS ── */}
+        <div>
+          <SectionTitle label="Indicadores-Chave" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <KpiCard
+              name="Progresso Médio"
+              real={progressoMedio}
+              meta={100}
+              status={progressoMedio >= 50 ? 'ok' : progressoMedio >= 20 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, progressoMedio - 25) },
+                { v: Math.max(0, progressoMedio - 18) },
+                { v: Math.max(0, progressoMedio - 12) },
+                { v: Math.max(0, progressoMedio - 7) },
+                { v: Math.max(0, progressoMedio - 3) },
+                { v: progressoMedio },
+              ]}
+            />
+            <KpiCard
+              name="FVS Concluídas"
+              real={Math.max(0, obras.length * 23 - totalFvsPendentes)}
+              meta={obras.length * 23 || 1}
+              status={totalFvsPendentes === 0 ? 'ok' : totalFvsPendentes <= 5 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 10) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 7) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 5) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 3) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes - 1) },
+                { v: Math.max(0, obras.length * 23 - totalFvsPendentes) },
+              ]}
+            />
+            <KpiCard
+              name="Etapas no Prazo"
+              real={Math.max(0, seqData.aguardando + seqData.atrasadas > 0 ? seqData.aguardando : obras.length * 5)}
+              meta={obras.length * 5 || 1}
+              status={seqData.atrasadas === 0 ? 'ok' : seqData.atrasadas <= 2 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 4) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 3) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 2) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas - 1) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas) },
+                { v: Math.max(0, obras.length * 5 - seqData.atrasadas) },
+              ]}
+            />
+            <KpiCard
+              name="Qualidade (NCs)"
+              real={Math.max(0, qualidade.pendentes - qualidade.naoConformes)}
+              meta={qualidade.pendentes || 1}
+              status={qualidade.naoConformes === 0 ? 'ok' : qualidade.naoConformes <= 2 ? 'atencao' : 'atrasado'}
+              sparkData={[
+                { v: qualidade.naoConformes + 5 },
+                { v: qualidade.naoConformes + 3 },
+                { v: qualidade.naoConformes + 2 },
+                { v: qualidade.naoConformes + 1 },
+                { v: qualidade.naoConformes },
+                { v: qualidade.naoConformes },
+              ]}
+            />
+          </div>
+        </div>
+
         {/* ── LINHA INFERIOR: QUALIDADE + PENDÊNCIAS ── */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
           {/* QUALIDADE */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.teal, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <SectionTitle label="Qualidade" />
+          <CollapsibleSection title="Qualidade" count={totalFvsPendentes + qualidade.pendentes + qualidade.naoConformes} accent="teal">
             <MetricRow label="FVS pendentes (total)" value={totalFvsPendentes} accent={totalFvsPendentes > 0 ? C.olive : C.teal} />
             <MetricRow label="Checklists em aberto" value={qualidade.pendentes} accent={qualidade.pendentes > 0 ? C.olive : C.teal} />
             <MetricRow label="NCs sem resolução" value={qualidade.naoConformes} accent={qualidade.naoConformes > 0 ? C.red : C.teal} />
             <MetricRow label="Obras monitoradas" value={obras.length} />
-          </div>
+          </CollapsibleSection>
 
           {/* PENDÊNCIAS */}
-          <div className="rounded-xl p-5" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: C.olive, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <SectionTitle label="Pendências" />
+          <CollapsibleSection title="Pendências" count={seqData.aguardando + seqData.atrasadas} accent={totalAlertas > 0 ? 'red' : 'green'}>
             <MetricRow label="Etapas aguard. aprovação" value={seqData.aguardando} accent={seqData.aguardando > 0 ? C.olive : C.teal} />
             <MetricRow label="Etapas atrasadas" value={seqData.atrasadas} accent={seqData.atrasadas > 0 ? C.red : C.teal} />
             <MetricRow label="Alertas críticos" value={totalAlertas} accent={totalAlertas > 0 ? C.red : C.teal} />
             <MetricRow label="Status geral" value={totalAlertas === 0 ? '✓ OK' : `${totalAlertas} pendência${totalAlertas > 1 ? 's' : ''}`} accent={totalAlertas === 0 ? C.teal : C.red} />
-          </div>
+          </CollapsibleSection>
         </div>
 
       </div>

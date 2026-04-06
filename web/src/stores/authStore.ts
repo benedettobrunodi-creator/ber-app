@@ -3,12 +3,34 @@ import api from '@/lib/api';
 
 export type UserRole = 'diretoria' | 'coordenacao' | 'gestor' | 'campo';
 
+export interface CustomRole {
+  id: string;
+  name: string;
+  permissions: Record<string, boolean>;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
   avatarUrl: string | null;
+  customRole?: CustomRole | null;
+}
+
+/** Default permissions for built-in roles (fallback when customRole is not set) */
+const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
+  diretoria: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, pmo: true, seguranca: true, normas: true, instrucoes: true, ponto: true, dre: true, configuracoes: true },
+  coordenacao: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, pmo: true, seguranca: true, normas: true, instrucoes: true, ponto: true, dre: false, configuracoes: true },
+  gestor: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, pmo: true, seguranca: true, normas: true, instrucoes: true, ponto: true, dre: false, configuracoes: false },
+  campo: { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true, dre: false, configuracoes: false },
+};
+
+/** Get the effective permissions for a user */
+export function getUserPermissions(user: User | null): Record<string, boolean> {
+  if (!user) return {};
+  if (user.customRole?.permissions) return user.customRole.permissions;
+  return DEFAULT_PERMS[user.role] ?? {};
 }
 
 interface AuthState {

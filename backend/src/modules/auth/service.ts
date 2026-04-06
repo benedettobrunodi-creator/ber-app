@@ -12,7 +12,10 @@ import type { JwtPayload } from '../../middleware/auth';
 const resetTokens = new Map<string, { userId: string; expiresAt: Date }>();
 
 export async function login(input: LoginInput) {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+    include: { customRole: { select: { id: true, name: true, permissions: true } } },
+  });
   if (!user || !user.isActive) {
     throw AppError.unauthorized('Email ou senha inválidos');
   }
@@ -45,6 +48,7 @@ export async function login(input: LoginInput) {
       name: user.name,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      customRole: user.customRole,
     },
   };
 }

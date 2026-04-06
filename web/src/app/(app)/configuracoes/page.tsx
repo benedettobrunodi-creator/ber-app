@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { useAuthStore, UserRole } from '@/stores/authStore';
+import Link from 'next/link';
 import {
   Users,
   UserPlus,
@@ -12,6 +13,7 @@ import {
   Save,
   X,
   Shield,
+  ArrowRight,
 } from 'lucide-react';
 
 // --- Types ---
@@ -309,146 +311,34 @@ export default function ConfiguracoesPage() {
       {/* Tab content */}
       <div className="mt-6">
         {activeTab === 'usuarios' && canManageUsers && (
-          <>
-            {loadingUsers ? (
-              <div className="py-12 text-center text-sm text-ber-gray">
-                Carregando...
+          <div className="space-y-4">
+            <Link href="/configuracoes/usuarios"
+              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-olive/10">
+                  <Users size={24} className="text-ber-olive" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-ber-carbon">Gestao de Usuarios</h3>
+                  <p className="text-sm text-ber-gray">Criar, editar roles e gerenciar status dos usuarios</p>
+                </div>
               </div>
-            ) : users.length === 0 ? (
-              <div className="flex flex-col items-center py-16 text-center">
-                <Users size={48} className="text-ber-gray/40" />
-                <p className="mt-4 text-sm font-medium text-ber-gray">
-                  Nenhum usuario encontrado
-                </p>
+              <ArrowRight size={20} className="text-ber-gray" />
+            </Link>
+            <Link href="/configuracoes/roles"
+              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-teal/10">
+                  <Shield size={24} className="text-ber-teal" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-ber-carbon">Roles e Permissoes</h3>
+                  <p className="text-sm text-ber-gray">Configurar permissoes por modulo para cada role</p>
+                </div>
               </div>
-            ) : (
-              <>
-              <div className="space-y-3 md:hidden">
-                {users.map((u) => (
-                  <div key={u.id} className="rounded-lg bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      {u.avatarUrl ? (
-                        <img src={u.avatarUrl} alt={u.name} className="h-10 w-10 rounded-full object-cover" />
-                      ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
-                          {getInitials(u.name)}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-ber-carbon truncate">{u.name}</p>
-                        <p className="text-xs text-ber-gray truncate">{u.email}</p>
-                      </div>
-                      {u.isActive ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Ativo</span>
-                      ) : (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">Inativo</span>
-                      )}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}>
-                          <Shield size={10} />
-                          {ROLE_LABELS[u.role]}
-                        </span>
-                        {u.phone && <span className="text-xs text-ber-gray">{u.phone}</span>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openEditModal(u)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-ber-olive text-xs font-semibold text-white">Editar</button>
-                        <button onClick={() => handleToggleActive(u)} className={`min-h-[44px] rounded-lg px-3 text-xs font-semibold text-white ${u.isActive ? 'bg-red-500' : 'bg-green-600'}`}>
-                          {u.isActive ? 'Desativar' : 'Reativar'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop table */}
-              <div className="hidden overflow-x-auto rounded-lg bg-white shadow-sm md:block">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
-                      <th className="px-6 py-4">Usuario</th>
-                      <th className="px-6 py-4">Email</th>
-                      <th className="px-6 py-4">Role</th>
-                      <th className="px-6 py-4">Telefone</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Acoes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr
-                        key={u.id}
-                        className="border-b border-ber-gray/5 last:border-0"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {u.avatarUrl ? (
-                              <img
-                                src={u.avatarUrl}
-                                alt={u.name}
-                                className="h-9 w-9 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
-                                {getInitials(u.name)}
-                              </div>
-                            )}
-                            <span className="font-medium text-ber-carbon">
-                              {u.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-ber-gray">{u.email}</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}
-                          >
-                            <Shield size={10} />
-                            {ROLE_LABELS[u.role]}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-ber-gray">
-                          {u.phone || '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {u.isActive ? (
-                            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                              Ativo
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                              Inativo
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditModal(u)}
-                              className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleToggleActive(u)}
-                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90 ${
-                                u.isActive ? 'bg-red-500' : 'bg-green-600'
-                              }`}
-                            >
-                              {u.isActive ? 'Desativar' : 'Reativar'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              </>
-            )}
-          </>
+              <ArrowRight size={20} className="text-ber-gray" />
+            </Link>
+          </div>
         )}
 
         {activeTab === 'perfil' && (

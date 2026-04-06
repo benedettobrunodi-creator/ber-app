@@ -44,6 +44,7 @@ import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/ro
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
 import dashboardRoutes from './modules/dashboard/routes';
 import dreRoutes from './modules/dre/routes';
+import rolesRoutes from './modules/roles/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -188,28 +189,52 @@ app.get('/v1/obras/:id/medicao-itens',       authenticate as any, (req: any, res
 app.post('/v1/obras/:id/medicao-itens/bulk', authenticate as any, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
 app.use('/v1/medicoes', medicaoRouter);
 app.use('/v1/obras', comprasRoutes);
+app.use('/v1/roles', rolesRoutes);
 
-// Generic file upload
-const uploadStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, env.uploadDir),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
-const genericUpload = multer({
-  storage: uploadStorage,
+// Generic file upload — uses R2 when configured, falls back to disk
+import { uploadToR2, isR2Configured } from './services/storage';
+
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: env.maxFileSize },
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
     cb(null, allowed.includes(file.mimetype));
   },
 });
-app.post('/v1/uploads', authenticate, genericUpload.single('file'), (req, res) => {
+const diskUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, env.uploadDir),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
+    },
+  }),
+  limits: { fileSize: env.maxFileSize },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
+
+const genericUpload = isR2Configured() ? memoryUpload : diskUpload;
+
+app.post('/v1/uploads', authenticate, genericUpload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: { code: 'NO_FILE', message: 'Nenhum arquivo enviado' } });
   }
-  res.status(201).json({ data: { url: `/uploads/${req.file.filename}` } });
+  try {
+    let url: string;
+    if (isR2Configured() && req.file.buffer) {
+      url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } else {
+      url = `${env.backendUrl}/uploads/${req.file.filename}`;
+    }
+    res.status(201).json({ data: { url } });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: { code: 'UPLOAD_FAILED', message: 'Erro no upload do arquivo' } });
+  }
 });
 
 // 404 handler

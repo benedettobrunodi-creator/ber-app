@@ -24,6 +24,7 @@ router.get('/:id', controller.getById);
 router.patch('/:id/items/:itemId', validate(answerItemSchema), controller.answerItem);
 router.post('/:id/items', requireRole('gestor'), validate(addItemSchema), controller.addItem);
 router.patch('/:id/complete', requireRole('gestor'), controller.completeChecklist);
+router.put('/:id/reorder', authenticate, controller.reorderItems);
 
 export { templateRouter, obraChecklistRouter };
 export default router;

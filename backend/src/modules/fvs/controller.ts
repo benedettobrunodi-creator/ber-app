@@ -156,6 +156,9 @@ export async function submitConclusao(req: Request, res: Response) {
     include: { items: { include: { templateItem: true } } },
   });
   if (!fvs) throw AppError.notFound('FVS não encontrada');
+  if (!['inicio_aprovado', 'pendente', 'inicio_preenchido'].includes(fvs.status)) {
+    throw AppError.badRequest('A pré-execução precisa ser aprovada pelo gestor e coordenador antes de enviar a conclusão');
+  }
 
   const unchecked = fvs.items.filter(i => i.momento === 'conclusao' && i.templateItem?.obrigatorio && !i.checked && !(i as any).na);
   if (unchecked.length > 0) {
@@ -165,6 +168,44 @@ export async function submitConclusao(req: Request, res: Response) {
   const updated = await prisma.obraFvs.update({
     where: { id: fvsId },
     data: { status: 'aguardando_gestor' },
+    include: FVS_INCLUDE,
+  });
+  sendSuccess(res, updated);
+}
+
+// POST /obra-fvs/:fvsId/approve-gestor-inicio
+export async function approveGestorInicio(req: Request, res: Response) {
+  const { fvsId } = req.params;
+  const userId = (req as any).user?.id;
+  const role = (req as any).user?.role;
+  if (!['gestor', 'coordenacao', 'diretoria'].includes(role)) throw AppError.forbidden('Sem permissão');
+
+  const fvs = await prisma.obraFvs.findUnique({ where: { id: fvsId } });
+  if (!fvs) throw AppError.notFound('FVS não encontrada');
+  if (fvs.status !== 'inicio_preenchido') throw AppError.badRequest('FVS não está aguardando aprovação do início');
+
+  const updated = await prisma.obraFvs.update({
+    where: { id: fvsId },
+    data: { status: 'inicio_aprovado_gestor', gestorApprovedBy: userId, gestorApprovedAt: new Date() },
+    include: FVS_INCLUDE,
+  });
+  sendSuccess(res, updated);
+}
+
+// POST /obra-fvs/:fvsId/approve-coord-inicio
+export async function approveCoordInicio(req: Request, res: Response) {
+  const { fvsId } = req.params;
+  const userId = (req as any).user?.id;
+  const role = (req as any).user?.role;
+  if (!['coordenacao', 'diretoria'].includes(role)) throw AppError.forbidden('Sem permissão');
+
+  const fvs = await prisma.obraFvs.findUnique({ where: { id: fvsId } });
+  if (!fvs) throw AppError.notFound('FVS não encontrada');
+  if (fvs.status !== 'inicio_aprovado_gestor') throw AppError.badRequest('FVS não está aguardando aprovação do coordenador para o início');
+
+  const updated = await prisma.obraFvs.update({
+    where: { id: fvsId },
+    data: { status: 'inicio_aprovado', coordApprovedBy: userId, coordApprovedAt: new Date() },
     include: FVS_INCLUDE,
   });
   sendSuccess(res, updated);
@@ -206,6 +247,33 @@ export async function autoProvision(req: Request, res: Response) {
   const { autoProvisionFvs } = await import('./auto-provision');
   const result = await autoProvisionFvs(obraId);
   sendSuccess(res, result);
+}
+
+// POST /obra-fvs/:fvsId/items  — add custom item
+export async function addCustomItem(req: Request, res: Response) {
+  const { fvsId } = req.params;
+  const { descricao, momento } = req.body;
+  const userId = (req as any).user?.id;
+
+  if (!descricao?.trim()) throw AppError.badRequest('Descrição obrigatória');
+  if (!['inicio', 'conclusao'].includes(momento)) throw AppError.badRequest('Momento deve ser "inicio" ou "conclusao"');
+
+  const fvs = await prisma.obraFvs.findUnique({ where: { id: fvsId } });
+  if (!fvs) throw AppError.notFound('FVS não encontrada');
+  if (['aprovada', 'rejeitada'].includes(fvs.status)) throw AppError.badRequest('FVS encerrada');
+
+  const item = await prisma.obraFvsItem.create({
+    data: {
+      fvsId,
+      momento,
+      descricao: descricao.trim(),
+      checked: false,
+      na: false,
+      filledBy: userId,
+    },
+    include: { templateItem: true, filler: { select: { id: true, name: true } } },
+  });
+  sendCreated(res, item);
 }
 
 // POST /obra-fvs/:fvsId/reject

@@ -7,6 +7,15 @@
   --ber-offwhite: #D8DDD8;
   --ber-gray: #868686;
   --ber-black: #000000;
+  /* New design system tokens */
+  --ber-bg: #F4F5F7;
+  --ber-sidebar: #1E2432;
+  --ber-sidebar-hover: #283040;
+  --ber-card: #FFFFFF;
+  --ber-border: #E4E4E0;
+  --ber-red: #E05555;
+  --ber-green: #3D9E5F;
+  --ber-amber: #E6A23C;
 }
 
 @theme inline {
@@ -16,11 +25,19 @@
   --color-ber-offwhite: var(--ber-offwhite);
   --color-ber-gray: var(--ber-gray);
   --color-ber-black: var(--ber-black);
+  --color-ber-bg: var(--ber-bg);
+  --color-ber-sidebar: var(--ber-sidebar);
+  --color-ber-sidebar-hover: var(--ber-sidebar-hover);
+  --color-ber-card: var(--ber-card);
+  --color-ber-border: var(--ber-border);
+  --color-ber-red: var(--ber-red);
+  --color-ber-green: var(--ber-green);
+  --color-ber-amber: var(--ber-amber);
   --font-sans: "Montserrat", sans-serif;
 }
 
 body {
   font-family: "Montserrat", sans-serif;
-  background: var(--ber-offwhite);
+  background: var(--ber-bg);
   color: var(--ber-carbon);
 }
