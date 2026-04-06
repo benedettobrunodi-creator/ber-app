@@ -181,11 +181,13 @@ app.get('/v1/ber-checklist-templates', authenticate as any, (req: any, res: any)
 // ── MEDIÇÃO DE CONTRATO ──────────────────────────────────────────────────────
 import * as medCtrl from './modules/medicoes/controller';
 import medicaoRouter from './modules/medicoes/routes';
+import comprasRoutes from './modules/compras/routes';
 app.get('/v1/obras/:id/medicoes',            authenticate as any, (req: any, res: any, next: any) => medCtrl.listMedicoes(req, res, next).catch(next));
 app.post('/v1/obras/:id/medicoes',           authenticate as any, (req: any, res: any, next: any) => medCtrl.createMedicao(req, res, next).catch(next));
 app.get('/v1/obras/:id/medicao-itens',       authenticate as any, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
 app.post('/v1/obras/:id/medicao-itens/bulk', authenticate as any, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
 app.use('/v1/medicoes', medicaoRouter);
+app.use('/v1/obras', comprasRoutes);
 
 // Generic file upload
 const uploadStorage = multer.diskStorage({

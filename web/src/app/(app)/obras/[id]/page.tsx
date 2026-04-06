@@ -1490,6 +1490,13 @@ export default function ObraDetailPage() {
         >
           📊 Medição
         </Link>
+        {/* Compras — página dedicada */}
+        <Link
+          href={`/obras/${params.id}/compras`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          🛒 Compras
+        </Link>
       </div>
 
       {/* Tab content */}
