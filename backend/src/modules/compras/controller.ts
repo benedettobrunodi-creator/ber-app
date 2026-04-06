@@ -37,7 +37,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const { id: obraId } = req.params;
     const items = await prisma.comprasMeta.findMany({
       where: { obraId },
-      orderBy: [{ n: 'asc' }, { categoria: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }],
     });
     res.json({ data: items });
   } catch (err) { next(err); }
@@ -79,7 +79,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 
     const created = await prisma.comprasMeta.findMany({
       where: { obraId },
-      orderBy: [{ n: 'asc' }, { categoria: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }],
     });
 
     res.json({ data: created, imported: rows.length });
@@ -90,7 +90,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { itemId } = req.params;
-    const { pctMeta, comprado, fornecedor } = req.body;
+    const { pctMeta, comprado, fornecedor, faturamento } = req.body;
 
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
@@ -101,6 +101,7 @@ export async function update(req: Request, res: Response, next: NextFunction) {
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
         ...(fornecedor !== undefined && { fornecedor: String(fornecedor) || null }),
+        ...(faturamento !== undefined && { faturamento: String(faturamento) || null }),
       },
     });
 

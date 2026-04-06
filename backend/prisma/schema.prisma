@@ -152,7 +152,8 @@ model ComprasMeta {
   venda      Float    @default(0)
   pctMeta    Float    @default(0.2) @map("pct_meta")
   comprado   Float    @default(0)
-  fornecedor String?  @db.VarChar(500)
+  fornecedor  String?  @db.VarChar(500)
+  faturamento String?  @db.VarChar(50)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 

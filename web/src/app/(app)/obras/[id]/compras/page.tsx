@@ -14,6 +14,7 @@ interface CompraItem {
   pctMeta: number;
   comprado: number;
   fornecedor: string | null;
+  faturamento: string | null;
 }
 
 const fmtBRL = (v: number) =>
@@ -169,6 +170,7 @@ export default function ComprasPage() {
                 <th className="px-3 py-3 text-right">Meta</th>
                 <th className="px-3 py-3 text-right min-w-[100px]">Comprado</th>
                 <th className="px-3 py-3 text-left min-w-[130px]">Fornecedor</th>
+                <th className="px-3 py-3 text-center min-w-[120px]">Faturamento</th>
                 <th className="px-3 py-3 text-right">Sav. Orç</th>
                 <th className="px-3 py-3 text-right">Sav. Meta</th>
                 <th className="px-3 py-3 text-center w-10">🚦</th>
@@ -222,6 +224,17 @@ export default function ComprasPage() {
                         placeholder="Fornecedor..."
                         className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
                       />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <select
+                        value={item.faturamento || ''}
+                        onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
+                        className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                      >
+                        <option value="">—</option>
+                        <option value="BER">BER</option>
+                        <option value="Fornecedor">Fornecedor</option>
+                      </select>
                     </td>
                     <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                       {savOrç >= 0 ? <TrendingDown size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
