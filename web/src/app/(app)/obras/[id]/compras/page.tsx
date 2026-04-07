@@ -15,7 +15,20 @@ interface CompraItem {
   comprado: number;
   fornecedor: string | null;
   faturamento: string | null;
+  pacote: number | null;
+  compradoOk: boolean;
 }
+
+
+const PACOTE_COLORS: Record<number, { bg: string; text: string; label: string }> = {
+  0: { bg: 'bg-red-600',    text: 'text-white', label: 'P0' },
+  1: { bg: 'bg-orange-500', text: 'text-white', label: 'P1' },
+  2: { bg: 'bg-amber-400',  text: 'text-black', label: 'P2' },
+  3: { bg: 'bg-yellow-300', text: 'text-black', label: 'P3' },
+  4: { bg: 'bg-green-400',  text: 'text-black', label: 'P4' },
+  5: { bg: 'bg-blue-400',   text: 'text-white', label: 'P5' },
+  6: { bg: 'bg-gray-400',   text: 'text-white', label: 'P6' },
+};
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
@@ -85,11 +98,21 @@ export default function ComprasPage() {
   };
 
   // Totais
+  const itemsOk = items.filter(i => i.compradoOk);
+  const itemsPend = items.filter(i => !i.compradoOk);
+
   const totalVenda = items.reduce((s, i) => s + i.venda, 0);
   const totalMeta = items.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
   const totalComprado = items.reduce((s, i) => s + i.comprado, 0);
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
+
+  const okVenda = itemsOk.reduce((s, i) => s + i.venda, 0);
+  const okComprado = itemsOk.reduce((s, i) => s + i.comprado, 0);
+  const okSaving = okVenda - okComprado;
+
+  const pendVenda = itemsPend.reduce((s, i) => s + i.venda, 0);
+  const pendMeta = itemsPend.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
 
   return (
     <div className="p-4 md:p-6">
@@ -119,26 +142,63 @@ export default function ComprasPage() {
 
       {/* Cards de resumo */}
       {items.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-ber-gray">Total Venda</p>
-            <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVenda)}</p>
+        <div className="mb-4 space-y-3">
+          {/* Linha geral */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-xl bg-white p-4 shadow-sm">
+              <p className="text-xs text-ber-gray">Total Venda</p>
+              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVenda)}</p>
+            </div>
+            <div className="rounded-xl bg-white p-4 shadow-sm">
+              <p className="text-xs text-ber-gray">Total Meta</p>
+              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalMeta)}</p>
+            </div>
+            <div className="rounded-xl bg-white p-4 shadow-sm">
+              <p className="text-xs text-ber-gray">Total Comprado</p>
+              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalComprado)}</p>
+            </div>
+            <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <p className="text-xs text-ber-gray">Saving Total</p>
+              <p className={`mt-1 text-lg font-bold ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingTotal)}</p>
+              <p className="text-xs text-ber-gray">{savingPct.toFixed(1)}% do orçamento</p>
+            </div>
           </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-ber-gray">Total Meta</p>
-            <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalMeta)}</p>
-          </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-ber-gray">Total Comprado</p>
-            <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalComprado)}</p>
-          </div>
-          <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-            <p className="text-xs text-ber-gray">Saving Total</p>
-            <p className={`mt-1 text-lg font-bold ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-              {fmtBRL(savingTotal)}
-            </p>
-            <p className="text-xs text-ber-gray">{savingPct.toFixed(1)}% do orçamento</p>
-          </div>
+          {/* Linha comprados */}
+          {itemsOk.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-green-50 p-3 shadow-sm border border-green-100">
+                <p className="text-xs text-green-700 font-medium">✅ Comprados ({itemsOk.length})</p>
+                <p className="text-xs text-ber-gray mt-1">Venda</p>
+                <p className="text-base font-bold text-green-700">{fmtBRL(okVenda)}</p>
+              </div>
+              <div className="rounded-xl bg-green-50 p-3 shadow-sm border border-green-100">
+                <p className="text-xs text-green-700 font-medium">Valor Pago</p>
+                <p className="text-base font-bold text-green-700 mt-4">{fmtBRL(okComprado)}</p>
+              </div>
+              <div className={`rounded-xl p-3 shadow-sm border ${okSaving >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                <p className={`text-xs font-medium ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving Realizado</p>
+                <p className={`text-base font-bold mt-4 ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
+              </div>
+            </div>
+          )}
+          {/* Linha a comprar */}
+          {itemsPend.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
+                <p className="text-xs text-amber-700 font-medium">🛒 A Comprar ({itemsPend.length})</p>
+                <p className="text-xs text-ber-gray mt-1">Venda</p>
+                <p className="text-base font-bold text-amber-700">{fmtBRL(pendVenda)}</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
+                <p className="text-xs text-amber-700 font-medium">Meta</p>
+                <p className="text-base font-bold text-amber-700 mt-4">{fmtBRL(pendMeta)}</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
+                <p className="text-xs text-amber-700 font-medium">Potencial Saving</p>
+                <p className="text-base font-bold text-amber-700 mt-4">{fmtBRL(pendVenda - pendMeta)}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -162,6 +222,8 @@ export default function ComprasPage() {
           <table className="w-full text-sm">
             <thead className="bg-ber-carbon text-xs text-white">
               <tr>
+                <th className="px-3 py-3 text-center w-8">✓</th>
+                <th className="px-3 py-3 text-center w-12">Pacote</th>
                 <th className="px-3 py-3 text-left w-8">N</th>
                 <th className="px-3 py-3 text-left min-w-[140px]">Categoria</th>
                 <th className="px-3 py-3 text-left min-w-[160px]">Descritivo</th>
@@ -184,7 +246,27 @@ export default function ComprasPage() {
                 const status = semaforo(item.comprado, meta);
                 const progPct = meta > 0 ? Math.min((item.comprado / meta) * 100, 100) : 0;
                 return (
-                  <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={item.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${item.compradoOk ? 'opacity-60' : ''}`}>
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={item.compradoOk}
+                        onChange={e => saveItem(item.id, { compradoOk: e.target.checked })}
+                        className="w-4 h-4 accent-ber-teal cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <select
+                        value={item.pacote ?? ''}
+                        onChange={e => saveItem(item.id, { pacote: e.target.value === '' ? null : Number(e.target.value) })}
+                        className={`w-14 rounded px-1 py-0.5 text-xs font-bold text-center focus:outline-none border-0 ${item.pacote !== null && item.pacote !== undefined ? PACOTE_COLORS[item.pacote]?.bg + ' ' + PACOTE_COLORS[item.pacote]?.text : 'bg-gray-100 text-gray-400'}`}
+                      >
+                        <option value="">—</option>
+                        {[0,1,2,3,4,5,6].map(p => (
+                          <option key={p} value={p}>P{p}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-3 py-2 text-ber-gray text-xs">{item.n}</td>
                     <td className="px-3 py-2 font-medium text-ber-carbon text-xs">{item.categoria}</td>
                     <td className="px-3 py-2 text-ber-gray text-xs">{item.descritivo || '—'}</td>

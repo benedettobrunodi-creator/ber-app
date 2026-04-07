@@ -90,7 +90,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { itemId } = req.params;
-    const { pctMeta, comprado, fornecedor, faturamento } = req.body;
+    const { pctMeta, comprado, fornecedor, faturamento, pacote, compradoOk } = req.body;
 
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
@@ -102,6 +102,8 @@ export async function update(req: Request, res: Response, next: NextFunction) {
         ...(comprado !== undefined && { comprado: Number(comprado) }),
         ...(fornecedor !== undefined && { fornecedor: String(fornecedor) || null }),
         ...(faturamento !== undefined && { faturamento: String(faturamento) || null }),
+        ...(pacote !== undefined && { pacote: pacote === null ? null : Number(pacote) }),
+        ...(compradoOk !== undefined && { compradoOk: Boolean(compradoOk) }),
       },
     });
 
