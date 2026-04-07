@@ -31,15 +31,38 @@ function parseRow(row: ExcelJS.Row): {
   };
 }
 
+
+function mapItem(row: any) {
+  return {
+    id: row.id,
+    obraId: row.obra_id,
+    n: row.n,
+    categoria: row.categoria,
+    descritivo: row.descritivo,
+    venda: Number(row.venda),
+    pctMeta: Number(row.pct_meta),
+    comprado: Number(row.comprado),
+    fornecedor: row.fornecedor,
+    faturamento: row.faturamento,
+    pacote: row.pacote !== null ? Number(row.pacote) : null,
+    compradoOk: row.comprado_ok,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 // GET /v1/obras/:id/compras
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const { id: obraId } = req.params;
-    const items = await prisma.comprasMeta.findMany({
-      where: { obraId },
-      orderBy: [{ createdAt: 'asc' }],
-    });
-    res.json({ data: items });
+    const items = await prisma.$queryRaw<any[]>`
+      SELECT * FROM compras_metas
+      WHERE obra_id = ${obraId}::uuid
+      ORDER BY
+        CAST(NULLIF(regexp_replace(n, '[^0-9.]', '', 'g'), '') AS FLOAT) ASC NULLS LAST,
+        created_at ASC
+    `;
+    res.json({ data: items.map(mapItem) });
   } catch (err) { next(err); }
 }
 
@@ -77,12 +100,15 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       }),
     ]);
 
-    const created = await prisma.comprasMeta.findMany({
-      where: { obraId },
-      orderBy: [{ createdAt: 'asc' }],
-    });
+    const created = await prisma.$queryRaw<any[]>`
+      SELECT * FROM compras_metas
+      WHERE obra_id = ${obraId}::uuid
+      ORDER BY
+        CAST(NULLIF(regexp_replace(n, '[^0-9.]', '', 'g'), '') AS FLOAT) ASC NULLS LAST,
+        created_at ASC
+    `;
 
-    res.json({ data: created, imported: rows.length });
+    res.json({ data: created.map(mapItem), imported: rows.length });
   } catch (err) { next(err); }
 }
 
