@@ -202,10 +202,14 @@ export default function ComprasPage() {
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-0.5">
                         <input
-                          type="number"
-                          min={0} step={100}
-                          value={item.comprado}
-                          onChange={e => saveItem(item.id, { comprado: Number(e.target.value) })}
+                          type="text"
+                          inputMode="numeric"
+                          value={item.comprado === 0 ? '' : item.comprado}
+                          placeholder="0"
+                          onChange={e => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
+                          }}
                           className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
                         />
                         <div className="h-1 rounded-full bg-gray-200">
