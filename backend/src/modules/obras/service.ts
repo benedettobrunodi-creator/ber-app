@@ -7,8 +7,8 @@ export async function listObras(page: number, limit: number, status?: string, us
   const where: any = {};
   if (status) where.status = status;
 
-  // gestor and campo can only see obras they're members of
-  if (userRole === 'gestor' || userRole === 'campo') {
+  // apenas gestor vê só suas obras; campo e coordenacao veem todas para registro de ponto
+  if (userRole === 'gestor') {
     where.members = { some: { userId } };
   }
 
