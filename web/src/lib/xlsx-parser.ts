@@ -2,6 +2,14 @@
  * xlsx-parser.ts — Parser de planilhas Excel para importação de orçamento
  * Importado APENAS dinamicamente (await import('./xlsx-parser'))
  * NÃO importar no topo de nenhum componente — mantém xlsx fora do bundle inicial
+ *
+ * Formato esperado: Orçamento Analítico BÈR
+ *   - Linha 11: cabeçalho
+ *   - Col B (1): ÍNDICE — "1","2" para etapas, "1.1","1.2" para subitens
+ *   - Col C (2): ETAPA/ITEM — "Etapa" ou "Item"
+ *   - Col G (6): DESCRIÇÃO
+ *   - Col S (18): CUSTO TOTAL
+ *   - Col AD (29): PREÇO TOTAL (com BDI)
  */
 
 export interface OrcamentoItem {
@@ -9,10 +17,24 @@ export interface OrcamentoItem {
   descricao: string;
   valor_orcado: number;
   tipo: 'grupo' | 'subitem';
+  custo_total: number;
+  preco_total: number;
+}
+
+const HEADER_ROW = 11; // 1-based — row index 10 in 0-based array
+const COL_INDICE = 1;      // B
+const COL_TIPO = 2;        // C
+const COL_DESCRICAO = 6;   // G
+const COL_CUSTO_TOTAL = 18; // S
+const COL_PRECO_TOTAL = 29; // AD
+
+function parseNumber(raw: any): number {
+  if (typeof raw === 'number') return raw;
+  if (!raw) return 0;
+  return parseFloat(String(raw).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
 export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
-  // SheetJS — importado dinamicamente apenas quando necessário
   const XLSX = await import('xlsx');
 
   const buf = await file.arrayBuffer();
@@ -20,19 +42,43 @@ export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-  const dataRows = rows.filter((r: any[]) => r.length >= 3 && r[0] !== '' && r[1] !== '');
+  // Skip rows before data (header is at HEADER_ROW, data starts after)
+  const dataRows = rows.slice(HEADER_ROW); // 0-based: slice(11) = from row 12
 
-  return dataRows.map((r: any[], i: number) => {
-    const num = String(r[0]).trim();
-    const desc = String(r[1]).trim();
-    const val =
-      parseFloat(String(r[2]).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
-    if (!num || !desc) throw new Error(`Linha ${i + 1}: Nº ou Descrição vazio`);
-    return {
-      numero: num,
-      descricao: desc,
-      valor_orcado: val,
-      tipo: (num.includes('.') ? 'subitem' : 'grupo') as 'grupo' | 'subitem',
-    };
-  });
+  const items: OrcamentoItem[] = [];
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    if (!row || row.length === 0) continue;
+
+    const indice = String(row[COL_INDICE] ?? '').trim();
+    const tipoRaw = String(row[COL_TIPO] ?? '').trim().toLowerCase();
+    const descricao = String(row[COL_DESCRICAO] ?? '').trim();
+
+    // Skip rows without a valid index or tipo
+    if (!indice || !tipoRaw || !descricao) continue;
+    if (tipoRaw !== 'etapa' && tipoRaw !== 'item') continue;
+
+    const custoTotal = parseNumber(row[COL_CUSTO_TOTAL]);
+    const precoTotal = parseNumber(row[COL_PRECO_TOTAL]);
+    const tipo = tipoRaw === 'etapa' ? 'grupo' : 'subitem';
+
+    items.push({
+      numero: indice,
+      descricao,
+      valor_orcado: precoTotal, // preço com BDI é o valor orçado para medição
+      tipo,
+      custo_total: custoTotal,
+      preco_total: precoTotal,
+    });
+  }
+
+  if (items.length === 0) {
+    throw new Error(
+      'Nenhum item encontrado. Verifique se a planilha segue o formato Orçamento Analítico BÈR ' +
+      '(cabeçalho na linha 11, colunas B/C/G/S/AD).',
+    );
+  }
+
+  return items;
 }

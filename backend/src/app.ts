@@ -187,6 +187,7 @@ app.get('/v1/obras/:id/medicoes',            authenticate as any, (req: any, res
 app.post('/v1/obras/:id/medicoes',           authenticate as any, (req: any, res: any, next: any) => medCtrl.createMedicao(req, res, next).catch(next));
 app.get('/v1/obras/:id/medicao-itens',       authenticate as any, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
 app.post('/v1/obras/:id/medicao-itens/bulk', authenticate as any, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
+app.patch('/v1/medicao-itens/:itemId',       authenticate as any, (req: any, res: any, next: any) => medCtrl.updateItem(req, res, next).catch(next));
 app.use('/v1/medicoes', medicaoRouter);
 app.use('/v1/obras', comprasRoutes);
 app.use('/v1/roles', rolesRoutes);

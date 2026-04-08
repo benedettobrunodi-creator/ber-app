@@ -289,3 +289,18 @@ export async function bulkItens(req: Request, res: Response, next?: any) {
 
   sendCreated(res, { count: created.length });
 }
+
+// ── PATCH /v1/medicao-itens/:itemId ───────────────────────────────────────────
+
+export async function updateItem(req: Request, res: Response, next?: any) {
+  const { itemId } = req.params;
+  const item = await prisma.medicaoItem.findUnique({ where: { id: itemId } });
+  if (!item) throw AppError.notFound('Item de medição');
+
+  const data: { descricao?: string; valorOrcado?: number } = {};
+  if (req.body.descricao !== undefined) data.descricao = String(req.body.descricao);
+  if (req.body.valor_orcado !== undefined) data.valorOrcado = Number(req.body.valor_orcado);
+
+  const updated = await prisma.medicaoItem.update({ where: { id: itemId }, data });
+  sendSuccess(res, updated);
+}

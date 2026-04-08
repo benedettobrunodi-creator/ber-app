@@ -271,6 +271,12 @@ export default function MedicaoPage() {
   const [showImport, setShowImport] = useState(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Edição inline de itens (grupo)
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editValor, setEditValor] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
+
   // Edição de período
   const [editPeriodo, setEditPeriodo] = useState(false);
   const [periodoInicio, setPeriodoInicio] = useState('');
@@ -377,6 +383,34 @@ export default function MedicaoPage() {
       await loadMedicoes();
     } finally {
       setSavingPeriodo(false);
+    }
+  }
+
+  // ── Edição inline de item ──────────────────────────────────────────────────
+
+  function startEditItem(item: MedicaoItem) {
+    setEditingItem(item.id);
+    setEditDesc(item.descricao);
+    setEditValor(String(item.valorOrcado));
+  }
+
+  function cancelEditItem() {
+    setEditingItem(null);
+    setEditDesc('');
+    setEditValor('');
+  }
+
+  async function saveEditItem(itemId: string) {
+    setSavingItem(true);
+    try {
+      await api.patch(`/medicao-itens/${itemId}`, {
+        descricao: editDesc,
+        valor_orcado: parseFloat(editValor) || 0,
+      });
+      setEditingItem(null);
+      if (selectedId) await loadDetalhe(selectedId);
+    } finally {
+      setSavingItem(false);
     }
   }
 
@@ -592,25 +626,79 @@ export default function MedicaoPage() {
                     const groupTotal = detalhe.itens
                       .filter((i) => i.numero.startsWith(item.numero + '.') && i.tipo === 'subitem')
                       .reduce((s, i) => s + i.valorOrcado, 0);
+                    const isEditingThis = editingItem === item.id;
+                    const isEditable = canEdit && detalhe.status === 'rascunho';
+
                     return (
                       <tr
                         key={item.id}
-                        onClick={() => toggleCollapse(item.numero)}
                         className="cursor-pointer border-b border-gray-200 bg-gray-100 hover:bg-gray-150"
                       >
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3" onClick={() => toggleCollapse(item.numero)}>
                           <div className="flex items-center gap-1">
                             {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
                             <span className="text-xs font-bold text-gray-700">{item.numero}</span>
                           </div>
                         </td>
                         <td className="px-3 py-3">
-                          <span className="font-bold text-gray-800 text-xs uppercase tracking-wide">{item.descricao}</span>
+                          {isEditingThis ? (
+                            <input
+                              type="text"
+                              value={editDesc}
+                              onChange={(e) => setEditDesc(e.target.value)}
+                              className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-gray-800 focus:border-green-500 focus:outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <div className="group flex items-center gap-1.5">
+                              <span className="font-bold text-gray-800 text-xs uppercase tracking-wide">{item.descricao}</span>
+                              {isEditable && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditItem(item); }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Editar etapa"
+                                >
+                                  <Pencil size={11} className="text-gray-400 hover:text-green-600" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-right text-xs font-bold text-gray-800">
-                          {fmt(item.valorOrcado || groupTotal)}
+                          {isEditingThis ? (
+                            <input
+                              type="number"
+                              value={editValor}
+                              onChange={(e) => setEditValor(e.target.value)}
+                              className="w-28 rounded border border-gray-300 px-2 py-1 text-right text-xs font-bold text-gray-800 focus:border-green-500 focus:outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                              step={0.01}
+                            />
+                          ) : (
+                            fmt(item.valorOrcado || groupTotal)
+                          )}
                         </td>
-                        <td className="px-3 py-3 bg-green-50" />
+                        <td className="px-3 py-3 bg-green-50">
+                          {isEditingThis && (
+                            <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => saveEditItem(item.id)}
+                                disabled={savingItem}
+                                className="flex items-center justify-center h-7 w-7 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                title="Salvar"
+                              >
+                                <Check size={13} />
+                              </button>
+                              <button
+                                onClick={cancelEditItem}
+                                className="flex items-center justify-center h-7 w-7 rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
+                                title="Cancelar"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-right text-xs font-bold text-green-800 bg-green-50">
                           {fmt(item.lancamentoAtual.valor)}
                         </td>
