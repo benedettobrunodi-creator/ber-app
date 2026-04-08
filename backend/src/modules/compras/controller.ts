@@ -59,7 +59,6 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        string_to_array(regexp_replace(n, '[^0-9]', '.', 'g'), '.')::int[] ASC NULLS LAST,
         created_at ASC
     `;
     res.json({ data: items.map(mapItem) });
@@ -104,7 +103,6 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        string_to_array(regexp_replace(n, '[^0-9]', '.', 'g'), '.')::int[] ASC NULLS LAST,
         created_at ASC
     `;
 
