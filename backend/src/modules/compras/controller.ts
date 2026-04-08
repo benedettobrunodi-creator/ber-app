@@ -74,6 +74,8 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     const obra = await prisma.obra.findUnique({ where: { id: obraId } });
     if (!obra) throw AppError.notFound('Obra não encontrada');
 
+    console.log('[import] file:', req.file?.originalname, 'size:', req.file?.size, 'buffer:', req.file?.buffer?.length);
+    if (!req.file?.buffer || req.file.buffer.length === 0) throw AppError.badRequest('Buffer do arquivo vazio');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(req.file.buffer as any);
 
