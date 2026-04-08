@@ -265,7 +265,7 @@ export async function bulkItens(req: Request, res: Response, next?: any) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId } });
   if (!obra) throw AppError.notFound('Obra');
 
-  const itens: { numero: string; descricao: string; valor_orcado: number; tipo?: string; ordem?: number }[] =
+  const itens: { numero: string; descricao: string; valor_orcado: number; tipo?: string; ordem?: number; unidade?: string; quantidade?: number }[] =
     req.body.itens ?? [];
 
   // Delete existing and re-insert (full replace)
@@ -279,6 +279,8 @@ export async function bulkItens(req: Request, res: Response, next?: any) {
           obraId,
           numero: it.numero,
           descricao: it.descricao,
+          unidade: it.unidade ?? null,
+          quantidade: it.quantidade ?? null,
           valorOrcado: it.valor_orcado,
           tipo: it.tipo ?? (it.numero.includes('.') ? 'subitem' : 'grupo'),
           ordem: it.ordem ?? idx,

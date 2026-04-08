@@ -17,6 +17,8 @@ export interface OrcamentoItem {
   descricao: string;
   valor_orcado: number;
   tipo: 'grupo' | 'subitem';
+  unidade: string | null;
+  quantidade: number | null;
   custo_total: number;
   preco_total: number;
 }
@@ -25,6 +27,8 @@ const HEADER_ROW = 11; // 1-based — row index 10 in 0-based array
 const COL_INDICE = 1;      // B
 const COL_TIPO = 2;        // C
 const COL_DESCRICAO = 6;   // G
+const COL_UNIDADE = 7;     // H
+const COL_QUANTIDADE = 8;  // I
 const COL_CUSTO_TOTAL = 18; // S
 const COL_PRECO_TOTAL = 29; // AD
 
@@ -59,6 +63,8 @@ export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
     if (!indice || !tipoRaw || !descricao) continue;
     if (tipoRaw !== 'etapa' && tipoRaw !== 'item') continue;
 
+    const unidadeRaw = String(row[COL_UNIDADE] ?? '').trim();
+    const quantidadeRaw = parseNumber(row[COL_QUANTIDADE]);
     const custoTotal = parseNumber(row[COL_CUSTO_TOTAL]);
     const precoTotal = parseNumber(row[COL_PRECO_TOTAL]);
     const tipo = tipoRaw === 'etapa' ? 'grupo' : 'subitem';
@@ -68,6 +74,8 @@ export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
       descricao,
       valor_orcado: precoTotal, // preço com BDI é o valor orçado para medição
       tipo,
+      unidade: unidadeRaw || null,
+      quantidade: quantidadeRaw || null,
       custo_total: custoTotal,
       preco_total: precoTotal,
     });

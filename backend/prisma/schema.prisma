@@ -1102,6 +1102,8 @@ model MedicaoItem {
   obraId       String    @db.Uuid @map("obra_id")
   numero       String    @db.VarChar(20)
   descricao    String
+  unidade      String?   @db.VarChar(20)
+  quantidade   Decimal?  @map("quantidade") @db.Decimal(14, 4)
   valorOrcado  Decimal   @default(0) @map("valor_orcado") @db.Decimal(14, 2)
   tipo         String    @default("subitem") @db.VarChar(10)
   ordem        Int       @default(0)
