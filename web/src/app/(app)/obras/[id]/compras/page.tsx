@@ -257,7 +257,11 @@ export default function ComprasPage() {
                       c => c.tipo === 'item' && c.n && item.n && c.n.startsWith(item.n + '.')
                     );
                     const etapaVenda = children.reduce((s, c) => s + c.venda, 0);
+                    const etapaMeta = children.reduce((s, c) => s + c.venda * (1 - c.pctMeta), 0);
+                    const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => s + c.comprado, 0);
+                    const etapaSavOrc = etapaVenda - etapaComprado;
+                    const etapaSavMeta = etapaMeta - etapaComprado;
                     return (
                       <tr key={item.id} className="bg-ber-carbon/5 border-t-2 border-ber-carbon/10">
                         <td className="px-3 py-2" />
@@ -282,14 +286,50 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
                           {fmtBRL(etapaVenda)}
                         </td>
-                        <td className="px-3 py-2" />
-                        <td className="px-3 py-2" />
-                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
-                          {fmtBRL(etapaComprado)}
+                        <td className="px-3 py-2 text-center text-xs tabular-nums font-bold text-ber-carbon">
+                          {etapaPctMeta.toFixed(0)}%
                         </td>
-                        <td className="px-3 py-2" colSpan={3} />
-                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaVenda - etapaComprado >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {fmtBRL(etapaVenda - etapaComprado)}
+                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-teal">
+                          {fmtBRL(etapaMeta)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={item.comprado === 0 ? '' : item.comprado}
+                            placeholder="0"
+                            onChange={e => {
+                              const val = e.target.value.replace(/[^0-9.]/g, '');
+                              saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
+                            }}
+                            className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={item.fornecedor || ''}
+                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                            placeholder="Fornecedor..."
+                            className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-xs font-bold focus:border-ber-teal focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <select
+                            value={item.faturamento || ''}
+                            onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
+                            className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-xs font-bold focus:border-ber-teal focus:outline-none"
+                          >
+                            <option value="">—</option>
+                            <option value="BER">BER</option>
+                            <option value="Fornecedor">Fornecedor</option>
+                          </select>
+                        </td>
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavOrc >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {fmtBRL(etapaSavOrc)}
+                        </td>
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {fmtBRL(etapaSavMeta)}
                         </td>
                         <td className="px-3 py-2" />
                       </tr>
