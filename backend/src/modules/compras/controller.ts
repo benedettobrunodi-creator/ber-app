@@ -10,22 +10,25 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
 function parseRow(row: ExcelJS.Row): {
-  n: string; categoria: string; descritivo: string | null;
+  n: string; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
   const values = row.values as (string | number | null | undefined)[];
-  const tipo = String(values[3] ?? '').trim();
-  if (tipo !== 'Item') return null;
+  const tipoRaw = String(values[3] ?? '').trim();
+  if (tipoRaw !== 'Item' && tipoRaw !== 'Etapa') return null;
   const descricao = String(values[7] ?? '').trim();
   if (!descricao) return null;
+  const tipo = tipoRaw === 'Etapa' ? 'etapa' : 'item';
   const venda = Number(values[19]);
-  if (!venda || isNaN(venda) || venda === 0) return null;
+  // Etapas podem ter venda 0 (será soma dos itens); Itens precisam de venda > 0
+  if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
   return {
     n: String(values[2] ?? '').trim(),
+    tipo,
     categoria: descricao,
     descritivo: null,
-    venda,
-    pctMeta: 0.2,
+    venda: isNaN(venda) ? 0 : venda,
+    pctMeta: tipo === 'etapa' ? 0 : 0.2,
     comprado: 0,
     fornecedor: null,
   };
@@ -37,6 +40,7 @@ function mapItem(row: any) {
     id: row.id,
     obraId: row.obra_id,
     n: row.n,
+    tipo: row.tipo ?? 'item',
     categoria: row.categoria,
     descritivo: row.descritivo,
     venda: Number(row.venda),
@@ -80,7 +84,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     await wb.xlsx.load(req.file.buffer as any);
 
     const rows: {
-      n: string; categoria: string; descritivo: string | null;
+      n: string; tipo: string; categoria: string; descritivo: string | null;
       venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
     }[] = [];
 
@@ -116,7 +120,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { itemId } = req.params;
-    const { pctMeta, comprado, fornecedor, faturamento, pacote, compradoOk } = req.body;
+    const { pctMeta, comprado, fornecedor, faturamento, pacote, compradoOk, categoria, venda } = req.body;
 
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
@@ -130,6 +134,8 @@ export async function update(req: Request, res: Response, next: NextFunction) {
         ...(faturamento !== undefined && { faturamento: String(faturamento) || null }),
         ...(pacote !== undefined && { pacote: pacote === null ? null : Number(pacote) }),
         ...(compradoOk !== undefined && { compradoOk: Boolean(compradoOk) }),
+        ...(categoria !== undefined && { categoria: String(categoria) }),
+        ...(venda !== undefined && { venda: Number(venda) }),
       },
     });
 

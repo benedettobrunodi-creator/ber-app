@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown } from 'lucide-react';
 import api from '@/lib/api';
 
 interface CompraItem {
   id: string;
   n: string | null;
+  tipo: 'etapa' | 'item';
   categoria: string;
   descritivo: string | null;
   venda: number;
@@ -48,8 +49,12 @@ export default function ComprasPage() {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const toggleCollapse = (etapaN: string) =>
+    setCollapsed(prev => ({ ...prev, [etapaN]: !prev[etapaN] }));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -97,13 +102,14 @@ export default function ComprasPage() {
     setConfirmClear(false);
   };
 
-  // Totais
-  const itemsOk = items.filter(i => i.compradoOk);
-  const itemsPend = items.filter(i => !i.compradoOk);
+  // Totais (só itens, não etapas)
+  const onlyItems = items.filter(i => i.tipo !== 'etapa');
+  const itemsOk = onlyItems.filter(i => i.compradoOk);
+  const itemsPend = onlyItems.filter(i => !i.compradoOk);
 
-  const totalVenda = items.reduce((s, i) => s + i.venda, 0);
-  const totalMeta = items.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
-  const totalComprado = items.reduce((s, i) => s + i.comprado, 0);
+  const totalVenda = onlyItems.reduce((s, i) => s + i.venda, 0);
+  const totalMeta = onlyItems.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
+  const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
@@ -239,100 +245,155 @@ export default function ComprasPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item, i) => {
-                const meta = item.venda * (1 - item.pctMeta);
-                const savOrç = item.venda - item.comprado;
-                const savMeta = meta - item.comprado;
-                const status = semaforo(item.comprado, meta);
-                const progPct = meta > 0 ? Math.min((item.comprado / meta) * 100, 100) : 0;
-                return (
-                  <tr key={item.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${item.compradoOk ? 'opacity-60' : ''}`}>
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={item.compradoOk}
-                        onChange={e => saveItem(item.id, { compradoOk: e.target.checked })}
-                        className="w-4 h-4 accent-ber-teal cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <select
-                        value={item.pacote ?? ''}
-                        onChange={e => saveItem(item.id, { pacote: e.target.value === '' ? null : Number(e.target.value) })}
-                        className={`w-14 rounded px-1 py-0.5 text-xs font-bold text-center focus:outline-none border-0 ${item.pacote !== null && item.pacote !== undefined ? PACOTE_COLORS[item.pacote]?.bg + ' ' + PACOTE_COLORS[item.pacote]?.text : 'bg-gray-100 text-gray-400'}`}
-                      >
-                        <option value="">—</option>
-                        {[0,1,2,3,4,5,6].map(p => (
-                          <option key={p} value={p}>P{p}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-2 text-ber-gray text-xs">{item.n}</td>
-                    <td className="px-3 py-2 font-medium text-ber-carbon text-xs">{item.categoria}</td>
-                    <td className="px-3 py-2 text-ber-gray text-xs">{item.descritivo || '—'}</td>
-                    <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(item.venda)}</td>
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="number"
-                        min={0} max={100} step={1}
-                        value={Math.round(item.pctMeta * 100)}
-                        onChange={e => saveItem(item.id, { pctMeta: Number(e.target.value) / 100 })}
-                        className="w-16 rounded border border-ber-gray/30 px-1 py-0.5 text-center text-xs focus:border-ber-teal focus:outline-none"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(meta)}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col gap-0.5">
+              {(() => {
+                let currentEtapa: string | null = null;
+                let rowIdx = 0;
+                return items.map((item) => {
+                  if (item.tipo === 'etapa') {
+                    currentEtapa = item.n;
+                    const isCollapsed = collapsed[item.n || ''] ?? false;
+                    // Subtotais da etapa
+                    const children = items.filter(
+                      c => c.tipo === 'item' && c.n && item.n && c.n.startsWith(item.n + '.')
+                    );
+                    const etapaVenda = children.reduce((s, c) => s + c.venda, 0);
+                    const etapaComprado = children.reduce((s, c) => s + c.comprado, 0);
+                    return (
+                      <tr key={item.id} className="bg-ber-carbon/5 border-t-2 border-ber-carbon/10">
+                        <td className="px-3 py-2" />
+                        <td className="px-3 py-2" />
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => toggleCollapse(item.n || '')}
+                            className="flex items-center gap-1 text-ber-carbon hover:text-ber-teal"
+                          >
+                            {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                            <span className="text-xs font-bold">{item.n}</span>
+                          </button>
+                        </td>
+                        <td className="px-3 py-2" colSpan={2}>
+                          <input
+                            type="text"
+                            value={item.categoria}
+                            onChange={e => saveItem(item.id, { categoria: e.target.value })}
+                            className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-xs font-bold text-ber-carbon hover:border-ber-gray/30 focus:border-ber-teal focus:bg-white focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
+                          {fmtBRL(etapaVenda)}
+                        </td>
+                        <td className="px-3 py-2" />
+                        <td className="px-3 py-2" />
+                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
+                          {fmtBRL(etapaComprado)}
+                        </td>
+                        <td className="px-3 py-2" colSpan={3} />
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaVenda - etapaComprado >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {fmtBRL(etapaVenda - etapaComprado)}
+                        </td>
+                        <td className="px-3 py-2" />
+                      </tr>
+                    );
+                  }
+
+                  // Item row — hide if parent etapa is collapsed
+                  if (currentEtapa && (collapsed[currentEtapa] ?? false)) return null;
+
+                  const idx = rowIdx++;
+                  const meta = item.venda * (1 - item.pctMeta);
+                  const savOrç = item.venda - item.comprado;
+                  const savMeta = meta - item.comprado;
+                  const status = semaforo(item.comprado, meta);
+                  const progPct = meta > 0 ? Math.min((item.comprado / meta) * 100, 100) : 0;
+                  return (
+                    <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${item.compradoOk ? 'opacity-60' : ''}`}>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={item.compradoOk}
+                          onChange={e => saveItem(item.id, { compradoOk: e.target.checked })}
+                          className="w-4 h-4 accent-ber-teal cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <select
+                          value={item.pacote ?? ''}
+                          onChange={e => saveItem(item.id, { pacote: e.target.value === '' ? null : Number(e.target.value) })}
+                          className={`w-14 rounded px-1 py-0.5 text-xs font-bold text-center focus:outline-none border-0 ${item.pacote !== null && item.pacote !== undefined ? PACOTE_COLORS[item.pacote]?.bg + ' ' + PACOTE_COLORS[item.pacote]?.text : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          <option value="">—</option>
+                          {[0,1,2,3,4,5,6].map(p => (
+                            <option key={p} value={p}>P{p}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-ber-gray text-xs pl-7">{item.n}</td>
+                      <td className="px-3 py-2 font-medium text-ber-carbon text-xs">{item.categoria}</td>
+                      <td className="px-3 py-2 text-ber-gray text-xs">{item.descritivo || '—'}</td>
+                      <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(item.venda)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="number"
+                          min={0} max={100} step={1}
+                          value={Math.round(item.pctMeta * 100)}
+                          onChange={e => saveItem(item.id, { pctMeta: Number(e.target.value) / 100 })}
+                          className="w-16 rounded border border-ber-gray/30 px-1 py-0.5 text-center text-xs focus:border-ber-teal focus:outline-none"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(meta)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col gap-0.5">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={item.comprado === 0 ? '' : item.comprado}
+                            placeholder="0"
+                            onChange={e => {
+                              const val = e.target.value.replace(/[^0-9.]/g, '');
+                              saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
+                            }}
+                            className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
+                          />
+                          <div className="h-1 rounded-full bg-gray-200">
+                            <div
+                              className={`h-1 rounded-full transition-all ${item.comprado > meta ? 'bg-red-500' : item.comprado >= meta * 0.85 ? 'bg-amber-400' : 'bg-green-500'}`}
+                              style={{ width: `${progPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
                         <input
                           type="text"
-                          inputMode="numeric"
-                          value={item.comprado === 0 ? '' : item.comprado}
-                          placeholder="0"
-                          onChange={e => {
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
-                          }}
-                          className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
+                          value={item.fornecedor || ''}
+                          onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                          placeholder="Fornecedor..."
+                          className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
                         />
-                        <div className="h-1 rounded-full bg-gray-200">
-                          <div
-                            className={`h-1 rounded-full transition-all ${item.comprado > meta ? 'bg-red-500' : item.comprado >= meta * 0.85 ? 'bg-amber-400' : 'bg-green-500'}`}
-                            style={{ width: `${progPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={item.fornecedor || ''}
-                        onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
-                        placeholder="Fornecedor..."
-                        className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <select
-                        value={item.faturamento || ''}
-                        onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
-                        className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
-                      >
-                        <option value="">—</option>
-                        <option value="BER">BER</option>
-                        <option value="Fornecedor">Fornecedor</option>
-                      </select>
-                    </td>
-                    <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                      {savOrç >= 0 ? <TrendingDown size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
-                      {fmtBRL(Math.abs(savOrç))}
-                    </td>
-                    <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                      {fmtBRL(savMeta)}
-                    </td>
-                    <td className="px-3 py-2 text-center text-base">{status}</td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <select
+                          value={item.faturamento || ''}
+                          onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
+                          className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                        >
+                          <option value="">—</option>
+                          <option value="BER">BER</option>
+                          <option value="Fornecedor">Fornecedor</option>
+                        </select>
+                      </td>
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {savOrç >= 0 ? <TrendingDown size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
+                        {fmtBRL(Math.abs(savOrç))}
+                      </td>
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {fmtBRL(savMeta)}
+                      </td>
+                      <td className="px-3 py-2 text-center text-base">{status}</td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
