@@ -49,6 +49,16 @@ export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
   // Skip rows before data (header is at HEADER_ROW, data starts after)
   const dataRows = rows.slice(HEADER_ROW); // 0-based: slice(11) = from row 12
 
+  // Debug: mostrar cabeçalho (linha 11) e primeiras 3 linhas de dados
+  console.log('[xlsx-parser] total rows:', rows.length, '| header (row 11):', rows[HEADER_ROW - 1]?.slice(0, 32));
+  for (let d = 0; d < Math.min(3, dataRows.length); d++) {
+    const r = dataRows[d];
+    console.log(`[xlsx-parser] dataRow[${d}] len=${r?.length}`, {
+      B: r?.[COL_INDICE], C: r?.[COL_TIPO], G: r?.[COL_DESCRICAO],
+      H: r?.[COL_UNIDADE], I: r?.[COL_QUANTIDADE], S: r?.[COL_CUSTO_TOTAL], AD: r?.[COL_PRECO_TOTAL],
+    });
+  }
+
   const items: OrcamentoItem[] = [];
 
   for (let i = 0; i < dataRows.length; i++) {
