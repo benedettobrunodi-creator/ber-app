@@ -5,11 +5,15 @@
  *
  * Formato esperado: Orçamento Analítico BÈR
  *   - Linha 11: cabeçalho
- *   - Col B (1): ÍNDICE — "1","2" para etapas, "1.1","1.2" para subitens
- *   - Col C (2): ETAPA/ITEM — "Etapa" ou "Item"
- *   - Col G (6): DESCRIÇÃO
- *   - Col S (18): CUSTO TOTAL
- *   - Col AD (29): PREÇO TOTAL (com BDI)
+ *   - Col B (idx 2): ÍNDICE — "1","2" para etapas, "1.1","1.2" para subitens
+ *   - Col C (idx 3): ETAPA/ITEM — "Etapa" ou "Item"
+ *   - Col G (idx 7): DESCRIÇÃO
+ *   - Col H (idx 8): UNID.
+ *   - Col I (idx 9): QTDE.
+ *   - Col S (idx 19): CUSTO TOTAL
+ *   - Col AD (idx 30): PREÇO TOTAL (com BDI)
+ *
+ *   Nota: SheetJS header:1 retorna arrays 1-based (A=1, B=2, ...)
  */
 
 export interface OrcamentoItem {
@@ -24,13 +28,14 @@ export interface OrcamentoItem {
 }
 
 const HEADER_ROW = 11; // 1-based — row index 10 in 0-based array
-const COL_INDICE = 1;      // B
-const COL_TIPO = 2;        // C
-const COL_DESCRICAO = 6;   // G
-const COL_UNIDADE = 7;     // H
-const COL_QUANTIDADE = 8;  // I
-const COL_CUSTO_TOTAL = 18; // S
-const COL_PRECO_TOTAL = 29; // AD
+// SheetJS header:1 → arrays 1-based: A=1, B=2, C=3, ...
+const COL_INDICE = 2;      // B
+const COL_TIPO = 3;        // C
+const COL_DESCRICAO = 7;   // G
+const COL_UNIDADE = 8;     // H
+const COL_QUANTIDADE = 9;  // I
+const COL_CUSTO_TOTAL = 19; // S
+const COL_PRECO_TOTAL = 30; // AD
 
 function parseNumber(raw: any): number {
   if (typeof raw === 'number') return raw;
@@ -48,16 +53,6 @@ export async function parseXlsxFile(file: File): Promise<OrcamentoItem[]> {
 
   // Skip rows before data (header is at HEADER_ROW, data starts after)
   const dataRows = rows.slice(HEADER_ROW); // 0-based: slice(11) = from row 12
-
-  // Debug: mostrar cabeçalho (linha 11) e primeiras 3 linhas de dados
-  console.log('[xlsx-parser] total rows:', rows.length, '| header (row 11):', rows[HEADER_ROW - 1]?.slice(0, 32));
-  for (let d = 0; d < Math.min(3, dataRows.length); d++) {
-    const r = dataRows[d];
-    console.log(`[xlsx-parser] dataRow[${d}] len=${r?.length}`, {
-      B: r?.[COL_INDICE], C: r?.[COL_TIPO], G: r?.[COL_DESCRICAO],
-      H: r?.[COL_UNIDADE], I: r?.[COL_QUANTIDADE], S: r?.[COL_CUSTO_TOTAL], AD: r?.[COL_PRECO_TOTAL],
-    });
-  }
 
   const items: OrcamentoItem[] = [];
 
