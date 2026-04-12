@@ -97,22 +97,52 @@ export async function createFvs(req: Request, res: Response) {
 // PATCH /obra-fvs/:fvsId/items/:itemId
 export async function checkItem(req: Request, res: Response) {
   const { fvsId, itemId } = req.params;
-  const { checked, observacao, fotoUrl } = req.body;
+  const { checked, observacao, fotoUrl, na } = req.body;
   const userId = (req as any).user?.id;
 
-  const fvs = await prisma.obraFvs.findUnique({ where: { id: fvsId } });
+  const fvs = await prisma.obraFvs.findUnique({
+    where: { id: fvsId },
+    include: { items: { include: { templateItem: true } } },
+  });
   if (!fvs) throw AppError.notFound('FVS não encontrada');
   if (['aprovada', 'rejeitada'].includes(fvs.status)) throw AppError.badRequest('FVS encerrada');
 
-  const { na } = req.body;
-  // Toggling na clears checked; toggling checked clears na
+  const target = fvs.items.find(i => i.id === itemId);
+  if (!target) throw AppError.notFound('Item da FVS não encontrado');
+
+  const isChecking = (checked === true) || (checked === undefined && na === undefined);
+  const isMarkingNa = na === true;
+
+  if (isChecking || isMarkingNa) {
+    // Sequential: all earlier items (same momento, lower ordem) must be checked or na.
+    const targetOrdem = target.templateItem?.ordem ?? 0;
+    const pending = fvs.items.filter(i =>
+      i.momento === target.momento &&
+      i.id !== target.id &&
+      (i.templateItem?.ordem ?? 0) < targetOrdem &&
+      !i.checked && !i.na,
+    );
+    if (pending.length > 0) {
+      throw AppError.badRequest('Complete os itens anteriores antes de avançar');
+    }
+  }
+
+  if (isChecking) {
+    // Photo required (if template demands) — must come on the same request or already be stored.
+    const needsPhoto = target.templateItem?.fotoObrigatoria ?? false;
+    const willHavePhoto = fotoUrl ?? target.fotoUrl;
+    if (needsPhoto && !willHavePhoto) {
+      throw AppError.badRequest('Foto obrigatória para validar este item');
+    }
+  }
+
   const updateData: any = { filledAt: new Date(), filledBy: userId };
   if (na !== undefined) {
     updateData.na = na;
-    if (na) updateData.checked = false; // na = true → uncheck
+    if (na) updateData.checked = false;
   } else {
     updateData.checked = checked ?? true;
-    if (checked) updateData.na = false; // checking → clear na
+    if (checked) updateData.na = false;
   }
   if (observacao !== undefined) updateData.observacao = observacao;
   if (fotoUrl !== undefined) updateData.fotoUrl = fotoUrl;

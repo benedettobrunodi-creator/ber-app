@@ -911,16 +911,19 @@ model FvsTemplate {
 }
 
 model FvsTemplateItem {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  templateId  String   @db.Uuid @map("template_id")
-  momento     String   @db.VarChar(20)
-  secao       String?  @db.VarChar(100)
-  descricao   String
-  obrigatorio Boolean  @default(true)
-  ordem       Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  template    FvsTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  responses   ObraFvsItem[]
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId      String   @db.Uuid @map("template_id")
+  momento         String   @db.VarChar(20)
+  secao           String?  @db.VarChar(100)
+  descricao       String
+  obrigatorio     Boolean  @default(true)
+  fotoObrigatoria Boolean  @default(true) @map("foto_obrigatoria")
+  sourceItCode    String?  @map("source_it_code") @db.VarChar(20)
+  ordem           Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+  template        FvsTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  responses       ObraFvsItem[]
+  @@index([sourceItCode])
   @@map("fvs_template_items")
 }
 

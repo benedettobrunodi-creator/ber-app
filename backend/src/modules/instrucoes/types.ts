@@ -5,6 +5,7 @@ const stepSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   photoUrl: z.string().optional(),
+  momento: z.enum(['inicio', 'conclusao']).default('conclusao'),
 });
 
 export const createITSchema = z.object({

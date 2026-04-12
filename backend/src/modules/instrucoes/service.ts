@@ -90,10 +90,51 @@ export async function publish(id: string, userId: string, status: string) {
   const existing = await prisma.instrucaoTecnica.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Instrução técnica');
 
-  return prisma.instrucaoTecnica.update({
+  const updated = await prisma.instrucaoTecnica.update({
     where: { id },
     data: { status, updatedBy: userId },
     include: itInclude,
+  });
+
+  if (status === 'publicada') {
+    await syncFvsTemplateFromIT(updated);
+  }
+
+  return updated;
+}
+
+type ItStep = { order: number; title: string; description: string; momento?: string };
+
+async function syncFvsTemplateFromIT(it: { id: string; code: string; title: string; discipline: string; fvsCode: string | null; steps: any }) {
+  if (!it.fvsCode) return;
+
+  const steps = (Array.isArray(it.steps) ? it.steps : []) as ItStep[];
+  if (steps.length === 0) return;
+
+  let template = await prisma.fvsTemplate.findFirst({ where: { code: it.fvsCode } });
+  if (!template) {
+    template = await prisma.fvsTemplate.create({
+      data: { code: it.fvsCode, name: it.title, disciplina: it.discipline },
+    });
+  }
+
+  // Snapshot: wipe items previously sourced from this IT, then recreate from current steps.
+  // FVSs already instantiated (ObraFvs) are unaffected — their items reference snapshotted copies.
+  await prisma.fvsTemplateItem.deleteMany({
+    where: { templateId: template.id, sourceItCode: it.code },
+  });
+
+  const sorted = [...steps].sort((a, b) => a.order - b.order);
+  await prisma.fvsTemplateItem.createMany({
+    data: sorted.map((s, i) => ({
+      templateId: template!.id,
+      momento: s.momento === 'inicio' ? 'inicio' : 'conclusao',
+      descricao: s.title ? `${s.title}${s.description ? ' — ' + s.description : ''}` : s.description,
+      obrigatorio: true,
+      fotoObrigatoria: true,
+      sourceItCode: it.code,
+      ordem: i + 1,
+    })),
   });
 }
 
