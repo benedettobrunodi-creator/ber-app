@@ -79,6 +79,7 @@ interface ITStep {
   title: string;
   description: string;
   photoUrl?: string;
+  momento?: 'inicio' | 'conclusao';
 }
 
 interface IT {
@@ -758,6 +759,17 @@ export default function InstrucoesPage() {
                     <textarea value={step.description} onChange={(e) => updateListItem(itSteps, i, { ...step, description: e.target.value }, setItSteps)}
                       placeholder="Descrição detalhada..." rows={2}
                       className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+                    <div className="mt-1 flex items-center gap-2">
+                      <label className="text-xs text-ber-gray">Momento na FVS:</label>
+                      <select
+                        value={step.momento ?? 'conclusao'}
+                        onChange={(e) => updateListItem(itSteps, i, { ...step, momento: e.target.value as 'inicio' | 'conclusao' }, setItSteps)}
+                        className="rounded-md border border-ber-gray/30 px-2 py-1 text-xs focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+                      >
+                        <option value="conclusao">Conclusão</option>
+                        <option value="inicio">Pré-execução</option>
+                      </select>
+                    </div>
                     {/* Upload de foto por passo */}
                     <StepPhotoUpload
                       photoUrl={step.photoUrl}
@@ -766,7 +778,7 @@ export default function InstrucoesPage() {
                     />
                   </div>
                 ))}
-                <button type="button" onClick={() => addListItem(itSteps, { order: itSteps.length + 1, title: '', description: '' }, setItSteps)}
+                <button type="button" onClick={() => addListItem(itSteps, { order: itSteps.length + 1, title: '', description: '', momento: 'conclusao' }, setItSteps)}
                   className="mt-1 text-xs font-medium text-ber-teal hover:underline">+ Adicionar passo</button>
               </div>
 

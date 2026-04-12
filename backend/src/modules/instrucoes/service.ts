@@ -105,7 +105,7 @@ export async function publish(id: string, userId: string, status: string) {
 
 type ItStep = { order: number; title: string; description: string; momento?: string };
 
-async function syncFvsTemplateFromIT(it: { id: string; code: string; title: string; discipline: string; fvsCode: string | null; steps: any }) {
+export async function syncFvsTemplateFromIT(it: { id: string; code: string; title: string; discipline: string; fvsCode: string | null; steps: any }) {
   if (!it.fvsCode) return;
 
   const steps = (Array.isArray(it.steps) ? it.steps : []) as ItStep[];

@@ -92,6 +92,7 @@ interface FvsTemplateType {
 }
 interface FvsTemplateItemType {
   id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
+  fotoObrigatoria?: boolean; sourceItCode?: string | null;
 }
 interface ObraFvsItemType {
   id: string; momento: string; descricao: string | null; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
@@ -3975,46 +3976,102 @@ export default function ObraDetailPage() {
           } finally { setFvsSubmitting(false); }
         };
 
+        const uploadFvsPhoto = async (itemId: string, file: File) => {
+          setFvsSubmitting(true);
+          try {
+            const fd = new FormData(); fd.append('file', file);
+            const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const url = up.data.data?.url ?? up.data.url;
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { fotoUrl: url });
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro no upload');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        // Sequential gating: previous items (same momento, lower ordem) must be checked or na.
+        const isItemBlocked = (item: ObraFvsItemType, sectionItems: ObraFvsItemType[]) => {
+          const myOrdem = item.templateItem?.ordem ?? 0;
+          return sectionItems.some(other =>
+            other.id !== item.id &&
+            (other.templateItem?.ordem ?? 0) < myOrdem &&
+            !other.checked && !other.na,
+          );
+        };
+
         const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
-          const grouped = bySecao(sectionItems);
+          const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
+          const grouped = bySecao(sorted);
           return Object.entries(grouped).map(([secao, items]) => (
             <div key={secao} className="mb-4">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
               <div className="space-y-1.5">
-                {items.map(item => (
-                  <div key={item.id} className={`flex items-start gap-2 rounded-lg p-2.5 transition-colors ${
-                    item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'
+                {items.map(item => {
+                  const blocked = isItemBlocked(item, sorted);
+                  const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
+                  const photoMissing = needsPhoto && !item.fotoUrl;
+                  const canCheck = !blocked && !photoMissing;
+                  return (
+                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${
+                    item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : blocked ? 'bg-ber-offwhite/40 opacity-60' : 'hover:bg-ber-offwhite/60'
                   }`}>
-                    {/* Checkbox */}
-                    <input type="checkbox" checked={item.checked} disabled={isLocked || fvsSubmitting || item.na}
-                      onChange={() => toggleItem(item.id, 'checked')}
-                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
-                    {/* Description */}
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                        {item.templateItem?.descricao ?? item.descricao}
-                        {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
-                        {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
-                      </p>
+                    <div className="flex items-start gap-2">
+                      {/* Checkbox */}
+                      <input type="checkbox" checked={item.checked}
+                        disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
+                        onChange={() => toggleItem(item.id, 'checked')}
+                        title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
+                      {/* Description */}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                          {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
+                          {item.templateItem?.descricao ?? item.descricao}
+                          {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
+                          {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
+                          {blocked && <span className="ml-1 text-[10px] text-ber-gray/50">(aguarde item anterior)</span>}
+                        </p>
+                        {/* Photo row */}
+                        {(needsPhoto || item.fotoUrl) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {item.fotoUrl && (
+                              <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                <img src={item.fotoUrl} alt="foto" className="h-12 w-12 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
+                              </a>
+                            )}
+                            {!isLocked && (
+                              <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${item.fotoUrl ? 'border-green-300 text-green-600 hover:bg-green-50' : needsPhoto ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'}`}>
+                                <Camera size={11} />
+                                {item.fotoUrl ? 'Trocar foto' : needsPhoto ? 'Foto obrigatória' : '+ Foto'}
+                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
+                              </label>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* N/A toggle */}
+                      {!isLocked && (
+                        <button type="button" disabled={fvsSubmitting || (blocked && !item.na)}
+                          onClick={() => toggleItem(item.id, 'na')}
+                          title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-40 ${
+                            item.na
+                              ? 'bg-gray-300 text-gray-600'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}>
+                          N/A
+                        </button>
+                      )}
+                      {isLocked && item.na && (
+                        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
+                      )}
                     </div>
-                    {/* N/A toggle */}
-                    {!isLocked && (
-                      <button type="button" disabled={fvsSubmitting}
-                        onClick={() => toggleItem(item.id, 'na')}
-                        title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
-                          item.na
-                            ? 'bg-gray-300 text-gray-600'
-                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                        }`}>
-                        N/A
-                      </button>
-                    )}
-                    {isLocked && item.na && (
-                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
-                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ));
