@@ -10,7 +10,7 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/', requireRole('gestor'), controller.listObras);
+router.get('/', requireRole('campo'), controller.listObras);
 router.post("/progresso", controller.updateProgresso);
 router.get('/:id', requireRole('gestor'), controller.getObra);
 router.post('/', requireRole('coordenacao'), validate(createObraSchema), controller.createObra);
