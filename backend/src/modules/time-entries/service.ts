@@ -264,6 +264,11 @@ export async function exportTimeEntries(params: { userIds?: string[]; startDate:
         totalHoras: totalHours,
         obra: (ci as any).obra?.name || 'Escritório',
         endereco: ci.address || '',
+        latEntrada: ci.latitude != null ? String(ci.latitude) : '',
+        lngEntrada: ci.longitude != null ? String(ci.longitude) : '',
+        enderecoSaida: co?.address || '',
+        latSaida: co?.latitude != null ? String(co.latitude) : '',
+        lngSaida: co?.longitude != null ? String(co.longitude) : '',
       });
     }
   }

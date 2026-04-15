@@ -123,6 +123,7 @@ export default function ApontamentoPage() {
   });
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'xlsx' | 'csv'>('xlsx');
+  const [exportAllUsers, setExportAllUsers] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -152,16 +153,19 @@ export default function ApontamentoPage() {
 
   // Export handler
   async function handleExport() {
-    if (selectedUserIds.size === 0) return;
+    if (!exportAllUsers && selectedUserIds.size === 0) return;
     setExporting(true);
     try {
+      const params: Record<string, string> = {
+        startDate: exportStartDate,
+        endDate: exportEndDate,
+        format: exportFormat,
+      };
+      if (!exportAllUsers) {
+        params.userIds = Array.from(selectedUserIds).join(',');
+      }
       const res = await api.get('/time-entries/export', {
-        params: {
-          userIds: Array.from(selectedUserIds).join(','),
-          startDate: exportStartDate,
-          endDate: exportEndDate,
-          format: exportFormat,
-        },
+        params,
         responseType: 'blob',
       });
       const ext = exportFormat === 'csv' ? 'csv' : 'xlsx';
@@ -559,44 +563,62 @@ export default function ApontamentoPage() {
                 <Users size={14} />
                 Colaboradores
               </label>
-              <div className="mb-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedUserIds(new Set(exportUsers.map((u) => u.id)))}
-                  className="rounded bg-ber-olive/10 px-3 py-1 text-xs font-semibold text-ber-olive hover:bg-ber-olive/20 transition"
-                >
-                  Selecionar todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedUserIds(new Set())}
-                  className="rounded bg-ber-gray/10 px-3 py-1 text-xs font-semibold text-ber-gray hover:bg-ber-gray/20 transition"
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-ber-gray/10 p-3 space-y-1">
-                {exportUsers.map((u) => (
-                  <label key={u.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-ber-gray/5 text-sm text-ber-carbon">
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.has(u.id)}
-                      onChange={(e) => {
-                        const next = new Set(selectedUserIds);
-                        if (e.target.checked) next.add(u.id);
-                        else next.delete(u.id);
-                        setSelectedUserIds(next);
-                      }}
-                      className="rounded border-ber-gray/30 text-ber-olive focus:ring-ber-olive"
-                    />
-                    <span>{u.name}</span>
-                    <span className="ml-auto text-xs text-ber-gray">{u.role}</span>
-                  </label>
-                ))}
-                {exportUsers.length === 0 && (
-                  <div className="text-center text-xs text-ber-gray/60 py-2">Carregando usuarios...</div>
-                )}
-              </div>
+              {/* Opção "Todos os usuários" */}
+              <label className="mb-2 flex items-center gap-2 cursor-pointer rounded-lg border border-ber-olive/30 bg-ber-olive/5 px-3 py-2 hover:bg-ber-olive/10 transition">
+                <input
+                  type="checkbox"
+                  checked={exportAllUsers}
+                  onChange={(e) => {
+                    setExportAllUsers(e.target.checked);
+                    if (e.target.checked) setSelectedUserIds(new Set());
+                  }}
+                  className="rounded border-ber-gray/30 text-ber-olive focus:ring-ber-olive"
+                />
+                <span className="text-sm font-semibold text-ber-olive">Todos os usuários</span>
+              </label>
+
+              {!exportAllUsers && (
+                <>
+                  <div className="mb-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUserIds(new Set(exportUsers.map((u) => u.id)))}
+                      className="rounded bg-ber-olive/10 px-3 py-1 text-xs font-semibold text-ber-olive hover:bg-ber-olive/20 transition"
+                    >
+                      Selecionar todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUserIds(new Set())}
+                      className="rounded bg-ber-gray/10 px-3 py-1 text-xs font-semibold text-ber-gray hover:bg-ber-gray/20 transition"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-ber-gray/10 p-3 space-y-1">
+                    {exportUsers.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-ber-gray/5 text-sm text-ber-carbon">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.has(u.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedUserIds);
+                            if (e.target.checked) next.add(u.id);
+                            else next.delete(u.id);
+                            setSelectedUserIds(next);
+                          }}
+                          className="rounded border-ber-gray/30 text-ber-olive focus:ring-ber-olive"
+                        />
+                        <span>{u.name}</span>
+                        <span className="ml-auto text-xs text-ber-gray">{u.role}</span>
+                      </label>
+                    ))}
+                    {exportUsers.length === 0 && (
+                      <div className="text-center text-xs text-ber-gray/60 py-2">Carregando usuarios...</div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Date range */}
@@ -642,7 +664,7 @@ export default function ApontamentoPage() {
               </div>
               <button
                 onClick={handleExport}
-                disabled={exporting || selectedUserIds.size === 0}
+                disabled={exporting || (!exportAllUsers && selectedUserIds.size === 0)}
                 className="inline-flex items-center gap-2 rounded-lg bg-ber-olive px-5 py-2.5 text-sm font-bold text-white transition hover:bg-ber-olive/90 disabled:opacity-50 min-h-[44px]"
               >
                 <Download size={16} />
