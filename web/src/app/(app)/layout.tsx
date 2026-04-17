@@ -9,8 +9,8 @@ import api from '@/lib/api';
 import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
-  FileText, Package, FolderOpen, ChevronDown, ChevronRight,
-  Kanban, Menu, X, TrendingUp,
+  FileText, Package,
+  Kanban, Menu, X,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -40,17 +40,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
       { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
-      { label: 'PMO', href: '/pmo', icon: FolderOpen, perm: 'pmo', children: [
-        { label: 'Canteiro', href: '/canteiro' },
-        { label: 'Atas de Reunião', href: '/pmo/atas' },
-        { label: 'Projetos', href: '/pmo/projetos' },
-        { label: 'Documentos', href: '/pmo/documentos' },
-        { label: 'Rel. de Vistoria', href: '/pmo/vistorias' },
-        { label: 'Aprov. Amostras', href: '/pmo/amostras' },
-        { label: 'Shopdrawings', href: '/pmo/shopdrawings' },
-        { label: 'As Builts', href: '/pmo/as-builts' },
-        { label: 'Manual Proprietário', href: '/pmo/manual' },
-      ]},
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
@@ -65,7 +54,6 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'FINANCEIRO',
     items: [
       { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
-      { label: 'DRE', href: '/dre', icon: TrendingUp, perm: 'dre' },
     ],
   },
   {
@@ -85,7 +73,6 @@ const TOP_VIEWS = [
   { label: 'Obras', href: '/obras' },
   { label: 'Kanban', href: '/kanban' },
   { label: 'Checklists', href: '/checklists' },
-  { label: 'DRE', href: '/dre' },
 ];
 
 /* ─── Bottom mobile nav ─── */
@@ -118,13 +105,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
   const perms = getUserPermissions(user);
   const { period, setPeriod, label: periodLabel } = usePeriodStore();
-  const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number | null>>({});
   const [kpi, setKpi] = useState<{ ativas: number; total: number; atrasadas: number } | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
-  useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   // Fetch badge counts + KPI global
@@ -184,42 +169,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
-
-                /* Collapsible group (PMO) */
-                if (item.children) {
-                  return (
-                    <div key={item.label}>
-                      <button
-                        onClick={() => setPmoOpen(o => !o)}
-                        className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${
-                          active || pmoOpen
-                            ? 'bg-ber-olive/20 text-ber-olive'
-                            : 'text-gray-400 hover:bg-ber-sidebar-hover hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon size={16} />
-                          <span>{item.label}</span>
-                        </div>
-                        {pmoOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </button>
-                      {pmoOpen && (
-                        <div className="ml-6 mt-0.5 space-y-0.5">
-                          {item.children.map(child => (
-                            <Link key={child.href} href={child.href}
-                              className={`block rounded-lg px-3 py-2.5 min-h-[44px] flex items-center text-xs transition-colors ${
-                                pathname.startsWith(child.href)
-                                  ? 'bg-ber-olive/20 text-ber-olive'
-                                  : 'text-gray-500 hover:bg-ber-sidebar-hover hover:text-white'
-                              }`}>
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
 
                 /* Regular nav item */
                 return (

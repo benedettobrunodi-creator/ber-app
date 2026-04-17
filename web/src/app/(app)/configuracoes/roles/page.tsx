@@ -22,12 +22,10 @@ const MODULES = [
   { key: 'sequenciamento', label: 'Sequenciamento' },
   { key: 'checklists', label: 'Checklists' },
   { key: 'recebimentos', label: 'Recebimentos' },
-  { key: 'pmo', label: 'PMO' },
   { key: 'seguranca', label: 'Seguranca' },
   { key: 'normas', label: 'Normas Tecnicas' },
   { key: 'instrucoes', label: 'Instrucoes Tecnicas' },
   { key: 'ponto', label: 'Registro de Ponto' },
-  { key: 'dre', label: 'DRE (Financeiro)' },
   { key: 'configuracoes', label: 'Configuracoes' },
 ];
 

@@ -5,8 +5,8 @@ import { AppError } from '../../utils/errors';
 
 const MODULES = [
   'dashboard', 'obras', 'kanban', 'sequenciamento', 'checklists',
-  'recebimentos', 'pmo', 'seguranca', 'normas', 'instrucoes',
-  'ponto', 'dre', 'configuracoes',
+  'recebimentos', 'seguranca', 'normas', 'instrucoes',
+  'ponto', 'configuracoes',
 ] as const;
 
 // GET /v1/roles
