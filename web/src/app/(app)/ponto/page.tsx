@@ -2,6 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
+
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'pt-BR' } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.display_name ?? null;
+  } catch {
+    return null;
+  }
+}
 import { useAuthStore } from '@/stores/authStore';
 import { LogIn, LogOut, MapPin, Clock, AlertCircle, Download, Users, Calendar, HardHat, X } from 'lucide-react';
 
@@ -222,10 +236,9 @@ export default function ApontamentoPage() {
           });
         });
 
-        const payload: any = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
+        const { latitude, longitude } = position.coords;
+        const address = await reverseGeocode(latitude, longitude);
+        const payload: any = { latitude, longitude, ...(address ? { address } : {}) };
         if (checkinObra) payload.obraId = checkinObra.id;
 
         await api.post('/time-entries/checkout', payload);
@@ -270,10 +283,9 @@ export default function ApontamentoPage() {
         });
       });
 
-      const payload: Record<string, any> = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
+      const { latitude, longitude } = position.coords;
+      const address = await reverseGeocode(latitude, longitude);
+      const payload: Record<string, any> = { latitude, longitude, ...(address ? { address } : {}) };
       // obraId vazio = Escritório (sem obra)
       if (obraId) payload.obraId = obraId;
 
