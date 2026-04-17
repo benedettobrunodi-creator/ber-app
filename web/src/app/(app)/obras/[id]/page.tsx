@@ -2535,11 +2535,16 @@ export default function ObraDetailPage() {
                         onChange={e => setMemberRole(e.target.value)}
                         className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
                       >
+                        <option value="coordenador">Coordenador</option>
                         <option value="gestor">Gestor de Obra</option>
-                        <option value="membro">Mestre de Obras</option>
-                        <option value="coordenador">Comprador</option>
-                        <option value="membro">Analista</option>
-                        <option value="membro">Campo</option>
+                        <option value="engenheiro">Engenheiro</option>
+                        <option value="mestre_obras">Mestre de Obras</option>
+                        <option value="encarregado">Encarregado</option>
+                        <option value="tecnico">Técnico</option>
+                        <option value="comprador">Comprador</option>
+                        <option value="auxiliar">Auxiliar</option>
+                        <option value="estagiario">Estagiário</option>
+                        <option value="membro">Membro</option>
                       </select>
                     </div>
 

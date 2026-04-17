@@ -25,7 +25,10 @@ export const updateObraSchema = z.object({
 
 export const addMemberSchema = z.object({
   userId: z.string().uuid(),
-  role: z.enum(['coordenador', 'gestor', 'membro']).default('membro'),
+  role: z.enum([
+    'coordenador', 'gestor', 'engenheiro', 'mestre_obras',
+    'encarregado', 'tecnico', 'comprador', 'auxiliar', 'estagiario', 'membro',
+  ]).default('membro'),
 });
 
 export type CreateObraInput = z.infer<typeof createObraSchema>;
