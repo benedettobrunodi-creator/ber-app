@@ -461,6 +461,7 @@ export default function ObraDetailPage() {
   const [addFvsItemOpen, setAddFvsItemOpen] = useState(false);
   const [addFvsItemDesc, setAddFvsItemDesc] = useState('');
   const [addFvsItemMomento, setAddFvsItemMomento] = useState<'inicio' | 'conclusao'>('conclusao');
+  const [fvsResetConfirm, setFvsResetConfirm] = useState(false);
 
   const [checklists, setChecklists] = useState<ChecklistSummary[]>([]);
   const [loadingChecklists, setLoadingChecklists] = useState(false);
@@ -4090,6 +4091,19 @@ export default function ObraDetailPage() {
           } finally { setFvsSubmitting(false); }
         };
 
+        const doReset = async () => {
+          setFvsSubmitting(true);
+          try {
+            const r = await api.delete(`/obras/${params.id}/fvs/${fvs.id}/reset`);
+            const updated = r.data.data;
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+            setFvsResetConfirm(false);
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro ao resetar FVS');
+          } finally { setFvsSubmitting(false); }
+        };
+
         return (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
             <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-t-2xl md:rounded-xl bg-white shadow-2xl">
@@ -4103,7 +4117,7 @@ export default function ObraDetailPage() {
                   <h2 className="mt-0.5 text-base font-black text-ber-carbon">{fvs.template?.name}</h2>
                   {fvs.etapa && <p className="text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
                 </div>
-                <button onClick={() => setFvsModalOpen(false)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
+                <button onClick={() => { setFvsModalOpen(false); setFvsResetConfirm(false); }} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
               </div>
 
               {/* Body */}
@@ -4219,8 +4233,32 @@ export default function ObraDetailPage() {
               {/* Footer — actions */}
               <div className="shrink-0 border-t border-ber-offwhite px-6 py-4">
                 {fvsSubmitting && <p className="mb-2 text-center text-xs text-ber-gray">Salvando...</p>}
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button onClick={() => setFvsModalOpen(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
+
+                {/* Confirmação de reset */}
+                {fvsResetConfirm && (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm font-semibold text-red-700">Tem certeza? Todos os itens e fotos serão apagados e a FVS voltará ao status Pendente.</p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={doReset} disabled={fvsSubmitting}
+                        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">
+                        Confirmar
+                      </button>
+                      <button onClick={() => setFvsResetConfirm(false)} disabled={fvsSubmitting}
+                        className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {isGestor && !fvsResetConfirm && (
+                    <button onClick={() => setFvsResetConfirm(true)} disabled={fvsSubmitting}
+                      className="mr-auto rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50">
+                      🗑 Resetar FVS
+                    </button>
+                  )}
+                  <button onClick={() => { setFvsModalOpen(false); setFvsResetConfirm(false); }} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
 
                   {/* submit-inicio — envia pré-execução para aprovação */}
                   {fvs.status === 'pendente' && inicioItems.length > 0 && (

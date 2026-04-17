@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AppError } from '../../utils/errors';
 import { autoProvisionFvs } from './auto-provision';
+import { deleteFromR2, isR2Configured } from '../../services/storage';
 
 const FVS_INCLUDE = {
   template: { include: { items: { orderBy: { ordem: 'asc' as const } } } },
@@ -317,6 +318,53 @@ export async function rejectFvs(req: Request, res: Response) {
   const updated = await prisma.obraFvs.update({
     where: { id: fvsId },
     data: { status: 'rejeitada', rejectedBy: userId, rejectionReason: reason },
+    include: FVS_INCLUDE,
+  });
+  sendSuccess(res, updated);
+}
+
+// DELETE /obras/:obraId/fvs/:fvsId/reset
+export async function resetFvs(req: Request, res: Response) {
+  const { fvsId } = req.params;
+
+  const fvs = await prisma.obraFvs.findUnique({
+    where: { id: fvsId },
+    include: { items: true },
+  });
+  if (!fvs) throw AppError.notFound('FVS não encontrada');
+
+  // Deleta fotos do R2
+  if (isR2Configured()) {
+    const urls = fvs.items.map(i => i.fotoUrl).filter(Boolean) as string[];
+    await Promise.allSettled(urls.map(url => deleteFromR2(url)));
+  }
+
+  // Zera todos os itens
+  await prisma.obraFvsItem.updateMany({
+    where: { fvsId },
+    data: {
+      checked: false,
+      na: false,
+      observacao: null,
+      fotoUrl: null,
+      filledAt: null,
+      filledBy: null,
+    },
+  });
+
+  // Reseta status e aprovações
+  const updated = await prisma.obraFvs.update({
+    where: { id: fvsId },
+    data: {
+      status: 'pendente',
+      filledBy: null,
+      gestorApprovedBy: null,
+      gestorApprovedAt: null,
+      coordApprovedBy: null,
+      coordApprovedAt: null,
+      rejectedBy: null,
+      rejectionReason: null,
+    },
     include: FVS_INCLUDE,
   });
   sendSuccess(res, updated);

@@ -5,7 +5,7 @@ import {
   listFvsByObra, getFvsByEtapa, createFvs, autoProvision,
   checkItem, addCustomItem, submitInicio, submitConclusao,
   approveGestorInicio, approveCoordInicio,
-  approveGestor, approveCoord, rejectFvs,
+  approveGestor, approveCoord, rejectFvs, resetFvs,
 } from './controller';
 
 // Wrap async handlers for Express 4
@@ -16,6 +16,7 @@ const w = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
 export const obraFvsRouter = Router({ mergeParams: true });
 obraFvsRouter.get('/fvs', authenticate, w(listFvsByObra));
 obraFvsRouter.post('/fvs/auto-provision', authenticate, requireRole('gestor'), w(autoProvision));
+obraFvsRouter.delete('/fvs/:fvsId/reset', authenticate, requireRole('gestor'), w(resetFvs));
 obraFvsRouter.get('/etapas/:etapaId/fvs', authenticate, w(getFvsByEtapa));
 obraFvsRouter.post('/etapas/:etapaId/fvs', authenticate, requireRole('gestor'), w(createFvs));
 
