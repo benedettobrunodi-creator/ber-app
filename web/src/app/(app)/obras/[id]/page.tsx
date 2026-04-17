@@ -4143,17 +4143,7 @@ export default function ObraDetailPage() {
                   </div>
                 )}
 
-                {/* Seção Conclusão — só aparece após início aprovado por gestor E coordenador */}
-                {conclusaoItems.length > 0 && !inicioAprovado && inicioItems.length > 0 && (
-                  <div className="rounded-lg border border-dashed border-ber-gray/20 bg-gray-50 p-4 text-center">
-                    <p className="text-sm text-ber-gray">
-                      {fvs.status === 'pendente'
-                        ? '🔒 Confirme a Pré-execução para liberar a seção de Execução e Conclusão'
-                        : '🔒 Aguardando aprovação da Pré-execução pelo gestor e coordenador'}
-                    </p>
-                  </div>
-                )}
-                {conclusaoItems.length > 0 && (inicioAprovado || inicioItems.length === 0) && (
+                {conclusaoItems.length > 0 && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
