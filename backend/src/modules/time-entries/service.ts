@@ -263,12 +263,18 @@ export async function exportTimeEntries(params: { userIds?: string[]; startDate:
           : '',
         totalHoras: totalHours,
         obra: (ci as any).obra?.name || 'Escritório',
-        endereco: ci.address || '',
-        latEntrada: ci.latitude != null ? String(ci.latitude) : '',
-        lngEntrada: ci.longitude != null ? String(ci.longitude) : '',
-        enderecoSaida: co?.address || '',
-        latSaida: co?.latitude != null ? String(co.latitude) : '',
-        lngSaida: co?.longitude != null ? String(co.longitude) : '',
+        latEntrada: ci.latitude != null ? Number(ci.latitude) : '',
+        lngEntrada: ci.longitude != null ? Number(ci.longitude) : '',
+        endereco: ci.address
+          || (ci.latitude != null && ci.longitude != null
+            ? `https://maps.google.com/?q=${ci.latitude},${ci.longitude}`
+            : ''),
+        latSaida: co?.latitude != null ? Number(co.latitude) : '',
+        lngSaida: co?.longitude != null ? Number(co.longitude) : '',
+        enderecoSaida: co?.address
+          || (co?.latitude != null && co?.longitude != null
+            ? `https://maps.google.com/?q=${co.latitude},${co.longitude}`
+            : ''),
       });
     }
   }

@@ -69,7 +69,7 @@ export async function exportToExcel(req: Request, res: Response) {
   // ── CSV ──────────────────────────────────────────────────────────────────
   if (format === 'csv') {
     const lines: string[] = [
-      'Nome,Data,Entrada,Saída,Total Horas,Local (Obra/Escritório),Endereço Check-in,Lat. Check-in,Lng. Check-in,Endereço Check-out,Lat. Check-out,Lng. Check-out',
+      'Nome,Data,Entrada,Saída,Total Horas,Local (Obra/Escritório),Lat. Check-in,Lng. Check-in,Localização Check-in,Lat. Check-out,Lng. Check-out,Localização Check-out',
     ];
     for (const [, userData] of Object.entries(grouped)) {
       for (const pair of userData.pairs) {
@@ -80,12 +80,12 @@ export async function exportToExcel(req: Request, res: Response) {
           pair.saida,
           pair.totalHoras,
           pair.obra,
-          pair.endereco,
           pair.latEntrada,
           pair.lngEntrada,
-          pair.enderecoSaida,
+          pair.endereco,
           pair.latSaida,
           pair.lngSaida,
+          pair.enderecoSaida,
         ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`);
         lines.push(cols.join(','));
       }
@@ -108,12 +108,12 @@ export async function exportToExcel(req: Request, res: Response) {
     { header: 'Saída', key: 'saida', width: 12 },
     { header: 'Total Horas', key: 'totalHoras', width: 15 },
     { header: 'Local (Obra/Escritório)', key: 'obra', width: 28 },
-    { header: 'Endereço Check-in', key: 'endereco', width: 40 },
     { header: 'Lat. Check-in', key: 'latEntrada', width: 18 },
     { header: 'Lng. Check-in', key: 'lngEntrada', width: 18 },
-    { header: 'Endereço Check-out', key: 'enderecoSaida', width: 40 },
+    { header: 'Localização Check-in', key: 'endereco', width: 50 },
     { header: 'Lat. Check-out', key: 'latSaida', width: 18 },
     { header: 'Lng. Check-out', key: 'lngSaida', width: 18 },
+    { header: 'Localização Check-out', key: 'enderecoSaida', width: 50 },
   ];
 
   // Aba consolidada "Todos"
