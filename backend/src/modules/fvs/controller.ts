@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated } from '../../utils/response';
 import { AppError } from '../../utils/errors';
+import { autoProvisionFvs } from './auto-provision';
 
 const FVS_INCLUDE = {
   template: { include: { items: { orderBy: { ordem: 'asc' as const } } } },
@@ -19,6 +20,7 @@ const FVS_INCLUDE = {
 // GET /obras/:id/fvs
 export async function listFvsByObra(req: Request, res: Response) {
   const { id } = req.params;
+  await autoProvisionFvs(id);
   const fvsList = await prisma.obraFvs.findMany({
     where: { obraId: id },
     include: FVS_INCLUDE,
@@ -274,7 +276,6 @@ export async function approveCoord(req: Request, res: Response) {
 // POST /obras/:id/fvs/auto-provision
 export async function autoProvision(req: Request, res: Response) {
   const { id: obraId } = req.params;
-  const { autoProvisionFvs } = await import('./auto-provision');
   const result = await autoProvisionFvs(obraId);
   sendSuccess(res, result);
 }
