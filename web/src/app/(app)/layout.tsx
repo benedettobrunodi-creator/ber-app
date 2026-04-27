@@ -7,10 +7,10 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
-  LayoutDashboard, HardHat, Clock, Settings, LogOut,
-  ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
+  HardHat, Clock, LogOut,
+  ShieldCheck, ListOrdered, BookOpen,
   FileText, Package,
-  Kanban, Menu, X,
+  Menu, X,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,41 +27,15 @@ interface NavGroup { section: string; items: NavItem[] }
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    section: 'OBRAS',
+    section: '',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
-      { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
-      { label: 'Kanban', href: '/kanban', icon: Kanban, perm: 'kanban' },
-      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
-    ],
-  },
-  {
-    section: 'GESTÃO',
-    items: [
-      { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
-      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
-      { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
-    ],
-  },
-  {
-    section: 'REFERÊNCIA',
-    items: [
+      { label: 'Obras e Checklists', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
+      { label: 'ITs', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
       { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
-      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
-    ],
-  },
-  {
-    section: 'FINANCEIRO',
-    items: [
-      { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
-    ],
-  },
-  {
-    section: 'ADMIN',
-    items: [
-      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings, perm: 'configuracoes' },
-      { label: 'Roles', href: '/configuracoes/roles', icon: Settings, perm: 'configuracoes' },
-      { label: 'Configuracoes', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
+      { label: 'Apontamentos de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
+      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
+      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
+      { label: 'Segurança do Trabalho', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
 ];
@@ -69,20 +43,18 @@ const NAV_GROUPS: NavGroup[] = [
 /* ─── Top bar views (horizontal nav) ─── */
 
 const TOP_VIEWS = [
-  { label: 'Dashboard', href: '/dashboard' },
   { label: 'Obras', href: '/obras' },
-  { label: 'Kanban', href: '/kanban' },
-  { label: 'Checklists', href: '/checklists' },
+  { label: 'Recebimentos', href: '/recebimentos' },
+  { label: 'Sequenciamento', href: '/sequenciamento' },
 ];
 
 /* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Apontamento', href: '/ponto', icon: Clock },
-  { label: 'Kanban', href: '/kanban', icon: Kanban },
-  { label: 'Config', href: '/configuracoes', icon: Settings },
+  { label: 'Recebimentos', href: '/recebimentos', icon: Package },
+  { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
 ];
 
 /* ─── Badge dot helper ─── */
@@ -162,9 +134,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           items: g.items.filter(item => !item.perm || perms[item.perm]),
         })).filter(g => g.items.length > 0).map((group) => (
           <div key={group.section} className="mb-4">
-            <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
-              {group.section}
-            </p>
+            {group.section && (
+              <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
+                {group.section}
+              </p>
+            )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;

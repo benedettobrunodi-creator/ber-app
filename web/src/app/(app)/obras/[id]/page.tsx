@@ -1572,13 +1572,6 @@ export default function ObraDetailPage() {
             <RotateCcw size={10} /> Resetar layout
           </button>
         )}
-        {/* Medição — página dedicada */}
-        <Link
-          href={`/obras/${params.id}/medicao`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
-        >
-          📊 Medição
-        </Link>
         {/* Compras — página dedicada */}
         <Link
           href={`/obras/${params.id}/compras`}

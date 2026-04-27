@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
   const [error, setError] = useState('');
-  const [redirect, setRedirect] = useState('/dashboard');
+  const [redirect, setRedirect] = useState('/obras');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
