@@ -63,7 +63,9 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        created_at ASC
+        CASE WHEN n IS NULL THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
     res.json({ data: items.map(mapItem) });
   } catch (err) { next(err); }
@@ -109,7 +111,9 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        created_at ASC
+        CASE WHEN n IS NULL THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
 
     res.json({ data: created.map(mapItem), imported: rows.length });

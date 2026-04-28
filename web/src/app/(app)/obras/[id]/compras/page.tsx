@@ -34,6 +34,17 @@ const PACOTE_COLORS: Record<number, { bg: string; text: string; label: string }>
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
 
+function sortByN(a: CompraItem, b: CompraItem): number {
+  const parse = (n: string | null) => (n ?? '999999').split('.').map(Number);
+  const aN = parse(a.n);
+  const bN = parse(b.n);
+  for (let i = 0; i < Math.max(aN.length, bN.length); i++) {
+    const d = (aN[i] ?? 0) - (bN[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
 function semaforo(comprado: number, meta: number): '🟢' | '🟡' | '🔴' {
   if (comprado === 0) return '🟢';
   if (comprado > meta) return '🔴';
@@ -59,7 +70,7 @@ export default function ComprasPage() {
   const load = useCallback(() => {
     setLoading(true);
     api.get(`/obras/${obraId}/compras`)
-      .then(({ data }) => setItems(data.data || []))
+      .then(({ data }) => setItems([...(data.data || [])].sort(sortByN)))
       .finally(() => setLoading(false));
   }, [obraId]);
 
@@ -292,18 +303,8 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-teal">
                           {fmtBRL(etapaMeta)}
                         </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={item.comprado === 0 ? '' : item.comprado}
-                            placeholder="0"
-                            onChange={e => {
-                              const val = e.target.value.replace(/[^0-9.]/g, '');
-                              saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
-                            }}
-                            className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none"
-                          />
+                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
+                          {fmtBRL(etapaComprado)}
                         </td>
                         <td className="px-3 py-2">
                           <input
