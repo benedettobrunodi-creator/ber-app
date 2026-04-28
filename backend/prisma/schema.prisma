@@ -72,6 +72,7 @@ model User {
   fotosEnviadas         ObraFoto[]           @relation("FotoAutor")
   filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
   dreUpdates            DreValue[]             @relation("DreUpdater")
+  alocacoes             Alocacao[]             @relation("AlocacaoUser")
   customRole            CustomRole?            @relation(fields: [customRoleId], references: [id])
   customRoleId          String?                @map("custom_role_id") @db.Uuid
 
@@ -139,6 +140,7 @@ model Obra {
   medicoes       Medicao[]          @relation("ObraMedicoes")
   medicaoItens   MedicaoItem[]      @relation("ObraMedicaoItens")
   comprasMetas   ComprasMeta[]
+  alocacoes      Alocacao[]    @relation("AlocacaoObra")
 
   @@map("obras")
 }
@@ -1149,4 +1151,24 @@ model DreValue {
 
   @@unique([rowKey, colKey])
   @@map("dre_values")
+}
+
+// ─── ALOCAÇÃO DE MÃO DE OBRA ─────────────────────────────────────────────────
+
+model Alocacao {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  obraId       String    @map("obra_id") @db.Uuid
+  fase         String    @default("ambas") @db.VarChar(20)
+  dedicacaoPct Int       @map("dedicacao_pct")
+  dataInicio   DateTime? @map("data_inicio") @db.Date
+  dataFim      DateTime? @map("data_fim") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user User @relation("AlocacaoUser", fields: [userId], references: [id], onDelete: Cascade)
+  obra Obra @relation("AlocacaoObra", fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([obraId])
+  @@map("alocacoes")
 }

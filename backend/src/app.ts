@@ -43,7 +43,9 @@ import recebimentoRouter, { obraRecebimentoRouter } from './modules/recebimentos
 import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/routes';
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
 import dashboardRoutes from './modules/dashboard/routes';
+import dreRoutes from './modules/dre/routes';
 import rolesRoutes from './modules/roles/routes';
+import alocacoesRoutes from './modules/alocacoes/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -143,6 +145,7 @@ app.use('/v1/obras/:id/punch-lists', obraPunchListRouter);
 app.use('/v1/punch-lists', punchListRouter);
 app.use('/v1/punch-list-items', punchListItemRouter);
 app.use('/v1/dashboard', dashboardRoutes);
+app.use('/v1/dre', dreRoutes);
 app.use('/v1/obras/:id', obraComunicadoRouter);
 app.use('/v1/comunicados', announcementRoutes);
 
@@ -189,6 +192,7 @@ app.patch('/v1/medicao-itens/:itemId',       authenticate as any, (req: any, res
 app.use('/v1/medicoes', medicaoRouter);
 app.use('/v1/obras', comprasRoutes);
 app.use('/v1/roles', rolesRoutes);
+app.use('/v1/alocacoes', alocacoesRoutes);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';

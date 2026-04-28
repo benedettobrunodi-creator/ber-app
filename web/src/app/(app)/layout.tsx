@@ -7,10 +7,10 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
-  HardHat, Clock, LogOut,
-  ShieldCheck, ListOrdered, BookOpen,
-  FileText, Package,
-  Menu, X,
+  LayoutDashboard, HardHat, Clock, Settings, LogOut,
+  ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
+  FileText, Package, FolderOpen, ChevronDown, ChevronRight,
+  Kanban, Menu, X, TrendingUp, CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,15 +27,54 @@ interface NavGroup { section: string; items: NavItem[] }
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    section: '',
+    section: 'OBRAS',
     items: [
-      { label: 'Obras e Checklists', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
-      { label: 'ITs', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
-      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
-      { label: 'Apontamentos de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
-      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
+      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
+      { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
+      { label: 'Kanban', href: '/kanban', icon: Kanban, perm: 'kanban' },
       { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
-      { label: 'Segurança do Trabalho', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
+    ],
+  },
+  {
+    section: 'GESTÃO',
+    items: [
+      { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
+      { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
+      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
+      { label: 'PMO', href: '/pmo', icon: FolderOpen, perm: 'pmo', children: [
+        { label: 'Canteiro', href: '/canteiro' },
+        { label: 'Atas de Reunião', href: '/pmo/atas' },
+        { label: 'Projetos', href: '/pmo/projetos' },
+        { label: 'Documentos', href: '/pmo/documentos' },
+        { label: 'Rel. de Vistoria', href: '/pmo/vistorias' },
+        { label: 'Aprov. Amostras', href: '/pmo/amostras' },
+        { label: 'Shopdrawings', href: '/pmo/shopdrawings' },
+        { label: 'As Builts', href: '/pmo/as-builts' },
+        { label: 'Manual Proprietário', href: '/pmo/manual' },
+      ]},
+      { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
+    ],
+  },
+  {
+    section: 'REFERÊNCIA',
+    items: [
+      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
+      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
+    ],
+  },
+  {
+    section: 'FINANCEIRO',
+    items: [
+      { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
+      { label: 'DRE', href: '/dre', icon: TrendingUp, perm: 'dre' },
+    ],
+  },
+  {
+    section: 'ADMIN',
+    items: [
+      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings, perm: 'configuracoes' },
+      { label: 'Roles', href: '/configuracoes/roles', icon: Settings, perm: 'configuracoes' },
+      { label: 'Configuracoes', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
     ],
   },
 ];
@@ -43,18 +82,21 @@ const NAV_GROUPS: NavGroup[] = [
 /* ─── Top bar views (horizontal nav) ─── */
 
 const TOP_VIEWS = [
+  { label: 'Dashboard', href: '/dashboard' },
   { label: 'Obras', href: '/obras' },
-  { label: 'Recebimentos', href: '/recebimentos' },
-  { label: 'Sequenciamento', href: '/sequenciamento' },
+  { label: 'Kanban', href: '/kanban' },
+  { label: 'Checklists', href: '/checklists' },
+  { label: 'DRE', href: '/dre' },
 ];
 
 /* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Apontamento', href: '/ponto', icon: Clock },
-  { label: 'Recebimentos', href: '/recebimentos', icon: Package },
-  { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered },
+  { label: 'Kanban', href: '/kanban', icon: Kanban },
+  { label: 'Config', href: '/configuracoes', icon: Settings },
 ];
 
 /* ─── Badge dot helper ─── */
@@ -77,11 +119,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
   const perms = getUserPermissions(user);
   const { period, setPeriod, label: periodLabel } = usePeriodStore();
+  const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number | null>>({});
   const [kpi, setKpi] = useState<{ ativas: number; total: number; atrasadas: number } | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   // Fetch badge counts + KPI global
@@ -134,15 +178,49 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           items: g.items.filter(item => !item.perm || perms[item.perm]),
         })).filter(g => g.items.length > 0).map((group) => (
           <div key={group.section} className="mb-4">
-            {group.section && (
-              <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
-                {group.section}
-              </p>
-            )}
+            <p className="mb-1 px-3 text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase">
+              {group.section}
+            </p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
+
+                /* Collapsible group (PMO) */
+                if (item.children) {
+                  return (
+                    <div key={item.label}>
+                      <button
+                        onClick={() => setPmoOpen(o => !o)}
+                        className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${
+                          active || pmoOpen
+                            ? 'bg-ber-olive/20 text-ber-olive'
+                            : 'text-gray-400 hover:bg-ber-sidebar-hover hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </div>
+                        {pmoOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      {pmoOpen && (
+                        <div className="ml-6 mt-0.5 space-y-0.5">
+                          {item.children.map(child => (
+                            <Link key={child.href} href={child.href}
+                              className={`block rounded-lg px-3 py-2.5 min-h-[44px] flex items-center text-xs transition-colors ${
+                                pathname.startsWith(child.href)
+                                  ? 'bg-ber-olive/20 text-ber-olive'
+                                  : 'text-gray-500 hover:bg-ber-sidebar-hover hover:text-white'
+                              }`}>
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
                 /* Regular nav item */
                 return (
