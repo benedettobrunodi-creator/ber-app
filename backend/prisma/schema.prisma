@@ -73,6 +73,7 @@ model User {
   filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
   dreUpdates            DreValue[]             @relation("DreUpdater")
   alocacoes             Alocacao[]             @relation("AlocacaoUser")
+  recursosExternosCriados RecursoExterno[]     @relation("RecursoExternoCreator")
   customRole            CustomRole?            @relation(fields: [customRoleId], references: [id])
   customRoleId          String?                @map("custom_role_id") @db.Uuid
 
@@ -1156,19 +1157,34 @@ model DreValue {
 // ─── ALOCAÇÃO DE MÃO DE OBRA ─────────────────────────────────────────────────
 
 model Alocacao {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  obraId       String    @map("obra_id") @db.Uuid
-  fase         String    @default("ambas") @db.VarChar(20)
-  dedicacaoPct Int       @map("dedicacao_pct")
-  dataInicio   DateTime? @map("data_inicio") @db.Date
-  dataFim      DateTime? @map("data_fim") @db.Date
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String?   @map("user_id") @db.Uuid
+  recursoExternoId String?   @map("recurso_externo_id") @db.Uuid
+  obraId           String    @map("obra_id") @db.Uuid
+  fase             String    @default("ambas") @db.VarChar(20)
+  dedicacaoPct     Int       @map("dedicacao_pct")
+  dataInicio       DateTime? @map("data_inicio") @db.Date
+  dataFim          DateTime? @map("data_fim") @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  user User @relation("AlocacaoUser", fields: [userId], references: [id], onDelete: Cascade)
-  obra Obra @relation("AlocacaoObra", fields: [obraId], references: [id], onDelete: Cascade)
+  user           User?           @relation("AlocacaoUser", fields: [userId], references: [id], onDelete: Cascade)
+  recursoExterno RecursoExterno? @relation("AlocacaoRecursoExterno", fields: [recursoExternoId], references: [id], onDelete: Cascade)
+  obra           Obra            @relation("AlocacaoObra", fields: [obraId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([obraId])
   @@map("alocacoes")
+}
+
+model RecursoExterno {
+  id          String     @id @default(uuid()) @db.Uuid
+  nome        String     @db.VarChar(255)
+  funcao      String     @db.VarChar(20)
+  createdById String?    @map("created_by") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  createdBy User?      @relation("RecursoExternoCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  alocacoes Alocacao[] @relation("AlocacaoRecursoExterno")
+
+  @@map("recursos_externos")
 }

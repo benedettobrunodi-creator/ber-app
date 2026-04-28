@@ -4,6 +4,7 @@ import type { CreateAlocacaoInput, UpdateAlocacaoInput } from './types';
 
 const include = {
   user: { select: { id: true, name: true, role: true, avatarUrl: true } },
+  recursoExterno: { select: { id: true, nome: true, funcao: true } },
   obra: { select: { id: true, name: true, status: true, startDate: true, expectedEndDate: true } },
 } as const;
 
@@ -14,7 +15,8 @@ export async function listAlocacoes() {
 export async function createAlocacao(data: CreateAlocacaoInput) {
   return prisma.alocacao.create({
     data: {
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recursoExternoId: data.recursoExternoId ?? null,
       obraId: data.obraId,
       fase: data.fase ?? 'ambas',
       dedicacaoPct: data.dedicacaoPct,
@@ -33,6 +35,7 @@ export async function updateAlocacao(id: string, data: UpdateAlocacaoInput) {
     where: { id },
     data: {
       ...(data.userId !== undefined && { userId: data.userId }),
+      ...(data.recursoExternoId !== undefined && { recursoExternoId: data.recursoExternoId }),
       ...(data.obraId !== undefined && { obraId: data.obraId }),
       ...(data.fase !== undefined && { fase: data.fase }),
       ...(data.dedicacaoPct !== undefined && { dedicacaoPct: data.dedicacaoPct }),
