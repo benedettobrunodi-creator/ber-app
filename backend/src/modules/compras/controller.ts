@@ -83,7 +83,9 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     console.log('[import] file:', req.file?.originalname, 'size:', req.file?.size, 'buffer:', req.file?.buffer?.length);
     if (!req.file?.buffer || req.file.buffer.length === 0) throw AppError.badRequest('Buffer do arquivo vazio');
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(req.file.buffer as any);
+    const buf = req.file.buffer;
+    const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    await wb.xlsx.load(arrayBuffer as any);
 
     const rows: {
       n: string | null; tipo: string; categoria: string; descritivo: string | null;
