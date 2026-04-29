@@ -101,7 +101,17 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     for (const sheetName of wb.SheetNames) {
       const ws = wb.Sheets[sheetName];
       // header:'A' → each row is { A: val, B: val, C: val, ... } keyed by column letter
-      const allRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { header: 'A', defval: null });
+      // Force read full range — SheetJS may auto-detect a smaller used range.
+      // Compute actual range from cell keys to avoid truncation.
+      const cellKeys = Object.keys(ws).filter(k => !k.startsWith('!'));
+      let maxRow = 0;
+      for (const k of cellKeys) {
+        const m = k.match(/^[A-Z]+(\d+)$/);
+        if (m) maxRow = Math.max(maxRow, parseInt(m[1], 10));
+      }
+      console.log('[import] computed maxRow from cells:', maxRow);
+      const range = `A1:AZ${Math.max(maxRow, 1)}`;
+      const allRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { header: 'A', defval: null, range });
       console.log('[import] sheet:', sheetName, 'total rows:', allRows.length);
       // Log rows 1-15 to confirm header position and data start
       for (let i = 0; i < Math.min(15, allRows.length); i++) {
