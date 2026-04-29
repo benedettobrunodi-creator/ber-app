@@ -166,7 +166,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
         CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' OR NOT split_part(n, '.', 3) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
 
-    res.json({ data: created.map(mapItem), imported: rows.length });
+    res.json({ data: created.map(row => mapItem(row)), imported: rows.length });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     console.error('[import] Unhandled error:', err);
