@@ -103,13 +103,13 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       // header:'A' → each row is { A: val, B: val, C: val, ... } keyed by column letter
       const allRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { header: 'A', defval: null });
       console.log('[import] sheet:', sheetName, 'total rows:', allRows.length);
-      // Log rows 10-14 to confirm column mapping
-      for (let i = 9; i < Math.min(15, allRows.length); i++) {
+      // Log rows 1-15 to confirm header position and data start
+      for (let i = 0; i < Math.min(15, allRows.length); i++) {
         const r = allRows[i];
         console.log(`[import] row ${i + 1}: B=${JSON.stringify(r['B'])} C=${JSON.stringify(r['C'])} G=${JSON.stringify(r['G'])} S=${JSON.stringify(r['S'])}`);
       }
-      // Skip first 11 rows (header area); data starts at row 12 (index 11)
-      for (let i = 11; i < allRows.length; i++) {
+      // Process every row — parseRow already filters by C === 'Item' | 'Etapa'
+      for (let i = 0; i < allRows.length; i++) {
         const parsed = parseRow(allRows[i]);
         if (parsed) rows.push(parsed);
       }
