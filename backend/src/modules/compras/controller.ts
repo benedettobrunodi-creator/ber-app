@@ -22,10 +22,11 @@ function parseRow(row: ExcelJS.Row): {
   const venda = Number(values[19]);
   // Etapas podem ter venda 0 (será soma dos itens); Itens precisam de venda > 0
   if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
+  const nRaw = String(values[2] ?? '').trim();
   return {
-    n: String(values[2] ?? '').trim() || null,
+    n: (nRaw || null)?.substring(0, 20) ?? null,
     tipo,
-    categoria: descricao,
+    categoria: descricao.substring(0, 200),
     descritivo: null,
     venda: isNaN(venda) ? 0 : venda,
     pctMeta: tipo === 'etapa' ? 0 : 0.2,
@@ -63,9 +64,9 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        CASE WHEN n IS NULL OR n = '' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
+        CASE WHEN n IS NULL OR n = '' OR NOT split_part(n, '.', 1) ~ '^[0-9]+$' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' OR NOT split_part(n, '.', 2) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' OR NOT split_part(n, '.', 3) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
     res.json({ data: items.map(mapItem) });
   } catch (err) { next(err); }
@@ -83,9 +84,13 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     console.log('[import] file:', req.file?.originalname, 'size:', req.file?.size, 'buffer:', req.file?.buffer?.length);
     if (!req.file?.buffer || req.file.buffer.length === 0) throw AppError.badRequest('Buffer do arquivo vazio');
     const wb = new ExcelJS.Workbook();
-    const { Readable } = await import('stream');
-    const stream = Readable.from(req.file.buffer);
-    await wb.xlsx.read(stream);
+    try {
+      const { Readable } = require('stream') as typeof import('stream');
+      const stream = new Readable({ read() { this.push(req.file!.buffer); this.push(null); } });
+      await wb.xlsx.read(stream);
+    } catch {
+      throw AppError.badRequest('Arquivo Excel inválido ou corrompido. Envie um arquivo .xlsx válido.');
+    }
 
     const rows: {
       n: string | null; tipo: string; categoria: string; descritivo: string | null;
@@ -113,9 +118,9 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        CASE WHEN n IS NULL OR n = '' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
+        CASE WHEN n IS NULL OR n = '' OR NOT split_part(n, '.', 1) ~ '^[0-9]+$' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' OR NOT split_part(n, '.', 2) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' OR NOT split_part(n, '.', 3) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
 
     res.json({ data: created.map(mapItem), imported: rows.length });
