@@ -5,24 +5,24 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
-function parseRow(row: ExcelJS.Row): {
+// row: array 0-based (SheetJS sheet_to_json header:1)
+// Col B = index 1 (n), Col C = index 2 (tipo), Col G = index 6 (categoria), Col S = index 18 (venda)
+function parseRow(row: unknown[]): {
   n: string | null; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
-  const values = row.values as (string | number | null | undefined)[];
-  const tipoRaw = String(values[3] ?? '').trim();
+  const tipoRaw = String(row[2] ?? '').trim();
   if (tipoRaw !== 'Item' && tipoRaw !== 'Etapa') return null;
-  const descricao = String(values[7] ?? '').trim();
+  const descricao = String(row[6] ?? '').trim();
   if (!descricao) return null;
   const tipo = tipoRaw === 'Etapa' ? 'etapa' : 'item';
-  const venda = Number(values[19]);
-  // Etapas podem ter venda 0 (será soma dos itens); Itens precisam de venda > 0
+  const venda = Number(row[18]);
   if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
-  const nRaw = String(values[2] ?? '').trim();
+  const nRaw = String(row[1] ?? '').trim();
   return {
     n: (nRaw || null)?.substring(0, 20) ?? null,
     tipo,
@@ -84,29 +84,29 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     console.log('[import] file:', req.file?.originalname, 'size:', req.file?.size, 'buffer:', req.file?.buffer?.length);
     if (!req.file?.buffer || req.file.buffer.length === 0) throw AppError.badRequest('Buffer do arquivo vazio');
     console.log('[import] step: parsing xlsx');
-    const wb = new ExcelJS.Workbook();
+    let wb: XLSX.WorkBook;
     try {
-      const { Readable } = require('stream') as typeof import('stream');
-      const stream = new Readable({ read() { this.push(req.file!.buffer); this.push(null); } });
-      await wb.xlsx.read(stream);
+      wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
     } catch (parseErr) {
       console.error('[import] xlsx parse error:', parseErr);
       throw AppError.badRequest('Arquivo Excel inválido ou corrompido. Envie um arquivo .xlsx válido.');
     }
-    console.log('[import] step: xlsx parsed, sheets:', wb.worksheets.length);
+    console.log('[import] step: xlsx parsed, sheets:', wb.SheetNames.length);
 
     const rows: {
       n: string | null; tipo: string; categoria: string; descritivo: string | null;
       venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
     }[] = [];
 
-    wb.eachSheet((ws) => {
-      ws.eachRow((row, rowNum) => {
-        if (rowNum < 12) return;
-        const parsed = parseRow(row);
+    for (const sheetName of wb.SheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const allRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
+      // Skip first 11 rows (header area); data starts at row 12 (index 11)
+      for (let i = 11; i < allRows.length; i++) {
+        const parsed = parseRow(allRows[i]);
         if (parsed) rows.push(parsed);
-      });
-    });
+      }
+    }
 
     console.log('[import] step: rows extracted:', rows.length);
     if (rows.length === 0) throw AppError.badRequest('Nenhuma linha válida encontrada no arquivo');
