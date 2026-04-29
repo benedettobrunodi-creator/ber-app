@@ -5,6 +5,11 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Remove Content-Type from common defaults so Axios can auto-detect it per
+// request: plain objects still get application/json via transformRequest,
+// and FormData gets the correct multipart/form-data boundary from the browser.
+delete (api.defaults.headers.common as Record<string, unknown>)['Content-Type'];
+
 api.interceptors.request.use((config) => {
   const accessToken =
     typeof window !== 'undefined'
