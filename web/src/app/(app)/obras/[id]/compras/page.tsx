@@ -32,7 +32,17 @@ const PACOTE_COLORS: Record<number, { bg: string; text: string; label: string }>
 };
 
 const fmtBRL = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
+
+function parseComprado(raw: string): number {
+  // Aceita formato BR (1.500,50) ou US (1500.50)
+  let s = raw.replace(/[^0-9.,]/g, '');
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
 
 function sortByN(a: CompraItem, b: CompraItem): number {
   const parse = (n: string | null) => (n ?? '999999').split('.').map(Number);
@@ -269,8 +279,9 @@ export default function ComprasPage() {
                     const etapaMeta = children.reduce((s, c) => s + c.venda * (1 - c.pctMeta), 0);
                     const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => s + c.comprado, 0);
-                    const etapaSavOrc = etapaVenda - etapaComprado;
-                    const etapaSavMeta = etapaMeta - etapaComprado;
+                    const effectiveComprado = item.comprado > 0 ? item.comprado : etapaComprado;
+                    const etapaSavOrc = etapaVenda - effectiveComprado;
+                    const etapaSavMeta = etapaMeta - effectiveComprado;
                     return (
                       <tr key={item.id} className="bg-ber-carbon/5 border-t-2 border-ber-carbon/10">
                         <td className="px-3 py-2" />
@@ -301,8 +312,15 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-teal">
                           {fmtBRL(etapaMeta)}
                         </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
-                          {fmtBRL(etapaComprado)}
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={item.comprado === 0 ? '' : item.comprado}
+                            placeholder="0"
+                            onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
+                            className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none"
+                          />
                         </td>
                         <td className="px-3 py-2">
                           <input
@@ -384,13 +402,10 @@ export default function ComprasPage() {
                         <div className="flex flex-col gap-0.5">
                           <input
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
                             value={item.comprado === 0 ? '' : item.comprado}
                             placeholder="0"
-                            onChange={e => {
-                              const val = e.target.value.replace(/[^0-9.]/g, '');
-                              saveItem(item.id, { comprado: val === '' ? 0 : Number(val) });
-                            }}
+                            onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
                             className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
                           />
                           <div className="h-1 rounded-full bg-gray-200">
