@@ -101,6 +101,12 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     for (const sheetName of wb.SheetNames) {
       const ws = wb.Sheets[sheetName];
       const allRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
+      console.log('[import] sheet:', sheetName, 'total rows:', allRows.length);
+      // Log rows 10-14 (around where data should start) to diagnose column mapping
+      for (let i = 9; i < Math.min(15, allRows.length); i++) {
+        const r = allRows[i] as unknown[];
+        console.log(`[import] row ${i + 1}: B=${JSON.stringify(r[1])} C=${JSON.stringify(r[2])} G=${JSON.stringify(r[6])} S=${JSON.stringify(r[18])}`);
+      }
       // Skip first 11 rows (header area); data starts at row 12 (index 11)
       for (let i = 11; i < allRows.length; i++) {
         const parsed = parseRow(allRows[i]);
