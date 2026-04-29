@@ -43,7 +43,6 @@ import recebimentoRouter, { obraRecebimentoRouter } from './modules/recebimentos
 import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/routes';
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
 import dashboardRoutes from './modules/dashboard/routes';
-import dreRoutes from './modules/dre/routes';
 import rolesRoutes from './modules/roles/routes';
 import alocacoesRoutes from './modules/alocacoes/routes';
 import recursosExternosRoutes from './modules/recursos-externos/routes';
@@ -146,7 +145,6 @@ app.use('/v1/obras/:id/punch-lists', obraPunchListRouter);
 app.use('/v1/punch-lists', punchListRouter);
 app.use('/v1/punch-list-items', punchListItemRouter);
 app.use('/v1/dashboard', dashboardRoutes);
-app.use('/v1/dre', dreRoutes);
 app.use('/v1/obras/:id', obraComunicadoRouter);
 app.use('/v1/comunicados', announcementRoutes);
 
