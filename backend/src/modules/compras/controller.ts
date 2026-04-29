@@ -83,14 +83,17 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 
     console.log('[import] file:', req.file?.originalname, 'size:', req.file?.size, 'buffer:', req.file?.buffer?.length);
     if (!req.file?.buffer || req.file.buffer.length === 0) throw AppError.badRequest('Buffer do arquivo vazio');
+    console.log('[import] step: parsing xlsx');
     const wb = new ExcelJS.Workbook();
     try {
       const { Readable } = require('stream') as typeof import('stream');
       const stream = new Readable({ read() { this.push(req.file!.buffer); this.push(null); } });
       await wb.xlsx.read(stream);
-    } catch {
+    } catch (parseErr) {
+      console.error('[import] xlsx parse error:', parseErr);
       throw AppError.badRequest('Arquivo Excel inválido ou corrompido. Envie um arquivo .xlsx válido.');
     }
+    console.log('[import] step: xlsx parsed, sheets:', wb.worksheets.length);
 
     const rows: {
       n: string | null; tipo: string; categoria: string; descritivo: string | null;
@@ -105,14 +108,17 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       });
     });
 
+    console.log('[import] step: rows extracted:', rows.length);
     if (rows.length === 0) throw AppError.badRequest('Nenhuma linha válida encontrada no arquivo');
 
+    console.log('[import] step: saving to DB');
     await prisma.$transaction([
       prisma.comprasMeta.deleteMany({ where: { obraId } }),
       prisma.comprasMeta.createMany({
         data: rows.map((r) => ({ ...r, obraId })),
       }),
     ]);
+    console.log('[import] step: DB saved, querying result');
 
     const created = await prisma.$queryRaw<any[]>`
       SELECT * FROM compras_metas
@@ -124,7 +130,11 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     `;
 
     res.json({ data: created.map(mapItem), imported: rows.length });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    console.error('[import] Unhandled error:', err);
+    next(err);
+  }
 }
 
 // PATCH /v1/obras/:id/compras/:itemId
