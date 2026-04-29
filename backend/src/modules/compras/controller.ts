@@ -36,7 +36,7 @@ function parseRow(row: Record<string, unknown>): {
 }
 
 
-function mapItem(row: any) {
+function mapItem(row: any, splits: any[] = []) {
   return {
     id: row.id,
     obraId: row.obra_id,
@@ -51,6 +51,12 @@ function mapItem(row: any) {
     faturamento: row.faturamento,
     pacote: row.pacote !== null ? Number(row.pacote) : null,
     compradoOk: row.comprado_ok,
+    splits: splits.map(s => ({
+      id: s.id,
+      fornecedor: s.fornecedor,
+      faturamento: s.faturamento,
+      valor: Number(s.valor),
+    })),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -60,15 +66,29 @@ function mapItem(row: any) {
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const { id: obraId } = req.params;
-    const items = await prisma.$queryRaw<any[]>`
-      SELECT * FROM compras_metas
-      WHERE obra_id = ${obraId}::uuid
-      ORDER BY
-        CASE WHEN n IS NULL OR n = '' OR NOT split_part(n, '.', 1) ~ '^[0-9]+$' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' OR NOT split_part(n, '.', 2) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' OR NOT split_part(n, '.', 3) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
-    `;
-    res.json({ data: items.map(mapItem) });
+    const [items, splits] = await Promise.all([
+      prisma.$queryRaw<any[]>`
+        SELECT * FROM compras_metas
+        WHERE obra_id = ${obraId}::uuid
+        ORDER BY
+          CASE WHEN n IS NULL OR n = '' OR NOT split_part(n, '.', 1) ~ '^[0-9]+$' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+          CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' OR NOT split_part(n, '.', 2) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+          CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' OR NOT split_part(n, '.', 3) ~ '^[0-9]+$' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
+      `,
+      prisma.$queryRaw<any[]>`
+        SELECT cs.* FROM compras_splits cs
+        JOIN compras_metas cm ON cm.id = cs.compras_meta_id
+        WHERE cm.obra_id = ${obraId}::uuid
+        ORDER BY cs.created_at ASC
+      `,
+    ]);
+    const splitsByMeta: Record<string, any[]> = {};
+    for (const s of splits) {
+      const key = s.compras_meta_id;
+      if (!splitsByMeta[key]) splitsByMeta[key] = [];
+      splitsByMeta[key].push(s);
+    }
+    res.json({ data: items.map(row => mapItem(row, splitsByMeta[row.id] ?? [])) });
   } catch (err) { next(err); }
 }
 
@@ -178,6 +198,45 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     });
 
     res.json({ data: updated });
+  } catch (err) { next(err); }
+}
+
+// POST /v1/obras/:id/compras/:itemId/splits
+export async function addSplit(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { itemId } = req.params;
+    const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
+    if (!item) throw AppError.notFound('Item não encontrado');
+    const split = await prisma.comprasSplit.create({
+      data: { comprasMetaId: itemId, fornecedor: null, faturamento: null, valor: 0 },
+    });
+    res.json({ data: { id: split.id, fornecedor: null, faturamento: null, valor: 0 } });
+  } catch (err) { next(err); }
+}
+
+// PATCH /v1/obras/:id/compras/:itemId/splits/:splitId
+export async function updateSplit(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { splitId } = req.params;
+    const { fornecedor, faturamento, valor } = req.body;
+    const split = await prisma.comprasSplit.update({
+      where: { id: splitId },
+      data: {
+        ...(fornecedor !== undefined && { fornecedor: fornecedor || null }),
+        ...(faturamento !== undefined && { faturamento: faturamento || null }),
+        ...(valor !== undefined && { valor: Number(valor) }),
+      },
+    });
+    res.json({ data: { id: split.id, fornecedor: split.fornecedor, faturamento: split.faturamento, valor: Number(split.valor) } });
+  } catch (err) { next(err); }
+}
+
+// DELETE /v1/obras/:id/compras/:itemId/splits/:splitId
+export async function deleteSplit(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { splitId } = req.params;
+    await prisma.comprasSplit.delete({ where: { id: splitId } });
+    res.json({ data: { deleted: true } });
   } catch (err) { next(err); }
 }
 

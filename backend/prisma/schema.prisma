@@ -163,10 +163,25 @@ model ComprasMeta {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  obra   Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  splits ComprasSplit[]
 
   @@index([obraId])
   @@map("compras_metas")
+}
+
+model ComprasSplit {
+  id            String      @id @default(uuid()) @db.Uuid
+  comprasMetaId String      @map("compras_meta_id") @db.Uuid
+  fornecedor    String?
+  faturamento   String?
+  valor         Float       @default(0)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  comprasMeta ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)
+
+  @@index([comprasMetaId])
+  @@map("compras_splits")
 }
 
 model ObraMember {

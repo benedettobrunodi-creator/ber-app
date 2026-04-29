@@ -2,8 +2,15 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown } from 'lucide-react';
+import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import api from '@/lib/api';
+
+interface ComprasSplit {
+  id: string;
+  fornecedor: string | null;
+  faturamento: string | null;
+  valor: number;
+}
 
 interface CompraItem {
   id: string;
@@ -18,6 +25,7 @@ interface CompraItem {
   faturamento: string | null;
   pacote: number | null;
   compradoOk: boolean;
+  splits: ComprasSplit[];
 }
 
 
@@ -93,6 +101,34 @@ export default function ComprasPage() {
     saveTimers.current[id] = setTimeout(() => {
       api.patch(`/obras/${obraId}/compras/${id}`, patch).catch(console.error);
     }, 800);
+  }, [obraId]);
+
+  const addSplit = useCallback(async (itemId: string) => {
+    const { data } = await api.post(`/obras/${obraId}/compras/${itemId}/splits`, {});
+    setItems(prev => prev.map(it => it.id === itemId
+      ? { ...it, splits: [...it.splits, data.data] }
+      : it
+    ));
+  }, [obraId]);
+
+  const saveSplit = useCallback((itemId: string, splitId: string, patch: Partial<ComprasSplit>) => {
+    setItems(prev => prev.map(it => it.id === itemId
+      ? { ...it, splits: it.splits.map(s => s.id === splitId ? { ...s, ...patch } : s) }
+      : it
+    ));
+    const key = `split_${splitId}`;
+    if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
+    saveTimers.current[key] = setTimeout(() => {
+      api.patch(`/obras/${obraId}/compras/${itemId}/splits/${splitId}`, patch).catch(console.error);
+    }, 800);
+  }, [obraId]);
+
+  const deleteSplit = useCallback(async (itemId: string, splitId: string) => {
+    setItems(prev => prev.map(it => it.id === itemId
+      ? { ...it, splits: it.splits.filter(s => s.id !== splitId) }
+      : it
+    ));
+    await api.delete(`/obras/${obraId}/compras/${itemId}/splits/${splitId}`).catch(console.error);
   }, [obraId]);
 
   // Import
@@ -357,13 +393,19 @@ export default function ComprasPage() {
                   if (currentEtapa && (collapsed[currentEtapa] ?? false)) return null;
 
                   const idx = rowIdx++;
+                  const hasSplits = item.splits.length > 0;
+                  const effectiveComprado = hasSplits
+                    ? item.splits.reduce((s, sp) => s + sp.valor, 0)
+                    : item.comprado;
                   const meta = item.venda * (1 - item.pctMeta);
-                  const savOrç = item.venda - item.comprado;
-                  const savMeta = meta - item.comprado;
-                  const status = semaforo(item.comprado, meta);
-                  const progPct = meta > 0 ? Math.min((item.comprado / meta) * 100, 100) : 0;
+                  const savOrç = item.venda - effectiveComprado;
+                  const savMeta = meta - effectiveComprado;
+                  const status = semaforo(effectiveComprado, meta);
+                  const progPct = meta > 0 ? Math.min((effectiveComprado / meta) * 100, 100) : 0;
+                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                   return (
-                    <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${item.compradoOk ? 'opacity-60' : ''}`}>
+                    <>
+                    <tr key={item.id} className={`${rowBg} ${item.compradoOk ? 'opacity-60' : ''}`}>
                       <td className="px-3 py-2 text-center">
                         <input
                           type="checkbox"
@@ -399,42 +441,59 @@ export default function ComprasPage() {
                       </td>
                       <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(meta)}</td>
                       <td className="px-3 py-2">
-                        <div className="flex flex-col gap-0.5">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={item.comprado === 0 ? '' : item.comprado}
-                            placeholder="0"
-                            onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
-                            className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
-                          />
-                          <div className="h-1 rounded-full bg-gray-200">
-                            <div
-                              className={`h-1 rounded-full transition-all ${item.comprado > meta ? 'bg-red-500' : item.comprado >= meta * 0.85 ? 'bg-amber-400' : 'bg-green-500'}`}
-                              style={{ width: `${progPct}%` }}
-                            />
+                        {hasSplits ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-right text-xs tabular-nums font-medium text-ber-carbon pr-1">{fmtBRL(effectiveComprado)}</span>
+                            <div className="h-1 rounded-full bg-gray-200">
+                              <div className={`h-1 rounded-full transition-all ${effectiveComprado > meta ? 'bg-red-500' : effectiveComprado >= meta * 0.85 ? 'bg-amber-400' : 'bg-green-500'}`} style={{ width: `${progPct}%` }} />
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.comprado === 0 ? '' : item.comprado}
+                              placeholder="0"
+                              onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
+                              className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
+                            />
+                            <div className="h-1 rounded-full bg-gray-200">
+                              <div className={`h-1 rounded-full transition-all ${item.comprado > meta ? 'bg-red-500' : item.comprado >= meta * 0.85 ? 'bg-amber-400' : 'bg-green-500'}`} style={{ width: `${progPct}%` }} />
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={item.fornecedor || ''}
-                          onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
-                          placeholder="Fornecedor..."
-                          className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
-                        />
+                        {!hasSplits && (
+                          <input
+                            type="text"
+                            value={item.fornecedor || ''}
+                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                            placeholder="Fornecedor..."
+                            className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                          />
+                        )}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <select
-                          value={item.faturamento || ''}
-                          onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
-                          className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                        {!hasSplits && (
+                          <select
+                            value={item.faturamento || ''}
+                            onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
+                            className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                          >
+                            <option value="">—</option>
+                            <option value="BER">BER</option>
+                            <option value="Fornecedor">Fornecedor</option>
+                          </select>
+                        )}
+                        <button
+                          onClick={() => addSplit(item.id)}
+                          title="Adicionar fornecedor"
+                          className="mt-0.5 flex items-center gap-0.5 text-[10px] text-ber-teal hover:text-ber-teal/70"
                         >
-                          <option value="">—</option>
-                          <option value="BER">BER</option>
-                          <option value="Fornecedor">Fornecedor</option>
-                        </select>
+                          <Plus size={10} /> split
+                        </button>
                       </td>
                       <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {savOrç >= 0 ? <TrendingDown size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
@@ -445,6 +504,50 @@ export default function ComprasPage() {
                       </td>
                       <td className="px-3 py-2 text-center text-base">{status}</td>
                     </tr>
+                    {item.splits.map(sp => (
+                      <tr key={sp.id} className={`${rowBg} border-l-2 border-ber-teal/30`}>
+                        <td colSpan={8} />
+                        <td className="px-3 py-1.5">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={sp.valor === 0 ? '' : sp.valor}
+                            placeholder="Valor"
+                            onChange={e => saveSplit(item.id, sp.id, { valor: parseComprado(e.target.value) })}
+                            className="w-full rounded border border-ber-teal/40 bg-ber-teal/5 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <input
+                            type="text"
+                            value={sp.fornecedor || ''}
+                            placeholder="Fornecedor..."
+                            onChange={e => saveSplit(item.id, sp.id, { fornecedor: e.target.value })}
+                            className="w-full rounded border border-ber-teal/40 bg-ber-teal/5 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <select
+                            value={sp.faturamento || ''}
+                            onChange={e => saveSplit(item.id, sp.id, { faturamento: e.target.value || null })}
+                            className="w-full rounded border border-ber-teal/40 bg-ber-teal/5 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                          >
+                            <option value="">—</option>
+                            <option value="BER">BER</option>
+                            <option value="Fornecedor">Fornecedor</option>
+                          </select>
+                        </td>
+                        <td colSpan={2} className="px-3 py-1.5">
+                          <button
+                            onClick={() => deleteSplit(item.id, sp.id)}
+                            className="text-red-400 hover:text-red-600"
+                          >
+                            <X size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    </>
                   );
                 });
               })()}

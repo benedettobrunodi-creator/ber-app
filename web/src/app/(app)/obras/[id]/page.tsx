@@ -490,6 +490,36 @@ export default function ObraDetailPage() {
   // FVS inline in etapa modals
   const [etapaFvs, setEtapaFvs] = useState<ObraFvs | null>(null);
   const [etapaFvsLoading, setEtapaFvsLoading] = useState(false);
+
+  // Shared helpers for inline FVS sections (etapa modals) and the modal FVS.
+  const fvsItemBlocked = (item: ObraFvsItemType, siblings: ObraFvsItemType[]) => {
+    const myOrdem = item.templateItem?.ordem ?? 0;
+    return siblings.some(o =>
+      o.id !== item.id &&
+      (o.templateItem?.ordem ?? 0) < myOrdem &&
+      !o.checked && !o.na,
+    );
+  };
+  const patchEtapaFvsItem = async (itemId: string, body: any) => {
+    if (!etapaFvs) return;
+    try {
+      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${itemId}`, body);
+      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) } : null);
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao salvar');
+    }
+  };
+  const uploadEtapaFvsPhoto = async (itemId: string, file: File) => {
+    if (!etapaFvs) return;
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = up.data.data?.url ?? up.data.url;
+      await patchEtapaFvsItem(itemId, { fotoUrl: url });
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro no upload');
+    }
+  };
   // Rich modal fields
   const [rf, setRf] = useState({
     startDate: new Date().toISOString().slice(0,10),
@@ -2974,7 +3004,9 @@ export default function ObraDetailPage() {
                 {/* FVS Pré-execução inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const inicioItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
+                  const inicioItems = [...etapaFvs.items]
+                    .filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio')
+                    .sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
                   if (!inicioItems.length) return null;
                   const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
                   const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
@@ -2989,32 +3021,49 @@ export default function ObraDetailPage() {
                       {Object.entries(grouped).map(([secao, items]) => (
                         <div key={secao}>
                           <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600 mb-1">{secao}</p>
-                          {items.map(item => (
-                            <div key={item.id} className="flex items-start gap-2 py-0.5">
-                              <input type="checkbox" checked={item.checked} disabled={item.na}
-                                onChange={async () => {
-                                  try {
-                                    const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
-                                    setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
-                                  } catch {}
-                                }}
-                                className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
-                              <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                {item.templateItem?.descricao ?? item.descricao}
-                                {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
-                              </span>
-                              <button type="button"
-                                onClick={async () => {
-                                  try {
-                                    const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { na: !item.na });
-                                    setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
-                                  } catch {}
-                                }}
-                                className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                                N/A
-                              </button>
+                          {items.map(item => {
+                            const blocked = fvsItemBlocked(item, inicioItems);
+                            const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
+                            const photoMissing = needsPhoto && !item.fotoUrl;
+                            const canCheck = !blocked && !photoMissing;
+                            return (
+                            <div key={item.id} className={`py-0.5 ${blocked ? 'opacity-50' : ''}`}>
+                              <div className="flex items-start gap-2">
+                                <input type="checkbox" checked={item.checked}
+                                  disabled={item.na || (!item.checked && !canCheck)}
+                                  title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                                  onChange={() => patchEtapaFvsItem(item.id, { checked: !item.checked })}
+                                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-30" />
+                                <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                  {needsPhoto && <span className="mr-0.5 text-amber-500">📷</span>}
+                                  {item.templateItem?.descricao ?? item.descricao}
+                                  {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                </span>
+                                <button type="button"
+                                  disabled={blocked && !item.na}
+                                  onClick={() => patchEtapaFvsItem(item.id, { na: !item.na })}
+                                  className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold disabled:opacity-40 ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                  N/A
+                                </button>
+                              </div>
+                              {(needsPhoto || item.fotoUrl) && (
+                                <div className="mt-1 ml-5 flex items-center gap-2">
+                                  {item.fotoUrl && (
+                                    <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                      <img src={item.fotoUrl} alt="foto" className="h-10 w-10 rounded object-cover border border-ber-gray/15" />
+                                    </a>
+                                  )}
+                                  <label className={`flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600'}`}>
+                                    <Camera size={9} />
+                                    {item.fotoUrl ? 'Trocar' : 'Foto obrigatória'}
+                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadEtapaFvsPhoto(item.id, f); }} />
+                                  </label>
+                                </div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ))}
                     </div>
@@ -3048,7 +3097,9 @@ export default function ObraDetailPage() {
                 {/* FVS Conclusão inline */}
                 {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
                 {etapaFvs && (() => {
-                  const conclusaoItems = etapaFvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
+                  const conclusaoItems = [...etapaFvs.items]
+                    .filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao')
+                    .sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
                   if (!conclusaoItems.length) return (
                     <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
                       <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
@@ -3073,32 +3124,49 @@ export default function ObraDetailPage() {
                         {Object.entries(grouped).map(([secao, items]) => (
                           <div key={secao}>
                             <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 mb-1">{secao}</p>
-                            {items.map(item => (
-                              <div key={item.id} className="flex items-start gap-2 py-0.5">
-                                <input type="checkbox" checked={item.checked} disabled={item.na}
-                                  onChange={async () => {
-                                    try {
-                                      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { checked: !item.checked });
-                                      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
-                                    } catch {}
-                                  }}
-                                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:opacity-30" />
-                                <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                  {item.templateItem?.descricao ?? item.descricao}
-                                  {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
-                                </span>
-                                <button type="button"
-                                  onClick={async () => {
-                                    try {
-                                      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${item.id}`, { na: !item.na });
-                                      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === item.id ? { ...i, ...r.data.data } : i) } : null);
-                                    } catch {}
-                                  }}
-                                  className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                                  N/A
-                                </button>
+                            {items.map(item => {
+                              const blocked = fvsItemBlocked(item, conclusaoItems);
+                              const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
+                              const photoMissing = needsPhoto && !item.fotoUrl;
+                              const canCheck = !blocked && !photoMissing;
+                              return (
+                              <div key={item.id} className={`py-0.5 ${blocked ? 'opacity-50' : ''}`}>
+                                <div className="flex items-start gap-2">
+                                  <input type="checkbox" checked={item.checked}
+                                    disabled={item.na || (!item.checked && !canCheck)}
+                                    title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                                    onChange={() => patchEtapaFvsItem(item.id, { checked: !item.checked })}
+                                    className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-30" />
+                                  <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                                    {needsPhoto && <span className="mr-0.5 text-amber-500">📷</span>}
+                                    {item.templateItem?.descricao ?? item.descricao}
+                                    {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
+                                  </span>
+                                  <button type="button"
+                                    disabled={blocked && !item.na}
+                                    onClick={() => patchEtapaFvsItem(item.id, { na: !item.na })}
+                                    className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold disabled:opacity-40 ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                    N/A
+                                  </button>
+                                </div>
+                                {(needsPhoto || item.fotoUrl) && (
+                                  <div className="mt-1 ml-5 flex items-center gap-2">
+                                    {item.fotoUrl && (
+                                      <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                        <img src={item.fotoUrl} alt="foto" className="h-10 w-10 rounded object-cover border border-ber-gray/15" />
+                                      </a>
+                                    )}
+                                    <label className={`flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600'}`}>
+                                      <Camera size={9} />
+                                      {item.fotoUrl ? 'Trocar' : 'Foto obrigatória'}
+                                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadEtapaFvsPhoto(item.id, f); }} />
+                                    </label>
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ))}
                       </div>
