@@ -10,7 +10,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
 function parseRow(row: ExcelJS.Row): {
-  n: string; tipo: string; categoria: string; descritivo: string | null;
+  n: string | null; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
   const values = row.values as (string | number | null | undefined)[];
@@ -23,7 +23,7 @@ function parseRow(row: ExcelJS.Row): {
   // Etapas podem ter venda 0 (será soma dos itens); Itens precisam de venda > 0
   if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
   return {
-    n: String(values[2] ?? '').trim(),
+    n: String(values[2] ?? '').trim() || null,
     tipo,
     categoria: descricao,
     descritivo: null,
@@ -63,9 +63,9 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        CASE WHEN n IS NULL THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
+        CASE WHEN n IS NULL OR n = '' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
     res.json({ data: items.map(mapItem) });
   } catch (err) { next(err); }
@@ -86,7 +86,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
     await wb.xlsx.load(req.file.buffer as any);
 
     const rows: {
-      n: string; tipo: string; categoria: string; descritivo: string | null;
+      n: string | null; tipo: string; categoria: string; descritivo: string | null;
       venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
     }[] = [];
 
@@ -111,9 +111,9 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       SELECT * FROM compras_metas
       WHERE obra_id = ${obraId}::uuid
       ORDER BY
-        CASE WHEN n IS NULL THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
-        CASE WHEN n IS NULL OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
+        CASE WHEN n IS NULL OR n = '' THEN 999999 ELSE CAST(split_part(n, '.', 1) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 2) = '' THEN 0 ELSE CAST(split_part(n, '.', 2) AS INTEGER) END ASC,
+        CASE WHEN n IS NULL OR n = '' OR split_part(n, '.', 3) = '' THEN 0 ELSE CAST(split_part(n, '.', 3) AS INTEGER) END ASC
     `;
 
     res.json({ data: created.map(mapItem), imported: rows.length });
