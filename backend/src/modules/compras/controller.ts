@@ -9,20 +9,20 @@ import * as XLSX from 'xlsx';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
-// row: array 0-based (SheetJS sheet_to_json header:1)
-// Col B = index 1 (n), Col C = index 2 (tipo), Col G = index 6 (categoria), Col S = index 18 (venda)
-function parseRow(row: unknown[]): {
+// row: SheetJS object with column-letter keys (header:'A')
+// Col B = n, Col C = tipo ("Item"/"Etapa"), Col G = categoria, Col S = venda
+function parseRow(row: Record<string, unknown>): {
   n: string | null; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
-  const tipoRaw = String(row[2] ?? '').trim();
+  const tipoRaw = String(row['C'] ?? '').trim();
   if (tipoRaw !== 'Item' && tipoRaw !== 'Etapa') return null;
-  const descricao = String(row[6] ?? '').trim();
+  const descricao = String(row['G'] ?? '').trim();
   if (!descricao) return null;
   const tipo = tipoRaw === 'Etapa' ? 'etapa' : 'item';
-  const venda = Number(row[18]);
+  const venda = Number(row['S']);
   if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
-  const nRaw = String(row[1] ?? '').trim();
+  const nRaw = String(row['B'] ?? '').trim();
   return {
     n: (nRaw || null)?.substring(0, 20) ?? null,
     tipo,
@@ -100,12 +100,13 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 
     for (const sheetName of wb.SheetNames) {
       const ws = wb.Sheets[sheetName];
-      const allRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
+      // header:'A' → each row is { A: val, B: val, C: val, ... } keyed by column letter
+      const allRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { header: 'A', defval: null });
       console.log('[import] sheet:', sheetName, 'total rows:', allRows.length);
-      // Log rows 10-14 (around where data should start) to diagnose column mapping
+      // Log rows 10-14 to confirm column mapping
       for (let i = 9; i < Math.min(15, allRows.length); i++) {
-        const r = allRows[i] as unknown[];
-        console.log(`[import] row ${i + 1}: B=${JSON.stringify(r[1])} C=${JSON.stringify(r[2])} G=${JSON.stringify(r[6])} S=${JSON.stringify(r[18])}`);
+        const r = allRows[i];
+        console.log(`[import] row ${i + 1}: B=${JSON.stringify(r['B'])} C=${JSON.stringify(r['C'])} G=${JSON.stringify(r['G'])} S=${JSON.stringify(r['S'])}`);
       }
       // Skip first 11 rows (header area); data starts at row 12 (index 11)
       for (let i = 11; i < allRows.length; i++) {
