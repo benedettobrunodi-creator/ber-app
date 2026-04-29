@@ -92,9 +92,7 @@ export default function ComprasPage() {
     const form = new FormData();
     form.append('file', importFile);
     try {
-      await api.post(`/obras/${obraId}/compras/import`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await api.post(`/obras/${obraId}/compras/import`, form);
       setShowImport(false);
       setImportFile(null);
       load();
