@@ -79,6 +79,7 @@ export default function ComprasPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [localText, setLocalText] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -122,6 +123,21 @@ export default function ComprasPage() {
       api.patch(`/obras/${obraId}/compras/${itemId}/splits/${splitId}`, patch).catch(console.error);
     }, 800);
   }, [obraId]);
+
+  const valorInputProps = (key: string, storedValue: number, onSave: (v: number) => void) => ({
+    type: 'text' as const,
+    inputMode: 'decimal' as const,
+    value: localText[key] ?? (storedValue === 0 ? '' : String(storedValue)),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setLocalText(prev => ({ ...prev, [key]: e.target.value })),
+    onBlur: () => {
+      const raw = localText[key];
+      if (raw !== undefined) {
+        onSave(parseComprado(raw));
+        setLocalText(prev => { const n = { ...prev }; delete n[key]; return n; });
+      }
+    },
+  });
 
   const deleteSplit = useCallback(async (itemId: string, splitId: string) => {
     setItems(prev => prev.map(it => it.id === itemId
@@ -350,11 +366,8 @@ export default function ComprasPage() {
                         </td>
                         <td className="px-3 py-2">
                           <input
-                            type="text"
-                            inputMode="decimal"
-                            value={item.comprado === 0 ? '' : item.comprado}
+                            {...valorInputProps(item.id, item.comprado, v => saveItem(item.id, { comprado: v }))}
                             placeholder="0"
-                            onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
                             className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none"
                           />
                         </td>
@@ -451,11 +464,8 @@ export default function ComprasPage() {
                         ) : (
                           <div className="flex flex-col gap-0.5">
                             <input
-                              type="text"
-                              inputMode="decimal"
-                              value={item.comprado === 0 ? '' : item.comprado}
+                              {...valorInputProps(item.id, item.comprado, v => saveItem(item.id, { comprado: v }))}
                               placeholder="0"
-                              onChange={e => saveItem(item.id, { comprado: parseComprado(e.target.value) })}
                               className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
                             />
                             <div className="h-1 rounded-full bg-gray-200">
@@ -509,11 +519,8 @@ export default function ComprasPage() {
                         <td colSpan={8} />
                         <td className="px-3 py-1.5">
                           <input
-                            type="text"
-                            inputMode="decimal"
-                            value={sp.valor === 0 ? '' : sp.valor}
+                            {...valorInputProps(`split_${sp.id}`, sp.valor, v => saveSplit(item.id, sp.id, { valor: v }))}
                             placeholder="Valor"
-                            onChange={e => saveSplit(item.id, sp.id, { valor: parseComprado(e.target.value) })}
                             className="w-full rounded border border-ber-teal/40 bg-ber-teal/5 px-1 py-0.5 text-right text-xs tabular-nums focus:border-ber-teal focus:outline-none"
                           />
                         </td>
