@@ -10,6 +10,7 @@ interface ComprasSplit {
   fornecedor: string | null;
   faturamento: string | null;
   valor: number;
+  coTipo: 'credito' | 'debito' | null;
 }
 
 interface CompraItem {
@@ -114,8 +115,8 @@ export default function ComprasPage() {
     await api.delete(`/obras/${obraId}/compras/${itemId}`).catch(console.error);
   }, [obraId]);
 
-  const addSplit = useCallback(async (itemId: string) => {
-    const { data } = await api.post(`/obras/${obraId}/compras/${itemId}/splits`, {});
+  const addSplit = useCallback(async (itemId: string, coTipo?: 'credito' | 'debito') => {
+    const { data } = await api.post(`/obras/${obraId}/compras/${itemId}/splits`, coTipo ? { coTipo } : {});
     setItems(prev => prev.map(it => it.id === itemId
       ? { ...it, splits: [...it.splits, data.data] }
       : it
@@ -437,12 +438,14 @@ export default function ComprasPage() {
 
                   // Change Order row — always visible, never child of an etapa
                   if (item.tipo === 'co') {
-                    const meta = item.venda * (1 - item.pctMeta);
-                    const hasSplits = item.splits.length > 0;
-                    const effectiveComprado = hasSplits
-                      ? item.splits.reduce((s, sp) => s + sp.valor, 0)
-                      : item.comprado;
-                    const savOrç = item.venda - effectiveComprado;
+                    const coSplits = item.splits.filter(s => s.coTipo !== null);
+                    const coNet = coSplits.length > 0
+                      ? coSplits.reduce((sum, s) => sum + (s.coTipo === 'credito' ? s.valor : -s.valor), 0)
+                      : null;
+                    const effectiveVenda = coNet !== null ? coNet : item.venda;
+                    const meta = effectiveVenda * (1 - item.pctMeta);
+                    const effectiveComprado = item.comprado;
+                    const savOrç = effectiveVenda - effectiveComprado;
                     const savMeta = meta - effectiveComprado;
                     return (
                       <>
@@ -469,18 +472,34 @@ export default function ComprasPage() {
                             className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs text-ber-gray focus:border-amber-500 focus:outline-none" />
                         </td>
                         <td className="px-3 py-2">
-                          <input type="text" inputMode="decimal"
-                            value={localText[`venda_${item.id}`] ?? (item.venda === 0 ? '' : String(item.venda))}
-                            onChange={e => setLocalText(prev => ({ ...prev, [`venda_${item.id}`]: e.target.value }))}
-                            onBlur={() => {
-                              const raw = localText[`venda_${item.id}`];
-                              if (raw !== undefined) {
-                                saveItem(item.id, { venda: parseComprado(raw) });
-                                setLocalText(prev => { const n = { ...prev }; delete n[`venda_${item.id}`]; return n; });
-                              }
-                            }}
-                            placeholder="0"
-                            className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-right text-xs tabular-nums focus:border-amber-500 focus:outline-none" />
+                          {coNet !== null ? (
+                            <span className={`block text-right text-xs tabular-nums font-bold pr-1 ${coNet >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {coNet >= 0 ? '+' : ''}{fmtBRL(coNet)}
+                            </span>
+                          ) : (
+                            <input type="text" inputMode="decimal"
+                              value={localText[`venda_${item.id}`] ?? (item.venda === 0 ? '' : String(item.venda))}
+                              onChange={e => setLocalText(prev => ({ ...prev, [`venda_${item.id}`]: e.target.value }))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const raw = localText[`venda_${item.id}`];
+                                  if (raw !== undefined) {
+                                    saveItem(item.id, { venda: parseComprado(raw) });
+                                    setLocalText(prev => { const n = { ...prev }; delete n[`venda_${item.id}`]; return n; });
+                                    e.currentTarget.blur();
+                                  }
+                                }
+                              }}
+                              onBlur={() => {
+                                const raw = localText[`venda_${item.id}`];
+                                if (raw !== undefined) {
+                                  saveItem(item.id, { venda: parseComprado(raw) });
+                                  setLocalText(prev => { const n = { ...prev }; delete n[`venda_${item.id}`]; return n; });
+                                }
+                              }}
+                              placeholder="0"
+                              className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-right text-xs tabular-nums focus:border-amber-500 focus:outline-none" />
+                          )}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <input type="number" min={0} max={100} step={1}
@@ -490,36 +509,35 @@ export default function ComprasPage() {
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(meta)}</td>
                         <td className="px-3 py-2">
-                          {hasSplits ? (
-                            <span className="block text-right text-xs tabular-nums font-medium text-ber-carbon pr-1">{fmtBRL(effectiveComprado)}</span>
-                          ) : (
-                            <input {...valorInputProps(item.id, item.comprado, v => saveItem(item.id, { comprado: v }))}
-                              placeholder="0"
-                              className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-right text-xs tabular-nums focus:border-amber-500 focus:outline-none" />
-                          )}
+                          <input {...valorInputProps(item.id, item.comprado, v => saveItem(item.id, { comprado: v }))}
+                            placeholder="0"
+                            className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-right text-xs tabular-nums focus:border-amber-500 focus:outline-none" />
                         </td>
                         <td className="px-3 py-2">
-                          {!hasSplits && (
-                            <input type="text" value={item.fornecedor || ''}
-                              onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
-                              placeholder="Fornecedor..."
-                              className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs focus:border-amber-500 focus:outline-none" />
-                          )}
+                          <input type="text" value={item.fornecedor || ''}
+                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                            placeholder="Fornecedor..."
+                            className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs focus:border-amber-500 focus:outline-none" />
                         </td>
                         <td className="px-3 py-2 text-center">
-                          {!hasSplits && (
-                            <select value={item.faturamento || ''}
-                              onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
-                              className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs focus:border-amber-500 focus:outline-none">
-                              <option value="">—</option>
-                              <option value="BER">BER</option>
-                              <option value="Fornecedor">Fornecedor</option>
-                            </select>
-                          )}
-                          <button onClick={() => addSplit(item.id)}
-                            className="mt-0.5 flex items-center gap-0.5 text-[10px] text-ber-teal hover:text-ber-teal/70">
-                            <Plus size={10} /> split
-                          </button>
+                          <select value={item.faturamento || ''}
+                            onChange={e => saveItem(item.id, { faturamento: e.target.value || null })}
+                            className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs focus:border-amber-500 focus:outline-none">
+                            <option value="">—</option>
+                            <option value="BER">BER</option>
+                            <option value="Fornecedor">Fornecedor</option>
+                          </select>
+                          <div className="mt-1 flex gap-1">
+                            <button onClick={() => addSplit(item.id, 'credito')}
+                              className="flex items-center gap-0.5 text-[10px] font-medium text-green-600 hover:text-green-700">
+                              <Plus size={9} /> C
+                            </button>
+                            <span className="text-[10px] text-ber-gray/40">/</span>
+                            <button onClick={() => addSplit(item.id, 'debito')}
+                              className="flex items-center gap-0.5 text-[10px] font-medium text-red-500 hover:text-red-600">
+                              <Plus size={9} /> D
+                            </button>
+                          </div>
                         </td>
                         <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                           {fmtBRL(Math.abs(savOrç))}
@@ -534,7 +552,35 @@ export default function ComprasPage() {
                           </button>
                         </td>
                       </tr>
-                      {item.splits.map(sp => (
+                      {item.splits.map(sp => sp.coTipo !== null ? (
+                        // Crédito / Débito sub-line
+                        <tr key={sp.id} className={`border-l-2 ${sp.coTipo === 'credito' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}>
+                          <td />
+                          <td className="px-3 py-1.5 text-center">
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${sp.coTipo === 'credito' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                              {sp.coTipo === 'credito' ? 'C' : 'D'}
+                            </span>
+                          </td>
+                          <td colSpan={3} className="px-3 py-1.5">
+                            <input type="text" value={sp.fornecedor || ''}
+                              placeholder="Descrição do item..."
+                              onChange={e => saveSplit(item.id, sp.id, { fornecedor: e.target.value })}
+                              className={`w-full rounded border px-1 py-0.5 text-xs focus:outline-none ${sp.coTipo === 'credito' ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-red-300 bg-red-50 focus:border-red-500'}`} />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input {...valorInputProps(`split_${sp.id}`, sp.valor, v => saveSplit(item.id, sp.id, { valor: v }))}
+                              placeholder="Valor"
+                              className={`w-full rounded border px-1 py-0.5 text-right text-xs tabular-nums focus:outline-none ${sp.coTipo === 'credito' ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-red-300 bg-red-50 focus:border-red-500'}`} />
+                          </td>
+                          <td colSpan={7} />
+                          <td className="px-3 py-1.5 text-center">
+                            <button onClick={() => deleteSplit(item.id, sp.id)} className="text-red-400 hover:text-red-600">
+                              <X size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ) : (
+                        // Split legado (comprado)
                         <tr key={sp.id} className="bg-amber-50 border-l-2 border-amber-400/40">
                           <td colSpan={8} />
                           <td className="px-3 py-1.5">

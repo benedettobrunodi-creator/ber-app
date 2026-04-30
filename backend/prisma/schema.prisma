@@ -177,6 +177,7 @@ model ComprasSplit {
   fornecedor    String?
   faturamento   String?
   valor         Float       @default(0)
+  coTipo        String?     @map("co_tipo") @db.VarChar(10)
   createdAt     DateTime    @default(now()) @map("created_at")
 
   comprasMeta ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)

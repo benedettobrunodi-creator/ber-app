@@ -56,6 +56,7 @@ function mapItem(row: any, splits: any[] = []) {
       fornecedor: s.fornecedor,
       faturamento: s.faturamento,
       valor: Number(s.valor),
+      coTipo: s.co_tipo ?? null,
     })),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -210,10 +211,11 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
     const { itemId } = req.params;
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
+    const coTipo = req.body.coTipo ?? null;
     const split = await prisma.comprasSplit.create({
-      data: { comprasMetaId: itemId, fornecedor: null, faturamento: null, valor: 0 },
+      data: { comprasMetaId: itemId, fornecedor: null, faturamento: null, valor: 0, coTipo },
     });
-    res.json({ data: { id: split.id, fornecedor: null, faturamento: null, valor: 0 } });
+    res.json({ data: { id: split.id, fornecedor: null, faturamento: null, valor: 0, coTipo } });
   } catch (err) { next(err); }
 }
 
@@ -221,16 +223,17 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
 export async function updateSplit(req: Request, res: Response, next: NextFunction) {
   try {
     const { splitId } = req.params;
-    const { fornecedor, faturamento, valor } = req.body;
+    const { fornecedor, faturamento, valor, coTipo } = req.body;
     const split = await prisma.comprasSplit.update({
       where: { id: splitId },
       data: {
         ...(fornecedor !== undefined && { fornecedor: fornecedor || null }),
         ...(faturamento !== undefined && { faturamento: faturamento || null }),
         ...(valor !== undefined && { valor: Number(valor) }),
+        ...(coTipo !== undefined && { coTipo: coTipo || null }),
       },
     });
-    res.json({ data: { id: split.id, fornecedor: split.fornecedor, faturamento: split.faturamento, valor: Number(split.valor) } });
+    res.json({ data: { id: split.id, fornecedor: split.fornecedor, faturamento: split.faturamento, valor: Number(split.valor), coTipo: split.coTipo ?? null } });
   } catch (err) { next(err); }
 }
 
