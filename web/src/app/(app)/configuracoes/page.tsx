@@ -39,17 +39,27 @@ interface UserFormData {
 // --- Constants ---
 
 const ROLE_BADGE: Record<UserRole, string> = {
-  diretoria: 'bg-ber-carbon text-white',
+  diretoria:   'bg-ber-carbon text-white',
   coordenacao: 'bg-ber-teal text-white',
-  gestor: 'bg-ber-olive text-white',
-  campo: 'bg-ber-gray text-white',
+  pmo:         'bg-purple-600 text-white',
+  engenharia:  'bg-blue-600 text-white',
+  financeiro:  'bg-emerald-600 text-white',
+  gestor:      'bg-ber-olive text-white',
+  compras:     'bg-orange-500 text-white',
+  orcamentos:  'bg-amber-500 text-white',
+  campo:       'bg-ber-gray text-white',
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  diretoria: 'Diretoria',
-  coordenacao: 'Coordenacao',
-  gestor: 'Gestor',
-  campo: 'Campo',
+  diretoria:   'Diretoria',
+  coordenacao: 'Coordenação',
+  pmo:         'PMO',
+  engenharia:  'Engenharia',
+  financeiro:  'Financeiro',
+  gestor:      'Gestor de Obras',
+  compras:     'Compras',
+  orcamentos:  'Orçamentos',
+  campo:       'Campo',
 };
 
 const EMPTY_FORM: UserFormData = {
