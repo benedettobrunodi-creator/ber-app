@@ -243,6 +243,39 @@ export async function deleteSplit(req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err); }
 }
 
+// POST /v1/obras/:id/compras — cria um item avulso (change order)
+export async function createItem(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: obraId } = req.params;
+    const obra = await prisma.obra.findUnique({ where: { id: obraId } });
+    if (!obra) throw AppError.notFound('Obra não encontrada');
+
+    const item = await prisma.comprasMeta.create({
+      data: {
+        obraId,
+        n: null,
+        tipo: 'co',
+        categoria: String(req.body.categoria || 'Change Order').substring(0, 200),
+        descritivo: req.body.descritivo ? String(req.body.descritivo).substring(0, 500) : null,
+        venda: Number(req.body.venda) || 0,
+        pctMeta: req.body.pctMeta !== undefined ? Number(req.body.pctMeta) : 0.2,
+        comprado: 0,
+      },
+    });
+
+    res.json({ data: mapItem(item) });
+  } catch (err) { next(err); }
+}
+
+// DELETE /v1/obras/:id/compras/:itemId — deleta um item específico
+export async function deleteItem(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { itemId } = req.params;
+    await prisma.comprasMeta.delete({ where: { id: itemId } });
+    res.json({ data: { deleted: true } });
+  } catch (err) { next(err); }
+}
+
 // DELETE /v1/obras/:id/compras
 export async function clear(req: Request, res: Response, next: NextFunction) {
   try {
