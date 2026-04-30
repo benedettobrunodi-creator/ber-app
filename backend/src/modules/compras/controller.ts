@@ -15,11 +15,11 @@ function parseRow(row: Record<string, unknown>): {
   n: string | null; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
 } | null {
-  const tipoRaw = String(row['C'] ?? '').trim();
-  if (tipoRaw !== 'Item' && tipoRaw !== 'Etapa') return null;
+  const tipoRaw = String(row['C'] ?? '').trim().toLowerCase();
+  if (tipoRaw !== 'item' && tipoRaw !== 'etapa') return null;
   const descricao = String(row['G'] ?? '').trim();
   if (!descricao) return null;
-  const tipo = tipoRaw === 'Etapa' ? 'etapa' : 'item';
+  const tipo = tipoRaw === 'etapa' ? 'etapa' : 'item';
   const venda = Number(row['S']);
   if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
   const nRaw = String(row['B'] ?? '').trim();
@@ -138,7 +138,10 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
         const r = allRows[i];
         console.log(`[import] row ${i + 1}: B=${JSON.stringify(r['B'])} C=${JSON.stringify(r['C'])} G=${JSON.stringify(r['G'])} S=${JSON.stringify(r['S'])}`);
       }
-      // Process every row — parseRow already filters by C === 'Item' | 'Etapa'
+      // Log distinct values found in col C for diagnosis
+      const colCValues = new Set(allRows.map(r => String(r['C'] ?? '').trim()).filter(Boolean));
+      console.log('[import] distinct col C values:', [...colCValues].slice(0, 20));
+
       for (let i = 0; i < allRows.length; i++) {
         const parsed = parseRow(allRows[i]);
         if (parsed) rows.push(parsed);
