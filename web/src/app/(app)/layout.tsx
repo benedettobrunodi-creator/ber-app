@@ -31,7 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
       { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
-      { label: 'Kanban', href: '/kanban', icon: Kanban, perm: 'kanban' },
+      { label: 'Painel de Gestão', href: '/kanban', icon: Kanban, perm: 'kanban' },
       { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
     ],
   },
@@ -84,7 +84,7 @@ const NAV_GROUPS: NavGroup[] = [
 const TOP_VIEWS = [
   { label: 'Dashboard', href: '/dashboard' },
   { label: 'Obras', href: '/obras' },
-  { label: 'Kanban', href: '/kanban' },
+  { label: 'Painel', href: '/kanban' },
   { label: 'Checklists', href: '/checklists' },
   { label: 'DRE', href: '/dre' },
 ];
@@ -95,7 +95,7 @@ const BOTTOM_NAV = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Apontamento', href: '/ponto', icon: Clock },
-  { label: 'Kanban', href: '/kanban', icon: Kanban },
+  { label: 'Painel', href: '/kanban', icon: Kanban },
   { label: 'Config', href: '/configuracoes', icon: Settings },
 ];
 
