@@ -12,15 +12,15 @@ router.use(authenticate);
 
 router.get('/', requireRole('campo'), controller.listObras);
 router.post("/progresso", controller.updateProgresso);
-router.get('/:id', requireRole('gestor'), controller.getObra);
+router.get('/:id', requireRole('campo'), controller.getObra);
 router.post('/', requireRole('coordenacao'), validate(createObraSchema), controller.createObra);
 router.put('/:id', requireRole('coordenacao'), validate(updateObraSchema), controller.updateObra);
 
-router.get('/:id/members', requireRole('gestor'), controller.getMembers);
+router.get('/:id/members', requireRole('campo'), controller.getMembers);
 router.post('/:id/members', requireRole('coordenacao'), validate(addMemberSchema), controller.addMember);
 router.delete('/:id/members/:userId', requireRole('coordenacao'), controller.removeMember);
 
-router.get('/:id/stats', requireRole('gestor'), controller.getStats);
+router.get('/:id/stats', requireRole('campo'), controller.getStats);
 router.delete('/:id', requireRole('coordenacao'), controller.archiveObra);
 router.delete('/:id/permanent', requireRole('diretoria'), controller.deleteObraPermanent);
 router.post('/sync-clickup', requireRole('coordenacao'), controller.syncClickUp);
@@ -28,6 +28,6 @@ router.post('/sync-clickup-tasks', requireRole('coordenacao'), controller.syncCl
 
 // Fase management
 router.put('/:id/fase', requireRole('coordenacao'), faseController.updateFase);
-router.get('/:id/fase-history', requireRole('gestor'), faseController.getFaseHistory);
+router.get('/:id/fase-history', requireRole('campo'), faseController.getFaseHistory);
 
 export default router;
