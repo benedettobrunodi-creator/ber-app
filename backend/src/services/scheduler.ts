@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { prisma } from '../config/database';
 import { syncFromAgendor } from '../modules/proposals/service';
 import { syncProgressoFromClickUp } from './clickup';
+import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 // import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
 
@@ -21,8 +22,12 @@ export function startScheduler() {
   cron.schedule('0 * * * *', async () => {
     console.log('[Scheduler] ClickUp sync iniciado...');
     try {
-      const result = await syncProgressoFromClickUp();
-      console.log(`[Scheduler] ClickUp sync concluído — ${result.synced} obras sincronizadas, ${result.errors} erros`);
+      const [progressResult, taskResults] = await Promise.all([
+        syncProgressoFromClickUp(),
+        syncAllTasksFromClickUp(),
+      ]);
+      const taskTotals = taskResults.reduce((a, r) => ({ i: a.i + r.inserted, u: a.u + r.updated }), { i: 0, u: 0 });
+      console.log(`[Scheduler] ClickUp sync concluído — progresso: ${progressResult.synced} obras; tarefas: +${taskTotals.i} ~${taskTotals.u} em ${taskResults.length} obras`);
     } catch (err) {
       console.error('[Scheduler] ClickUp sync falhou:', (err as Error).message);
     }

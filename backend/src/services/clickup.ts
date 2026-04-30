@@ -56,13 +56,13 @@ export interface ClickUpList {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Extrai nome da obra: "BÈR — Obra | Arbo Pinheiros" → "Arbo Pinheiros" */
-function extractObraName(folderName: string): string | null {
+export function extractObraName(folderName: string): string | null {
   const match = folderName.match(/BÈR\s*[—-]\s*Obra\s*\|\s*(.+)/i);
   return match ? match[1].trim() : null;
 }
 
 /** Fuzzy match normalizado */
-function nameMatches(obraName: string, clickupName: string): boolean {
+export function nameMatches(obraName: string, clickupName: string): boolean {
   const normalize = (s: string) =>
     s.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
