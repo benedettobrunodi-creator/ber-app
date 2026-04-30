@@ -347,10 +347,12 @@ export default function ComprasPage() {
                     const etapaMeta = children.reduce((s, c) => s + c.venda * (1 - c.pctMeta), 0);
                     const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => {
-                      const v = c.splits.length > 0 ? c.splits.reduce((ss, sp) => ss + sp.valor, 0) : c.comprado;
-                      return s + v;
+                      const childComprado = c.splits.length > 0
+                        ? c.splits.reduce((ss, sp) => ss + sp.valor, 0)
+                        : c.comprado;
+                      return s + childComprado;
                     }, 0);
-                    const effectiveComprado = item.comprado > 0 ? item.comprado : etapaComprado;
+                    const effectiveComprado = etapaComprado > 0 ? etapaComprado : item.comprado;
                     const etapaSavOrc = etapaVenda - effectiveComprado;
                     const etapaSavMeta = etapaMeta - effectiveComprado;
                     return (
@@ -384,28 +386,17 @@ export default function ComprasPage() {
                           {fmtBRL(etapaMeta)}
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={localText[item.id] !== undefined
-                              ? localText[item.id]
-                              : (effectiveComprado === 0 ? '' : String(effectiveComprado))
-                            }
-                            onChange={e => setLocalText(prev => ({ ...prev, [item.id]: e.target.value }))}
-                            onBlur={() => {
-                              const raw = localText[item.id];
-                              if (raw !== undefined) {
-                                saveItem(item.id, { comprado: parseComprado(raw) });
-                                setLocalText(prev => { const n = { ...prev }; delete n[item.id]; return n; });
-                              }
-                            }}
-                            placeholder="0"
-                            className={`w-full rounded border px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none ${
-                              item.comprado === 0 && etapaComprado > 0
-                                ? 'border-ber-teal/40 bg-ber-teal/5 text-ber-teal'
-                                : 'border-ber-gray/30 bg-white text-ber-carbon'
-                            }`}
-                          />
+                          {etapaComprado > 0 ? (
+                            <span className="block w-full px-1 py-0.5 text-right text-xs tabular-nums font-bold text-ber-carbon">
+                              {fmtBRL(etapaComprado)}
+                            </span>
+                          ) : (
+                            <input
+                              {...valorInputProps(item.id, item.comprado, v => saveItem(item.id, { comprado: v }))}
+                              placeholder="0"
+                              className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-right text-xs tabular-nums font-bold focus:border-ber-teal focus:outline-none"
+                            />
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <input
