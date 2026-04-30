@@ -32,3 +32,8 @@ export async function deleteTask(req: Request, res: Response) {
   await taskService.deleteTask(req.params.id);
   sendNoContent(res);
 }
+
+export async function getBurndown(req: Request, res: Response) {
+  const data = await taskService.getBurndown(req.params.obraId);
+  sendSuccess(res, data);
+}

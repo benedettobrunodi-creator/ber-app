@@ -62,7 +62,10 @@ export async function updateTask(id: string, input: UpdateTaskInput) {
 }
 
 export async function updateStatus(id: string, status: string) {
-  const task = await prisma.obraTask.findUnique({ where: { id } });
+  const task = await prisma.obraTask.findUnique({
+    where: { id },
+    select: { id: true, obraId: true, completedAt: true },
+  });
   if (!task) throw AppError.notFound('Task');
 
   // Get max position in the target column
@@ -71,16 +74,93 @@ export async function updateStatus(id: string, status: string) {
     _max: { position: true },
   });
 
+  const completedAtUpdate =
+    status === 'done' && task.completedAt === null
+      ? { completedAt: new Date() }
+      : status !== 'done'
+      ? { completedAt: null }
+      : {};
+
   return prisma.obraTask.update({
     where: { id },
     data: {
       status,
       position: (maxPos._max.position ?? -1) + 1,
+      ...completedAtUpdate,
     },
     include: {
       assignee: { select: { id: true, name: true, avatarUrl: true } },
     },
   });
+}
+
+export async function getBurndown(obraId: string) {
+  const obra = await prisma.obra.findUnique({
+    where: { id: obraId },
+    select: { startDate: true, expectedEndDate: true },
+  });
+
+  if (!obra?.startDate || !obra?.expectedEndDate) {
+    return { hasData: false, reason: 'missing_dates' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
+  }
+
+  const tasks = await prisma.obraTask.findMany({
+    where: { obraId },
+    select: { status: true, completedAt: true },
+  });
+
+  const total = tasks.length;
+  if (total === 0) return { hasData: false, reason: 'no_tasks' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
+
+  const start = obra.startDate;
+  const end = obra.expectedEndDate;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const totalDays = Math.max(1, (end.getTime() - start.getTime()) / 86400000);
+
+  const completedByDate: Record<string, number> = {};
+  for (const t of tasks) {
+    if (t.status === 'done' && t.completedAt) {
+      const key = t.completedAt.toISOString().split('T')[0];
+      completedByDate[key] = (completedByDate[key] ?? 0) + 1;
+    }
+  }
+
+  const series: { date: string; remaining: number; ideal: number }[] = [];
+  let cumDone = 0;
+  const chartEnd = today < end ? today : end;
+  const cur = new Date(start);
+
+  while (cur <= chartEnd) {
+    const key = cur.toISOString().split('T')[0];
+    cumDone += completedByDate[key] ?? 0;
+    const dayNum = (cur.getTime() - start.getTime()) / 86400000;
+    series.push({
+      date: key,
+      remaining: total - cumDone,
+      ideal: Math.max(0, Math.round(total * (1 - dayNum / totalDays))),
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const currentRemaining = total - cumDone;
+  const latestIdeal = series[series.length - 1]?.ideal ?? total;
+  const pctComplete = Math.round(((total - currentRemaining) / total) * 100);
+  const pctExpected = Math.round(((total - latestIdeal) / total) * 100);
+  const burnStatus: 'ahead' | 'behind' | 'on_track' = currentRemaining < latestIdeal ? 'ahead' : currentRemaining > latestIdeal ? 'behind' : 'on_track';
+
+  return {
+    hasData: true,
+    total,
+    startDate: start.toISOString().split('T')[0],
+    endDate: end.toISOString().split('T')[0],
+    series,
+    currentRemaining,
+    expectedRemaining: latestIdeal,
+    pctComplete,
+    pctExpected,
+    status: burnStatus,
+    reason: null,
+  };
 }
 
 export async function updatePosition(id: string, position: number, status?: string) {

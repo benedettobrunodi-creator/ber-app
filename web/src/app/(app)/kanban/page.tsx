@@ -16,12 +16,16 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import {
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ReferenceLine, ResponsiveContainer, Legend,
+} from 'recharts';
 
 /* ─── Types ─── */
 
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-type ObraDetailView = 'scrum' | 'cronograma';
+type ObraDetailView = 'scrum' | 'cronograma' | 'burndown';
 
 interface Task {
   id: string;
@@ -384,6 +388,8 @@ export default function PainelDeGestao() {
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingEtapas, setLoadingEtapas] = useState(false);
+  const [burndownData, setBurndownData] = useState<any>(null);
+  const [loadingBurndown, setLoadingBurndown] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -438,6 +444,19 @@ export default function PainelDeGestao() {
     setSelectedObra(null);
     setTasks([]);
     setEtapas([]);
+    setBurndownData(null);
+  }
+
+  async function fetchBurndown(obraId: string) {
+    setLoadingBurndown(true);
+    try {
+      const r = await api.get(`/obras/${obraId}/tasks/burndown`);
+      setBurndownData(r.data.data ?? r.data);
+    } catch {
+      setBurndownData({ hasData: false, reason: 'error' });
+    } finally {
+      setLoadingBurndown(false);
+    }
   }
 
   async function handleSync() {
@@ -541,12 +560,21 @@ export default function PainelDeGestao() {
         {/* Sub-tabs when obra selected */}
         {selectedObra && (
           <div className="mt-3 flex gap-1">
-            {(['scrum', 'cronograma'] as ObraDetailView[]).map(v => (
-              <button key={v} onClick={() => setObraView(v)}
-                className={`rounded-lg px-4 py-1.5 text-xs font-bold capitalize transition-colors ${
-                  obraView === v ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-bg'
+            {([
+              { key: 'scrum', label: 'Scrum' },
+              { key: 'cronograma', label: 'Cronograma (Gantt)' },
+              { key: 'burndown', label: 'Burndown' },
+            ] as { key: ObraDetailView; label: string }[]).map(({ key, label }) => (
+              <button key={key} onClick={() => {
+                setObraView(key);
+                if (key === 'burndown' && burndownData === null && selectedObra) {
+                  fetchBurndown(selectedObra.id);
+                }
+              }}
+                className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-colors ${
+                  obraView === key ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-bg'
                 }`}>
-                {v === 'cronograma' ? 'Cronograma (Gantt)' : 'Scrum'}
+                {label}
               </button>
             ))}
           </div>
@@ -648,6 +676,112 @@ export default function PainelDeGestao() {
                 ) : (
                   <GanttChart etapas={etapas} obra={selectedObra} />
                 )}
+              </div>
+            )}
+
+            {/* Burndown */}
+            {obraView === 'burndown' && (
+              <div className="rounded-2xl border border-ber-border bg-white p-6">
+                <div className="mb-5">
+                  <h2 className="text-sm font-bold text-ber-carbon">Burndown de Tarefas</h2>
+                  <p className="text-xs text-ber-gray mt-0.5">Progresso real vs ideal ao longo do tempo</p>
+                </div>
+
+                {loadingBurndown && (
+                  <div className="flex flex-col gap-3 animate-pulse">
+                    <div className="h-8 w-48 rounded bg-ber-border" />
+                    <div className="h-64 rounded bg-ber-border" />
+                  </div>
+                )}
+
+                {!loadingBurndown && burndownData && !burndownData.hasData && (
+                  <p className="py-10 text-center text-sm text-ber-gray">
+                    {burndownData.reason === 'missing_dates'
+                      ? 'Configure as datas de início e prazo da obra para ver o burndown.'
+                      : 'Nenhuma tarefa cadastrada.'}
+                  </p>
+                )}
+
+                {!loadingBurndown && burndownData?.hasData && (() => {
+                  const bd = burndownData;
+                  const lineColor = bd.status === 'ahead' ? '#22C55E' : bd.status === 'behind' ? '#EF4444' : '#14B8A6';
+                  const areaColor = bd.status === 'behind' ? '#FCA5A5' : '#5EEAD4';
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const todayInSeries = bd.series.some((s: any) => s.date === todayStr);
+
+                  return (
+                    <>
+                      {/* Metrics */}
+                      <div className="mb-5 flex flex-wrap items-center gap-3">
+                        <div className="rounded-xl border border-ber-border px-4 py-3 text-center min-w-[110px]">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Concluídas</p>
+                          <p className="text-2xl font-black text-ber-carbon">{bd.pctComplete}%</p>
+                        </div>
+                        <div className="rounded-xl border border-ber-border px-4 py-3 text-center min-w-[110px]">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Esperado hoje</p>
+                          <p className="text-2xl font-black text-ber-carbon">{bd.pctExpected}%</p>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          bd.status === 'ahead' ? 'bg-green-50 text-green-700 border border-green-200'
+                          : bd.status === 'behind' ? 'bg-red-50 text-red-600 border border-red-200'
+                          : 'bg-teal-50 text-teal-700 border border-teal-200'
+                        }`}>
+                          {bd.status === 'ahead' ? 'Adiantado' : bd.status === 'behind' ? 'Atrasado' : 'No prazo'}
+                        </span>
+                      </div>
+
+                      {/* Chart */}
+                      <ResponsiveContainer width="100%" height={280}>
+                        <ComposedChart data={bd.series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 10, fill: '#6b7280' }}
+                            tickFormatter={(v: string) =>
+                              new Date(v + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+                            }
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
+                          <Tooltip
+                            formatter={(value: any, name: any) => [value, name === 'remaining' ? 'Restantes' : 'Ideal']}
+                            labelFormatter={(label: any) =>
+                              typeof label === 'string'
+                                ? new Date(label + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : String(label)
+                            }
+                          />
+                          <Legend formatter={(v) => v === 'remaining' ? 'Restantes' : 'Ideal'} />
+                          {todayInSeries && (
+                            <ReferenceLine x={todayStr} stroke="#14B8A6" strokeDasharray="4 2" label={{ value: 'Hoje', fontSize: 10, fill: '#14B8A6' }} />
+                          )}
+                          <Area
+                            type="monotone"
+                            dataKey="remaining"
+                            fill={areaColor}
+                            fillOpacity={0.15}
+                            stroke="none"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="ideal"
+                            stroke="#9ca3af"
+                            strokeDasharray="6 3"
+                            dot={false}
+                            strokeWidth={1.5}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="remaining"
+                            stroke={lineColor}
+                            dot={false}
+                            strokeWidth={2}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </>

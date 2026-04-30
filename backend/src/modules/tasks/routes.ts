@@ -12,6 +12,7 @@ router.use(authenticate);
 // Obra-scoped task routes (mounted under /obras/:obraId/tasks)
 export const obraTaskRoutes = Router({ mergeParams: true });
 obraTaskRoutes.use(authenticate);
+obraTaskRoutes.get('/burndown', requireRole('campo'), controller.getBurndown);
 obraTaskRoutes.get('/', requireRole('campo'), controller.listTasks);
 obraTaskRoutes.post('/', requireRole('gestor'), validate(createTaskSchema), controller.createTask);
 

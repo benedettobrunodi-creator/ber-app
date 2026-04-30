@@ -210,6 +210,7 @@ model ObraTask {
   dueDate     DateTime? @map("due_date") @db.Date
   position       Int       @default(0)
   clickupTaskId  String?   @unique @map("clickup_task_id") @db.VarChar(50)
+  completedAt    DateTime? @map("completed_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 

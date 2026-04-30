@@ -82,13 +82,20 @@ export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
             try {
               const existing = await prisma.obraTask.findFirst({
                 where: { clickupTaskId: task.id },
-                select: { id: true },
+                select: { id: true, completedAt: true, status: true },
               });
 
               if (existing) {
+                let completedAt: Date | null | undefined;
+                if (status === 'done' && existing.completedAt === null) {
+                  completedAt = task.date_done ? new Date(parseInt(task.date_done)) : new Date();
+                } else if (status !== 'done') {
+                  completedAt = null;
+                }
+
                 await prisma.obraTask.update({
                   where: { id: existing.id },
-                  data: { title, status, priority, dueDate },
+                  data: { title, status, priority, dueDate, ...(completedAt !== undefined ? { completedAt } : {}) },
                 });
                 result.updated++;
               } else {
@@ -101,6 +108,7 @@ export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
                     priority,
                     dueDate,
                     clickupTaskId: task.id,
+                    ...(status === 'done' ? { completedAt: task.date_done ? new Date(parseInt(task.date_done)) : new Date() } : {}),
                   },
                 });
                 result.inserted++;
