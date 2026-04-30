@@ -134,20 +134,26 @@ export default function ComprasPage() {
     }, 800);
   }, [obraId]);
 
-  const valorInputProps = (key: string, storedValue: number, onSave: (v: number) => void) => ({
-    type: 'text' as const,
-    inputMode: 'decimal' as const,
-    value: localText[key] ?? (storedValue === 0 ? '' : String(storedValue)),
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setLocalText(prev => ({ ...prev, [key]: e.target.value })),
-    onBlur: () => {
-      const raw = localText[key];
+  const valorInputProps = (key: string, storedValue: number, onSave: (v: number) => void) => {
+    const commit = (raw: string | undefined, el?: HTMLInputElement) => {
       if (raw !== undefined) {
         onSave(parseComprado(raw));
         setLocalText(prev => { const n = { ...prev }; delete n[key]; return n; });
+        el?.blur();
       }
-    },
-  });
+    };
+    return {
+      type: 'text' as const,
+      inputMode: 'decimal' as const,
+      value: localText[key] ?? (storedValue === 0 ? '' : String(storedValue)),
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+        setLocalText(prev => ({ ...prev, [key]: e.target.value })),
+      onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') commit(localText[key], e.currentTarget);
+      },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => commit(localText[key], e.currentTarget),
+    };
+  };
 
   const deleteSplit = useCallback(async (itemId: string, splitId: string) => {
     setItems(prev => prev.map(it => it.id === itemId
