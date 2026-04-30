@@ -7,7 +7,7 @@ export const createUserSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
   role: z.enum(ROLES).default('campo'),
   phone: z.string().optional(),
-  customRoleId: z.string().uuid().nullable().optional(),
+  permissions: z.record(z.boolean()).optional(),
 });
 
 export const updateUserSchema = z.object({
@@ -15,7 +15,7 @@ export const updateUserSchema = z.object({
   role: z.enum(ROLES).optional(),
   phone: z.string().optional(),
   isActive: z.boolean().optional(),
-  customRoleId: z.string().uuid().nullable().optional(),
+  permissions: z.record(z.boolean()).optional(),
 });
 
 export const updateProfileSchema = z.object({

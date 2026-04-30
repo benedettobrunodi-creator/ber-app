@@ -8,7 +8,47 @@ import {
   Users, UserPlus, ArrowLeft, Save, X, Shield, Search,
 } from 'lucide-react';
 
-interface RoleOption { id: string; name: string; isSystem: boolean }
+const MODULES = [
+  { key: 'dashboard',     label: 'Dashboard' },
+  { key: 'obras',         label: 'Obras' },
+  { key: 'kanban',        label: 'Kanban' },
+  { key: 'sequenciamento',label: 'Sequenciamento' },
+  { key: 'checklists',    label: 'Checklists' },
+  { key: 'recebimentos',  label: 'Recebimentos' },
+  { key: 'pmo',           label: 'PMO' },
+  { key: 'seguranca',     label: 'Segurança' },
+  { key: 'normas',        label: 'Normas Técnicas' },
+  { key: 'instrucoes',    label: 'Instruções Técnicas' },
+  { key: 'ponto',         label: 'Registro de Ponto' },
+  { key: 'dre',           label: 'DRE' },
+  { key: 'configuracoes', label: 'Configurações' },
+];
+
+const CARGO_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'diretoria',   label: 'Diretoria' },
+  { value: 'coordenacao', label: 'Coordenação' },
+  { value: 'pmo',         label: 'PMO' },
+  { value: 'engenharia',  label: 'Engenharia' },
+  { value: 'financeiro',  label: 'Financeiro' },
+  { value: 'gestor',      label: 'Gestor de Obras' },
+  { value: 'compras',     label: 'Compras' },
+  { value: 'orcamentos',  label: 'Orçamentos' },
+  { value: 'campo',       label: 'Campo' },
+];
+
+const CARGO_BADGE: Partial<Record<UserRole, string>> = {
+  diretoria:   'bg-ber-carbon text-white',
+  coordenacao: 'bg-ber-teal text-white',
+  pmo:         'bg-purple-600 text-white',
+  engenharia:  'bg-blue-600 text-white',
+  financeiro:  'bg-emerald-600 text-white',
+  gestor:      'bg-ber-olive text-white',
+  compras:     'bg-orange-500 text-white',
+  orcamentos:  'bg-amber-500 text-white',
+  campo:       'bg-ber-gray text-white',
+};
+
+const EMPTY_PERMS = () => Object.fromEntries(MODULES.map(m => [m.key, false]));
 
 interface UserRecord {
   id: string;
@@ -18,8 +58,7 @@ interface UserRecord {
   phone: string | null;
   avatarUrl: string | null;
   isActive: boolean;
-  customRoleId: string | null;
-  customRole?: { id: string; name: string } | null;
+  permissions: Record<string, boolean>;
 }
 
 interface UserFormData {
@@ -28,40 +67,26 @@ interface UserFormData {
   password: string;
   phone: string;
   role: UserRole;
-  customRoleId: string;
+  permissions: Record<string, boolean>;
 }
 
-const ROLES: UserRole[] = ['diretoria', 'coordenacao', 'gestor', 'campo'];
-
-const ROLE_BADGE: Record<UserRole, string> = {
-  diretoria: 'bg-ber-carbon text-white',
-  coordenacao: 'bg-ber-teal text-white',
-  gestor: 'bg-ber-olive text-white',
-  campo: 'bg-ber-gray text-white',
+const EMPTY_FORM: UserFormData = {
+  name: '', email: '', password: '', phone: '', role: 'campo',
+  permissions: EMPTY_PERMS(),
 };
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  diretoria: 'Diretoria',
-  coordenacao: 'Coordenacao',
-  gestor: 'Gestor',
-  campo: 'Campo',
-};
-
-const EMPTY_FORM: UserFormData = { name: '', email: '', password: '', phone: '', role: 'campo', customRoleId: '' };
 
 function getInitials(name: string): string {
-  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
 export default function UsuariosPage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
+  const user = useAuthStore(s => s.user);
   const canManage = user?.role === 'diretoria' || user?.role === 'coordenacao';
 
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [customRoles, setCustomRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterRole, setFilterRole] = useState<UserRole | 'todas'>('todas');
+  const [filterCargo, setFilterCargo] = useState<UserRole | 'todas'>('todas');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -72,26 +97,18 @@ export default function UsuariosPage() {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const [usersRes, rolesRes] = await Promise.all([
-        api.get('/users', { params: { limit: 200 } }),
-        api.get('/roles').catch(() => ({ data: { data: [] } })),
-      ]);
-      setUsers(usersRes.data.data ?? []);
-      setCustomRoles((rolesRes.data.data ?? []).map((r: any) => ({ id: r.id, name: r.name, isSystem: r.isSystem })));
+      const res = await api.get('/users', { params: { limit: 200 } });
+      setUsers(res.data.data ?? []);
     } catch { /* interceptor */ } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => { if (canManage) fetchUsers(); }, [canManage]);
+  useEffect(() => { if (user && !canManage) router.replace('/configuracoes'); }, [user, canManage, router]);
 
-  // Redirect if not authorized
-  useEffect(() => {
-    if (user && !canManage) router.replace('/configuracoes');
-  }, [user, canManage, router]);
-
-  const filtered = users.filter((u) => {
-    if (filterRole !== 'todas' && u.role !== filterRole) return false;
+  const filtered = users.filter(u => {
+    if (filterCargo !== 'todas' && u.role !== filterCargo) return false;
     if (search) {
       const q = search.toLowerCase();
       return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
@@ -108,7 +125,14 @@ export default function UsuariosPage() {
 
   function openEdit(u: UserRecord) {
     setEditingUser(u);
-    setForm({ name: u.name, email: u.email, password: '', phone: u.phone ?? '', role: u.role, customRoleId: u.customRoleId ?? '' });
+    setForm({
+      name: u.name,
+      email: u.email,
+      password: '',
+      phone: u.phone ?? '',
+      role: u.role,
+      permissions: { ...EMPTY_PERMS(), ...u.permissions },
+    });
     setError('');
     setModalOpen(true);
   }
@@ -118,6 +142,14 @@ export default function UsuariosPage() {
     setEditingUser(null);
     setForm(EMPTY_FORM);
     setError('');
+  }
+
+  function togglePerm(key: string) {
+    setForm(prev => ({ ...prev, permissions: { ...prev.permissions, [key]: !prev.permissions[key] } }));
+  }
+
+  function toggleAll(on: boolean) {
+    setForm(prev => ({ ...prev, permissions: Object.fromEntries(MODULES.map(m => [m.key, on])) }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -131,11 +163,11 @@ export default function UsuariosPage() {
           role: form.role,
           phone: form.phone || undefined,
           isActive: editingUser.isActive,
-          customRoleId: form.customRoleId || null,
+          permissions: form.permissions,
         });
       } else {
         if (!form.password || form.password.length < 6) {
-          setError('Senha deve ter no minimo 6 caracteres.');
+          setError('Senha deve ter no mínimo 6 caracteres.');
           setSubmitting(false);
           return;
         }
@@ -145,13 +177,13 @@ export default function UsuariosPage() {
           password: form.password,
           role: form.role,
           phone: form.phone || undefined,
-          customRoleId: form.customRoleId || null,
+          permissions: form.permissions,
         });
       }
       closeModal();
       fetchUsers();
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Erro ao salvar usuario.');
+      setError(err.response?.data?.error?.message || 'Erro ao salvar usuário.');
     } finally {
       setSubmitting(false);
     }
@@ -170,10 +202,11 @@ export default function UsuariosPage() {
 
   if (!canManage) return null;
 
-  const counts = ROLES.reduce((acc, r) => {
-    acc[r] = users.filter((u) => u.role === r).length;
-    return acc;
-  }, {} as Record<UserRole, number>);
+  const cargoLabel = (role: UserRole) =>
+    CARGO_OPTIONS.find(c => c.value === role)?.label ?? role;
+
+  const badgeClass = (role: UserRole) =>
+    CARGO_BADGE[role] ?? 'bg-ber-gray text-white';
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
@@ -184,45 +217,42 @@ export default function UsuariosPage() {
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Usuarios</h1>
-          <p className="text-xs text-ber-gray">{users.length} usuarios cadastrados</p>
+          <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Usuários</h1>
+          <p className="text-xs text-ber-gray">{users.length} usuários cadastrados</p>
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white hover:opacity-90 transition-colors">
           <UserPlus size={16} />
-          <span className="hidden sm:inline">Novo Usuario</span>
+          <span className="hidden sm:inline">Novo Usuário</span>
           <span className="sm:hidden">Novo</span>
         </button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {/* Search */}
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ber-gray" />
           <input
             type="text"
             placeholder="Buscar por nome ou email..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="w-full rounded-lg border border-ber-gray/20 bg-white pl-9 pr-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive"
           />
         </div>
-
-        {/* Role filter chips */}
         <div className="flex gap-1.5 flex-wrap">
-          <button onClick={() => setFilterRole('todas')}
+          <button onClick={() => setFilterCargo('todas')}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-              filterRole === 'todas' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray border border-ber-gray/20 hover:bg-ber-offwhite'
+              filterCargo === 'todas' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray border border-ber-gray/20 hover:bg-ber-offwhite'
             }`}>
-            Todas ({users.length})
+            Todos ({users.length})
           </button>
-          {ROLES.map((r) => (
-            <button key={r} onClick={() => setFilterRole(r)}
+          {CARGO_OPTIONS.filter(c => users.some(u => u.role === c.value)).map(c => (
+            <button key={c.value} onClick={() => setFilterCargo(c.value)}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                filterRole === r ? ROLE_BADGE[r] : 'bg-white text-ber-gray border border-ber-gray/20 hover:bg-ber-offwhite'
+                filterCargo === c.value ? badgeClass(c.value) : 'bg-white text-ber-gray border border-ber-gray/20 hover:bg-ber-offwhite'
               }`}>
-              {ROLE_LABELS[r]} ({counts[r]})
+              {c.label} ({users.filter(u => u.role === c.value).length})
             </button>
           ))}
         </div>
@@ -235,14 +265,14 @@ export default function UsuariosPage() {
         <div className="flex flex-col items-center py-16 text-center">
           <Users size={48} className="text-ber-gray/30" />
           <p className="mt-4 text-sm text-ber-gray">
-            {search || filterRole !== 'todas' ? 'Nenhum usuario encontrado com este filtro.' : 'Nenhum usuario cadastrado.'}
+            {search || filterCargo !== 'todas' ? 'Nenhum usuário encontrado com este filtro.' : 'Nenhum usuário cadastrado.'}
           </p>
         </div>
       ) : (
         <>
           {/* Mobile cards */}
           <div className="space-y-3 md:hidden">
-            {filtered.map((u) => (
+            {filtered.map(u => (
               <div key={u.id} className="rounded-lg bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
@@ -258,9 +288,9 @@ export default function UsuariosPage() {
                   }
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeClass(u.role)}`}>
                     <Shield size={10} />
-                    {ROLE_LABELS[u.role]}
+                    {cargoLabel(u.role)}
                   </span>
                   <div className="flex items-center gap-2">
                     <button onClick={() => openEdit(u)}
@@ -282,53 +312,70 @@ export default function UsuariosPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
-                  <th className="px-6 py-4">Usuario</th>
+                  <th className="px-6 py-4">Usuário</th>
                   <th className="px-6 py-4">Email</th>
-                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Cargo</th>
+                  <th className="px-6 py-4">Módulos</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Acoes</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-ber-gray/5 last:border-0 hover:bg-ber-offwhite/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
-                          {getInitials(u.name)}
+                {filtered.map(u => {
+                  const activeModules = MODULES.filter(m => u.permissions?.[m.key]);
+                  return (
+                    <tr key={u.id} className="border-b border-ber-gray/5 last:border-0 hover:bg-ber-offwhite/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
+                            {getInitials(u.name)}
+                          </div>
+                          <span className="font-medium text-ber-carbon">{u.name}</span>
                         </div>
-                        <span className="font-medium text-ber-carbon">{u.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-ber-gray">{u.email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role]}`}>
-                        <Shield size={10} />
-                        {ROLE_LABELS[u.role]}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {u.isActive
-                        ? <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Ativo</span>
-                        : <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Inativo</span>
-                      }
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEdit(u)}
-                          className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors">
-                          Editar
-                        </button>
-                        <button onClick={() => handleToggleActive(u)}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors ${
-                            u.isActive ? 'bg-red-500' : 'bg-green-600'
-                          }`}>
-                          {u.isActive ? 'Desativar' : 'Reativar'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 text-ber-gray">{u.email}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeClass(u.role)}`}>
+                          <Shield size={10} />
+                          {cargoLabel(u.role)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {activeModules.length === 0 ? (
+                          <span className="text-xs text-ber-gray italic">Padrão do cargo</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {activeModules.map(m => (
+                              <span key={m.key} className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-ber-olive/10 text-ber-olive">
+                                {m.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {u.isActive
+                          ? <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Ativo</span>
+                          : <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Inativo</span>
+                        }
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => openEdit(u)}
+                            className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors">
+                            Editar
+                          </button>
+                          <button onClick={() => handleToggleActive(u)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors ${
+                              u.isActive ? 'bg-red-500' : 'bg-green-600'
+                            }`}>
+                            {u.isActive ? 'Desativar' : 'Reativar'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -338,26 +385,26 @@ export default function UsuariosPage() {
       {/* Modal — criar/editar */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between">
+          <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-ber-carbon">
-                {editingUser ? 'Editar Usuario' : 'Novo Usuario'}
+                {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
               </h2>
               <button onClick={closeModal} className="rounded p-1 text-ber-gray hover:text-ber-carbon">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-ber-carbon">Nome</label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required
+                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required
                   className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive" />
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-ber-carbon">Email</label>
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   required disabled={!!editingUser}
                   className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive disabled:bg-gray-50 disabled:text-ber-gray" />
               </div>
@@ -365,42 +412,55 @@ export default function UsuariosPage() {
               {!editingUser && (
                 <div>
                   <label className="mb-1 block text-sm font-medium text-ber-carbon">Senha</label>
-                  <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required
+                  <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required
                     className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive" />
                 </div>
               )}
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-ber-carbon">Role</label>
-                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
+                <label className="mb-1 block text-sm font-medium text-ber-carbon">Cargo</label>
+                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value as UserRole })}
                   className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive">
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                  {CARGO_OPTIONS.map(c => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-ber-carbon">Telefone</label>
-                <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                   className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive" />
               </div>
 
-              {/* Custom role (permissions) */}
-              {customRoles.length > 0 && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-ber-carbon">Permissoes (role customizada)</label>
-                  <select value={form.customRoleId} onChange={(e) => setForm({ ...form, customRoleId: e.target.value })}
-                    className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-olive">
-                    <option value="">Usar padrao da role ({ROLE_LABELS[form.role]})</option>
-                    {customRoles.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}{r.isSystem ? ' (sistema)' : ''}</option>
-                    ))}
-                  </select>
+              {/* Module permissions */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-ber-carbon">Módulos permitidos</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => toggleAll(true)}
+                      className="text-[10px] font-semibold text-ber-olive hover:underline">Marcar todos</button>
+                    <button type="button" onClick={() => toggleAll(false)}
+                      className="text-[10px] font-semibold text-ber-gray hover:underline">Desmarcar todos</button>
+                  </div>
                 </div>
-              )}
+                <p className="mb-2 text-[11px] text-ber-gray">
+                  Se nenhum módulo for marcado, o usuário usa as permissões padrão do cargo.
+                </p>
+                <div className="grid grid-cols-2 gap-1 rounded-lg border border-ber-gray/20 p-3">
+                  {MODULES.map(m => (
+                    <label key={m.key}
+                      className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-ber-offwhite cursor-pointer transition-colors">
+                      <input type="checkbox" checked={!!form.permissions[m.key]}
+                        onChange={() => togglePerm(m.key)}
+                        className="h-4 w-4 rounded border-ber-gray/30 text-ber-olive focus:ring-ber-olive" />
+                      <span className="text-sm text-ber-carbon">{m.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-              {/* Toggle status inline no edit */}
+              {/* Status toggle — edit only */}
               {editingUser && (
                 <div className="flex items-center justify-between rounded-lg border border-ber-gray/20 px-3 py-2.5">
                   <span className="text-sm font-medium text-ber-carbon">Status</span>

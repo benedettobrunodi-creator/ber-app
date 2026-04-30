@@ -1,13 +1,9 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 
-export type UserRole = 'diretoria' | 'coordenacao' | 'gestor' | 'campo';
-
-export interface CustomRole {
-  id: string;
-  name: string;
-  permissions: Record<string, boolean>;
-}
+export type UserRole =
+  | 'diretoria' | 'coordenacao' | 'pmo' | 'engenharia'
+  | 'financeiro' | 'gestor' | 'compras' | 'orcamentos' | 'campo';
 
 export interface User {
   id: string;
@@ -15,22 +11,27 @@ export interface User {
   name: string;
   role: UserRole;
   avatarUrl: string | null;
-  customRole?: CustomRole | null;
+  permissions: Record<string, boolean>;
 }
 
-/** Default permissions for built-in roles (fallback when customRole is not set) */
+/** Default permissions per cargo — used when user has no explicit permissions set */
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
   diretoria:   { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
   coordenacao: { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
+  pmo:         { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: false, normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
+  engenharia:  { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
+  financeiro:  { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: true,  configuracoes: false },
   gestor:      { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
+  compras:     { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
+  orcamentos:  { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
   campo:       { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
 };
 
-/** Get the effective permissions for a user */
+/** Returns the user's explicit permissions, or the cargo defaults if none are set */
 export function getUserPermissions(user: User | null): Record<string, boolean> {
   if (!user) return {};
-  if (user.customRole?.permissions) return user.customRole.permissions;
-  return DEFAULT_PERMS[user.role] ?? {};
+  if (user.permissions && Object.keys(user.permissions).length > 0) return user.permissions;
+  return DEFAULT_PERMS[user.role] ?? DEFAULT_PERMS['campo'];
 }
 
 interface AuthState {

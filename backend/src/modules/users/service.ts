@@ -12,10 +12,9 @@ const userSelect = {
   phone: true,
   avatarUrl: true,
   isActive: true,
+  permissions: true,
   createdAt: true,
   updatedAt: true,
-  customRoleId: true,
-  customRole: { select: { id: true, name: true, permissions: true } },
 };
 
 export async function listUsers(page: number, limit: number) {
@@ -54,7 +53,7 @@ export async function createUser(input: CreateUserInput) {
       name: input.name,
       role: input.role || 'campo',
       phone: input.phone,
-      customRoleId: input.customRoleId ?? null,
+      permissions: input.permissions ?? {},
     },
     select: userSelect,
   });

@@ -73,7 +73,6 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'ADMIN',
     items: [
       { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings, perm: 'configuracoes' },
-      { label: 'Roles', href: '/configuracoes/roles', icon: Settings, perm: 'configuracoes' },
       { label: 'Configuracoes', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
     ],
   },
