@@ -1,0 +1,4 @@
+ALTER TABLE obra_tasks
+  ADD COLUMN IF NOT EXISTS clickup_list_id   VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS clickup_list_name VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS clickup_start_date TIMESTAMPTZ;

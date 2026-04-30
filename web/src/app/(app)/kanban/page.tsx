@@ -35,6 +35,8 @@ interface Task {
   dueDate: string | null;
   assignee: { id: string; name: string } | null;
   obraId?: string;
+  clickupListName?: string | null;
+  clickupStartDate?: string | null;
 }
 
 interface Obra {
@@ -45,17 +47,6 @@ interface Obra {
   expectedEndDate: string | null;
   progressPercent: number;
   _count: { tasks: number };
-}
-
-interface Etapa {
-  id: string;
-  name: string;
-  order: number;
-  status: string;
-  estimatedDays: number | null;
-  startDate: string | null;
-  endDate: string | null;
-  estimatedEndDate: string | null;
 }
 
 /* ─── Constants ─── */
@@ -116,49 +107,57 @@ function addDays(d: Date, n: number) {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
 
-/* ─── Gantt Chart ─── */
+/* ─── Gantt Chart — baseado nas listas do ClickUp ─── */
 
-function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
-  if (etapas.length === 0) {
-    return <p className="py-10 text-center text-sm text-ber-gray">Nenhuma etapa cadastrada no sequenciamento.</p>;
+function GanttChart({ tasks, obra }: { tasks: Task[]; obra: Obra }) {
+  // Group tasks by ClickUp list name
+  const listMap: Record<string, { name: string; tasks: Task[] }> = {};
+  for (const t of tasks) {
+    const key = t.clickupListName ?? '__sem_lista__';
+    if (!listMap[key]) listMap[key] = { name: t.clickupListName ?? 'Sem lista', tasks: [] };
+    listMap[key].tasks.push(t);
   }
 
-  // Build timeline bounds
+  // Build bars per list
+  const bars = Object.values(listMap).map(({ name, tasks: lt }) => {
+    const dates: Date[] = [];
+    for (const t of lt) {
+      if (t.clickupStartDate) dates.push(new Date(t.clickupStartDate));
+      if (t.dueDate) dates.push(new Date(t.dueDate));
+    }
+    const barStart = dates.length ? new Date(Math.min(...dates.map(d => d.getTime()))) : null;
+    const barEnd   = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
+    const done  = lt.filter(t => t.status === 'done').length;
+    const inProg = lt.filter(t => t.status === 'in_progress' || t.status === 'review').length;
+    const pctDone = lt.length ? Math.round(done / lt.length * 100) : 0;
+    const ganttStatus = done === lt.length ? 'aprovada'
+      : inProg > 0 ? 'em_andamento'
+      : done > 0 ? 'em_andamento'
+      : 'nao_iniciada';
+    return { name, barStart, barEnd, done, total: lt.length, pctDone, ganttStatus };
+  }).filter(b => b.barStart !== null);
+
   const today = new Date();
   const obraStart = obra.startDate ? new Date(obra.startDate) : null;
   const obraEnd   = obra.expectedEndDate ? new Date(obra.expectedEndDate) : null;
 
-  // Assign estimated dates to etapas without real dates using cumulative estimation from obraStart
-  let cumDays = 0;
-  const etapasDated = etapas.map(e => {
-    let barStart: Date | null = null;
-    let barEnd: Date | null = null;
-
-    if (e.startDate) {
-      barStart = new Date(e.startDate);
-      barEnd = e.endDate ? new Date(e.endDate) : e.estimatedEndDate ? new Date(e.estimatedEndDate) : null;
-    } else if (obraStart && e.estimatedDays) {
-      barStart = addDays(obraStart, cumDays);
-      barEnd   = addDays(obraStart, cumDays + e.estimatedDays);
-    }
-    cumDays += e.estimatedDays ?? 0;
-    return { ...e, barStart, barEnd };
-  });
-
-  const allDates = etapasDated.flatMap(e => [e.barStart, e.barEnd]).filter(Boolean) as Date[];
+  const allDates = bars.flatMap(b => [b.barStart, b.barEnd]).filter(Boolean) as Date[];
   if (obraStart) allDates.push(obraStart);
-  if (obraEnd) allDates.push(obraEnd);
+  if (obraEnd)   allDates.push(obraEnd);
 
   if (allDates.length === 0) {
-    return <p className="py-10 text-center text-sm text-ber-gray">Adicione datas de início à obra para visualizar o cronograma.</p>;
+    return (
+      <div className="py-10 text-center space-y-2">
+        <p className="text-sm text-ber-gray">Nenhuma tarefa com datas encontrada no ClickUp.</p>
+        <p className="text-xs text-ber-gray/60">Sincronize o ClickUp e confirme que as tarefas têm datas de prazo definidas.</p>
+      </div>
+    );
   }
 
   const rangeStart = new Date(Math.min(...allDates.map(d => d.getTime())));
   const rangeEnd   = new Date(Math.max(...allDates.map(d => d.getTime())));
-  // Pad a bit
   rangeStart.setDate(rangeStart.getDate() - 3);
   rangeEnd.setDate(rangeEnd.getDate() + 7);
-
   const totalDays = Math.max(1, (rangeEnd.getTime() - rangeStart.getTime()) / 86400000);
 
   function pct(d: Date | null) {
@@ -166,10 +165,8 @@ function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
     return Math.max(0, Math.min(100, (d.getTime() - rangeStart.getTime()) / 86400000 / totalDays * 100));
   }
 
-  // Month markers
   const months: { label: string; pct: number }[] = [];
-  const cur = new Date(rangeStart);
-  cur.setDate(1);
+  const cur = new Date(rangeStart); cur.setDate(1);
   while (cur <= rangeEnd) {
     months.push({ label: fmtMonth(cur), pct: pct(cur) });
     cur.setMonth(cur.getMonth() + 1);
@@ -181,9 +178,9 @@ function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[640px]">
-        {/* Header */}
+        {/* Month header */}
         <div className="flex mb-1">
-          <div className="w-36 shrink-0" />
+          <div className="w-40 shrink-0" />
           <div className="relative flex-1 h-5">
             {months.map(m => (
               <span key={m.label} style={{ left: `${m.pct}%` }}
@@ -194,17 +191,15 @@ function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
           </div>
         </div>
 
-        {/* Gridlines + etapa rows */}
+        {/* Gridlines + rows */}
         <div className="relative">
-          {/* Month gridlines */}
           <div className="absolute inset-0 flex pointer-events-none">
-            <div className="w-36 shrink-0" />
+            <div className="w-40 shrink-0" />
             <div className="relative flex-1">
               {months.map(m => (
                 <div key={m.label} style={{ left: `${m.pct}%` }}
                   className="absolute top-0 bottom-0 w-px bg-ber-border/60" />
               ))}
-              {/* Today line */}
               {isTodayInRange && (
                 <div style={{ left: `${todayPct}%` }}
                   className="absolute top-0 bottom-0 w-0.5 bg-ber-teal/70 z-10" />
@@ -212,35 +207,38 @@ function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
             </div>
           </div>
 
-          {/* Rows */}
-          <div className="space-y-1">
-            {etapasDated.map((etapa, i) => {
-              const color = ETAPA_STATUS_COLOR[etapa.status] ?? 'bg-gray-200';
-              const hasBar = etapa.barStart !== null;
-              const leftPct = pct(etapa.barStart);
-              const widthPct = etapa.barEnd && etapa.barStart
-                ? Math.max(0.8, pct(etapa.barEnd) - leftPct)
-                : 1.5;
+          <div className="space-y-1.5">
+            {bars.map((bar, i) => {
+              const bgColor = bar.ganttStatus === 'aprovada' ? 'bg-green-500'
+                : bar.ganttStatus === 'em_andamento' ? 'bg-blue-500'
+                : 'bg-gray-300';
+              const leftPct = pct(bar.barStart);
+              const widthPct = Math.max(1.5, pct(bar.barEnd) - leftPct);
 
               return (
-                <div key={etapa.id} className={`flex items-center h-8 ${i % 2 === 0 ? 'bg-white' : 'bg-ber-bg/50'} rounded`}>
-                  <div className="w-36 shrink-0 px-2 flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
-                    <span className="text-xs font-medium text-ber-carbon truncate" title={etapa.name}>
-                      {etapa.name}
+                <div key={bar.name}
+                  className={`flex items-center h-9 ${i % 2 === 0 ? 'bg-white' : 'bg-ber-bg/40'} rounded`}>
+                  <div className="w-40 shrink-0 px-2 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${bgColor}`} />
+                    <span className="text-xs font-semibold text-ber-carbon truncate" title={bar.name}>
+                      {bar.name}
                     </span>
                   </div>
                   <div className="relative flex-1 h-full flex items-center">
-                    {hasBar && (
-                      <div
-                        style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                        title={`${ETAPA_STATUS_LABEL[etapa.status] ?? etapa.status} · ${fmtDate(etapa.startDate ?? etapa.barStart?.toISOString() ?? null)} → ${fmtDate(etapa.endDate ?? etapa.estimatedEndDate ?? etapa.barEnd?.toISOString() ?? null)}`}
-                        className={`absolute h-5 rounded ${color} opacity-85 cursor-default transition-opacity hover:opacity-100`}
-                      />
-                    )}
-                    {!hasBar && (
-                      <span className="ml-2 text-[10px] text-ber-gray/50 italic">sem data</span>
-                    )}
+                    <div
+                      style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                      title={`${bar.done}/${bar.total} tarefas · ${fmtDate(bar.barStart?.toISOString() ?? null)} → ${fmtDate(bar.barEnd?.toISOString() ?? null)}`}
+                      className={`absolute h-6 rounded ${bgColor} opacity-80 hover:opacity-100 transition-opacity flex items-center overflow-hidden`}
+                    >
+                      {widthPct > 8 && (
+                        <span className="px-2 text-[10px] font-bold text-white whitespace-nowrap">
+                          {bar.pctDone}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="w-16 shrink-0 px-1 text-right text-[10px] text-ber-gray">
+                    {bar.done}/{bar.total}
                   </div>
                 </div>
               );
@@ -249,17 +247,19 @@ function GanttChart({ etapas, obra }: { etapas: Etapa[]; obra: Obra }) {
         </div>
 
         {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 pl-36">
-          {Object.entries(ETAPA_STATUS_LABEL).map(([k, v]) => (
-            <span key={k} className="flex items-center gap-1.5 text-[10px] text-ber-gray">
-              <span className={`w-3 h-3 rounded-sm ${ETAPA_STATUS_COLOR[k]}`} />
-              {v}
+        <div className="mt-4 flex flex-wrap gap-4 pl-40">
+          {[
+            { color: 'bg-green-500', label: 'Concluída' },
+            { color: 'bg-blue-500',  label: 'Em andamento' },
+            { color: 'bg-gray-300',  label: 'Não iniciada' },
+          ].map(({ color, label }) => (
+            <span key={label} className="flex items-center gap-1.5 text-[10px] text-ber-gray">
+              <span className={`w-3 h-3 rounded-sm ${color}`} /> {label}
             </span>
           ))}
           {isTodayInRange && (
             <span className="flex items-center gap-1.5 text-[10px] text-ber-teal font-semibold">
-              <span className="w-0.5 h-3 bg-ber-teal rounded" />
-              Hoje
+              <span className="w-0.5 h-3 bg-ber-teal rounded" /> Hoje
             </span>
           )}
         </div>
@@ -385,9 +385,7 @@ export default function PainelDeGestao() {
   const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
   const [obraView, setObraView] = useState<ObraDetailView>('scrum');
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const [loadingEtapas, setLoadingEtapas] = useState(false);
   const [burndownData, setBurndownData] = useState<any>(null);
   const [loadingBurndown, setLoadingBurndown] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -417,33 +415,19 @@ export default function PainelDeGestao() {
       .catch(() => {});
   }, []);
 
-  // Load tasks + etapas when an obra is selected
+  // Load tasks when an obra is selected (used by Scrum, Gantt, and Burndown tabs)
   const openObra = useCallback(async (obra: Obra) => {
     setSelectedObra(obra);
     setObraView('scrum');
     setLoadingTasks(true);
-    setLoadingEtapas(true);
-
-    const [tasksRes, seqRes] = await Promise.allSettled([
-      api.get(`/obras/${obra.id}/tasks`, { params: { limit: 500 } }),
-      api.get(`/obras/${obra.id}/sequenciamento`),
-    ]);
-
-    setTasks(tasksRes.status === 'fulfilled' ? tasksRes.value.data.data ?? [] : []);
+    const r = await api.get(`/obras/${obra.id}/tasks`, { params: { limit: 500 } }).catch(() => null);
+    setTasks(r?.data?.data ?? []);
     setLoadingTasks(false);
-
-    if (seqRes.status === 'fulfilled' && seqRes.value.data.data?.etapas) {
-      setEtapas(seqRes.value.data.data.etapas);
-    } else {
-      setEtapas([]);
-    }
-    setLoadingEtapas(false);
   }, []);
 
   function closeObra() {
     setSelectedObra(null);
     setTasks([]);
-    setEtapas([]);
     setBurndownData(null);
   }
 
@@ -661,8 +645,8 @@ export default function PainelDeGestao() {
               <div className="rounded-2xl border border-ber-border bg-white p-6">
                 <div className="mb-5 flex items-center justify-between">
                   <div>
-                    <h2 className="text-sm font-bold text-ber-carbon">Cronograma de Etapas</h2>
-                    <p className="text-xs text-ber-gray mt-0.5">Baseado no sequenciamento da obra</p>
+                    <h2 className="text-sm font-bold text-ber-carbon">Cronograma por Lista (ClickUp)</h2>
+                    <p className="text-xs text-ber-gray mt-0.5">Cada lista do ClickUp = uma fase da obra · barras = min→max prazo das tarefas</p>
                   </div>
                   {selectedObra.expectedEndDate && (
                     <div className="text-right">
@@ -671,10 +655,10 @@ export default function PainelDeGestao() {
                     </div>
                   )}
                 </div>
-                {loadingEtapas ? (
+                {loadingTasks ? (
                   <p className="py-10 text-center text-sm text-ber-gray animate-pulse">Carregando cronograma...</p>
                 ) : (
-                  <GanttChart etapas={etapas} obra={selectedObra} />
+                  <GanttChart tasks={tasks} obra={selectedObra} />
                 )}
               </div>
             )}

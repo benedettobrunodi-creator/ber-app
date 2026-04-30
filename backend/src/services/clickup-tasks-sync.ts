@@ -77,6 +77,7 @@ export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
             const status = mapStatus(task.status?.status ?? '');
             const priority = mapPriority((task as any).priority?.id ? Number((task as any).priority.id) : null);
             const dueDate = task.due_date ? new Date(parseInt(task.due_date)) : null;
+            const startDate = task.start_date ? new Date(parseInt(task.start_date)) : null;
             const title = task.name.slice(0, 255);
 
             try {
@@ -95,7 +96,13 @@ export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
 
                 await prisma.obraTask.update({
                   where: { id: existing.id },
-                  data: { title, status, priority, dueDate, ...(completedAt !== undefined ? { completedAt } : {}) },
+                  data: {
+                    title, status, priority, dueDate,
+                    clickupListId: list.id,
+                    clickupListName: list.name,
+                    clickupStartDate: startDate,
+                    ...(completedAt !== undefined ? { completedAt } : {}),
+                  },
                 });
                 result.updated++;
               } else {
@@ -108,6 +115,9 @@ export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
                     priority,
                     dueDate,
                     clickupTaskId: task.id,
+                    clickupListId: list.id,
+                    clickupListName: list.name,
+                    clickupStartDate: startDate,
                     ...(status === 'done' ? { completedAt: task.date_done ? new Date(parseInt(task.date_done)) : new Date() } : {}),
                   },
                 });

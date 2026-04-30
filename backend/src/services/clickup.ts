@@ -42,6 +42,7 @@ export interface ClickUpTask {
   name: string;
   status: { status: string; type: string };
   due_date?: string | null;
+  start_date?: string | null;
   date_done?: string | null;
   assignees?: { id: string; username: string; email: string }[];
   description?: string;
