@@ -54,6 +54,7 @@ export async function createUser(input: CreateUserInput) {
       name: input.name,
       role: input.role || 'campo',
       phone: input.phone,
+      customRoleId: input.customRoleId ?? null,
     },
     select: userSelect,
   });

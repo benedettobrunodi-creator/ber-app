@@ -89,6 +89,26 @@ const TOP_VIEWS = [
   { label: 'DRE', href: '/dre' },
 ];
 
+/* ─── Route → permission map for access guard ─── */
+
+const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
+  { prefix: '/dashboard', perm: 'dashboard' },
+  { prefix: '/obras', perm: 'obras' },
+  { prefix: '/kanban', perm: 'kanban' },
+  { prefix: '/sequenciamento', perm: 'sequenciamento' },
+  { prefix: '/checklists', perm: 'checklists' },
+  { prefix: '/alocacao', perm: 'configuracoes' },
+  { prefix: '/recebimentos', perm: 'recebimentos' },
+  { prefix: '/pmo', perm: 'pmo' },
+  { prefix: '/canteiro', perm: 'pmo' },
+  { prefix: '/seguranca', perm: 'seguranca' },
+  { prefix: '/normas', perm: 'normas' },
+  { prefix: '/instrucoes', perm: 'instrucoes' },
+  { prefix: '/ponto', perm: 'ponto' },
+  { prefix: '/dre', perm: 'dre' },
+  { prefix: '/configuracoes', perm: 'configuracoes' },
+];
+
 /* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
@@ -127,6 +147,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  // Route-level access guard — redirect if user lacks permission for current path
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const match = ROUTE_PERMS.find(r => pathname.startsWith(r.prefix));
+    if (match && !perms[match.perm]) {
+      const fallback = ROUTE_PERMS.find(r => perms[r.perm]);
+      router.replace(fallback?.prefix ?? '/ponto');
+    }
+  }, [pathname, isAuthenticated, user]);
 
   // Fetch badge counts + KPI global
   useEffect(() => {

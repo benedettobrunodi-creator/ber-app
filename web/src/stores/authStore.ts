@@ -20,10 +20,10 @@ export interface User {
 
 /** Default permissions for built-in roles (fallback when customRole is not set) */
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
-  diretoria: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, seguranca: true, normas: true, instrucoes: true, ponto: true, configuracoes: true },
-  coordenacao: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, seguranca: true, normas: true, instrucoes: true, ponto: true, configuracoes: true },
-  gestor: { dashboard: true, obras: true, kanban: true, sequenciamento: true, checklists: true, recebimentos: true, seguranca: true, normas: true, instrucoes: true, ponto: true, configuracoes: false },
-  campo: { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: true, configuracoes: false },
+  diretoria:   { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
+  coordenacao: { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
+  gestor:      { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
+  campo:       { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
 };
 
 /** Get the effective permissions for a user */

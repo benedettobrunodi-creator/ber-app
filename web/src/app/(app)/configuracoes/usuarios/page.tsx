@@ -145,6 +145,7 @@ export default function UsuariosPage() {
           password: form.password,
           role: form.role,
           phone: form.phone || undefined,
+          customRoleId: form.customRoleId || null,
         });
       }
       closeModal();
