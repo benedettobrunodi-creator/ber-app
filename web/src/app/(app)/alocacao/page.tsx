@@ -284,6 +284,7 @@ interface ModalProps {
   onSaved: (a: Alocacao) => void;
   onUpdated: (a: Alocacao) => void;
   onNewRecursoExterno: (r: RecursoExterno) => void;
+  onNewObra: (o: ObraInfo) => void;
 }
 
 function AlocacaoModal({
@@ -296,6 +297,7 @@ function AlocacaoModal({
   onSaved,
   onUpdated,
   onNewRecursoExterno,
+  onNewObra,
 }: ModalProps) {
   const editAlocacao = modalState.type === 'edit' ? modalState.alocacao : null;
   const prefillRecurso =
@@ -325,6 +327,10 @@ function AlocacaoModal({
     funcao: 'mestre' as RecursoExterno['funcao'],
   });
   const [savingExterno, setSavingExterno] = useState(false);
+
+  const [showNewObra, setShowNewObra] = useState(false);
+  const [newObra, setNewObra] = useState({ name: '', startDate: '', expectedEndDate: '' });
+  const [savingObra, setSavingObra] = useState(false);
 
   const selectedObra = obras.find(o => o.id === form.obraId) ?? null;
   const hasProjeto = !!selectedObra?.dataInicioProjeto;
@@ -412,6 +418,26 @@ function AlocacaoModal({
       /* silently ignore */
     } finally {
       setSavingExterno(false);
+    }
+  }
+
+  async function handleSaveNewObra() {
+    if (!newObra.name.trim()) return;
+    setSavingObra(true);
+    try {
+      const payload: Record<string, string> = { name: newObra.name.trim(), status: 'planejamento' };
+      if (newObra.startDate) payload.startDate = new Date(newObra.startDate).toISOString();
+      if (newObra.expectedEndDate) payload.expectedEndDate = new Date(newObra.expectedEndDate).toISOString();
+      const res = await api.post('/obras', payload);
+      const criada: ObraInfo = res.data.data ?? res.data;
+      onNewObra(criada);
+      handleObraChange(criada.id);
+      setShowNewObra(false);
+      setNewObra({ name: '', startDate: '', expectedEndDate: '' });
+    } catch {
+      /* silently ignore */
+    } finally {
+      setSavingObra(false);
     }
   }
 
@@ -565,6 +591,68 @@ function AlocacaoModal({
                 </option>
               ))}
             </select>
+
+            {!showNewObra && (
+              <button
+                type="button"
+                onClick={() => setShowNewObra(true)}
+                className="mt-1.5 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                <Plus size={11} /> Nova obra
+              </button>
+            )}
+
+            {showNewObra && (
+              <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                <p className="mb-2 text-xs font-semibold text-blue-800">Nova obra</p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Nome da obra"
+                    value={newObra.name}
+                    onChange={e => setNewObra(n => ({ ...n, name: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-[10px] text-gray-500">Início (opcional)</label>
+                      <input
+                        type="date"
+                        value={newObra.startDate}
+                        onChange={e => setNewObra(n => ({ ...n, startDate: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-[10px] text-gray-500">Fim previsto (opcional)</label>
+                      <input
+                        type="date"
+                        value={newObra.expectedEndDate}
+                        onChange={e => setNewObra(n => ({ ...n, expectedEndDate: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewObra(false); setNewObra({ name: '', startDate: '', expectedEndDate: '' }); }}
+                      className="flex-1 rounded-lg border border-gray-200 bg-white py-1.5 text-xs text-gray-500 hover:bg-gray-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveNewObra}
+                      disabled={savingObra || !newObra.name.trim()}
+                      className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {savingObra ? 'Salvando…' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Cargo na alocação */}
@@ -1300,6 +1388,10 @@ export default function AlocacaoPage() {
     setRecursosExternos(prev => [...prev, r]);
   }
 
+  function handleNewObra(o: ObraInfo) {
+    setObras(prev => [...prev, o]);
+  }
+
   function openEdit(alocacaoId: string) {
     const a = alocacoes.find(x => x.id === alocacaoId);
     if (a) setModal({ type: 'edit', alocacao: a });
@@ -1535,6 +1627,7 @@ export default function AlocacaoPage() {
           onSaved={handleSaved}
           onUpdated={handleUpdated}
           onNewRecursoExterno={handleNewRecursoExterno}
+          onNewObra={handleNewObra}
         />
       )}
 
@@ -1550,6 +1643,7 @@ export default function AlocacaoPage() {
           onSaved={handleSaved}
           onUpdated={handleUpdated}
           onNewRecursoExterno={handleNewRecursoExterno}
+          onNewObra={handleNewObra}
         />
       )}
     </div>
