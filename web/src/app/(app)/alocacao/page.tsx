@@ -6,7 +6,7 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Plus, X, AlertTriangle, Calendar, Users, HardHat, UserPlus,
-  ChevronDown, ChevronUp, Trash2,
+  ChevronDown, ChevronUp, Trash2, Printer,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -1027,12 +1027,14 @@ function GanttChart({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [recursoOrder, setRecursoOrder] = useState<string[]>([]);
+  const [obraOrder, setObraOrder] = useState<string[]>([]);
   const today = new Date();
   const pxPerDay = PX_PER_DAY[zoom];
   const chartStart = addDays(today, -CHART_OFFSET[zoom]);
   const conflictIds = new Set(conflicts.flatMap(c => c.allocations.map(a => a.id)));
   const conflictRowKeys = new Set(conflicts.map(c => c.recursoKey));
-  const { rows, totalWidth, todayLeft } = buildGanttRows(
+  const { rows: rawRows, totalWidth, todayLeft } = buildGanttRows(
     alocacoes,
     viewMode,
     zoom,
@@ -1040,6 +1042,51 @@ function GanttChart({
     today,
     conflictIds,
   );
+
+  // Apply custom row ordering
+  const rows = (() => {
+    if (viewMode === 'recurso') {
+      if (recursoOrder.length === 0) return rawRows;
+      return [...rawRows].sort((a, b) => {
+        const ai = recursoOrder.indexOf(a.id);
+        const bi = recursoOrder.indexOf(b.id);
+        return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+      });
+    }
+    if (obraOrder.length === 0) return rawRows;
+    const groups: GanttRow[][] = [];
+    let cur: GanttRow[] | null = null;
+    for (const row of rawRows) {
+      if (row.isGroupHeader) { cur = [row]; groups.push(cur); }
+      else cur?.push(row);
+    }
+    return groups
+      .sort((a, b) => {
+        const ai = obraOrder.indexOf(a[0].id.slice('group:'.length));
+        const bi = obraOrder.indexOf(b[0].id.slice('group:'.length));
+        return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+      })
+      .flat();
+  })();
+
+  const topLevelIds = viewMode === 'recurso'
+    ? rows.map(r => r.id)
+    : rows.filter(r => r.isGroupHeader).map(r => r.id.slice('group:'.length));
+
+  function moveRow(topId: string, dir: -1 | 1) {
+    const order = viewMode === 'recurso'
+      ? (recursoOrder.length > 0 ? recursoOrder : topLevelIds)
+      : (obraOrder.length > 0 ? obraOrder : topLevelIds);
+    const idx = order.indexOf(topId);
+    if (idx === -1) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= order.length) return;
+    const next = [...order];
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    if (viewMode === 'recurso') setRecursoOrder(next);
+    else setObraOrder(next);
+  }
+
   const ticks = generateTicks(chartStart, CHART_DAYS[zoom], zoom, pxPerDay);
   const rowH = (row: GanttRow) => row.isGroupHeader ? GROUP_H : Math.max(ROW_H, row.laneCount * LANE_H);
   const totalH = HEADER_H + rows.reduce((s, r) => s + rowH(r), 0);
@@ -1070,33 +1117,58 @@ function GanttChart({
             {viewMode === 'recurso' ? 'Recurso' : 'Obra'}
           </span>
         </div>
-        {rows.map(row => (
-          <div
-            key={row.id}
-            className={`flex flex-col justify-center border-b px-4 ${
-              row.isGroupHeader
-                ? 'border-gray-300 bg-gray-100'
-                : 'border-gray-100 pl-7'
-            }`}
-            style={{ height: rowH(row) }}
-          >
-            {row.isGroupHeader ? (
-              <span className="truncate text-[11px] font-bold uppercase tracking-wide text-gray-600">
-                {row.label}
-              </span>
-            ) : (
-              <>
-                <div className="flex items-center gap-1">
-                  {viewMode === 'recurso' && conflictRowKeys.has(row.id) && (
-                    <AlertTriangle size={11} className="flex-shrink-0 text-red-500" />
-                  )}
-                  <span className="truncate text-[11px] font-semibold text-gray-700">{row.label}</span>
+        {rows.map(row => {
+          const topId = viewMode === 'recurso' ? row.id : row.id.slice('group:'.length);
+          const showArrows = viewMode === 'recurso' || row.isGroupHeader;
+          const topIdx = showArrows ? topLevelIds.indexOf(topId) : -1;
+          const canUp = topIdx > 0;
+          const canDown = topIdx !== -1 && topIdx < topLevelIds.length - 1;
+          return (
+            <div
+              key={row.id}
+              className={`group flex items-center border-b ${
+                row.isGroupHeader
+                  ? 'border-gray-300 bg-gray-100 px-2'
+                  : 'border-gray-100 pl-6 pr-1'
+              }`}
+              style={{ height: rowH(row) }}
+            >
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                {row.isGroupHeader ? (
+                  <span className="truncate text-[11px] font-bold uppercase tracking-wide text-gray-600">
+                    {row.label}
+                  </span>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1">
+                      {viewMode === 'recurso' && conflictRowKeys.has(row.id) && (
+                        <AlertTriangle size={11} className="flex-shrink-0 text-red-500" />
+                      )}
+                      <span className="truncate text-[11px] font-semibold text-gray-700">{row.label}</span>
+                    </div>
+                    <span className="truncate text-[10px] text-gray-400">{row.subLabel}</span>
+                  </>
+                )}
+              </div>
+              {showArrows && (
+                <div className="flex flex-shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={e => { e.stopPropagation(); if (canUp) moveRow(topId, -1); }}
+                    className={`rounded p-0.5 ${canUp ? 'text-gray-400 hover:text-gray-700' : 'cursor-default text-gray-200'}`}
+                  >
+                    <ChevronUp size={10} />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); if (canDown) moveRow(topId, 1); }}
+                    className={`rounded p-0.5 ${canDown ? 'text-gray-400 hover:text-gray-700' : 'cursor-default text-gray-200'}`}
+                  >
+                    <ChevronDown size={10} />
+                  </button>
                 </div>
-                <span className="truncate text-[10px] text-gray-400">{row.subLabel}</span>
-              </>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Right scrollable area */}
@@ -1865,7 +1937,7 @@ export default function AlocacaoPage() {
                   </div>
 
                   {/* Quick-add buttons */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 print:hidden">
                     <button
                       onClick={() => setShowNovaObraModal(true)}
                       className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -1877,6 +1949,12 @@ export default function AlocacaoPage() {
                       className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                     >
                       <UserPlus size={12} /> Novo Recurso
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                      <Printer size={12} /> Imprimir
                     </button>
                   </div>
 
@@ -1900,19 +1978,37 @@ export default function AlocacaoPage() {
                   </div>
                 </div>
 
-                <GanttChart
-                  alocacoes={alocacoes}
-                  zoom={zoom}
-                  viewMode={viewMode}
-                  obras={obras}
-                  conflicts={conflicts}
-                  onBarClick={openEdit}
-                  onRowEmptyClick={key =>
-                    key.startsWith('obra:')
-                      ? openCreate(undefined, key.slice(5))
-                      : openCreate(key)
+                <style>{`
+                  @media print {
+                    body * { visibility: hidden; }
+                    #gantt-print-wrapper, #gantt-print-wrapper * { visibility: visible; }
+                    #gantt-print-wrapper {
+                      position: absolute;
+                      left: 0; top: 0;
+                      width: 100%;
+                    }
+                    #gantt-print-wrapper .overflow-x-auto,
+                    #gantt-print-wrapper .overflow-y-hidden,
+                    #gantt-print-wrapper .overflow-hidden {
+                      overflow: visible !important;
+                    }
                   }
-                />
+                `}</style>
+                <div id="gantt-print-wrapper">
+                  <GanttChart
+                    alocacoes={alocacoes}
+                    zoom={zoom}
+                    viewMode={viewMode}
+                    obras={obras}
+                    conflicts={conflicts}
+                    onBarClick={openEdit}
+                    onRowEmptyClick={key =>
+                      key.startsWith('obra:')
+                        ? openCreate(undefined, key.slice(5))
+                        : openCreate(key)
+                    }
+                  />
+                </div>
               </div>
             )}
 
