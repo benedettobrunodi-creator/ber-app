@@ -46,6 +46,7 @@ import dashboardRoutes from './modules/dashboard/routes';
 import rolesRoutes from './modules/roles/routes';
 import alocacoesRoutes from './modules/alocacoes/routes';
 import recursosExternosRoutes from './modules/recursos-externos/routes';
+import orcamentosRoutes from './modules/orcamentos/routes';
 import clickupRoutes from './modules/clickup/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
@@ -194,6 +195,7 @@ app.use('/v1/obras', comprasRoutes);
 app.use('/v1/roles', rolesRoutes);
 app.use('/v1/alocacoes', alocacoesRoutes);
 app.use('/v1/recursos-externos', recursosExternosRoutes);
+app.use('/v1/orcamentos', orcamentosRoutes);
 app.use('/v1/clickup', clickupRoutes);
 
 // Generic file upload — uses R2 when configured, falls back to disk

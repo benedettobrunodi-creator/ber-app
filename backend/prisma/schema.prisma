@@ -77,6 +77,8 @@ model User {
   recursosExternosCriados RecursoExterno[]     @relation("RecursoExternoCreator")
   customRole            CustomRole?            @relation(fields: [customRoleId], references: [id])
   customRoleId          String?                @map("custom_role_id") @db.Uuid
+  orcamentosResponsavel Orcamento[]            @relation("OrcResp")
+  orcamentosCriados     Orcamento[]            @relation("OrcCriador")
 
   @@map("users")
 }
@@ -1214,4 +1216,54 @@ model RecursoExterno {
   alocacoes Alocacao[] @relation("AlocacaoRecursoExterno")
 
   @@map("recursos_externos")
+}
+
+// ─── ESTEIRA DE ORÇAMENTOS ──────────────────────────────────────────────────
+
+model Orcamento {
+  id             String    @id @default(uuid()) @db.Uuid
+  numero         String    @unique @db.VarChar(20)
+  cliente        String    @db.VarChar(255)
+  descricaoCurta String?   @map("descricao_curta") @db.VarChar(500)
+  m2             Float?
+  valorVenda     Decimal?  @map("valor_venda") @db.Decimal(14, 2)
+  segmento       String?   @db.VarChar(50)
+  estrategico    Boolean   @default(false)
+  status         String    @db.VarChar(50)
+  categoria      String    @db.VarChar(50)
+  dataInicio     DateTime? @map("data_inicio") @db.Date
+  dataFim        DateTime? @map("data_fim") @db.Date
+  dataEntrega    DateTime? @map("data_entrega") @db.Date
+  responsavelId  String?   @map("responsavel_id") @db.Uuid
+  observacoes    String?
+  changeOrderDe  String?   @map("change_order_de") @db.Uuid
+  createdById    String    @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  responsavel User?               @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy   User                @relation("OrcCriador", fields: [createdById], references: [id])
+  pai         Orcamento?          @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
+  filhos      Orcamento[]         @relation("CO")
+  historico   OrcamentoHistorico[]
+
+  @@index([status])
+  @@index([categoria])
+  @@index([dataInicio, dataFim])
+  @@map("orcamentos")
+}
+
+model OrcamentoHistorico {
+  id          String    @id @default(uuid()) @db.Uuid
+  orcamentoId String    @map("orcamento_id") @db.Uuid
+  campo       String    @db.VarChar(100)
+  valorAntigo String?   @map("valor_antigo")
+  valorNovo   String?   @map("valor_novo")
+  alteradoPor String    @map("alterado_por") @db.VarChar(255)
+  alteradoEm  DateTime  @default(now()) @map("alterado_em")
+
+  orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([orcamentoId])
+  @@map("orcamento_historico")
 }

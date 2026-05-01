@@ -10,7 +10,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package, FolderOpen, ChevronDown, ChevronRight,
-  Kanban, Menu, X, TrendingUp, CalendarRange,
+  Kanban, Menu, X, TrendingUp, CalendarRange, BarChart2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -63,6 +63,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    section: 'COMERCIAL',
+    items: [
+      { label: 'Esteira de Orçamentos', href: '/comercial/orcamentos', icon: BarChart2, perm: 'orcamentos' },
+    ],
+  },
+  {
     section: 'FINANCEIRO',
     items: [
       { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
@@ -106,6 +112,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/ponto', perm: 'ponto' },
   { prefix: '/dre', perm: 'dre' },
   { prefix: '/configuracoes', perm: 'configuracoes' },
+  { prefix: '/comercial/orcamentos', perm: 'orcamentos' },
 ];
 
 /* ─── Bottom mobile nav ─── */

@@ -16,15 +16,15 @@ export interface User {
 
 /** Default permissions per cargo — used when user has no explicit permissions set */
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
-  diretoria:   { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
-  coordenacao: { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true  },
-  pmo:         { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: false, normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
-  engenharia:  { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
-  financeiro:  { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: true,  configuracoes: false },
-  gestor:      { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false },
-  compras:     { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
-  orcamentos:  { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
-  campo:       { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false },
+  diretoria:   { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true,  orcamentos: true  },
+  coordenacao: { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true,  orcamentos: true  },
+  pmo:         { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: false, normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false },
+  engenharia:  { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: false, pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false },
+  financeiro:  { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: true,  configuracoes: false, orcamentos: false },
+  gestor:      { dashboard: true,  obras: true,  kanban: true,  sequenciamento: true,  checklists: true,  recebimentos: true,  pmo: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false },
+  compras:     { dashboard: true,  obras: true,  kanban: false, sequenciamento: false, checklists: false, recebimentos: true,  pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: false },
+  orcamentos:  { dashboard: true,  obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: true  },
+  campo:       { dashboard: false, obras: false, kanban: false, sequenciamento: false, checklists: false, recebimentos: false, pmo: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: false },
 };
 
 /** Returns the user's explicit permissions, or the cargo defaults if none are set */
