@@ -2043,22 +2043,49 @@ export default function AlocacaoPage() {
 
   return (
     <div className="flex h-full flex-col">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #print-content, #print-content * { visibility: visible; }
+          #print-content {
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            overflow: visible !important;
+          }
+          #print-content .overflow-x-auto,
+          #print-content .overflow-y-hidden,
+          #print-content .overflow-hidden,
+          #print-content .overflow-auto {
+            overflow: visible !important;
+          }
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 print:hidden">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Alocação de Mão de Obra</h1>
           <p className="text-xs text-gray-500">{alocacoes.length} alocações cadastradas</p>
         </div>
-        <button
-          onClick={() => openCreate()}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-        >
-          <Plus size={16} /> Nova Alocação
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Printer size={15} /> Imprimir
+          </button>
+          <button
+            onClick={() => openCreate()}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+          >
+            <Plus size={16} /> Nova Alocação
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-white px-6">
+      <div className="flex border-b border-gray-200 bg-white px-6 print:hidden">
         {(
           [
             { key: 'timeline', label: 'Timeline' },
@@ -2087,7 +2114,7 @@ export default function AlocacaoPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto bg-gray-50 p-6">
+      <div id="print-content" className="flex-1 overflow-auto bg-gray-50 p-6">
         {loading ? (
           <div className="flex h-40 items-center justify-center text-sm text-gray-400">
             Carregando…
@@ -2153,12 +2180,6 @@ export default function AlocacaoPage() {
                     >
                       <UserPlus size={12} /> Novo Recurso
                     </button>
-                    <button
-                      onClick={() => window.print()}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                    >
-                      <Printer size={12} /> Imprimir
-                    </button>
                   </div>
 
                   {/* Legend */}
@@ -2181,24 +2202,7 @@ export default function AlocacaoPage() {
                   </div>
                 </div>
 
-                <style>{`
-                  @media print {
-                    body * { visibility: hidden; }
-                    #gantt-print-wrapper, #gantt-print-wrapper * { visibility: visible; }
-                    #gantt-print-wrapper {
-                      position: absolute;
-                      left: 0; top: 0;
-                      width: 100%;
-                    }
-                    #gantt-print-wrapper .overflow-x-auto,
-                    #gantt-print-wrapper .overflow-y-hidden,
-                    #gantt-print-wrapper .overflow-hidden {
-                      overflow: visible !important;
-                    }
-                  }
-                `}</style>
-                <div id="gantt-print-wrapper">
-                  <GanttChart
+                <GanttChart
                     alocacoes={alocacoes}
                     zoom={zoom}
                     viewMode={viewMode}
@@ -2212,7 +2216,6 @@ export default function AlocacaoPage() {
                         : openCreate(key)
                     }
                   />
-                </div>
               </div>
             )}
 
