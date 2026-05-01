@@ -66,7 +66,7 @@ interface Alocacao {
 
 type Zoom = 'semana' | 'mes' | 'trimestre';
 type ViewMode = 'recurso' | 'obra';
-type Tab = 'timeline' | 'obras' | 'recursos' | 'conflitos';
+type Tab = 'timeline' | 'obras' | 'recursos' | 'resumo';
 
 type ModalState =
   | { type: 'none' }
@@ -1782,6 +1782,175 @@ function RecursosTab({
   );
 }
 
+/* ─── Resumo Tab ─── */
+
+interface RecursoResumoEntry {
+  key: string;
+  nome: string;
+  role: string;
+  isExterno: boolean;
+  dedicacaoAtual: number;
+  livreEm: Date | null;
+  periodos: { obraName: string; start: Date | null; end: Date | null; pct: number; cargo: string }[];
+}
+
+function buildResumo(
+  alocacoes: Alocacao[],
+  users: UserInfo[],
+  recursosExternos: RecursoExterno[],
+): RecursoResumoEntry[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  function entryFor(
+    key: string,
+    nome: string,
+    role: string,
+    isExterno: boolean,
+    alocs: Alocacao[],
+  ): RecursoResumoEntry {
+    const periodos = alocs.map(a => ({
+      obraName: a.obra.name,
+      start: resolveStart(a),
+      end: resolveEnd(a),
+      pct: a.dedicacaoPct,
+      cargo: CARGO_SHORT[a.cargoNaAlocacao] ?? a.cargoNaAlocacao,
+    }));
+
+    const futuros = periodos
+      .filter(p => !p.end || p.end >= today)
+      .sort((a, b) => (a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0));
+
+    const ativos = periodos.filter(
+      p => (!p.start || p.start <= today) && (!p.end || p.end >= today),
+    );
+    const dedicacaoAtual = ativos.reduce((s, p) => s + p.pct, 0);
+
+    const ends = futuros.map(p => p.end).filter(Boolean) as Date[];
+    const maxEnd = ends.length > 0 ? new Date(Math.max(...ends.map(d => d.getTime()))) : null;
+    const livreEm = maxEnd && maxEnd > today ? maxEnd : null;
+
+    return { key, nome, role, isExterno, dedicacaoAtual, livreEm, periodos: futuros };
+  }
+
+  const entries: RecursoResumoEntry[] = [
+    ...users.map(u =>
+      entryFor(u.id, u.name, u.role, false, alocacoes.filter(a => a.userId === u.id)),
+    ),
+    ...recursosExternos.map(r =>
+      entryFor(r.id, r.nome, r.funcao, true, alocacoes.filter(a => a.recursoExternoId === r.id)),
+    ),
+  ];
+
+  return entries.sort((a, b) => {
+    if (!a.livreEm && !b.livreEm) return a.nome.localeCompare(b.nome);
+    if (!a.livreEm) return -1;
+    if (!b.livreEm) return 1;
+    return a.livreEm.getTime() - b.livreEm.getTime();
+  });
+}
+
+function ResumoTab({
+  alocacoes,
+  users,
+  recursosExternos,
+  conflicts,
+}: {
+  alocacoes: Alocacao[];
+  users: UserInfo[];
+  recursosExternos: RecursoExterno[];
+  conflicts: Conflict[];
+}) {
+  const entries = buildResumo(alocacoes, users, recursosExternos);
+
+  function livreLabel(entry: RecursoResumoEntry): { text: string; isNow: boolean } {
+    if (!entry.livreEm) return { text: 'Disponível agora', isNow: true };
+    const days = Math.ceil(
+      (entry.livreEm.getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
+    );
+    const suffix = days <= 60 ? ` · ${days}d` : '';
+    return { text: `Livre em ${fmtDate(entry.livreEm)}${suffix}`, isNow: false };
+  }
+
+  return (
+    <div className="space-y-4">
+      {conflicts.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+          <AlertTriangle size={14} className="flex-shrink-0" />
+          {conflicts.length} conflito{conflicts.length !== 1 ? 's' : ''} de sobreposição detectado
+          {conflicts.length !== 1 ? 's' : ''} — revise as barras em vermelho na Timeline.
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {entries.map(entry => {
+          const { text: livreText, isNow } = livreLabel(entry);
+          const dedicacao = entry.dedicacaoAtual;
+          const statusLabel =
+            dedicacao === 0 ? 'Disponível' : dedicacao >= 100 ? 'Ocupado' : `${dedicacao}% alocado`;
+          const statusClass =
+            dedicacao === 0
+              ? 'bg-green-100 text-green-700'
+              : dedicacao >= 100
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-yellow-100 text-yellow-700';
+
+          return (
+            <div
+              key={entry.key}
+              className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                      entry.isExterno ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {entry.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900">{entry.nome}</p>
+                    <p className="text-[10px] text-gray-400">
+                      {FUNCAO_LABELS[entry.role] ?? CARGO_LABELS[entry.role] ?? entry.role}
+                    </p>
+                  </div>
+                </div>
+                <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}>
+                  {statusLabel}
+                </span>
+              </div>
+
+              {/* Livre em */}
+              <p className={`mt-3 text-xs font-medium ${isNow ? 'text-green-600' : 'text-gray-500'}`}>
+                {livreText}
+              </p>
+
+              {/* Próximas alocações */}
+              {entry.periodos.length > 0 && (
+                <div className="mt-2 space-y-1 border-t border-gray-100 pt-2">
+                  {entry.periodos.slice(0, 4).map((p, i) => (
+                    <div key={i} className="flex items-baseline justify-between gap-1 text-[10px]">
+                      <span className="truncate text-gray-600">{p.obraName}</span>
+                      <span className="flex-shrink-0 text-gray-400">
+                        {p.start ? fmtShort(p.start) : '?'}–{p.end ? fmtShort(p.end) : '?'} · {p.pct}%
+                      </span>
+                    </div>
+                  ))}
+                  {entry.periodos.length > 4 && (
+                    <p className="text-[10px] text-gray-400">+{entry.periodos.length - 4} mais</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page ─── */
 
 export default function AlocacaoPage() {
@@ -1883,7 +2052,7 @@ export default function AlocacaoPage() {
             { key: 'timeline', label: 'Timeline' },
             { key: 'obras', label: 'Obras' },
             { key: 'recursos', label: 'Recursos' },
-            { key: 'conflitos', label: 'Conflitos', badge: conflicts.length },
+            { key: 'resumo', label: 'Resumo', badge: conflicts.length > 0 ? conflicts.length : undefined },
           ] as { key: Tab; label: string; badge?: number }[]
         ).map(tab => (
           <button
@@ -2058,73 +2227,13 @@ export default function AlocacaoPage() {
             )}
 
             {/* ── CONFLITOS ── */}
-            {activeTab === 'conflitos' && (
-              <div className="space-y-3">
-                {conflicts.length === 0 ? (
-                  <div className="flex flex-col items-center py-16 text-gray-400">
-                    <div className="mb-3 rounded-full bg-green-100 p-4">
-                      <Calendar size={28} className="text-green-500" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Sem conflitos de alocação
-                    </p>
-                    <p className="text-xs">
-                      Todos os recursos estão com dedicação dentro do limite.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm text-gray-500">
-                      {conflicts.length} conflito{conflicts.length !== 1 ? 's' : ''} detectado
-                      {conflicts.length !== 1 ? 's' : ''}
-                    </p>
-                    {conflicts.map((c, i) => (
-                      <div
-                        key={i}
-                        className="rounded-xl border border-red-100 bg-white p-4 shadow-sm"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 rounded-full bg-red-100 p-1.5">
-                            <AlertTriangle size={14} className="text-red-600" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-semibold text-gray-900">
-                                {c.recursoName}
-                              </p>
-                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
-                                {c.maxPct}% alocado
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Sobreposição: {fmtDate(c.overlapStart)} →{' '}
-                              {fmtDate(c.overlapEnd)}
-                            </p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {c.allocations.map(a => (
-                                <span
-                                  key={a.id}
-                                  className="rounded-md bg-red-50 px-2 py-1 text-[10px] font-medium text-red-700"
-                                >
-                                  {a.obra.name} ·{' '}
-                                  {CARGO_SHORT[a.cargoNaAlocacao] ?? a.cargoNaAlocacao} ·{' '}
-                                  {a.dedicacaoPct}%
-                                </span>
-                              ))}
-                            </div>
-                            <button
-                              onClick={() => openEdit(c.allocations[0].id)}
-                              className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-                            >
-                              Resolver
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
+            {activeTab === 'resumo' && (
+              <ResumoTab
+                alocacoes={alocacoes}
+                users={users}
+                recursosExternos={recursosExternos}
+                conflicts={conflicts}
+              />
             )}
           </>
         )}
