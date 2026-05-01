@@ -69,7 +69,7 @@ type Tab = 'timeline' | 'obras' | 'recursos' | 'conflitos';
 
 type ModalState =
   | { type: 'none' }
-  | { type: 'create'; prefillRecurso?: string }
+  | { type: 'create'; prefillRecurso?: string; prefillObraId?: string }
   | { type: 'edit'; alocacao: Alocacao };
 
 /* ─── Constants ─── */
@@ -300,21 +300,46 @@ function AlocacaoModal({
   const editAlocacao = modalState.type === 'edit' ? modalState.alocacao : null;
   const prefillRecurso =
     modalState.type === 'create' ? modalState.prefillRecurso : undefined;
+  const prefillObraId =
+    modalState.type === 'create' ? modalState.prefillObraId : undefined;
+
+  const initialObraId = editAlocacao?.obraId ?? prefillObraId ?? '';
+  const initialFase: 'obra' | 'projeto' | 'ambas' = editAlocacao?.fase ?? 'obra';
+  const initialObra = obras.find(o => o.id === initialObraId) ?? null;
+  const initialDates = (() => {
+    if (editAlocacao) {
+      return {
+        dataInicio: editAlocacao.dataInicio?.slice(0, 10) ?? '',
+        dataFim: editAlocacao.dataFim?.slice(0, 10) ?? '',
+      };
+    }
+    if (initialObra) {
+      return {
+        dataInicio:
+          initialObra.dataInicioObra?.slice(0, 10) ??
+          initialObra.startDate?.slice(0, 10) ?? '',
+        dataFim:
+          initialObra.dataFimObra?.slice(0, 10) ??
+          initialObra.expectedEndDate?.slice(0, 10) ?? '',
+      };
+    }
+    return { dataInicio: '', dataFim: '' };
+  })();
 
   const [form, setForm] = useState({
     recurso: editAlocacao
       ? recursoSelectKey(editAlocacao)
       : prefillRecurso ?? '',
-    obraId: editAlocacao?.obraId ?? '',
+    obraId: initialObraId,
     cargoNaAlocacao: (editAlocacao?.cargoNaAlocacao ?? 'gestor') as
       | 'coordenador'
       | 'gestor'
       | 'mestre'
       | 'ajudante',
-    fase: (editAlocacao?.fase ?? 'obra') as 'obra' | 'projeto' | 'ambas',
+    fase: initialFase,
     dedicacaoPct: editAlocacao?.dedicacaoPct ?? 100,
-    dataInicio: editAlocacao?.dataInicio?.slice(0, 10) ?? '',
-    dataFim: editAlocacao?.dataFim?.slice(0, 10) ?? '',
+    dataInicio: initialDates.dataInicio,
+    dataFim: initialDates.dataFim,
   });
 
   const [saving, setSaving] = useState(false);
@@ -1163,10 +1188,12 @@ function ObrasTab({
   obras,
   alocacoes,
   onAddedObra,
+  onAlocar,
 }: {
   obras: ObraInfo[];
   alocacoes: Alocacao[];
   onAddedObra: (o: ObraInfo) => void;
+  onAlocar: (obraId: string) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
   const today = new Date();
@@ -1236,6 +1263,12 @@ function ObrasTab({
               <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-500">
                 <span>{recursos} recurso{recursos !== 1 ? 's' : ''}</span>
                 <span className={`font-semibold ${totalPct > 0 ? 'text-blue-600' : 'text-gray-300'}`}>{totalPct}%</span>
+                <button
+                  onClick={() => onAlocar(o.id)}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                >
+                  <Plus size={11} /> Alocar
+                </button>
               </div>
             </div>
           );
@@ -1501,8 +1534,8 @@ export default function AlocacaoPage() {
     if (a) setModal({ type: 'edit', alocacao: a });
   }
 
-  function openCreate(prefillRecurso?: string) {
-    setModal({ type: 'create', prefillRecurso });
+  function openCreate(prefillRecurso?: string, prefillObraId?: string) {
+    setModal({ type: 'create', prefillRecurso, prefillObraId });
   }
 
   if (!perms.configuracoes) return null;
@@ -1658,6 +1691,7 @@ export default function AlocacaoPage() {
                 obras={obras}
                 alocacoes={alocacoes}
                 onAddedObra={o => setObras(prev => [...prev, o])}
+                onAlocar={obraId => openCreate(undefined, obraId)}
               />
             )}
 
