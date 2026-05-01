@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requireRole('gestor'), controller.list);
+router.get('/conflitos', requireRole('gestor'), controller.listConflitos);
 router.post('/', requireRole('coordenacao'), validate(createAlocacaoSchema), controller.create);
 router.put('/:id', requireRole('coordenacao'), validate(updateAlocacaoSchema), controller.update);
 router.delete('/:id', requireRole('coordenacao'), controller.remove);

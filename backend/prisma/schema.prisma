@@ -113,6 +113,11 @@ model Obra {
   faseUpdatedAt    DateTime? @map("fase_updated_at")
   faseUpdatedById  String?   @map("fase_updated_by") @db.Uuid
 
+  dataInicioProjeto DateTime? @map("data_inicio_projeto") @db.Date
+  dataFimProjeto    DateTime? @map("data_fim_projeto") @db.Date
+  dataInicioObra    DateTime? @map("data_inicio_obra") @db.Date
+  dataFimObra       DateTime? @map("data_fim_obra") @db.Date
+
   // Relations
   coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
   faseUpdatedBy  User?            @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
@@ -1182,6 +1187,7 @@ model Alocacao {
   userId           String?   @map("user_id") @db.Uuid
   recursoExternoId String?   @map("recurso_externo_id") @db.Uuid
   obraId           String    @map("obra_id") @db.Uuid
+  cargoNaAlocacao  String    @default("gestor") @map("cargo_na_alocacao") @db.VarChar(20)
   fase             String    @default("ambas") @db.VarChar(20)
   dedicacaoPct     Int       @map("dedicacao_pct")
   dataInicio       DateTime? @map("data_inicio") @db.Date

@@ -7,6 +7,11 @@ export async function list(_req: Request, res: Response) {
   sendSuccess(res, data);
 }
 
+export async function listConflitos(_req: Request, res: Response) {
+  const data = await service.listConflitos();
+  sendSuccess(res, data);
+}
+
 export async function create(req: Request, res: Response) {
   const data = await service.createAlocacao(req.body);
   sendCreated(res, data);
