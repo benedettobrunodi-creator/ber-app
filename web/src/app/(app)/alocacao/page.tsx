@@ -347,7 +347,7 @@ function AlocacaoModal({
   const [showNewExterno, setShowNewExterno] = useState(false);
   const [newExterno, setNewExterno] = useState({
     nome: '',
-    funcao: 'mestre' as RecursoExterno['funcao'],
+    cargo: 'mestre' as 'coordenador' | 'gestor' | 'mestre' | 'ajudante',
   });
   const [savingExterno, setSavingExterno] = useState(false);
 
@@ -426,13 +426,26 @@ function AlocacaoModal({
   async function handleSaveNewExterno() {
     if (!newExterno.nome.trim()) return;
     setSavingExterno(true);
+    const funcaoMap: Record<string, RecursoExterno['funcao']> = {
+      coordenador: 'gestor',
+      gestor: 'gestor',
+      mestre: 'mestre',
+      ajudante: 'ajudante',
+    };
     try {
-      const res = await api.post('/recursos-externos', newExterno);
+      const res = await api.post('/recursos-externos', {
+        nome: newExterno.nome,
+        funcao: funcaoMap[newExterno.cargo],
+      });
       const criado: RecursoExterno = res.data.data;
       onNewRecursoExterno(criado);
-      setForm(f => ({ ...f, recurso: `externo:${criado.id}` }));
+      setForm(f => ({
+        ...f,
+        recurso: `externo:${criado.id}`,
+        cargoNaAlocacao: newExterno.cargo,
+      }));
       setShowNewExterno(false);
-      setNewExterno({ nome: '', funcao: 'mestre' });
+      setNewExterno({ nome: '', cargo: 'mestre' });
     } catch {
       /* silently ignore */
     } finally {
@@ -537,16 +550,17 @@ function AlocacaoModal({
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <select
-                    value={newExterno.funcao}
+                    value={newExterno.cargo}
                     onChange={e =>
                       setNewExterno(n => ({
                         ...n,
-                        funcao: e.target.value as RecursoExterno['funcao'],
+                        cargo: e.target.value as typeof n.cargo,
                       }))
                     }
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="gestor">Gestor</option>
+                    <option value="coordenador">Coordenador</option>
+                    <option value="gestor">Gestor de Obras</option>
                     <option value="mestre">Mestre de Obras</option>
                     <option value="ajudante">Ajudante</option>
                   </select>
@@ -555,7 +569,7 @@ function AlocacaoModal({
                       type="button"
                       onClick={() => {
                         setShowNewExterno(false);
-                        setNewExterno({ nome: '', funcao: 'mestre' });
+                        setNewExterno({ nome: '', cargo: 'mestre' });
                       }}
                       className="flex-1 rounded-lg border border-gray-200 bg-white py-1.5 text-xs text-gray-500 hover:bg-gray-50"
                     >
