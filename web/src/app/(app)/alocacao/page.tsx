@@ -6,7 +6,7 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Plus, X, AlertTriangle, Calendar, Users, HardHat, UserPlus,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -833,7 +833,7 @@ function buildGanttRows(
         id: rowKey,
         label: rowLabel,
         subLabel: rowSubLabel,
-        recursoSelectKey: recursoSelectKey(aloc),
+        recursoSelectKey: viewMode === 'obra' ? `obra:${aloc.obraId}` : recursoSelectKey(aloc),
         bars: [],
       });
     }
@@ -871,6 +871,21 @@ function buildGanttRows(
           dataFim: fmtDate(e),
         },
       });
+    }
+  }
+
+  // Em modo obra, adicionar linhas para obras sem alocação
+  if (viewMode === 'obra') {
+    for (const obra of obras) {
+      if (!rowMap.has(obra.id)) {
+        rowMap.set(obra.id, {
+          id: obra.id,
+          label: obra.name,
+          subLabel: obra.status,
+          recursoSelectKey: `obra:${obra.id}`,
+          bars: [],
+        });
+      }
     }
   }
 
@@ -1254,14 +1269,29 @@ function ObrasTab({
   alocacoes,
   onAddedObra,
   onAlocar,
+  onDeletedObra,
 }: {
   obras: ObraInfo[];
   alocacoes: Alocacao[];
   onAddedObra: (o: ObraInfo) => void;
   onAlocar: (obraId: string) => void;
+  onDeletedObra: (obraId: string) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const today = new Date();
+
+  async function handleDelete(obraId: string) {
+    setDeletingId(obraId);
+    try {
+      await api.delete(`/obras/${obraId}`);
+      onDeletedObra(obraId);
+    } catch {
+      // silently reset
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const STATUS_LABEL: Record<string, string> = {
     planejamento: 'Planejamento',
@@ -1333,6 +1363,17 @@ function ObrasTab({
                   className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                 >
                   <Plus size={11} /> Alocar
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Excluir "${o.name}"? Esta ação não pode ser desfeita.`)) {
+                      handleDelete(o.id);
+                    }
+                  }}
+                  disabled={deletingId === o.id}
+                  className="rounded-lg border border-gray-200 bg-white p-1 text-gray-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                >
+                  <Trash2 size={12} />
                 </button>
               </div>
             </div>
@@ -1745,7 +1786,11 @@ export default function AlocacaoPage() {
                   viewMode={viewMode}
                   obras={obras}
                   onBarClick={openEdit}
-                  onRowEmptyClick={key => openCreate(key)}
+                  onRowEmptyClick={key =>
+                    key.startsWith('obra:')
+                      ? openCreate(undefined, key.slice(5))
+                      : openCreate(key)
+                  }
                 />
               </div>
             )}
@@ -1757,6 +1802,7 @@ export default function AlocacaoPage() {
                 alocacoes={alocacoes}
                 onAddedObra={o => setObras(prev => [...prev, o])}
                 onAlocar={obraId => openCreate(undefined, obraId)}
+                onDeletedObra={obraId => setObras(prev => prev.filter(o => o.id !== obraId))}
               />
             )}
 
