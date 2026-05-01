@@ -1833,7 +1833,7 @@ function buildResumo(
     return { key, nome, role, isExterno, dedicacaoAtual, livreEm, periodos: futuros };
   }
 
-  const ROLES_OBRA = new Set(['diretoria', 'coordenacao', 'engenharia', 'gestor', 'campo']);
+  const ROLES_OBRA = new Set(['coordenacao', 'engenharia', 'gestor', 'campo']);
 
   const entries: RecursoResumoEntry[] = [
     ...users
