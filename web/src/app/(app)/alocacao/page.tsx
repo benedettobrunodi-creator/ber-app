@@ -1833,7 +1833,7 @@ function buildResumo(
     return { key, nome, role, isExterno, dedicacaoAtual, livreEm, periodos: futuros };
   }
 
-  const ROLES_OBRA = new Set(['diretoria', 'coordenacao', 'pmo', 'engenharia', 'gestor', 'campo']);
+  const ROLES_OBRA = new Set(['diretoria', 'coordenacao', 'engenharia', 'gestor', 'campo']);
 
   const entries: RecursoResumoEntry[] = [
     ...users
@@ -1856,12 +1856,10 @@ function ResumoTab({
   alocacoes,
   users,
   recursosExternos,
-  conflicts,
 }: {
   alocacoes: Alocacao[];
   users: UserInfo[];
   recursosExternos: RecursoExterno[];
-  conflicts: Conflict[];
 }) {
   const entries = buildResumo(alocacoes, users, recursosExternos);
 
@@ -1876,14 +1874,6 @@ function ResumoTab({
 
   return (
     <div className="space-y-3">
-      {conflicts.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-          <AlertTriangle size={14} className="flex-shrink-0" />
-          {conflicts.length} conflito{conflicts.length !== 1 ? 's' : ''} de sobreposição detectado
-          {conflicts.length !== 1 ? 's' : ''} — revise as barras em vermelho na Timeline.
-        </div>
-      )}
-
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {/* Header */}
         <div className="grid items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400"
@@ -2247,7 +2237,6 @@ export default function AlocacaoPage() {
                 alocacoes={alocacoes}
                 users={users}
                 recursosExternos={recursosExternos}
-                conflicts={conflicts}
               />
             )}
           </>
