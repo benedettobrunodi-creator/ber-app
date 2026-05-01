@@ -1833,10 +1833,12 @@ function buildResumo(
     return { key, nome, role, isExterno, dedicacaoAtual, livreEm, periodos: futuros };
   }
 
+  const ROLES_OBRA = new Set(['diretoria', 'coordenacao', 'pmo', 'engenharia', 'gestor', 'campo']);
+
   const entries: RecursoResumoEntry[] = [
-    ...users.map(u =>
-      entryFor(u.id, u.name, u.role, false, alocacoes.filter(a => a.userId === u.id)),
-    ),
+    ...users
+      .filter(u => ROLES_OBRA.has(u.role))
+      .map(u => entryFor(u.id, u.name, u.role, false, alocacoes.filter(a => a.userId === u.id))),
     ...recursosExternos.map(r =>
       entryFor(r.id, r.nome, r.funcao, true, alocacoes.filter(a => a.recursoExternoId === r.id)),
     ),
@@ -1863,17 +1865,17 @@ function ResumoTab({
 }) {
   const entries = buildResumo(alocacoes, users, recursosExternos);
 
-  function livreLabel(entry: RecursoResumoEntry): { text: string; isNow: boolean } {
-    if (!entry.livreEm) return { text: 'Disponível agora', isNow: true };
+  function livreInfo(entry: RecursoResumoEntry): { text: string; isNow: boolean; urgent: boolean } {
+    if (!entry.livreEm) return { text: 'Disponível agora', isNow: true, urgent: false };
     const days = Math.ceil(
       (entry.livreEm.getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
     );
     const suffix = days <= 60 ? ` · ${days}d` : '';
-    return { text: `Livre em ${fmtDate(entry.livreEm)}${suffix}`, isNow: false };
+    return { text: `Livre em ${fmtDate(entry.livreEm)}${suffix}`, isNow: false, urgent: days <= 30 };
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {conflicts.length > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           <AlertTriangle size={14} className="flex-shrink-0" />
@@ -1882,9 +1884,19 @@ function ResumoTab({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        {/* Header */}
+        <div className="grid items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400"
+          style={{ gridTemplateColumns: '1fr 100px 200px 1fr' }}
+        >
+          <span>Recurso</span>
+          <span>Status atual</span>
+          <span>Disponibilidade</span>
+          <span>Próximas obras</span>
+        </div>
+
         {entries.map(entry => {
-          const { text: livreText, isNow } = livreLabel(entry);
+          const { text: livreText, isNow, urgent } = livreInfo(entry);
           const dedicacao = entry.dedicacaoAtual;
           const statusLabel =
             dedicacao === 0 ? 'Disponível' : dedicacao >= 100 ? 'Ocupado' : `${dedicacao}% alocado`;
@@ -1898,51 +1910,51 @@ function ResumoTab({
           return (
             <div
               key={entry.key}
-              className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="grid items-center gap-4 border-b border-gray-100 px-4 py-3 last:border-0 hover:bg-gray-50/60"
+              style={{ gridTemplateColumns: '1fr 100px 200px 1fr' }}
             >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <div
-                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      entry.isExterno ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}
-                  >
-                    {entry.nome.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900">{entry.nome}</p>
-                    <p className="text-[10px] text-gray-400">
-                      {FUNCAO_LABELS[entry.role] ?? CARGO_LABELS[entry.role] ?? entry.role}
-                    </p>
-                  </div>
+              {/* Recurso */}
+              <div className="flex min-w-0 items-center gap-2">
+                <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  entry.isExterno ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {entry.nome.charAt(0).toUpperCase()}
                 </div>
-                <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}>
-                  {statusLabel}
-                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{entry.nome}</p>
+                  <p className="truncate text-[10px] text-gray-400">
+                    {FUNCAO_LABELS[entry.role] ?? CARGO_LABELS[entry.role] ?? entry.role}
+                  </p>
+                </div>
               </div>
 
-              {/* Livre em */}
-              <p className={`mt-3 text-xs font-medium ${isNow ? 'text-green-600' : 'text-gray-500'}`}>
-                {livreText}
-              </p>
+              {/* Status */}
+              <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}>
+                {statusLabel}
+              </span>
 
-              {/* Próximas alocações */}
-              {entry.periodos.length > 0 && (
-                <div className="mt-2 space-y-1 border-t border-gray-100 pt-2">
-                  {entry.periodos.slice(0, 4).map((p, i) => (
-                    <div key={i} className="flex items-baseline justify-between gap-1 text-[10px]">
-                      <span className="truncate text-gray-600">{p.obraName}</span>
-                      <span className="flex-shrink-0 text-gray-400">
-                        {p.start ? fmtShort(p.start) : '?'}–{p.end ? fmtShort(p.end) : '?'} · {p.pct}%
-                      </span>
-                    </div>
-                  ))}
-                  {entry.periodos.length > 4 && (
-                    <p className="text-[10px] text-gray-400">+{entry.periodos.length - 4} mais</p>
-                  )}
-                </div>
-              )}
+              {/* Disponibilidade */}
+              <div className={`flex items-center gap-1 text-xs font-medium ${
+                urgent ? 'text-red-600' : isNow ? 'text-green-600' : 'text-gray-500'
+              }`}>
+                {urgent && <AlertTriangle size={11} className="flex-shrink-0" />}
+                {livreText}
+              </div>
+
+              {/* Próximas obras */}
+              <div className="flex flex-wrap gap-1">
+                {entry.periodos.slice(0, 3).map((p, i) => (
+                  <span key={i} className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                    {p.obraName} · {p.start ? fmtShort(p.start) : '?'}–{p.end ? fmtShort(p.end) : '?'} · {p.pct}%
+                  </span>
+                ))}
+                {entry.periodos.length > 3 && (
+                  <span className="text-[10px] text-gray-400">+{entry.periodos.length - 3} mais</span>
+                )}
+                {entry.periodos.length === 0 && (
+                  <span className="text-[10px] text-gray-300">—</span>
+                )}
+              </div>
             </div>
           );
         })}
