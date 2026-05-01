@@ -1100,10 +1100,14 @@ function PhaseFields({
   label,
   value,
   onChange,
+  naoAplicavel,
+  onToggleNaoAplicavel,
 }: {
   label: string;
   value: PhaseState;
   onChange: (v: PhaseState) => void;
+  naoAplicavel?: boolean;
+  onToggleNaoAplicavel?: () => void;
 }) {
   function handleInicio(inicio: string) {
     const dias = value.dias ? value.dias : '';
@@ -1125,25 +1129,46 @@ function PhaseFields({
 
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <label className="mb-1 block text-[10px] font-medium text-gray-500">Início</label>
-          <input type="date" value={value.inicio} onChange={e => handleInicio(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-medium text-gray-500">Fim</label>
-          <input type="date" value={value.fim} onChange={e => handleFim(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-medium text-gray-500">Dias</label>
-          <input type="text" inputMode="numeric" placeholder="—" value={value.dias}
-            onChange={e => handleDias(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        {onToggleNaoAplicavel && (
+          <button
+            type="button"
+            onClick={onToggleNaoAplicavel}
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+              naoAplicavel
+                ? 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+            }`}
+          >
+            {naoAplicavel ? 'Não aplicável ×' : 'Não aplicável'}
+          </button>
+        )}
       </div>
+      {naoAplicavel ? (
+        <p className="rounded-lg border border-dashed border-gray-200 py-3 text-center text-xs text-gray-400">
+          Fase não aplicável a esta obra
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="mb-1 block text-[10px] font-medium text-gray-500">Início</label>
+            <input type="date" value={value.inicio} onChange={e => handleInicio(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-medium text-gray-500">Fim</label>
+            <input type="date" value={value.fim} onChange={e => handleFim(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-medium text-gray-500">Dias</label>
+            <input type="text" inputMode="numeric" placeholder="—" value={value.dias}
+              onChange={e => handleDias(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1152,6 +1177,7 @@ function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o:
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [projeto, setProjeto] = useState<PhaseState>({ inicio: '', fim: '', dias: '' });
+  const [projetoNA, setProjetoNA] = useState(false);
   const [obra, setObra] = useState<PhaseState>({ inicio: '', fim: '', dias: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -1166,8 +1192,8 @@ function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o:
       if (client) payload.client = client.trim();
       if (obra.inicio) { payload.startDate = new Date(obra.inicio).toISOString(); payload.dataInicioObra = obra.inicio; }
       if (obra.fim) { payload.expectedEndDate = new Date(obra.fim).toISOString(); payload.dataFimObra = obra.fim; }
-      if (projeto.inicio) payload.dataInicioProjeto = projeto.inicio;
-      if (projeto.fim) payload.dataFimProjeto = projeto.fim;
+      if (!projetoNA && projeto.inicio) payload.dataInicioProjeto = projeto.inicio;
+      if (!projetoNA && projeto.fim) payload.dataFimProjeto = projeto.fim;
       const res = await api.post('/obras', payload);
       onSaved(res.data.data ?? res.data);
     } catch {
@@ -1196,7 +1222,13 @@ function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o:
               onChange={e => setClient(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <PhaseFields label="Fase de Projeto" value={projeto} onChange={setProjeto} />
+          <PhaseFields
+            label="Fase de Projeto"
+            value={projeto}
+            onChange={setProjeto}
+            naoAplicavel={projetoNA}
+            onToggleNaoAplicavel={() => { setProjetoNA(v => !v); setProjeto({ inicio: '', fim: '', dias: '' }); }}
+          />
           <PhaseFields label="Fase de Obra" value={obra} onChange={setObra} />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
