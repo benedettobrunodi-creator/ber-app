@@ -99,6 +99,7 @@ const CHART_DAYS: Record<Zoom, number> = { semana: 70, mes: 180, trimestre: 365 
 const CHART_OFFSET: Record<Zoom, number> = { semana: 14, mes: 30, trimestre: 30 };
 const ROW_H = 48;
 const GROUP_H = 28;
+const LANE_H = 26;
 const HEADER_H = 40;
 const LEFT_W = 200;
 
@@ -810,6 +811,7 @@ interface GanttBar {
   color: string;
   label: string;
   hasConflict: boolean;
+  lane: number;
   tooltip: Omit<TooltipData, 'x' | 'y'>;
 }
 
@@ -819,6 +821,7 @@ interface GanttRow {
   subLabel: string;
   recursoSelectKey: string;
   bars: GanttBar[];
+  laneCount: number;
   isGroupHeader?: boolean;
 }
 
@@ -883,6 +886,7 @@ function buildGanttRows(
       color: phase === 'projeto' ? '#1D4ED8' : '#60A5FA',
       label: barLabel,
       hasConflict: conflictIds.has(aloc.id),
+      lane: 0,
       tooltip: {
         userName: recursoNome(aloc),
         cargo: CARGO_LABELS[aloc.cargoNaAlocacao] ?? aloc.cargoNaAlocacao,
@@ -901,7 +905,7 @@ function buildGanttRows(
       if (!rowMap.has(rowKey)) {
         rowMap.set(rowKey, {
           id: rowKey, label: recursoNome(aloc), subLabel: recursoRole(aloc),
-          recursoSelectKey: recursoSelectKey(aloc), bars: [],
+          recursoSelectKey: recursoSelectKey(aloc), bars: [], laneCount: 1,
         });
       }
       const barLabel = `${aloc.obra.name.slice(0, 14)} · ${aloc.dedicacaoPct}%`;
@@ -918,14 +922,11 @@ function buildGanttRows(
     }
 
     for (const obra of obras) {
-      // Cabeçalho do grupo
       rowMap.set(`group:${obra.id}`, {
         id: `group:${obra.id}`,
-        label: obra.name,
-        subLabel: obra.status,
+        label: obra.name, subLabel: obra.status,
         recursoSelectKey: `obra:${obra.id}`,
-        bars: [],
-        isGroupHeader: true,
+        bars: [], laneCount: 1, isGroupHeader: true,
       });
 
       const obraAlocs = byObra.get(obra.id) ?? [];
@@ -934,24 +935,19 @@ function buildGanttRows(
         const cargoAlocs = obraAlocs.filter(a => a.cargoNaAlocacao === cargo);
         if (cargoAlocs.length === 0) continue;
 
-        // Agrupa por recurso dentro do cargo
         const byRecurso = new Map<string, Alocacao[]>();
         for (const aloc of cargoAlocs) {
           const k = recursoKey(aloc);
           const l = byRecurso.get(k) ?? [];
-          l.push(aloc);
-          byRecurso.set(k, l);
+          l.push(aloc); byRecurso.set(k, l);
         }
 
         for (const [, recursoAlocs] of byRecurso) {
           const first = recursoAlocs[0];
           const subKey = `${obra.id}:${cargo}:${recursoKey(first)}`;
           rowMap.set(subKey, {
-            id: subKey,
-            label: CARGO_LABELS[cargo] ?? cargo,
-            subLabel: recursoNome(first),
-            recursoSelectKey: `obra:${obra.id}`,
-            bars: [],
+            id: subKey, label: CARGO_LABELS[cargo] ?? cargo, subLabel: recursoNome(first),
+            recursoSelectKey: `obra:${obra.id}`, bars: [], laneCount: 1,
           });
           for (const aloc of recursoAlocs) {
             const barLabel = `${recursoNome(aloc).split(' ')[0]} · ${aloc.dedicacaoPct}%`;
@@ -960,6 +956,20 @@ function buildGanttRows(
         }
       }
     }
+  }
+
+  // Assign lanes: bars within a row that overlap get different vertical lanes
+  for (const row of rowMap.values()) {
+    if (row.bars.length <= 1) continue;
+    const sorted = [...row.bars].sort((a, b) => a.left - b.left);
+    const laneEnds: number[] = [];
+    for (const bar of sorted) {
+      let lane = laneEnds.findIndex(end => end <= bar.left);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = bar.left + bar.width;
+      bar.lane = lane;
+    }
+    row.laneCount = Math.max(1, laneEnds.length);
   }
 
   return { rows: [...rowMap.values()], totalWidth, todayLeft };
@@ -1025,7 +1035,7 @@ function GanttChart({
     conflictIds,
   );
   const ticks = generateTicks(chartStart, CHART_DAYS[zoom], zoom, pxPerDay);
-  const rowH = (row: GanttRow) => row.isGroupHeader ? GROUP_H : ROW_H;
+  const rowH = (row: GanttRow) => row.isGroupHeader ? GROUP_H : Math.max(ROW_H, row.laneCount * LANE_H);
   const totalH = HEADER_H + rows.reduce((s, r) => s + rowH(r), 0);
   // Pre-compute top offset per row
   const rowTops: number[] = [];
@@ -1130,8 +1140,8 @@ function GanttChart({
                   style={{
                     left: bar.left,
                     width: bar.width,
-                    top: 8,
-                    height: ROW_H - 16,
+                    top: bar.lane * LANE_H + 4,
+                    height: LANE_H - 8,
                     backgroundColor: bar.hasConflict ? '#EF4444' : bar.color,
                     opacity: 0.9,
                     outline: bar.hasConflict ? '2px solid #B91C1C' : undefined,
@@ -1151,7 +1161,7 @@ function GanttChart({
                   }
                   onMouseLeave={() => setTooltip(null)}
                 >
-                  <span className="block truncate px-1.5 text-[10px] font-semibold leading-[32px] text-white">
+                  <span className="block truncate px-1.5 text-[10px] font-semibold text-white" style={{ lineHeight: `${LANE_H - 8}px` }}>
                     {bar.label}
                   </span>
                 </div>
