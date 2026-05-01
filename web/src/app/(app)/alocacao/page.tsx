@@ -1016,6 +1016,7 @@ function GanttChart({
   conflicts,
   onBarClick,
   onRowEmptyClick,
+  onDeleteBar,
 }: {
   alocacoes: Alocacao[];
   zoom: Zoom;
@@ -1024,6 +1025,7 @@ function GanttChart({
   conflicts: Conflict[];
   onBarClick: (alocacaoId: string) => void;
   onRowEmptyClick: (recursoSelectKey: string) => void;
+  onDeleteBar: (alocacaoId: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -1126,7 +1128,7 @@ function GanttChart({
           return (
             <div
               key={row.id}
-              className={`group flex items-center border-b ${
+              className={`group/row flex items-center border-b ${
                 row.isGroupHeader
                   ? 'border-gray-300 bg-gray-100 px-2'
                   : 'border-gray-100 pl-6 pr-1'
@@ -1151,7 +1153,7 @@ function GanttChart({
                 )}
               </div>
               {showArrows && (
-                <div className="flex flex-shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex flex-shrink-0 flex-col opacity-0 transition-opacity group-hover/row:opacity-100">
                   <button
                     onClick={e => { e.stopPropagation(); if (canUp) moveRow(topId, -1); }}
                     className={`rounded p-0.5 ${canUp ? 'text-gray-400 hover:text-gray-700' : 'cursor-default text-gray-200'}`}
@@ -1214,7 +1216,7 @@ function GanttChart({
               {row.bars.map(bar => (
                 <div
                   key={bar.id}
-                  className="absolute cursor-pointer rounded shadow-sm transition-opacity hover:opacity-100"
+                  className="group/bar absolute cursor-pointer rounded shadow-sm transition-opacity hover:opacity-100"
                   style={{
                     left: bar.left,
                     width: bar.width,
@@ -1242,6 +1244,17 @@ function GanttChart({
                   <span className="block truncate px-1.5 text-[10px] font-semibold text-white" style={{ lineHeight: `${LANE_H - 8}px` }}>
                     {bar.label}
                   </span>
+                  <button
+                    className="absolute right-0 top-0 flex h-full w-4 items-center justify-center rounded-r bg-black/0 opacity-0 transition-all group-hover/bar:bg-black/40 group-hover/bar:opacity-100 hover:bg-black/60"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setTooltip(null);
+                      onDeleteBar(bar.alocacaoId);
+                    }}
+                    title="Excluir alocação"
+                  >
+                    <X size={8} className="text-white" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -1836,6 +1849,15 @@ export default function AlocacaoPage() {
     setModal({ type: 'create', prefillRecurso, prefillObraId });
   }
 
+  async function handleDeleteBar(alocacaoId: string) {
+    try {
+      await api.delete(`/alocacoes/${alocacaoId}`);
+      setAlocacoes(prev => prev.filter(a => a.id !== alocacaoId));
+    } catch {
+      /* silently ignore */
+    }
+  }
+
   if (!perms.configuracoes) return null;
 
   return (
@@ -2002,6 +2024,7 @@ export default function AlocacaoPage() {
                     obras={obras}
                     conflicts={conflicts}
                     onBarClick={openEdit}
+                    onDeleteBar={handleDeleteBar}
                     onRowEmptyClick={key =>
                       key.startsWith('obra:')
                         ? openCreate(undefined, key.slice(5))
