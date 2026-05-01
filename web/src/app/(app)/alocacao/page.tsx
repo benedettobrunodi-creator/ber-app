@@ -638,12 +638,12 @@ function AlocacaoModal({
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="obra">Somente Obra</option>
-              {hasProjeto && <option value="projeto">Somente Projeto</option>}
-              {hasProjeto && <option value="ambas">Ambas (Projeto + Obra)</option>}
+              <option value="projeto">Somente Projeto</option>
+              <option value="ambas">Ambas (Projeto + Obra)</option>
             </select>
-            {!hasProjeto && form.obraId && (
-              <p className="mt-1 text-[10px] text-gray-400">
-                Obra sem fase de projeto cadastrada — configure datas de projeto na obra para habilitar.
+            {!hasProjeto && (form.fase === 'projeto' || form.fase === 'ambas') && (
+              <p className="mt-1 text-[10px] text-amber-500">
+                Obra sem datas de projeto — preencha as datas manualmente abaixo.
               </p>
             )}
           </div>
