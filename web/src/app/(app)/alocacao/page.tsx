@@ -35,6 +35,7 @@ interface ObraInfo {
   dataFimProjeto: string | null;
   dataInicioObra: string | null;
   dataFimObra: string | null;
+  fase: string | null;
 }
 
 interface Alocacao {
@@ -288,6 +289,16 @@ interface ModalProps {
   onNewRecursoExterno: (r: RecursoExterno) => void;
 }
 
+const OBRA_FASE_MAP: Record<string, 'obra' | 'projeto' | 'ambas'> = {
+  kickoff_interno: 'ambas',
+  kickoff_externo: 'ambas',
+  suprimentos: 'projeto',
+  pre_obra: 'projeto',
+  execucao: 'obra',
+  pendencias: 'obra',
+  encerramento: 'obra',
+};
+
 function AlocacaoModal({
   obras,
   users,
@@ -327,7 +338,6 @@ function AlocacaoModal({
     }
     return { dataInicio: '', dataFim: '' };
   })();
-
   const [form, setForm] = useState({
     recurso: editAlocacao
       ? recursoSelectKey(editAlocacao)
@@ -393,7 +403,8 @@ function AlocacaoModal({
   function handleObraChange(obraId: string) {
     const obra = obras.find(o => o.id === obraId) ?? null;
     const hasP = !!obra?.dataInicioProjeto;
-    const newFase = !hasP && form.fase !== 'obra' ? 'obra' : form.fase;
+    const mappedFase = obra?.fase ? (OBRA_FASE_MAP[obra.fase] ?? 'ambas') : 'ambas';
+    const newFase = !hasP ? 'obra' : mappedFase;
     const dates = getDatesForFase(obra, newFase as 'obra' | 'projeto' | 'ambas');
     setForm(f => ({ ...f, obraId, fase: newFase as typeof f.fase, ...dates }));
   }
