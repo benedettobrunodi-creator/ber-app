@@ -855,20 +855,15 @@ function buildGanttRows(
         start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
         end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) }];
     }
-    // ambas
-    if (obra?.dataInicioProjeto) {
-      return [
-        { phase: 'projeto',
-          start: parseDate(aloc.dataInicio) ?? parseDate(obra.dataInicioProjeto),
-          end: parseDate(aloc.dataFim) ?? parseDate(obra.dataFimProjeto ?? null) },
-        { phase: 'obra',
-          start: parseDate(obra.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
-          end: parseDate(obra.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) },
-      ];
-    }
-    return [{ phase: 'obra',
-      start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
-      end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) }];
+    // ambas — sempre retorna as duas barras
+    return [
+      { phase: 'projeto',
+        start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioProjeto ?? null),
+        end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimProjeto ?? null) },
+      { phase: 'obra',
+        start: parseDate(obra?.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
+        end: parseDate(obra?.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) },
+    ];
   }
 
   function pushBar(row: GanttRow, aloc: Alocacao, barDef: BarDef, barLabel: string) {
