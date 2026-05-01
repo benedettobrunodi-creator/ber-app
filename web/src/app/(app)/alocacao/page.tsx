@@ -65,7 +65,7 @@ interface Alocacao {
 
 type Zoom = 'semana' | 'mes' | 'trimestre';
 type ViewMode = 'recurso' | 'obra';
-type Tab = 'timeline' | 'recursos' | 'conflitos';
+type Tab = 'timeline' | 'obras' | 'recursos' | 'conflitos';
 
 type ModalState =
   | { type: 'none' }
@@ -284,7 +284,6 @@ interface ModalProps {
   onSaved: (a: Alocacao) => void;
   onUpdated: (a: Alocacao) => void;
   onNewRecursoExterno: (r: RecursoExterno) => void;
-  onNewObra: (o: ObraInfo) => void;
 }
 
 function AlocacaoModal({
@@ -297,7 +296,6 @@ function AlocacaoModal({
   onSaved,
   onUpdated,
   onNewRecursoExterno,
-  onNewObra,
 }: ModalProps) {
   const editAlocacao = modalState.type === 'edit' ? modalState.alocacao : null;
   const prefillRecurso =
@@ -327,10 +325,6 @@ function AlocacaoModal({
     funcao: 'mestre' as RecursoExterno['funcao'],
   });
   const [savingExterno, setSavingExterno] = useState(false);
-
-  const [showNewObra, setShowNewObra] = useState(false);
-  const [newObra, setNewObra] = useState({ name: '', startDate: '', expectedEndDate: '' });
-  const [savingObra, setSavingObra] = useState(false);
 
   const selectedObra = obras.find(o => o.id === form.obraId) ?? null;
   const hasProjeto = !!selectedObra?.dataInicioProjeto;
@@ -418,26 +412,6 @@ function AlocacaoModal({
       /* silently ignore */
     } finally {
       setSavingExterno(false);
-    }
-  }
-
-  async function handleSaveNewObra() {
-    if (!newObra.name.trim()) return;
-    setSavingObra(true);
-    try {
-      const payload: Record<string, string> = { name: newObra.name.trim(), status: 'planejamento' };
-      if (newObra.startDate) payload.startDate = new Date(newObra.startDate).toISOString();
-      if (newObra.expectedEndDate) payload.expectedEndDate = new Date(newObra.expectedEndDate).toISOString();
-      const res = await api.post('/obras', payload);
-      const criada: ObraInfo = res.data.data ?? res.data;
-      onNewObra(criada);
-      handleObraChange(criada.id);
-      setShowNewObra(false);
-      setNewObra({ name: '', startDate: '', expectedEndDate: '' });
-    } catch {
-      /* silently ignore */
-    } finally {
-      setSavingObra(false);
     }
   }
 
@@ -592,67 +566,6 @@ function AlocacaoModal({
               ))}
             </select>
 
-            {!showNewObra && (
-              <button
-                type="button"
-                onClick={() => setShowNewObra(true)}
-                className="mt-1.5 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-              >
-                <Plus size={11} /> Nova obra
-              </button>
-            )}
-
-            {showNewObra && (
-              <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 p-3">
-                <p className="mb-2 text-xs font-semibold text-blue-800">Nova obra</p>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Nome da obra"
-                    value={newObra.name}
-                    onChange={e => setNewObra(n => ({ ...n, name: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-0.5 block text-[10px] text-gray-500">Início (opcional)</label>
-                      <input
-                        type="date"
-                        value={newObra.startDate}
-                        onChange={e => setNewObra(n => ({ ...n, startDate: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-0.5 block text-[10px] text-gray-500">Fim previsto (opcional)</label>
-                      <input
-                        type="date"
-                        value={newObra.expectedEndDate}
-                        onChange={e => setNewObra(n => ({ ...n, expectedEndDate: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setShowNewObra(false); setNewObra({ name: '', startDate: '', expectedEndDate: '' }); }}
-                      className="flex-1 rounded-lg border border-gray-200 bg-white py-1.5 text-xs text-gray-500 hover:bg-gray-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveNewObra}
-                      disabled={savingObra || !newObra.name.trim()}
-                      className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {savingObra ? 'Salvando…' : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Cargo na alocação */}
@@ -1141,6 +1054,218 @@ function GanttChart({
   );
 }
 
+/* ─── Obras Tab ─── */
+
+function ObrasTab({
+  obras,
+  alocacoes,
+  onAddedObra,
+}: {
+  obras: ObraInfo[];
+  alocacoes: Alocacao[];
+  onAddedObra: (o: ObraInfo) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    client: '',
+    startDate: '',
+    expectedEndDate: '',
+    dataInicioProjeto: '',
+    dataFimProjeto: '',
+    dataInicioObra: '',
+    dataFimObra: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const today = new Date();
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload: Record<string, string> = {
+        name: form.name.trim(),
+        status: 'planejamento',
+      };
+      if (form.client) payload.client = form.client.trim();
+      if (form.startDate) payload.startDate = new Date(form.startDate).toISOString();
+      if (form.expectedEndDate) payload.expectedEndDate = new Date(form.expectedEndDate).toISOString();
+      if (form.dataInicioProjeto) payload.dataInicioProjeto = form.dataInicioProjeto;
+      if (form.dataFimProjeto) payload.dataFimProjeto = form.dataFimProjeto;
+      if (form.dataInicioObra) payload.dataInicioObra = form.dataInicioObra;
+      if (form.dataFimObra) payload.dataFimObra = form.dataFimObra;
+      const res = await api.post('/obras', payload);
+      const criada: ObraInfo = res.data.data ?? res.data;
+      onAddedObra(criada);
+      setForm({ name: '', client: '', startDate: '', expectedEndDate: '', dataInicioProjeto: '', dataFimProjeto: '', dataInicioObra: '', dataFimObra: '' });
+      setShowForm(false);
+    } catch {
+      setError('Erro ao criar obra');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const STATUS_LABEL: Record<string, string> = {
+    planejamento: 'Planejamento',
+    em_andamento: 'Em andamento',
+    concluida: 'Concluída',
+    cancelada: 'Cancelada',
+  };
+
+  const STATUS_COLOR: Record<string, string> = {
+    planejamento: 'bg-amber-100 text-amber-700',
+    em_andamento: 'bg-green-100 text-green-700',
+    concluida: 'bg-blue-100 text-blue-700',
+    cancelada: 'bg-gray-100 text-gray-500',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-700">{obras.length} obras cadastradas</p>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+        >
+          <Plus size={13} /> Nova Obra
+        </button>
+      </div>
+
+      {/* Formulário de nova obra */}
+      {showForm && (
+        <div className="rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900">Nova Obra</h3>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-600">Nome da obra *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Residência São Paulo"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-600">Cliente</label>
+                <input
+                  type="text"
+                  placeholder="Nome do cliente"
+                  value={form.client}
+                  onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Fase de Projeto</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Início do Projeto</label>
+                  <input type="date" value={form.dataInicioProjeto}
+                    onChange={e => setForm(f => ({ ...f, dataInicioProjeto: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Fim do Projeto</label>
+                  <input type="date" value={form.dataFimProjeto}
+                    onChange={e => setForm(f => ({ ...f, dataFimProjeto: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Fase de Obra</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Início da Obra</label>
+                  <input type="date" value={form.dataInicioObra}
+                    onChange={e => setForm(f => ({ ...f, dataInicioObra: e.target.value, startDate: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Fim da Obra</label>
+                  <input type="date" value={form.dataFimObra}
+                    onChange={e => setForm(f => ({ ...f, dataFimObra: e.target.value, expectedEndDate: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            {error && <p className="text-xs text-red-500">{error}</p>}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setError(''); }}
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !form.name.trim()}
+                className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? 'Salvando…' : 'Criar Obra'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Lista de obras */}
+      <div className="space-y-2">
+        {obras.map(o => {
+          const obraAlocs = alocacoes.filter(a => {
+            if (a.obraId !== o.id) return false;
+            const end = resolveEnd(a);
+            return !end || end >= today;
+          });
+          const totalPct = obraAlocs.reduce((s, a) => s + a.dedicacaoPct, 0);
+          const recursos = new Set(obraAlocs.map(a => a.userId ?? a.recursoExternoId)).size;
+
+          return (
+            <div key={o.id} className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-gray-900">{o.name}</p>
+                  <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLOR[o.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                    {STATUS_LABEL[o.status] ?? o.status}
+                  </span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap gap-3 text-[10px] text-gray-400">
+                  {o.dataInicioProjeto && (
+                    <span>Projeto: {fmtDate(parseDate(o.dataInicioProjeto))} → {fmtDate(parseDate(o.dataFimProjeto ?? null))}</span>
+                  )}
+                  {(o.dataInicioObra ?? o.startDate) && (
+                    <span>Obra: {fmtDate(parseDate(o.dataInicioObra ?? o.startDate))} → {fmtDate(parseDate(o.dataFimObra ?? o.expectedEndDate))}</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-3 text-xs text-gray-500">
+                <span>{recursos} recurso{recursos !== 1 ? 's' : ''}</span>
+                <span className={`font-semibold ${totalPct > 0 ? 'text-blue-600' : 'text-gray-300'}`}>{totalPct}%</span>
+              </div>
+            </div>
+          );
+        })}
+        {obras.length === 0 && (
+          <p className="py-10 text-center text-sm text-gray-400">Nenhuma obra cadastrada.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Recursos Tab ─── */
 
 interface RecursoStat {
@@ -1388,10 +1513,6 @@ export default function AlocacaoPage() {
     setRecursosExternos(prev => [...prev, r]);
   }
 
-  function handleNewObra(o: ObraInfo) {
-    setObras(prev => [...prev, o]);
-  }
-
   function openEdit(alocacaoId: string) {
     const a = alocacoes.find(x => x.id === alocacaoId);
     if (a) setModal({ type: 'edit', alocacao: a });
@@ -1424,6 +1545,7 @@ export default function AlocacaoPage() {
         {(
           [
             { key: 'timeline', label: 'Timeline' },
+            { key: 'obras', label: 'Obras' },
             { key: 'recursos', label: 'Recursos' },
             { key: 'conflitos', label: 'Conflitos', badge: conflicts.length },
           ] as { key: Tab; label: string; badge?: number }[]
@@ -1531,6 +1653,15 @@ export default function AlocacaoPage() {
               </div>
             )}
 
+            {/* ── OBRAS ── */}
+            {activeTab === 'obras' && (
+              <ObrasTab
+                obras={obras}
+                alocacoes={alocacoes}
+                onAddedObra={o => setObras(prev => [...prev, o])}
+              />
+            )}
+
             {/* ── RECURSOS ── */}
             {activeTab === 'recursos' && (
               <RecursosTab
@@ -1627,7 +1758,6 @@ export default function AlocacaoPage() {
           onSaved={handleSaved}
           onUpdated={handleUpdated}
           onNewRecursoExterno={handleNewRecursoExterno}
-          onNewObra={handleNewObra}
         />
       )}
 
@@ -1643,7 +1773,6 @@ export default function AlocacaoPage() {
           onSaved={handleSaved}
           onUpdated={handleUpdated}
           onNewRecursoExterno={handleNewRecursoExterno}
-          onNewObra={handleNewObra}
         />
       )}
     </div>
