@@ -1081,28 +1081,93 @@ function GanttChart({
 
 /* ─── Nova Obra Modal ─── */
 
+function addDaysToDate(dateStr: string, days: number): string {
+  if (!dateStr || days < 1) return '';
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(start: string, end: string): number {
+  if (!start || !end) return 0;
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24)) + 1;
+}
+
+interface PhaseState { inicio: string; fim: string; dias: string }
+
+function PhaseFields({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: PhaseState;
+  onChange: (v: PhaseState) => void;
+}) {
+  function handleInicio(inicio: string) {
+    const dias = value.dias ? value.dias : '';
+    const fim = dias && inicio ? addDaysToDate(inicio, Number(dias)) : value.fim;
+    const newDias = !dias && fim && inicio ? String(daysBetween(inicio, fim)) : dias;
+    onChange({ inicio, fim, dias: newDias });
+  }
+
+  function handleFim(fim: string) {
+    const dias = value.inicio && fim ? String(daysBetween(value.inicio, fim)) : value.dias;
+    onChange({ ...value, fim, dias });
+  }
+
+  function handleDias(raw: string) {
+    const dias = raw.replace(/\D/g, '');
+    const fim = value.inicio && dias ? addDaysToDate(value.inicio, Number(dias)) : value.fim;
+    onChange({ ...value, dias, fim });
+  }
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="mb-1 block text-[10px] font-medium text-gray-500">Início</label>
+          <input type="date" value={value.inicio} onChange={e => handleInicio(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] font-medium text-gray-500">Fim</label>
+          <input type="date" value={value.fim} onChange={e => handleFim(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] font-medium text-gray-500">Dias</label>
+          <input type="text" inputMode="numeric" placeholder="—" value={value.dias}
+            onChange={e => handleDias(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o: ObraInfo) => void }) {
-  const [form, setForm] = useState({
-    name: '', client: '', startDate: '', expectedEndDate: '',
-    dataInicioProjeto: '', dataFimProjeto: '', dataInicioObra: '', dataFimObra: '',
-  });
+  const [name, setName] = useState('');
+  const [client, setClient] = useState('');
+  const [projeto, setProjeto] = useState<PhaseState>({ inicio: '', fim: '', dias: '' });
+  const [obra, setObra] = useState<PhaseState>({ inicio: '', fim: '', dias: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!name.trim()) return;
     setSaving(true);
     setError('');
     try {
-      const payload: Record<string, string> = { name: form.name.trim(), status: 'planejamento' };
-      if (form.client) payload.client = form.client.trim();
-      if (form.startDate) payload.startDate = new Date(form.startDate).toISOString();
-      if (form.expectedEndDate) payload.expectedEndDate = new Date(form.expectedEndDate).toISOString();
-      if (form.dataInicioProjeto) payload.dataInicioProjeto = form.dataInicioProjeto;
-      if (form.dataFimProjeto) payload.dataFimProjeto = form.dataFimProjeto;
-      if (form.dataInicioObra) payload.dataInicioObra = form.dataInicioObra;
-      if (form.dataFimObra) payload.dataFimObra = form.dataFimObra;
+      const payload: Record<string, string> = { name: name.trim(), status: 'planejamento' };
+      if (client) payload.client = client.trim();
+      if (obra.inicio) { payload.startDate = new Date(obra.inicio).toISOString(); payload.dataInicioObra = obra.inicio; }
+      if (obra.fim) { payload.expectedEndDate = new Date(obra.fim).toISOString(); payload.dataFimObra = obra.fim; }
+      if (projeto.inicio) payload.dataInicioProjeto = projeto.inicio;
+      if (projeto.fim) payload.dataFimProjeto = projeto.fim;
       const res = await api.post('/obras', payload);
       onSaved(res.data.data ?? res.data);
     } catch {
@@ -1113,65 +1178,33 @@ function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-base font-semibold text-gray-900">Nova Obra</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSave} className="space-y-4 p-6">
+        <form onSubmit={handleSave} className="max-h-[80vh] space-y-4 overflow-y-auto p-6">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Nome da obra *</label>
-            <input type="text" placeholder="Ex: Residência São Paulo" value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            <input type="text" placeholder="Ex: Residência São Paulo" value={name}
+              onChange={e => setName(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Cliente</label>
-            <input type="text" placeholder="Nome do cliente" value={form.client}
-              onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
+            <input type="text" placeholder="Nome do cliente" value={client}
+              onChange={e => setClient(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Fase de Projeto</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Início</label>
-                <input type="date" value={form.dataInicioProjeto}
-                  onChange={e => setForm(f => ({ ...f, dataInicioProjeto: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Fim</label>
-                <input type="date" value={form.dataFimProjeto}
-                  onChange={e => setForm(f => ({ ...f, dataFimProjeto: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Fase de Obra</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Início</label>
-                <input type="date" value={form.dataInicioObra}
-                  onChange={e => setForm(f => ({ ...f, dataInicioObra: e.target.value, startDate: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Fim</label>
-                <input type="date" value={form.dataFimObra}
-                  onChange={e => setForm(f => ({ ...f, dataFimObra: e.target.value, expectedEndDate: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </div>
-          </div>
+          <PhaseFields label="Fase de Projeto" value={projeto} onChange={setProjeto} />
+          <PhaseFields label="Fase de Obra" value={obra} onChange={setObra} />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
               Cancelar
             </button>
-            <button type="submit" disabled={saving || !form.name.trim()}
+            <button type="submit" disabled={saving || !name.trim()}
               className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
               {saving ? 'Salvando…' : 'Criar Obra'}
             </button>
