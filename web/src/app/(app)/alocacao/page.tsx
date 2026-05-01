@@ -2081,7 +2081,7 @@ export default function AlocacaoPage() {
             { key: 'timeline', label: 'Timeline' },
             { key: 'obras', label: 'Obras' },
             { key: 'recursos', label: 'Recursos' },
-            { key: 'resumo', label: 'Resumo', badge: conflicts.length > 0 ? conflicts.length : undefined },
+            { key: 'resumo', label: 'Resumo' },
           ] as { key: Tab; label: string; badge?: number }[]
         ).map(tab => (
           <button
