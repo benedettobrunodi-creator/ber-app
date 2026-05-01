@@ -98,6 +98,7 @@ const PX_PER_DAY: Record<Zoom, number> = { semana: 20, mes: 7, trimestre: 3 };
 const CHART_DAYS: Record<Zoom, number> = { semana: 70, mes: 180, trimestre: 365 };
 const CHART_OFFSET: Record<Zoom, number> = { semana: 14, mes: 30, trimestre: 30 };
 const ROW_H = 48;
+const GROUP_H = 28;
 const HEADER_H = 40;
 const LEFT_W = 200;
 
@@ -684,27 +685,72 @@ function AlocacaoModal({
             </div>
           </div>
 
-          {/* Período */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Período do Projeto */}
+          {(form.fase === 'projeto' || form.fase === 'ambas') && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Início</label>
-              <input
-                type="date"
-                value={form.dataInicio}
-                onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Período do Projeto
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] text-gray-500">Início</label>
+                  <input
+                    type="date"
+                    value={form.dataInicio}
+                    onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] text-gray-500">Fim</label>
+                  <input
+                    type="date"
+                    value={form.dataFim}
+                    onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Período da Obra */}
+          {(form.fase === 'obra' || form.fase === 'ambas') && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Fim</label>
-              <input
-                type="date"
-                value={form.dataFim}
-                onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Período da Obra
+                {form.fase === 'ambas' && (
+                  <span className="ml-1 font-normal normal-case text-gray-400">(herdado da obra)</span>
+                )}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[10px] text-gray-500">Início</label>
+                  <input
+                    type="date"
+                    value={form.fase === 'ambas'
+                      ? (selectedObra?.dataInicioObra?.slice(0, 10) ?? selectedObra?.startDate?.slice(0, 10) ?? '')
+                      : form.dataInicio}
+                    readOnly={form.fase === 'ambas'}
+                    onChange={form.fase === 'obra' ? e => setForm(f => ({ ...f, dataInicio: e.target.value })) : undefined}
+                    className={`w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.fase === 'ambas' ? 'bg-gray-50 text-gray-400' : ''}`}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] text-gray-500">Fim</label>
+                  <input
+                    type="date"
+                    value={form.fase === 'ambas'
+                      ? (selectedObra?.dataFimObra?.slice(0, 10) ?? selectedObra?.expectedEndDate?.slice(0, 10) ?? '')
+                      : form.dataFim}
+                    readOnly={form.fase === 'ambas'}
+                    onChange={form.fase === 'obra' ? e => setForm(f => ({ ...f, dataFim: e.target.value })) : undefined}
+                    className={`w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${form.fase === 'ambas' ? 'bg-gray-50 text-gray-400' : ''}`}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Aviso de conflito */}
           {willConflict && (
@@ -763,6 +809,7 @@ interface GanttBar {
   width: number;
   color: string;
   label: string;
+  hasConflict: boolean;
   tooltip: Omit<TooltipData, 'x' | 'y'>;
 }
 
@@ -772,6 +819,7 @@ interface GanttRow {
   subLabel: string;
   recursoSelectKey: string;
   bars: GanttBar[];
+  isGroupHeader?: boolean;
 }
 
 function buildGanttRows(
@@ -780,6 +828,7 @@ function buildGanttRows(
   zoom: Zoom,
   obras: ObraInfo[],
   today: Date,
+  conflictIds: Set<string>,
 ): { rows: GanttRow[]; totalWidth: number; todayLeft: number } {
   const obraMap = new Map(obras.map(o => [o.id, o]));
   const pxPerDay = PX_PER_DAY[zoom];
@@ -789,116 +838,126 @@ function buildGanttRows(
   const todayLeft = diffDays(today, chartStart) * pxPerDay;
   const rowMap = new Map<string, GanttRow>();
 
-  for (const aloc of alocacoes) {
+  type BarDef = { phase: 'projeto' | 'obra'; start: Date | null; end: Date | null };
+
+  function getBarDefs(aloc: Alocacao): BarDef[] {
     const obra = obraMap.get(aloc.obraId);
-
-    type BarDef = { phase: 'projeto' | 'obra'; start: Date | null; end: Date | null };
-    const barsToCreate: BarDef[] = [];
-
     if (aloc.fase === 'projeto') {
-      const start = parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioProjeto ?? null);
-      const end = parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimProjeto ?? null);
-      barsToCreate.push({ phase: 'projeto', start, end });
-    } else if (aloc.fase === 'obra') {
-      const start =
-        parseDate(aloc.dataInicio) ??
-        parseDate(obra?.dataInicioObra ?? null) ??
-        parseDate(aloc.obra.startDate);
-      const end =
-        parseDate(aloc.dataFim) ??
-        parseDate(obra?.dataFimObra ?? null) ??
-        parseDate(aloc.obra.expectedEndDate);
-      barsToCreate.push({ phase: 'obra', start, end });
-    } else {
-      // ambas
-      if (obra?.dataInicioProjeto) {
-        const projStart =
-          parseDate(aloc.dataInicio) ?? parseDate(obra.dataInicioProjeto);
-        const projEnd =
-          parseDate(aloc.dataFim) ?? parseDate(obra.dataFimProjeto ?? null);
-        barsToCreate.push({ phase: 'projeto', start: projStart, end: projEnd });
-        const obraStart = parseDate(obra.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate);
-        const obraEnd =
-          parseDate(obra.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate);
-        barsToCreate.push({ phase: 'obra', start: obraStart, end: obraEnd });
-      } else {
-        const start =
-          parseDate(aloc.dataInicio) ??
-          parseDate(obra?.dataInicioObra ?? null) ??
-          parseDate(aloc.obra.startDate);
-        const end =
-          parseDate(aloc.dataFim) ??
-          parseDate(obra?.dataFimObra ?? null) ??
-          parseDate(aloc.obra.expectedEndDate);
-        barsToCreate.push({ phase: 'obra', start, end });
-      }
+      return [{ phase: 'projeto',
+        start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioProjeto ?? null),
+        end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimProjeto ?? null) }];
     }
-
-    const rowKey =
-      viewMode === 'recurso'
-        ? (aloc.userId ?? aloc.recursoExternoId ?? aloc.id)
-        : aloc.obraId;
-
-    const rowLabel = viewMode === 'recurso' ? recursoNome(aloc) : aloc.obra.name;
-    const rowSubLabel = viewMode === 'recurso' ? recursoRole(aloc) : aloc.obra.status;
-
-    if (!rowMap.has(rowKey)) {
-      rowMap.set(rowKey, {
-        id: rowKey,
-        label: rowLabel,
-        subLabel: rowSubLabel,
-        recursoSelectKey: viewMode === 'obra' ? `obra:${aloc.obraId}` : recursoSelectKey(aloc),
-        bars: [],
-      });
+    if (aloc.fase === 'obra') {
+      return [{ phase: 'obra',
+        start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
+        end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) }];
     }
-
-    const barLabel =
-      viewMode === 'recurso'
-        ? `${aloc.obra.name.slice(0, 14)} · ${aloc.dedicacaoPct}%`
-        : `${recursoNome(aloc).split(' ')[0]} · ${CARGO_SHORT[aloc.cargoNaAlocacao] ?? aloc.cargoNaAlocacao} · ${aloc.dedicacaoPct}%`;
-
-    for (const barDef of barsToCreate) {
-      const { phase, start, end } = barDef;
-      const s = start ?? today;
-      const e = end ?? addDays(today, 30);
-      const left = Math.max(0, diffDays(s, chartStart)) * pxPerDay;
-      const rawRight = diffDays(e, chartStart) * pxPerDay;
-      const width = Math.max(8, rawRight - left);
-      if (rawRight < 0 || left > totalWidth) continue;
-
-      const color = phase === 'projeto' ? '#1D4ED8' : '#60A5FA';
-
-      rowMap.get(rowKey)!.bars.push({
-        id: `${aloc.id}:${phase}`,
-        alocacaoId: aloc.id,
-        left,
-        width,
-        color,
-        label: barLabel,
-        tooltip: {
-          userName: recursoNome(aloc),
-          cargo: CARGO_LABELS[aloc.cargoNaAlocacao] ?? aloc.cargoNaAlocacao,
-          obraName: aloc.obra.name,
-          fase: phase === 'projeto' ? 'Projeto' : 'Obra',
-          dedicacao: aloc.dedicacaoPct,
-          dataInicio: fmtDate(s),
-          dataFim: fmtDate(e),
-        },
-      });
+    // ambas
+    if (obra?.dataInicioProjeto) {
+      return [
+        { phase: 'projeto',
+          start: parseDate(aloc.dataInicio) ?? parseDate(obra.dataInicioProjeto),
+          end: parseDate(aloc.dataFim) ?? parseDate(obra.dataFimProjeto ?? null) },
+        { phase: 'obra',
+          start: parseDate(obra.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
+          end: parseDate(obra.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) },
+      ];
     }
+    return [{ phase: 'obra',
+      start: parseDate(aloc.dataInicio) ?? parseDate(obra?.dataInicioObra ?? null) ?? parseDate(aloc.obra.startDate),
+      end: parseDate(aloc.dataFim) ?? parseDate(obra?.dataFimObra ?? null) ?? parseDate(aloc.obra.expectedEndDate) }];
   }
 
-  // Em modo obra, adicionar linhas para obras sem alocação
-  if (viewMode === 'obra') {
-    for (const obra of obras) {
-      if (!rowMap.has(obra.id)) {
-        rowMap.set(obra.id, {
-          id: obra.id,
-          label: obra.name,
-          subLabel: obra.status,
-          recursoSelectKey: `obra:${obra.id}`,
-          bars: [],
+  function pushBar(row: GanttRow, aloc: Alocacao, barDef: BarDef, barLabel: string) {
+    const { phase, start, end } = barDef;
+    const s = start ?? today;
+    const e = end ?? addDays(today, 30);
+    const left = Math.max(0, diffDays(s, chartStart)) * pxPerDay;
+    const rawRight = diffDays(e, chartStart) * pxPerDay;
+    const width = Math.max(8, rawRight - left);
+    if (rawRight < 0 || left > totalWidth) return;
+    row.bars.push({
+      id: `${aloc.id}:${phase}`,
+      alocacaoId: aloc.id,
+      left, width,
+      color: phase === 'projeto' ? '#1D4ED8' : '#60A5FA',
+      label: barLabel,
+      hasConflict: conflictIds.has(aloc.id),
+      tooltip: {
+        userName: recursoNome(aloc),
+        cargo: CARGO_LABELS[aloc.cargoNaAlocacao] ?? aloc.cargoNaAlocacao,
+        obraName: aloc.obra.name,
+        fase: phase === 'projeto' ? 'Projeto' : 'Obra',
+        dedicacao: aloc.dedicacaoPct,
+        dataInicio: fmtDate(s),
+        dataFim: fmtDate(e),
+      },
+    });
+  }
+
+  if (viewMode === 'recurso') {
+    for (const aloc of alocacoes) {
+      const rowKey = aloc.userId ?? aloc.recursoExternoId ?? aloc.id;
+      if (!rowMap.has(rowKey)) {
+        rowMap.set(rowKey, {
+          id: rowKey, label: recursoNome(aloc), subLabel: recursoRole(aloc),
+          recursoSelectKey: recursoSelectKey(aloc), bars: [],
         });
+      }
+      const barLabel = `${aloc.obra.name.slice(0, 14)} · ${aloc.dedicacaoPct}%`;
+      for (const bd of getBarDefs(aloc)) pushBar(rowMap.get(rowKey)!, aloc, bd, barLabel);
+    }
+  } else {
+    // Modo obra: grupo por obra → sub-linhas por (cargo, recurso)
+    const CARGO_ORDER = ['coordenador', 'gestor', 'mestre', 'ajudante'] as const;
+    const byObra = new Map<string, Alocacao[]>();
+    for (const aloc of alocacoes) {
+      const l = byObra.get(aloc.obraId) ?? [];
+      l.push(aloc);
+      byObra.set(aloc.obraId, l);
+    }
+
+    for (const obra of obras) {
+      // Cabeçalho do grupo
+      rowMap.set(`group:${obra.id}`, {
+        id: `group:${obra.id}`,
+        label: obra.name,
+        subLabel: obra.status,
+        recursoSelectKey: `obra:${obra.id}`,
+        bars: [],
+        isGroupHeader: true,
+      });
+
+      const obraAlocs = byObra.get(obra.id) ?? [];
+
+      for (const cargo of CARGO_ORDER) {
+        const cargoAlocs = obraAlocs.filter(a => a.cargoNaAlocacao === cargo);
+        if (cargoAlocs.length === 0) continue;
+
+        // Agrupa por recurso dentro do cargo
+        const byRecurso = new Map<string, Alocacao[]>();
+        for (const aloc of cargoAlocs) {
+          const k = recursoKey(aloc);
+          const l = byRecurso.get(k) ?? [];
+          l.push(aloc);
+          byRecurso.set(k, l);
+        }
+
+        for (const [, recursoAlocs] of byRecurso) {
+          const first = recursoAlocs[0];
+          const subKey = `${obra.id}:${cargo}:${recursoKey(first)}`;
+          rowMap.set(subKey, {
+            id: subKey,
+            label: CARGO_LABELS[cargo] ?? cargo,
+            subLabel: recursoNome(first),
+            recursoSelectKey: `obra:${obra.id}`,
+            bars: [],
+          });
+          for (const aloc of recursoAlocs) {
+            const barLabel = `${recursoNome(aloc).split(' ')[0]} · ${aloc.dedicacaoPct}%`;
+            for (const bd of getBarDefs(aloc)) pushBar(rowMap.get(subKey)!, aloc, bd, barLabel);
+          }
+        }
       }
     }
   }
@@ -938,6 +997,7 @@ function GanttChart({
   zoom,
   viewMode,
   obras,
+  conflicts,
   onBarClick,
   onRowEmptyClick,
 }: {
@@ -945,6 +1005,7 @@ function GanttChart({
   zoom: Zoom;
   viewMode: ViewMode;
   obras: ObraInfo[];
+  conflicts: Conflict[];
   onBarClick: (alocacaoId: string) => void;
   onRowEmptyClick: (recursoSelectKey: string) => void;
 }) {
@@ -953,15 +1014,23 @@ function GanttChart({
   const today = new Date();
   const pxPerDay = PX_PER_DAY[zoom];
   const chartStart = addDays(today, -CHART_OFFSET[zoom]);
+  const conflictIds = new Set(conflicts.flatMap(c => c.allocations.map(a => a.id)));
+  const conflictRowKeys = new Set(conflicts.map(c => c.recursoKey));
   const { rows, totalWidth, todayLeft } = buildGanttRows(
     alocacoes,
     viewMode,
     zoom,
     obras,
     today,
+    conflictIds,
   );
   const ticks = generateTicks(chartStart, CHART_DAYS[zoom], zoom, pxPerDay);
-  const totalH = HEADER_H + rows.length * ROW_H;
+  const rowH = (row: GanttRow) => row.isGroupHeader ? GROUP_H : ROW_H;
+  const totalH = HEADER_H + rows.reduce((s, r) => s + rowH(r), 0);
+  // Pre-compute top offset per row
+  const rowTops: number[] = [];
+  let yAcc = HEADER_H;
+  for (const row of rows) { rowTops.push(yAcc); yAcc += rowH(row); }
 
   if (rows.length === 0) {
     return (
@@ -988,11 +1057,28 @@ function GanttChart({
         {rows.map(row => (
           <div
             key={row.id}
-            className="flex flex-col justify-center border-b border-gray-100 px-4"
-            style={{ height: ROW_H }}
+            className={`flex flex-col justify-center border-b px-4 ${
+              row.isGroupHeader
+                ? 'border-gray-300 bg-gray-100'
+                : 'border-gray-100 pl-7'
+            }`}
+            style={{ height: rowH(row) }}
           >
-            <span className="truncate text-xs font-medium text-gray-800">{row.label}</span>
-            <span className="text-[10px] text-gray-400">{row.subLabel}</span>
+            {row.isGroupHeader ? (
+              <span className="truncate text-[11px] font-bold uppercase tracking-wide text-gray-600">
+                {row.label}
+              </span>
+            ) : (
+              <>
+                <div className="flex items-center gap-1">
+                  {viewMode === 'recurso' && conflictRowKeys.has(row.id) && (
+                    <AlertTriangle size={11} className="flex-shrink-0 text-red-500" />
+                  )}
+                  <span className="truncate text-[11px] font-semibold text-gray-700">{row.label}</span>
+                </div>
+                <span className="truncate text-[10px] text-gray-400">{row.subLabel}</span>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -1022,13 +1108,13 @@ function GanttChart({
           {rows.map((row, ri) => (
             <div
               key={row.id}
-              className="absolute w-full cursor-pointer border-b border-gray-100 hover:bg-blue-50/30"
-              style={{
-                top: HEADER_H + ri * ROW_H,
-                height: ROW_H,
-                width: totalWidth,
-              }}
-              onClick={() => onRowEmptyClick(row.recursoSelectKey)}
+              className={`absolute w-full border-b ${
+                row.isGroupHeader
+                  ? 'border-gray-300 bg-gray-100'
+                  : 'cursor-pointer border-gray-100 hover:bg-blue-50/30'
+              }`}
+              style={{ top: rowTops[ri], height: rowH(row), width: totalWidth }}
+              onClick={() => !row.isGroupHeader && onRowEmptyClick(row.recursoSelectKey)}
             >
               {ticks.map((tick, i) => (
                 <div
@@ -1046,8 +1132,12 @@ function GanttChart({
                     width: bar.width,
                     top: 8,
                     height: ROW_H - 16,
-                    backgroundColor: bar.color,
+                    backgroundColor: bar.hasConflict ? '#EF4444' : bar.color,
                     opacity: 0.9,
+                    outline: bar.hasConflict ? '2px solid #B91C1C' : undefined,
+                    backgroundImage: bar.hasConflict
+                      ? 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.15) 4px, rgba(0,0,0,0.15) 8px)'
+                      : undefined,
                   }}
                   onClick={e => {
                     e.stopPropagation();
@@ -1076,7 +1166,7 @@ function GanttChart({
               style={{
                 left: todayLeft,
                 top: HEADER_H,
-                height: rows.length * ROW_H,
+                height: totalH - HEADER_H,
                 width: 2,
                 backgroundColor: '#EF4444',
               }}
@@ -1799,6 +1889,7 @@ export default function AlocacaoPage() {
                   zoom={zoom}
                   viewMode={viewMode}
                   obras={obras}
+                  conflicts={conflicts}
                   onBarClick={openEdit}
                   onRowEmptyClick={key =>
                     key.startsWith('obra:')
