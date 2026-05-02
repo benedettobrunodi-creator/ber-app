@@ -907,7 +907,7 @@ function TabPipeline({ items, onClickItem }: { items: Orcamento[]; onClickItem: 
 
   const byProb = PROBABILIDADES.map(prob => {
     const group = propostas.filter(o => o.probabilidade === prob);
-    const total = group.reduce((s, o) => s + (o.valorVenda ?? 0), 0);
+    const total = group.reduce((s, o) => s + Number(o.valorVenda ?? 0), 0);
     const ponderado = total * PROB_WEIGHT[prob];
     return { prob, group, total, ponderado };
   });
