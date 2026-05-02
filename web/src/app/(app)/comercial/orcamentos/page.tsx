@@ -108,10 +108,12 @@ const fmtDate = (s: string | null) =>
 
 /* ─── Gantt helpers ─── */
 
-const PX_PER_DAY = 14;
+type ZoomLevel = 'dia' | 'semana' | 'mes';
+const ZOOM_PX: Record<ZoomLevel, number> = { dia: 40, semana: 14, mes: 4 };
 const ROW_H = 40;
 const BAR_H = 22;
 const LABEL_W = 220;
+const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function daysBetween(a: Date, b: Date) {
   return Math.ceil((b.getTime() - a.getTime()) / 86400000);
@@ -518,26 +520,61 @@ interface GanttProps {
 function TabTimeline({ items, onClickItem }: GanttProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [tooltip, setTooltip] = useState<{ orc: Orcamento; x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState<ZoomLevel>('semana');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const pxPerDay = ZOOM_PX[zoom];
   const { start, end } = ganttRange(items);
   const totalDays = daysBetween(start, end);
-  const totalW = totalDays * PX_PER_DAY;
+  const totalW = totalDays * pxPerDay;
   const today = new Date();
-  const todayOffset = Math.max(0, daysBetween(start, today)) * PX_PER_DAY;
+  const todayOffset = Math.max(0, daysBetween(start, today)) * pxPerDay;
+  const HEADER_H = zoom === 'mes' ? 28 : 48;
 
-  // Month headers
-  const months: Array<{ label: string; left: number; width: number }> = [];
+  // Row 1 (top): month spans — always shown
+  const monthSpans: Array<{ label: string; left: number; width: number }> = [];
   {
     let cur = new Date(start.getFullYear(), start.getMonth(), 1);
     while (cur <= end) {
-      const left = Math.max(0, daysBetween(start, cur)) * PX_PER_DAY;
+      const left = Math.max(0, daysBetween(start, cur)) * pxPerDay;
       const nextMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
       const daysInView = Math.min(daysBetween(cur, nextMonth), totalDays - daysBetween(start, cur));
-      const width = daysInView * PX_PER_DAY;
-      const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      months.push({ label: `${MONTHS[cur.getMonth()]}/${cur.getFullYear()}`, left, width });
+      const width = daysInView * pxPerDay;
+      monthSpans.push({ label: `${MONTHS_SHORT[cur.getMonth()]}/${String(cur.getFullYear()).slice(2)}`, left, width });
       cur = nextMonth;
+    }
+  }
+
+  // Row 2 (bottom): day ticks or week spans
+  const dayTicks: Array<{ label: string; left: number; isToday: boolean; isFirst: boolean }> = [];
+  if (zoom === 'dia') {
+    for (let d = 0; d < totalDays; d++) {
+      const date = addDays(start, d);
+      dayTicks.push({
+        label: String(date.getDate()),
+        left: d * pxPerDay,
+        isToday: date.toDateString() === today.toDateString(),
+        isFirst: date.getDate() === 1,
+      });
+    }
+  }
+
+  const weekSpans: Array<{ label: string; left: number; width: number }> = [];
+  if (zoom === 'semana') {
+    // Snap to Monday of the week containing `start`
+    const dow = start.getDay();
+    let cur = addDays(start, dow === 0 ? -6 : 1 - dow);
+    while (cur <= end) {
+      const visStart = cur < start ? start : cur;
+      const visEnd = addDays(cur, 6) > end ? end : addDays(cur, 6);
+      const left = Math.max(0, daysBetween(start, visStart)) * pxPerDay;
+      const width = (daysBetween(visStart, visEnd) + 1) * pxPerDay;
+      weekSpans.push({
+        label: `${visStart.getDate()} ${MONTHS_SHORT[visStart.getMonth()]}`,
+        left,
+        width,
+      });
+      cur = addDays(cur, 7);
     }
   }
 
@@ -549,32 +586,75 @@ function TabTimeline({ items, onClickItem }: GanttProps) {
   function barProps(o: Orcamento) {
     const s = o.dataInicio ? new Date(o.dataInicio) : today;
     const e2 = o.dataFim ? new Date(o.dataFim) : addDays(s, 7);
-    const left = Math.max(0, daysBetween(start, s)) * PX_PER_DAY;
-    const width = Math.max(PX_PER_DAY * 2, daysBetween(s, e2) * PX_PER_DAY);
+    const left = Math.max(0, daysBetween(start, s)) * pxPerDay;
+    const width = Math.max(pxPerDay * 2, daysBetween(s, e2) * pxPerDay);
     return { left, width };
   }
 
   return (
     <div className="flex flex-col h-full">
+      {/* Zoom controls */}
+      <div className="flex items-center justify-end gap-1 px-4 py-2 border-b border-gray-100 bg-white">
+        <span className="text-[10px] text-gray-400 mr-1 uppercase tracking-wide">Zoom</span>
+        {(['dia', 'semana', 'mes'] as ZoomLevel[]).map(z => (
+          <button key={z} onClick={() => setZoom(z)}
+            className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-colors ${
+              zoom === z
+                ? 'bg-[#06A99D] text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}>
+            {z === 'dia' ? 'Dia' : z === 'semana' ? 'Semana' : 'Mês'}
+          </button>
+        ))}
+      </div>
+
       {/* Scroll container */}
       <div className="flex-1 overflow-auto" ref={scrollRef}>
         <div style={{ minWidth: LABEL_W + totalW + 40 }}>
-          {/* Month header */}
-          <div className="sticky top-0 z-10 flex bg-white border-b border-gray-200">
-            <div style={{ width: LABEL_W, minWidth: LABEL_W }} className="shrink-0 border-r border-gray-200 bg-gray-50" />
-            <div className="relative" style={{ width: totalW, height: 28 }}>
-              {months.map(m => (
-                <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
-                  style={{ left: m.left, width: m.width, height: 28 }}>
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap overflow-hidden">
-                    {m.label}
-                  </span>
-                </div>
-              ))}
-              {/* Today line header tick */}
-              <div className="absolute top-0 bottom-0 w-px bg-red-400"
-                style={{ left: todayOffset }} />
+          {/* Header */}
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+            {/* Row 1: months */}
+            <div className="flex">
+              <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 border-r border-gray-200 bg-gray-50" />
+              <div className="relative" style={{ width: totalW, height: zoom === 'mes' ? 28 : 20 }}>
+                {monthSpans.map(m => (
+                  <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
+                    style={{ left: m.left, width: m.width, height: zoom === 'mes' ? 28 : 20 }}>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap overflow-hidden">
+                      {m.label}
+                    </span>
+                  </div>
+                ))}
+                <div className="absolute top-0 bottom-0 w-px bg-red-400" style={{ left: todayOffset }} />
+              </div>
             </div>
+
+            {/* Row 2: days or weeks */}
+            {zoom !== 'mes' && (
+              <div className="flex border-t border-gray-100">
+                <div style={{ width: LABEL_W, minWidth: LABEL_W, height: 28 }} className="shrink-0 border-r border-gray-200 bg-gray-50" />
+                <div className="relative" style={{ width: totalW, height: 28 }}>
+                  {zoom === 'dia' && dayTicks.map(d => (
+                    <div key={d.left}
+                      className={`absolute top-0 flex items-center justify-center border-r ${d.isFirst ? 'border-r-gray-300' : 'border-r-gray-100'} ${d.isToday ? 'bg-red-50' : ''}`}
+                      style={{ left: d.left, width: pxPerDay, height: 28 }}>
+                      <span className={`text-[10px] font-semibold ${d.isToday ? 'text-red-500' : d.isFirst ? 'text-gray-700' : 'text-gray-400'}`}>
+                        {d.label}
+                      </span>
+                    </div>
+                  ))}
+                  {zoom === 'semana' && weekSpans.map((w, i) => (
+                    <div key={i} className="absolute top-0 flex items-center border-r border-gray-200 px-1.5"
+                      style={{ left: w.left, width: w.width, height: 28 }}>
+                      <span className="text-[10px] font-semibold text-gray-500 whitespace-nowrap overflow-hidden">
+                        {w.label}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-60" style={{ left: todayOffset }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Groups */}
@@ -584,7 +664,7 @@ function TabTimeline({ items, onClickItem }: GanttProps) {
               <div key={cat}>
                 {/* Category row */}
                 <div className="flex items-center bg-gray-50 border-b border-gray-200 sticky z-10"
-                  style={{ top: 28 }}>
+                  style={{ top: HEADER_H }}>
                   <div style={{ width: LABEL_W, minWidth: LABEL_W }}
                     className="shrink-0 flex items-center gap-2 px-3 py-2 border-r border-gray-200 cursor-pointer select-none"
                     onClick={() => setCollapsed(c => ({ ...c, [cat]: !c[cat] }))}>
