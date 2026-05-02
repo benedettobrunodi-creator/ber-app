@@ -48,6 +48,7 @@ import alocacoesRoutes from './modules/alocacoes/routes';
 import recursosExternosRoutes from './modules/recursos-externos/routes';
 import orcamentosRoutes from './modules/orcamentos/routes';
 import clickupRoutes from './modules/clickup/routes';
+import apiKeysRoutes from './modules/api-keys/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -197,6 +198,7 @@ app.use('/v1/alocacoes', alocacoesRoutes);
 app.use('/v1/recursos-externos', recursosExternosRoutes);
 app.use('/v1/orcamentos', orcamentosRoutes);
 app.use('/v1/clickup', clickupRoutes);
+app.use('/v1/api-keys', apiKeysRoutes);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';

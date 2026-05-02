@@ -79,6 +79,7 @@ model User {
   customRoleId          String?                @map("custom_role_id") @db.Uuid
   orcamentosResponsavel Orcamento[]            @relation("OrcResp")
   orcamentosCriados     Orcamento[]            @relation("OrcCriador")
+  apiKeys               ApiKey[]               @relation("ApiKeyCreator")
 
   @@map("users")
 }
@@ -1216,6 +1217,23 @@ model RecursoExterno {
   alocacoes Alocacao[] @relation("AlocacaoRecursoExterno")
 
   @@map("recursos_externos")
+}
+
+// ─── API KEYS ───────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  keyHash     String    @unique @map("key_hash") @db.VarChar(64)
+  keyPrefix   String    @map("key_prefix") @db.VarChar(8)
+  createdById String    @map("created_by_id") @db.Uuid
+  lastUsedAt  DateTime? @map("last_used_at")
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  createdBy User @relation("ApiKeyCreator", fields: [createdById], references: [id])
+
+  @@map("api_keys")
 }
 
 // ─── ESTEIRA DE ORÇAMENTOS ──────────────────────────────────────────────────
