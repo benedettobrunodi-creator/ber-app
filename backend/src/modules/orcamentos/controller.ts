@@ -49,6 +49,14 @@ export async function duplicarOrcamento(req: Request, res: Response) {
   sendCreated(res, item);
 }
 
+export async function reorderOrcamentos(req: Request, res: Response) {
+  assertCanWrite(req);
+  const { idA, idB } = req.body;
+  if (!idA || !idB) throw AppError.badRequest('idA e idB são obrigatórios');
+  await service.reorder(idA, idB);
+  sendSuccess(res, { ok: true });
+}
+
 export async function getStats(_req: Request, res: Response) {
   const data = await service.stats();
   sendSuccess(res, data);

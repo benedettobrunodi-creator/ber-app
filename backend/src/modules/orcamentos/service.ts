@@ -43,7 +43,7 @@ export async function list(filters: {
   return prisma.orcamento.findMany({
     where,
     include: INCLUDE_BASE,
-    orderBy: [{ categoria: 'asc' }, { dataInicio: 'asc' }],
+    orderBy: [{ categoria: 'asc' }, { ordem: 'asc' }, { dataInicio: 'asc' }],
   });
 }
 
@@ -69,7 +69,7 @@ export async function timeline() {
       valorVenda: true,
       responsavel: { select: { id: true, name: true } },
     },
-    orderBy: [{ categoria: 'asc' }, { dataInicio: 'asc' }],
+    orderBy: [{ categoria: 'asc' }, { ordem: 'asc' }, { dataInicio: 'asc' }],
   });
 }
 
@@ -189,6 +189,18 @@ export async function update(id: string, userName: string, input: UpdateOrcament
   ]);
 
   return updated;
+}
+
+export async function reorder(idA: string, idB: string) {
+  const [a, b] = await Promise.all([
+    prisma.orcamento.findUnique({ where: { id: idA } }),
+    prisma.orcamento.findUnique({ where: { id: idB } }),
+  ]);
+  if (!a || !b) throw AppError.notFound('Orçamento');
+  await prisma.$transaction([
+    prisma.orcamento.update({ where: { id: idA }, data: { ordem: b.ordem } }),
+    prisma.orcamento.update({ where: { id: idB }, data: { ordem: a.ordem } }),
+  ]);
 }
 
 export async function remove(id: string) {

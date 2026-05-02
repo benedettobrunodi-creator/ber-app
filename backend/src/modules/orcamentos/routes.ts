@@ -13,9 +13,10 @@ router.get('/stats',       controller.getStats);
 router.get('/timeline',    controller.getTimeline);
 router.get('/',            controller.listOrcamentos);
 router.get('/:id',         controller.getOrcamento);
-router.post('/',           validate(createOrcamentoSchema), controller.createOrcamento);
-router.patch('/:id',       validate(updateOrcamentoSchema), controller.updateOrcamento);
-router.delete('/:id',      requireRole('coordenacao'), controller.deleteOrcamento);
+router.post('/',             validate(createOrcamentoSchema), controller.createOrcamento);
+router.post('/reorder',      controller.reorderOrcamentos);
+router.patch('/:id',         validate(updateOrcamentoSchema), controller.updateOrcamento);
+router.delete('/:id',        requireRole('coordenacao'), controller.deleteOrcamento);
 router.post('/:id/duplicar', controller.duplicarOrcamento);
 
 export default router;

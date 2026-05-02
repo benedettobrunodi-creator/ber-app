@@ -27,6 +27,7 @@ interface Orcamento {
   estrategico: boolean;
   tipo: string;
   probabilidade: string | null;
+  ordem: number;
   status: string;
   categoria: string;
   dataInicio: string | null;
@@ -527,10 +528,12 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
 
 interface GanttProps {
   items: Orcamento[];
+  canWrite: boolean;
   onClickItem: (o: Orcamento) => void;
+  onReorder: (idA: string, idB: string) => void;
 }
 
-function TabTimeline({ items, onClickItem }: GanttProps) {
+function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [tooltip, setTooltip] = useState<{ orc: Orcamento; x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState<ZoomLevel>('semana');
@@ -694,21 +697,40 @@ function TabTimeline({ items, onClickItem }: GanttProps) {
                 </div>
 
                 {/* Item rows */}
-                {!isCollapsed && catItems.map(orc => {
+                {!isCollapsed && catItems.map((orc, idx) => {
                   const { left, width } = barProps(orc);
                   const bg = GANTT_BAR_BG[orc.status] ?? '#9CA3AF';
                   const isOutline = orc.status === 'A_INICIAR';
+                  const canUp = canWrite && idx > 0;
+                  const canDown = canWrite && idx < catItems.length - 1;
 
                   return (
                     <div key={orc.id} className="flex items-center border-b border-gray-100 hover:bg-gray-50/60 group"
                       style={{ height: ROW_H }}>
                       {/* Label */}
                       <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                        className="shrink-0 flex items-center gap-2 px-3 overflow-hidden border-r border-gray-100 cursor-pointer h-full"
-                        onClick={() => onClickItem(orc)}>
-                        {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
-                        <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
-                        <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
+                        className="shrink-0 flex items-center gap-1 pl-1 pr-2 overflow-hidden border-r border-gray-100 h-full">
+                        {/* Reorder buttons */}
+                        <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={e => { e.stopPropagation(); canUp && onReorder(orc.id, catItems[idx - 1].id); }}
+                            disabled={!canUp}
+                            className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
+                            <ChevronDown size={11} className="rotate-180" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); canDown && onReorder(orc.id, catItems[idx + 1].id); }}
+                            disabled={!canDown}
+                            className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
+                            <ChevronDown size={11} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 h-full"
+                          onClick={() => onClickItem(orc)}>
+                          {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
+                          <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
+                          <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
+                        </div>
                       </div>
 
                       {/* Bar area */}
@@ -1207,6 +1229,25 @@ export default function EsteiraDOrcamentosPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === 'dashboard') loadStats(); }, [tab, loadStats]);
 
+  async function handleReorder(idA: string, idB: string) {
+    // Optimistic: swap ordem values locally
+    setItems(prev => {
+      const a = prev.find(o => o.id === idA);
+      const b = prev.find(o => o.id === idB);
+      if (!a || !b) return prev;
+      return prev.map(o => {
+        if (o.id === idA) return { ...o, ordem: b.ordem };
+        if (o.id === idB) return { ...o, ordem: a.ordem };
+        return o;
+      });
+    });
+    try {
+      await api.post('/orcamentos/reorder', { idA, idB });
+    } catch {
+      load(); // rollback: recarrega do servidor
+    }
+  }
+
   function openDrawer(orc: Orcamento | null) {
     if (orc && orc.historico === undefined) {
       // Fetch full detail with history
@@ -1315,7 +1356,7 @@ export default function EsteiraDOrcamentosPage() {
         ) : error ? (
           <div className="flex items-center justify-center py-20 text-red-500 text-sm">{error}</div>
         ) : tab === 'timeline' ? (
-          <TabTimeline items={items} onClickItem={openDrawer} />
+          <TabTimeline items={items} canWrite={canWrite} onClickItem={openDrawer} onReorder={handleReorder} />
         ) : tab === 'lista' ? (
           <TabLista items={items} canWrite={canWrite} onClickItem={openDrawer} onNew={() => setDrawer({ open: true, orc: null })} />
         ) : tab === 'pipeline' ? (
