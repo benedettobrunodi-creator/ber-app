@@ -417,19 +417,19 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 </div>
                 <div>
                   <label className={labelCls}>Tipo</label>
-                  <div className="flex gap-2 mt-1">
-                    {(['NOVO', 'REVISAO'] as const).map(t => (
-                      <button key={t} type="button"
+                  <div className="flex gap-1.5 mt-1">
+                    {([
+                      { key: 'NOVO',         label: 'Novo',         active: 'bg-[#06A99D] text-white border-[#06A99D]' },
+                      { key: 'REVISAO',      label: 'Revisão',      active: 'bg-orange-500 text-white border-orange-500' },
+                      { key: 'CHANGE_ORDER', label: 'Change Order', active: 'bg-purple-600 text-white border-purple-600' },
+                    ] as const).map(t => (
+                      <button key={t.key} type="button"
                         disabled={!canWrite}
-                        onClick={() => canWrite && setF('tipo', t)}
-                        className={`flex-1 rounded-md py-2 text-xs font-bold border transition-colors ${
-                          form.tipo === t
-                            ? t === 'NOVO'
-                              ? 'bg-[#06A99D] text-white border-[#06A99D]'
-                              : 'bg-orange-500 text-white border-orange-500'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                        onClick={() => canWrite && setF('tipo', t.key)}
+                        className={`flex-1 rounded-md py-1.5 text-[11px] font-bold border transition-colors ${
+                          form.tipo === t.key ? t.active : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
                         }`}>
-                        {t === 'NOVO' ? 'Novo' : 'Revisão'}
+                        {t.label}
                       </button>
                     ))}
                   </div>
@@ -491,18 +491,6 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 </div>
               </div>
 
-              {/* Change Order de */}
-              <div>
-                <label className={labelCls}>Change Order de</label>
-                <select className={inputCls} value={form.changeOrderDe}
-                  onChange={e => setF('changeOrderDe', e.target.value)} disabled={!canWrite}>
-                  <option value="">— Nenhum —</option>
-                  {allOrcs.filter(o => o.id !== orc?.id).map(o => (
-                    <option key={o.id} value={o.id}>{o.numero} — {o.cliente}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* Observações */}
               <div>
                 <label className={labelCls}>Observações</label>
@@ -510,20 +498,6 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                   onChange={e => setF('observacoes', e.target.value)} disabled={!canWrite} />
               </div>
 
-              {/* Filhos */}
-              {!isNew && orc!.filhos.length > 0 && (
-                <div>
-                  <label className={labelCls}>Change Orders Vinculados</label>
-                  <div className="space-y-1">
-                    {orc!.filhos.map(f => (
-                      <div key={f.id} className="flex items-center gap-2 text-xs text-gray-600">
-                        <StatusBadge status={f.status} />
-                        <span>{f.numero} — {f.cliente}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </form>
           )}
         </div>
@@ -882,8 +856,12 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
                 <td className="px-3 py-2.5"><StatusBadge status={o.status} /></td>
                 <td className="px-3 py-2.5 hidden md:table-cell">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    o.tipo === 'REVISAO' ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'
-                  }`}>{o.tipo === 'REVISAO' ? 'Revisão' : 'Novo'}</span>
+                    o.tipo === 'REVISAO'      ? 'bg-orange-100 text-orange-700' :
+                    o.tipo === 'CHANGE_ORDER' ? 'bg-purple-100 text-purple-700' :
+                    'bg-teal-50 text-teal-700'
+                  }`}>
+                    {o.tipo === 'REVISAO' ? 'Revisão' : o.tipo === 'CHANGE_ORDER' ? 'Change Order' : 'Novo'}
+                  </span>
                 </td>
                 <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell">{o.responsavel?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-gray-400 text-xs hidden xl:table-cell">{fmtDate(o.dataInicio)}</td>

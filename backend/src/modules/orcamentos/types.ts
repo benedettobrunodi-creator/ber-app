@@ -10,7 +10,7 @@ export type OrcamentoStatus = (typeof ORCAMENTO_STATUSES)[number];
 export const ORCAMENTO_CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
 export type OrcamentoCategoria = (typeof ORCAMENTO_CATEGORIAS)[number];
 
-export const ORCAMENTO_TIPOS = ['NOVO', 'REVISAO'] as const;
+export const ORCAMENTO_TIPOS = ['NOVO', 'REVISAO', 'CHANGE_ORDER'] as const;
 export type OrcamentoTipo = (typeof ORCAMENTO_TIPOS)[number];
 
 export const ORCAMENTO_PROBABILIDADES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
