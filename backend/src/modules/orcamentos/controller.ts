@@ -51,9 +51,9 @@ export async function duplicarOrcamento(req: Request, res: Response) {
 
 export async function reorderOrcamentos(req: Request, res: Response) {
   assertCanWrite(req);
-  const { idA, idB } = req.body;
-  if (!idA || !idB) throw AppError.badRequest('idA e idB são obrigatórios');
-  await service.reorder(idA, idB);
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) throw AppError.badRequest('ids é obrigatório');
+  await service.reorder(ids);
   sendSuccess(res, { ok: true });
 }
 

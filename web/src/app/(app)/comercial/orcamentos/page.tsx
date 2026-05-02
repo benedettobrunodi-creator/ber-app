@@ -530,7 +530,7 @@ interface GanttProps {
   items: Orcamento[];
   canWrite: boolean;
   onClickItem: (o: Orcamento) => void;
-  onReorder: (idA: string, idB: string) => void;
+  onReorder: (orderedIds: string[]) => void;
 }
 
 function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
@@ -713,13 +713,25 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                         {/* Reorder buttons */}
                         <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={e => { e.stopPropagation(); canUp && onReorder(orc.id, catItems[idx - 1].id); }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (!canUp) return;
+                              const newOrder = [...catItems];
+                              [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+                              onReorder(newOrder.map(o => o.id));
+                            }}
                             disabled={!canUp}
                             className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
                             <ChevronDown size={11} className="rotate-180" />
                           </button>
                           <button
-                            onClick={e => { e.stopPropagation(); canDown && onReorder(orc.id, catItems[idx + 1].id); }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (!canDown) return;
+                              const newOrder = [...catItems];
+                              [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+                              onReorder(newOrder.map(o => o.id));
+                            }}
                             disabled={!canDown}
                             className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
                             <ChevronDown size={11} />
@@ -1229,22 +1241,20 @@ export default function EsteiraDOrcamentosPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === 'dashboard') loadStats(); }, [tab, loadStats]);
 
-  async function handleReorder(idA: string, idB: string) {
-    // Optimistic: swap ordem values locally
+  async function handleReorder(orderedIds: string[]) {
+    // Optimistic: assign ordem by position in the new array
     setItems(prev => {
-      const a = prev.find(o => o.id === idA);
-      const b = prev.find(o => o.id === idB);
-      if (!a || !b) return prev;
-      return prev.map(o => {
-        if (o.id === idA) return { ...o, ordem: b.ordem };
-        if (o.id === idB) return { ...o, ordem: a.ordem };
-        return o;
+      const updated = [...prev];
+      orderedIds.forEach((id, index) => {
+        const i = updated.findIndex(o => o.id === id);
+        if (i >= 0) updated[i] = { ...updated[i], ordem: index };
       });
+      return updated;
     });
     try {
-      await api.post('/orcamentos/reorder', { idA, idB });
+      await api.post('/orcamentos/reorder', { ids: orderedIds });
     } catch {
-      load(); // rollback: recarrega do servidor
+      load();
     }
   }
 

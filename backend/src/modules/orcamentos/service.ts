@@ -191,16 +191,10 @@ export async function update(id: string, userName: string, input: UpdateOrcament
   return updated;
 }
 
-export async function reorder(idA: string, idB: string) {
-  const [a, b] = await Promise.all([
-    prisma.orcamento.findUnique({ where: { id: idA } }),
-    prisma.orcamento.findUnique({ where: { id: idB } }),
-  ]);
-  if (!a || !b) throw AppError.notFound('Orçamento');
-  await prisma.$transaction([
-    prisma.orcamento.update({ where: { id: idA }, data: { ordem: b.ordem } }),
-    prisma.orcamento.update({ where: { id: idB }, data: { ordem: a.ordem } }),
-  ]);
+export async function reorder(ids: string[]) {
+  await prisma.$transaction(
+    ids.map((id, index) => prisma.orcamento.update({ where: { id }, data: { ordem: index } }))
+  );
 }
 
 export async function remove(id: string) {
