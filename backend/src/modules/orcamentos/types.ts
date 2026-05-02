@@ -10,6 +10,16 @@ export type OrcamentoStatus = (typeof ORCAMENTO_STATUSES)[number];
 export const ORCAMENTO_CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
 export type OrcamentoCategoria = (typeof ORCAMENTO_CATEGORIAS)[number];
 
+export const ORCAMENTO_TIPOS = ['NOVO', 'REVISAO'] as const;
+export type OrcamentoTipo = (typeof ORCAMENTO_TIPOS)[number];
+
+// Deriva categoria automaticamente a partir do status
+export function categoriaFromStatus(status: string): OrcamentoCategoria {
+  if (status === 'A_INICIAR') return 'A_INICIAR';
+  if (['ENTREGUE', 'DECLINADO', 'NO_GO'].includes(status)) return 'SEM_ACAO';
+  return 'EM_ANDAMENTO';
+}
+
 export const SEGMENTOS = [
   'Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros',
 ] as const;
@@ -26,8 +36,8 @@ export const createOrcamentoSchema = z.object({
   valorVenda: z.number().positive().optional(),
   segmento: z.enum(SEGMENTOS).optional(),
   estrategico: z.boolean().default(false),
-  status: z.enum(ORCAMENTO_STATUSES),
-  categoria: z.enum(ORCAMENTO_CATEGORIAS),
+  tipo: z.enum(ORCAMENTO_TIPOS).default('NOVO'),
+  status: z.enum(ORCAMENTO_STATUSES).default('A_INICIAR'),
   dataInicio: dateOrNull,
   dataFim: dateOrNull,
   dataEntrega: dateOrNull,

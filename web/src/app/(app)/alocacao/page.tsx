@@ -386,17 +386,10 @@ function AlocacaoModal({
           obra.dataFimObra?.slice(0, 10) ?? obra.expectedEndDate?.slice(0, 10) ?? '',
       };
     }
-    // ambas: from inicio_projeto to fim_obra
+    // ambas: dataInicio/dataFim = período do projeto (a barra de obra usa as datas da obra diretamente)
     return {
-      dataInicio:
-        obra.dataInicioProjeto?.slice(0, 10) ??
-        obra.dataInicioObra?.slice(0, 10) ??
-        obra.startDate?.slice(0, 10) ??
-        '',
-      dataFim:
-        obra.dataFimObra?.slice(0, 10) ??
-        obra.expectedEndDate?.slice(0, 10) ??
-        '',
+      dataInicio: obra.dataInicioProjeto?.slice(0, 10) ?? '',
+      dataFim: obra.dataFimProjeto?.slice(0, 10) ?? '',
     };
   }
 

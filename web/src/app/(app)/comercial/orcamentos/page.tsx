@@ -25,6 +25,7 @@ interface Orcamento {
   valorVenda: number | null;
   segmento: string | null;
   estrategico: boolean;
+  tipo: string;
   status: string;
   categoria: string;
   dataInicio: string | null;
@@ -178,8 +179,8 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
       ? new Intl.NumberFormat('pt-BR').format(orc.valorVenda) : '',
     segmento: orc?.segmento ?? '',
     estrategico: orc?.estrategico ?? false,
+    tipo: orc?.tipo ?? 'NOVO',
     status: orc?.status ?? 'A_INICIAR',
-    categoria: orc?.categoria ?? 'A_INICIAR',
     dataInicio: orc?.dataInicio ? orc.dataInicio.slice(0, 10) : '',
     dataFim: orc?.dataFim ? orc.dataFim.slice(0, 10) : '',
     dataEntrega: orc?.dataEntrega ? orc.dataEntrega.slice(0, 10) : '',
@@ -214,8 +215,8 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
         valorVenda: parseVal(form.valorVenda),
         segmento: form.segmento || undefined,
         estrategico: form.estrategico,
+        tipo: form.tipo,
         status: form.status,
-        categoria: form.categoria,
         dataInicio: form.dataInicio || null,
         dataFim: form.dataFim || null,
         dataEntrega: form.dataEntrega || null,
@@ -228,7 +229,12 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
         : await api.patch(`/orcamentos/${orc!.id}`, body);
       onSaved(res.data.data);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message ?? 'Erro ao salvar');
+      const errData = err.response?.data?.error;
+      if (errData?.details?.length) {
+        setError(errData.details.map((d: any) => `${d.field}: ${d.message}`).join(' · '));
+      } else {
+        setError(errData?.message ?? 'Erro ao salvar');
+      }
     } finally {
       setSaving(false);
     }
@@ -384,21 +390,33 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 </select>
               </div>
 
-              {/* Status + Categoria */}
+              {/* Status + Tipo */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Status *</label>
+                  <label className={labelCls}>Status</label>
                   <select className={inputCls} value={form.status} onChange={e => setF('status', e.target.value)}
-                    required disabled={!canWrite}>
+                    disabled={!canWrite}>
                     {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Categoria *</label>
-                  <select className={inputCls} value={form.categoria} onChange={e => setF('categoria', e.target.value)}
-                    required disabled={!canWrite}>
-                    {CATEGORIAS.map(c => <option key={c} value={c}>{CATEGORIA_LABELS[c]}</option>)}
-                  </select>
+                  <label className={labelCls}>Tipo</label>
+                  <div className="flex gap-2 mt-1">
+                    {(['NOVO', 'REVISAO'] as const).map(t => (
+                      <button key={t} type="button"
+                        disabled={!canWrite}
+                        onClick={() => canWrite && setF('tipo', t)}
+                        className={`flex-1 rounded-md py-2 text-xs font-bold border transition-colors ${
+                          form.tipo === t
+                            ? t === 'NOVO'
+                              ? 'bg-[#06A99D] text-white border-[#06A99D]'
+                              : 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                        }`}>
+                        {t === 'NOVO' ? 'Novo' : 'Revisão'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -719,6 +737,7 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
               <th className="px-3 py-2.5 text-right text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">m²</th>
               <th className="px-3 py-2.5 text-right text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">R$</th>
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Status</th>
+              <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Tipo</th>
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Resp.</th>
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Início</th>
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Fim</th>
@@ -742,13 +761,18 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
                   {o.valorVenda ? BRL(o.valorVenda) : '—'}
                 </td>
                 <td className="px-3 py-2.5"><StatusBadge status={o.status} /></td>
+                <td className="px-3 py-2.5 hidden md:table-cell">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    o.tipo === 'REVISAO' ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'
+                  }`}>{o.tipo === 'REVISAO' ? 'Revisão' : 'Novo'}</span>
+                </td>
                 <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell">{o.responsavel?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-gray-400 text-xs hidden xl:table-cell">{fmtDate(o.dataInicio)}</td>
                 <td className="px-3 py-2.5 text-gray-400 text-xs hidden xl:table-cell">{fmtDate(o.dataFim)}</td>
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={10} className="py-16 text-center text-gray-400 text-sm">Nenhum orçamento encontrado</td></tr>
+              <tr><td colSpan={11} className="py-16 text-center text-gray-400 text-sm">Nenhum orçamento encontrado</td></tr>
             )}
           </tbody>
         </table>

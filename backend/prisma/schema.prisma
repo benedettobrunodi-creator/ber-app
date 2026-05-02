@@ -1229,6 +1229,7 @@ model Orcamento {
   valorVenda     Decimal?  @map("valor_venda") @db.Decimal(14, 2)
   segmento       String?   @db.VarChar(50)
   estrategico    Boolean   @default(false)
+  tipo           String    @default("NOVO") @db.VarChar(20)
   status         String    @db.VarChar(50)
   categoria      String    @db.VarChar(50)
   dataInicio     DateTime? @map("data_inicio") @db.Date

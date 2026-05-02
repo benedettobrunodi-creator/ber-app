@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { categoriaFromStatus } from './types';
 import type { CreateOrcamentoInput, UpdateOrcamentoInput } from './types';
 
 const INCLUDE_BASE = {
@@ -97,8 +98,9 @@ export async function create(userId: string, input: CreateOrcamentoInput) {
       valorVenda: input.valorVenda,
       segmento: input.segmento,
       estrategico: input.estrategico ?? false,
+      tipo: input.tipo ?? 'NOVO',
       status: input.status,
-      categoria: input.categoria,
+      categoria: categoriaFromStatus(input.status),
       dataInicio: input.dataInicio ?? null,
       dataFim: input.dataFim ?? null,
       dataEntrega: input.dataEntrega ?? null,
@@ -112,7 +114,7 @@ export async function create(userId: string, input: CreateOrcamentoInput) {
 }
 
 const TRACKED_FIELDS: Array<keyof UpdateOrcamentoInput> = [
-  'status', 'categoria', 'responsavelId', 'valorVenda', 'dataInicio', 'dataFim',
+  'status', 'responsavelId', 'valorVenda', 'dataInicio', 'dataFim',
 ];
 
 export async function update(id: string, userName: string, input: UpdateOrcamentoInput) {
@@ -164,8 +166,9 @@ export async function update(id: string, userName: string, input: UpdateOrcament
         valorVenda: input.valorVenda,
         segmento: input.segmento,
         estrategico: input.estrategico,
+        tipo: input.tipo,
         status: input.status,
-        categoria: input.categoria,
+        categoria: input.status ? categoriaFromStatus(input.status) : undefined,
         dataInicio: input.dataInicio,
         dataFim: input.dataFim,
         dataEntrega: input.dataEntrega,
