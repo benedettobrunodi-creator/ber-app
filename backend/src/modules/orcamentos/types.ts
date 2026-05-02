@@ -13,6 +13,11 @@ export type OrcamentoCategoria = (typeof ORCAMENTO_CATEGORIAS)[number];
 export const ORCAMENTO_TIPOS = ['NOVO', 'REVISAO'] as const;
 export type OrcamentoTipo = (typeof ORCAMENTO_TIPOS)[number];
 
+export const ORCAMENTO_PROBABILIDADES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+export type OrcamentoProbabilidade = (typeof ORCAMENTO_PROBABILIDADES)[number];
+
+export const PIPELINE_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO'] as const;
+
 // Deriva categoria automaticamente a partir do status
 export function categoriaFromStatus(status: string): OrcamentoCategoria {
   if (status === 'A_INICIAR') return 'A_INICIAR';
@@ -38,6 +43,7 @@ export const createOrcamentoSchema = z.object({
   estrategico: z.boolean().default(false),
   tipo: z.enum(ORCAMENTO_TIPOS).default('NOVO'),
   status: z.enum(ORCAMENTO_STATUSES).default('A_INICIAR'),
+  probabilidade: z.enum(ORCAMENTO_PROBABILIDADES).optional().nullable(),
   dataInicio: dateOrNull,
   dataFim: dateOrNull,
   dataEntrega: dateOrNull,

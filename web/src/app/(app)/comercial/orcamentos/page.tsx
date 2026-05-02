@@ -26,6 +26,7 @@ interface Orcamento {
   segmento: string | null;
   estrategico: boolean;
   tipo: string;
+  probabilidade: string | null;
   status: string;
   categoria: string;
   dataInicio: string | null;
@@ -99,6 +100,17 @@ const CATEGORIA_LABELS: Record<string, string> = {
 const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
 const PIE_COLORS = ['#00B0F0', '#FACC15', '#A855F7', '#22C55E', '#F97316', '#9CA3AF', '#06B6D4'];
+
+const PIPELINE_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO'];
+const PROBABILIDADES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+type Probabilidade = (typeof PROBABILIDADES)[number];
+const PROB_LABELS: Record<Probabilidade, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
+const PROB_WEIGHT: Record<Probabilidade, number> = { ALTA: 0.8, MEDIA: 0.5, BAIXA: 0.2 };
+const PROB_COLORS: Record<Probabilidade, { bg: string; text: string; border: string; badge: string }> = {
+  ALTA:  { bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200', badge: 'bg-green-100 text-green-700' },
+  MEDIA: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', badge: 'bg-yellow-100 text-yellow-700' },
+  BAIXA: { bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-200',   badge: 'bg-red-100 text-red-700' },
+};
 
 const BRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
@@ -182,6 +194,7 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     segmento: orc?.segmento ?? '',
     estrategico: orc?.estrategico ?? false,
     tipo: orc?.tipo ?? 'NOVO',
+    probabilidade: orc?.probabilidade ?? '',
     status: orc?.status ?? 'A_INICIAR',
     dataInicio: orc?.dataInicio ? orc.dataInicio.slice(0, 10) : '',
     dataFim: orc?.dataFim ? orc.dataFim.slice(0, 10) : '',
@@ -218,6 +231,7 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
         segmento: form.segmento || undefined,
         estrategico: form.estrategico,
         tipo: form.tipo,
+        probabilidade: form.probabilidade || null,
         status: form.status,
         dataInicio: form.dataInicio || null,
         dataFim: form.dataFim || null,
@@ -421,6 +435,31 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                   </div>
                 </div>
               </div>
+
+              {/* Probabilidade — só aparece para propostas enviadas */}
+              {PIPELINE_STATUSES.includes(form.status) && (
+                <div>
+                  <label className={labelCls}>Probabilidade de Fechamento</label>
+                  <div className="flex gap-2 mt-1">
+                    {PROBABILIDADES.map(p => {
+                      const c = PROB_COLORS[p];
+                      const selected = form.probabilidade === p;
+                      return (
+                        <button key={p} type="button"
+                          disabled={!canWrite}
+                          onClick={() => canWrite && setF('probabilidade', selected ? '' : p)}
+                          className={`flex-1 rounded-md py-2 text-xs font-bold border transition-colors ${
+                            selected
+                              ? `${c.bg} ${c.text} ${c.border} border-2`
+                              : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                          }`}>
+                          {PROB_LABELS[p]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Responsável */}
               <div>
@@ -861,6 +900,125 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
   );
 }
 
+/* ─── Tab Pipeline ─── */
+
+function TabPipeline({ items, onClickItem }: { items: Orcamento[]; onClickItem: (o: Orcamento) => void }) {
+  const propostas = items.filter(o => PIPELINE_STATUSES.includes(o.status));
+
+  const byProb = PROBABILIDADES.map(prob => {
+    const group = propostas.filter(o => o.probabilidade === prob);
+    const total = group.reduce((s, o) => s + (o.valorVenda ?? 0), 0);
+    const ponderado = total * PROB_WEIGHT[prob];
+    return { prob, group, total, ponderado };
+  });
+
+  const semProb = propostas.filter(o => !o.probabilidade);
+  const totalGeral = byProb.reduce((s, b) => s + b.total, 0);
+  const totalPonderado = byProb.reduce((s, b) => s + b.ponderado, 0);
+
+  return (
+    <div className="flex flex-col h-full overflow-auto">
+      <div className="p-5 space-y-5">
+
+        {/* KPIs topo */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Propostas em aberto</p>
+            <p className="mt-1 text-2xl font-black text-gray-900">{propostas.length}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Total R$</p>
+            <p className="mt-1 text-2xl font-black text-gray-900">{BRL(totalGeral)}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Valor Ponderado</p>
+            <p className="mt-1 text-2xl font-black text-[#06A99D]">{BRL(totalPonderado)}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">Alta×80% · Média×50% · Baixa×20%</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Sem classificação</p>
+            <p className="mt-1 text-2xl font-black text-gray-400">{semProb.length}</p>
+          </div>
+        </div>
+
+        {/* Cards por probabilidade */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {byProb.map(({ prob, group, total, ponderado }) => {
+            const c = PROB_COLORS[prob];
+            return (
+              <div key={prob} className={`rounded-xl border-2 ${c.border} ${c.bg} p-4`}>
+                {/* Header do card */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-sm font-black uppercase tracking-wide ${c.text}`}>
+                    {PROB_LABELS[prob]}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.badge}`}>
+                    {group.length} proposta{group.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <p className={`text-xl font-black ${c.text}`}>{BRL(total)}</p>
+                <p className={`text-[11px] mt-0.5 ${c.text} opacity-70`}>
+                  Ponderado: {BRL(ponderado)} ({Math.round(PROB_WEIGHT[prob] * 100)}%)
+                </p>
+
+                {/* Lista de propostas */}
+                <div className="mt-3 space-y-2">
+                  {group.length === 0 && (
+                    <p className={`text-xs ${c.text} opacity-50 text-center py-3`}>Nenhuma proposta</p>
+                  )}
+                  {group.map(o => (
+                    <div key={o.id}
+                      onClick={() => onClickItem(o)}
+                      className="cursor-pointer rounded-lg bg-white/70 hover:bg-white px-3 py-2 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-gray-800 truncate">{o.cliente}</span>
+                        <StatusBadge status={o.status} />
+                      </div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <span className="text-[10px] text-gray-400">{o.numero}</span>
+                        <span className="text-xs font-bold text-gray-700">
+                          {o.valorVenda ? BRL(o.valorVenda) : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sem classificação */}
+        {semProb.length > 0 && (
+          <div className="rounded-xl border border-dashed border-gray-300 p-4">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+              Sem probabilidade classificada ({semProb.length})
+            </p>
+            <div className="space-y-2">
+              {semProb.map(o => (
+                <div key={o.id}
+                  onClick={() => onClickItem(o)}
+                  className="cursor-pointer flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 hover:border-gray-300 transition-colors">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <span className="text-xs font-semibold text-gray-700 truncate">{o.cliente}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0">{o.numero}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={o.status} />
+                    <span className="text-xs font-bold text-gray-700">
+                      {o.valorVenda ? BRL(o.valorVenda) : '—'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Tab Dashboard ─── */
 
 function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcamento[] }) {
@@ -1011,7 +1169,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
 
 /* ─── Main Page ─── */
 
-type ActiveTab = 'timeline' | 'lista' | 'dashboard';
+type ActiveTab = 'timeline' | 'lista' | 'pipeline' | 'dashboard';
 
 export default function EsteiraDOrcamentosPage() {
   const { user } = useAuthStore();
@@ -1105,6 +1263,7 @@ export default function EsteiraDOrcamentosPage() {
   const TABS: Array<{ key: ActiveTab; label: string }> = [
     { key: 'timeline', label: 'Timeline' },
     { key: 'lista', label: 'Lista' },
+    { key: 'pipeline', label: 'Pipeline' },
     { key: 'dashboard', label: 'Dashboard' },
   ];
 
@@ -1181,6 +1340,8 @@ export default function EsteiraDOrcamentosPage() {
           <TabTimeline items={items} onClickItem={openDrawer} />
         ) : tab === 'lista' ? (
           <TabLista items={items} canWrite={canWrite} onClickItem={openDrawer} onNew={() => setDrawer({ open: true, orc: null })} />
+        ) : tab === 'pipeline' ? (
+          <TabPipeline items={items} onClickItem={openDrawer} />
         ) : (
           <TabDashboard stats={stats} items={items} />
         )}
