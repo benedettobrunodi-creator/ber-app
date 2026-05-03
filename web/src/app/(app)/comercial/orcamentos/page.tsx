@@ -173,7 +173,7 @@ function addDays(d: Date, n: number) {
 }
 
 function ganttRange(items: Orcamento[]) {
-  const withDates = items.filter(o => o.dataInicio || o.dataFim);
+  const withDates = items.filter(o => (o.categoria === 'EM_ANDAMENTO' || o.categoria === 'A_INICIAR') && (o.dataInicio || o.dataFim));
   if (withDates.length === 0) {
     const today = new Date();
     return { start: addDays(today, -30), end: addDays(today, 60) };
@@ -696,7 +696,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     }
   }
 
-  const grouped = CATEGORIAS.map(cat => ({
+  const grouped = (['EM_ANDAMENTO', 'A_INICIAR'] as const).map(cat => ({
     cat,
     items: items.filter(o => o.categoria === cat && (o.dataInicio || o.dataFim)),
   })).filter(g => g.items.length > 0);
