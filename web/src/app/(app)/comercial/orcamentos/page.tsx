@@ -5,12 +5,20 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Star, StarOff, Plus, X, ChevronDown, ChevronRight, Download,
-  History, Edit2, Copy, Trash2, Search, Filter,
+  History, Edit2, Copy, Trash2, Search, Filter, GripVertical,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTip,
   PieChart, Pie, Cell, ResponsiveContainer, Legend,
 } from 'recharts';
+import {
+  DndContext, DragEndEvent, DragOverlay, PointerSensor,
+  closestCenter, useSensor, useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 /* ─── Types ─── */
 
@@ -533,11 +541,79 @@ interface GanttProps {
   onReorder: (orderedIds: string[]) => void;
 }
 
+interface GanttRowProps {
+  orc: Orcamento;
+  canWrite: boolean;
+  totalW: number;
+  todayOffset: number;
+  barLeft: number;
+  barWidth: number;
+  barBg: string;
+  isOutline: boolean;
+  onClickItem: (o: Orcamento) => void;
+  onTooltip: (orc: Orcamento | null, e?: React.MouseEvent) => void;
+}
+
+function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg, isOutline, onClickItem, onTooltip }: GanttRowProps) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: orc.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, height: ROW_H, opacity: isDragging ? 0.35 : 1 }}
+      className="flex items-center border-b border-gray-100 hover:bg-gray-50/60 group"
+    >
+      {/* Label */}
+      <div style={{ width: LABEL_W, minWidth: LABEL_W }}
+        className="shrink-0 sticky left-0 z-[5] flex items-center gap-1 pl-1 pr-2 overflow-hidden border-r border-gray-100 h-full bg-white group-hover:bg-gray-50/60">
+        {canWrite && (
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={e => e.stopPropagation()}
+            className="shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity touch-none p-0.5 rounded">
+            <GripVertical size={13} />
+          </button>
+        )}
+        <div className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 h-full" onClick={() => onClickItem(orc)}>
+          {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
+          <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
+          <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
+        </div>
+      </div>
+
+      {/* Bar area */}
+      <div className="relative" style={{ width: totalW, height: ROW_H }}>
+        <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-40" style={{ left: todayOffset }} />
+        <div
+          className="absolute rounded cursor-pointer flex items-center px-2 transition-opacity hover:opacity-90"
+          style={{
+            left: barLeft, width: barWidth,
+            top: (ROW_H - BAR_H) / 2, height: BAR_H,
+            background: isOutline ? 'transparent' : barBg,
+            border: isOutline ? '2px solid #9CA3AF' : 'none',
+          }}
+          onClick={() => onClickItem(orc)}
+          onMouseEnter={e => onTooltip(orc, e)}
+          onMouseLeave={() => onTooltip(null)}
+        >
+          <span className={`text-[10px] font-semibold truncate ${isOutline ? 'text-gray-600' : 'text-white'}`}>
+            {orc.cliente}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [tooltip, setTooltip] = useState<{ orc: Orcamento; x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState<ZoomLevel>('semana');
+  const [activeId, setActiveId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -555,7 +631,6 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   const todayOffset = Math.max(0, daysBetween(start, today)) * pxPerDay;
   const HEADER_H = zoom === 'mes' ? 28 : 48;
 
-  // Row 1 (top): month spans — always shown
   const monthSpans: Array<{ label: string; left: number; width: number }> = [];
   {
     let cur = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -563,41 +638,27 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
       const left = Math.max(0, daysBetween(start, cur)) * pxPerDay;
       const nextMonth = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
       const daysInView = Math.min(daysBetween(cur, nextMonth), totalDays - daysBetween(start, cur));
-      const width = daysInView * pxPerDay;
-      monthSpans.push({ label: `${MONTHS_SHORT[cur.getMonth()]}/${String(cur.getFullYear()).slice(2)}`, left, width });
+      monthSpans.push({ label: `${MONTHS_SHORT[cur.getMonth()]}/${String(cur.getFullYear()).slice(2)}`, left, width: daysInView * pxPerDay });
       cur = nextMonth;
     }
   }
 
-  // Row 2 (bottom): day ticks or week spans
   const dayTicks: Array<{ label: string; left: number; isToday: boolean; isFirst: boolean }> = [];
   if (zoom === 'dia') {
     for (let d = 0; d < totalDays; d++) {
       const date = addDays(start, d);
-      dayTicks.push({
-        label: String(date.getDate()),
-        left: d * pxPerDay,
-        isToday: date.toDateString() === today.toDateString(),
-        isFirst: date.getDate() === 1,
-      });
+      dayTicks.push({ label: String(date.getDate()), left: d * pxPerDay, isToday: date.toDateString() === today.toDateString(), isFirst: date.getDate() === 1 });
     }
   }
 
   const weekSpans: Array<{ label: string; left: number; width: number }> = [];
   if (zoom === 'semana') {
-    // Snap to Monday of the week containing `start`
     const dow = start.getDay();
     let cur = addDays(start, dow === 0 ? -6 : 1 - dow);
     while (cur <= end) {
       const visStart = cur < start ? start : cur;
       const visEnd = addDays(cur, 6) > end ? end : addDays(cur, 6);
-      const left = Math.max(0, daysBetween(start, visStart)) * pxPerDay;
-      const width = (daysBetween(visStart, visEnd) + 1) * pxPerDay;
-      weekSpans.push({
-        label: `${visStart.getDate()} ${MONTHS_SHORT[visStart.getMonth()]}`,
-        left,
-        width,
-      });
+      weekSpans.push({ label: `${visStart.getDate()} ${MONTHS_SHORT[visStart.getMonth()]}`, left: Math.max(0, daysBetween(start, visStart)) * pxPerDay, width: (daysBetween(visStart, visEnd) + 1) * pxPerDay });
       cur = addDays(cur, 7);
     }
   }
@@ -610,21 +671,40 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   function barProps(o: Orcamento) {
     const s = o.dataInicio ? new Date(o.dataInicio) : today;
     const e2 = o.dataFim ? new Date(o.dataFim) : addDays(s, 7);
-    const left = Math.max(0, daysBetween(start, s)) * pxPerDay;
-    const width = Math.max(pxPerDay * 2, daysBetween(s, e2) * pxPerDay);
-    return { left, width };
+    return {
+      left: Math.max(0, daysBetween(start, s)) * pxPerDay,
+      width: Math.max(pxPerDay * 2, daysBetween(s, e2) * pxPerDay),
+    };
   }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over || active.id === over.id) return;
+    for (const { items: catItems } of grouped) {
+      const oldIndex = catItems.findIndex(o => o.id === active.id);
+      const newIndex = catItems.findIndex(o => o.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorder(arrayMove(catItems, oldIndex, newIndex).map(o => o.id));
+        break;
+      }
+    }
+  }
+
+  function handleTooltip(orc: Orcamento | null, e?: React.MouseEvent) {
+    if (!orc || !e) { setTooltip(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTooltip({ orc, x: rect.left, y: rect.bottom + 6 });
+  }
+
+  const activeOrc = activeId ? items.find(o => o.id === activeId) ?? null : null;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Zoom controls */}
+      {/* Controls */}
       <div className="flex items-center justify-between gap-1 px-4 py-2 border-b border-gray-100 bg-white">
         <button
-          onClick={() => {
-            if (!scrollRef.current) return;
-            const offset = Math.max(0, todayOffset - 7 * pxPerDay);
-            scrollRef.current.scrollLeft = offset;
-          }}
+          onClick={() => { if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, todayOffset - 7 * pxPerDay); }}
           className="px-3 py-1 rounded-md text-[11px] font-bold transition-colors bg-red-50 text-red-500 hover:bg-red-100 border border-red-200">
           ↩ Ir para hoje
         </button>
@@ -632,11 +712,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
           <span className="text-[10px] text-gray-400 mr-1 uppercase tracking-wide">Zoom</span>
           {(['dia', 'semana', 'mes'] as ZoomLevel[]).map(z => (
             <button key={z} onClick={() => setZoom(z)}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-colors ${
-                zoom === z
-                  ? 'bg-[#06A99D] text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}>
+              className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-colors ${zoom === z ? 'bg-[#06A99D] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
               {z === 'dia' ? 'Dia' : z === 'semana' ? 'Semana' : 'Mês'}
             </button>
           ))}
@@ -645,183 +721,137 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
 
       {/* Scroll container */}
       <div className="flex-1 overflow-auto" ref={scrollRef}>
-        <div style={{ minWidth: LABEL_W + totalW + 40 }}>
-          {/* Header */}
-          <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-            {/* Row 1: months */}
-            <div className="flex">
-              <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
-              <div className="relative" style={{ width: totalW, height: zoom === 'mes' ? 28 : 20 }}>
-                {monthSpans.map(m => (
-                  <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
-                    style={{ left: m.left, width: m.width, height: zoom === 'mes' ? 28 : 20 }}>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap overflow-hidden">
-                      {m.label}
-                    </span>
-                  </div>
-                ))}
-                <div className="absolute top-0 bottom-0 w-px bg-red-400" style={{ left: todayOffset }} />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={e => setActiveId(String(e.active.id))}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <div style={{ minWidth: LABEL_W + totalW + 40 }}>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+              <div className="flex">
+                <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
+                <div className="relative" style={{ width: totalW, height: zoom === 'mes' ? 28 : 20 }}>
+                  {monthSpans.map(m => (
+                    <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
+                      style={{ left: m.left, width: m.width, height: zoom === 'mes' ? 28 : 20 }}>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap overflow-hidden">{m.label}</span>
+                    </div>
+                  ))}
+                  <div className="absolute top-0 bottom-0 w-px bg-red-400" style={{ left: todayOffset }} />
+                </div>
               </div>
+              {zoom !== 'mes' && (
+                <div className="flex border-t border-gray-100">
+                  <div style={{ width: LABEL_W, minWidth: LABEL_W, height: 28 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
+                  <div className="relative" style={{ width: totalW, height: 28 }}>
+                    {zoom === 'dia' && dayTicks.map(d => (
+                      <div key={d.left}
+                        className={`absolute top-0 flex items-center justify-center border-r ${d.isFirst ? 'border-r-gray-300' : 'border-r-gray-100'} ${d.isToday ? 'bg-red-50' : ''}`}
+                        style={{ left: d.left, width: pxPerDay, height: 28 }}>
+                        <span className={`text-[10px] font-semibold ${d.isToday ? 'text-red-500' : d.isFirst ? 'text-gray-700' : 'text-gray-400'}`}>{d.label}</span>
+                      </div>
+                    ))}
+                    {zoom === 'semana' && weekSpans.map((w, i) => (
+                      <div key={i} className="absolute top-0 flex items-center border-r border-gray-200 px-1.5"
+                        style={{ left: w.left, width: w.width, height: 28 }}>
+                        <span className="text-[10px] font-semibold text-gray-500 whitespace-nowrap overflow-hidden">{w.label}</span>
+                      </div>
+                    ))}
+                    <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-60" style={{ left: todayOffset }} />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Row 2: days or weeks */}
-            {zoom !== 'mes' && (
-              <div className="flex border-t border-gray-100">
-                <div style={{ width: LABEL_W, minWidth: LABEL_W, height: 28 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
-                <div className="relative" style={{ width: totalW, height: 28 }}>
-                  {zoom === 'dia' && dayTicks.map(d => (
-                    <div key={d.left}
-                      className={`absolute top-0 flex items-center justify-center border-r ${d.isFirst ? 'border-r-gray-300' : 'border-r-gray-100'} ${d.isToday ? 'bg-red-50' : ''}`}
-                      style={{ left: d.left, width: pxPerDay, height: 28 }}>
-                      <span className={`text-[10px] font-semibold ${d.isToday ? 'text-red-500' : d.isFirst ? 'text-gray-700' : 'text-gray-400'}`}>
-                        {d.label}
-                      </span>
+            {/* Groups */}
+            {grouped.map(({ cat, items: catItems }) => {
+              const isCollapsed = collapsed[cat];
+              return (
+                <div key={cat}>
+                  <div className="flex items-center bg-gray-50 border-b border-gray-200 sticky z-10" style={{ top: HEADER_H }}>
+                    <div style={{ width: LABEL_W, minWidth: LABEL_W }}
+                      className="shrink-0 sticky left-0 z-20 flex items-center gap-2 px-3 py-2 border-r border-gray-200 bg-gray-50 cursor-pointer select-none"
+                      onClick={() => setCollapsed(c => ({ ...c, [cat]: !c[cat] }))}>
+                      {isCollapsed ? <ChevronRight size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                      <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{CATEGORIA_LABELS[cat]}</span>
+                      <span className="ml-auto text-[10px] text-gray-400">{catItems.length}</span>
                     </div>
-                  ))}
-                  {zoom === 'semana' && weekSpans.map((w, i) => (
-                    <div key={i} className="absolute top-0 flex items-center border-r border-gray-200 px-1.5"
-                      style={{ left: w.left, width: w.width, height: 28 }}>
-                      <span className="text-[10px] font-semibold text-gray-500 whitespace-nowrap overflow-hidden">
-                        {w.label}
-                      </span>
+                    <div className="relative" style={{ width: totalW, height: 30 }}>
+                      <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-30" style={{ left: todayOffset }} />
                     </div>
-                  ))}
-                  <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-60" style={{ left: todayOffset }} />
+                  </div>
+
+                  {!isCollapsed && (
+                    <SortableContext items={catItems.map(o => o.id)} strategy={verticalListSortingStrategy}>
+                      {catItems.map(orc => {
+                        const { left: barLeft, width: barWidth } = barProps(orc);
+                        return (
+                          <GanttRow
+                            key={orc.id}
+                            orc={orc}
+                            canWrite={canWrite}
+                            totalW={totalW}
+                            todayOffset={todayOffset}
+                            barLeft={barLeft}
+                            barWidth={barWidth}
+                            barBg={GANTT_BAR_BG[orc.status] ?? '#9CA3AF'}
+                            isOutline={orc.status === 'A_INICIAR'}
+                            onClickItem={onClickItem}
+                            onTooltip={handleTooltip}
+                          />
+                        );
+                      })}
+                    </SortableContext>
+                  )}
                 </div>
+              );
+            })}
+
+            {grouped.length === 0 && (
+              <div className="flex items-center justify-center py-20 text-sm text-gray-400">
+                Nenhum orçamento com datas para exibir no Gantt
               </div>
             )}
           </div>
 
-          {/* Groups */}
-          {grouped.map(({ cat, items: catItems }) => {
-            const isCollapsed = collapsed[cat];
-            return (
-              <div key={cat}>
-                {/* Category row */}
-                <div className="flex items-center bg-gray-50 border-b border-gray-200 sticky z-10"
-                  style={{ top: HEADER_H }}>
+          <DragOverlay>
+            {activeOrc && (() => {
+              const { left: barLeft, width: barWidth } = barProps(activeOrc);
+              const isOutline = activeOrc.status === 'A_INICIAR';
+              const bg = GANTT_BAR_BG[activeOrc.status] ?? '#9CA3AF';
+              return (
+                <div className="flex items-center shadow-2xl rounded border border-gray-200 bg-white" style={{ height: ROW_H, width: LABEL_W + Math.min(barLeft + barWidth + 20, totalW) }}>
                   <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                    className="shrink-0 sticky left-0 z-20 flex items-center gap-2 px-3 py-2 border-r border-gray-200 bg-gray-50 cursor-pointer select-none"
-                    onClick={() => setCollapsed(c => ({ ...c, [cat]: !c[cat] }))}>
-                    {isCollapsed ? <ChevronRight size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-                      {CATEGORIA_LABELS[cat]}
-                    </span>
-                    <span className="ml-auto text-[10px] text-gray-400">{catItems.length}</span>
+                    className="shrink-0 flex items-center gap-2 pl-2 pr-2 overflow-hidden border-r border-gray-100 h-full">
+                    <GripVertical size={13} className="text-gray-400 shrink-0" />
+                    {activeOrc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
+                    <span className="text-xs font-semibold text-gray-800 truncate">{activeOrc.numero}</span>
+                    <span className="text-[10px] text-gray-400 truncate">{activeOrc.cliente}</span>
                   </div>
-                  <div className="relative" style={{ width: totalW, height: 30 }}>
-                    <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-30"
-                      style={{ left: todayOffset }} />
+                  <div className="relative flex-1 h-full overflow-hidden">
+                    <div className="absolute rounded flex items-center px-2"
+                      style={{ left: barLeft, width: barWidth, top: (ROW_H - BAR_H) / 2, height: BAR_H, background: isOutline ? 'transparent' : bg, border: isOutline ? '2px solid #9CA3AF' : 'none' }}>
+                      <span className={`text-[10px] font-semibold truncate ${isOutline ? 'text-gray-600' : 'text-white'}`}>{activeOrc.cliente}</span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Item rows */}
-                {!isCollapsed && catItems.map((orc, idx) => {
-                  const { left, width } = barProps(orc);
-                  const bg = GANTT_BAR_BG[orc.status] ?? '#9CA3AF';
-                  const isOutline = orc.status === 'A_INICIAR';
-                  const canUp = canWrite && idx > 0;
-                  const canDown = canWrite && idx < catItems.length - 1;
-
-                  return (
-                    <div key={orc.id} className="flex items-center border-b border-gray-100 hover:bg-gray-50/60 group"
-                      style={{ height: ROW_H }}>
-                      {/* Label */}
-                      <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                        className="shrink-0 sticky left-0 z-[5] flex items-center gap-1 pl-1 pr-2 overflow-hidden border-r border-gray-100 h-full bg-white group-hover:bg-gray-50/60">
-                        {/* Reorder buttons */}
-                        <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (!canUp) return;
-                              const newOrder = [...catItems];
-                              [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
-                              onReorder(newOrder.map(o => o.id));
-                            }}
-                            disabled={!canUp}
-                            className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
-                            <ChevronDown size={11} className="rotate-180" />
-                          </button>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (!canDown) return;
-                              const newOrder = [...catItems];
-                              [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-                              onReorder(newOrder.map(o => o.id));
-                            }}
-                            disabled={!canDown}
-                            className="p-0.5 rounded hover:bg-gray-200 disabled:opacity-20 disabled:cursor-default text-gray-400">
-                            <ChevronDown size={11} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 h-full"
-                          onClick={() => onClickItem(orc)}>
-                          {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
-                          <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
-                          <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
-                        </div>
-                      </div>
-
-                      {/* Bar area */}
-                      <div className="relative" style={{ width: totalW, height: ROW_H }}>
-                        {/* Today line */}
-                        <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-40"
-                          style={{ left: todayOffset }} />
-
-                        {/* Bar */}
-                        <div
-                          className="absolute rounded cursor-pointer flex items-center px-2 transition-opacity hover:opacity-90"
-                          style={{
-                            left,
-                            width,
-                            top: (ROW_H - BAR_H) / 2,
-                            height: BAR_H,
-                            background: isOutline ? 'transparent' : bg,
-                            border: isOutline ? `2px solid #9CA3AF` : 'none',
-                          }}
-                          onClick={() => onClickItem(orc)}
-                          onMouseEnter={e => {
-                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                            setTooltip({ orc, x: rect.left, y: rect.bottom + 6 });
-                          }}
-                          onMouseLeave={() => setTooltip(null)}
-                        >
-                          <span className={`text-[10px] font-semibold truncate ${isOutline ? 'text-gray-600' : 'text-white'}`}>
-                            {orc.cliente}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {grouped.length === 0 && (
-            <div className="flex items-center justify-center py-20 text-sm text-gray-400">
-              Nenhum orçamento com datas para exibir no Gantt
-            </div>
-          )}
-        </div>
+              );
+            })()}
+          </DragOverlay>
+        </DndContext>
       </div>
 
-      {/* Tooltip */}
       {tooltip && (
-        <div
-          className="fixed z-50 rounded-lg bg-gray-900 text-white px-3 py-2 text-xs shadow-lg pointer-events-none"
+        <div className="fixed z-50 rounded-lg bg-gray-900 text-white px-3 py-2 text-xs shadow-lg pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y, maxWidth: 260 }}>
           <p className="font-bold">{tooltip.orc.numero} — {tooltip.orc.cliente}</p>
           <p className="text-gray-300">{STATUS_LABELS[tooltip.orc.status]}</p>
           {tooltip.orc.segmento && <p className="text-gray-400">{tooltip.orc.segmento}</p>}
-          <p className="text-gray-400">
-            {fmtDate(tooltip.orc.dataInicio)} → {fmtDate(tooltip.orc.dataFim)}
-          </p>
-          {tooltip.orc.valorVenda && (
-            <p className="text-green-400 font-semibold">{BRL(tooltip.orc.valorVenda)}</p>
-          )}
+          <p className="text-gray-400">{fmtDate(tooltip.orc.dataInicio)} → {fmtDate(tooltip.orc.dataFim)}</p>
+          {tooltip.orc.valorVenda && <p className="text-green-400 font-semibold">{BRL(tooltip.orc.valorVenda)}</p>}
           {tooltip.orc.responsavel && <p className="text-gray-400">{tooltip.orc.responsavel.name}</p>}
         </div>
       )}
