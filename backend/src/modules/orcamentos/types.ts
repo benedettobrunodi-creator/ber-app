@@ -35,7 +35,7 @@ const dateOrNull = z.string().nullable().optional().transform((v) =>
 
 export const createOrcamentoSchema = z.object({
   numero: z.string().min(1).max(20),
-  cliente: z.string().min(1).max(255),
+  cliente: z.string().min(1),
   descricaoCurta: z.string().max(500).optional(),
   m2: z.number().positive().optional(),
   valorVenda: z.number().positive().optional(),

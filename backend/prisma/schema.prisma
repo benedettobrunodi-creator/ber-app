@@ -1241,7 +1241,7 @@ model ApiKey {
 model Orcamento {
   id             String    @id @default(uuid()) @db.Uuid
   numero         String    @unique @db.VarChar(20)
-  cliente        String    @db.VarChar(255)
+  cliente        String    @db.Text
   descricaoCurta String?   @map("descricao_curta") @db.VarChar(500)
   m2             Float?
   valorVenda     Decimal?  @map("valor_venda") @db.Decimal(14, 2)

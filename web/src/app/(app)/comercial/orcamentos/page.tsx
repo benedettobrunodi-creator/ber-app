@@ -157,7 +157,7 @@ type ZoomLevel = 'dia' | 'semana' | 'mes';
 const ZOOM_PX: Record<ZoomLevel, number> = { dia: 40, semana: 14, mes: 4 };
 const ROW_H = 40;
 const BAR_H = 22;
-const LABEL_W = 220;
+const LABEL_W = 320;
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function daysBetween(a: Date, b: Date) {
@@ -944,7 +944,7 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
             <tr>
               <th className="w-8 px-3 py-2.5" />
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Número</th>
-              <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Cliente</th>
+              <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide min-w-[240px]">Cliente</th>
               <th className="px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Segmento</th>
               <th className="px-3 py-2.5 text-right text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">m²</th>
               <th className="px-3 py-2.5 text-right text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">R$</th>
