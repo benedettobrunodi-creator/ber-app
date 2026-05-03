@@ -127,6 +127,25 @@ const BRL = (v: number) =>
 const fmtDate = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
 
+function initials(name: string) {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+const RESP_COLORS = [
+  'bg-teal-100 text-teal-700',
+  'bg-blue-100 text-blue-700',
+  'bg-purple-100 text-purple-700',
+  'bg-orange-100 text-orange-700',
+  'bg-pink-100 text-pink-700',
+  'bg-indigo-100 text-indigo-700',
+];
+
+function respColor(name: string) {
+  let hash = 0;
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff;
+  return RESP_COLORS[hash % RESP_COLORS.length];
+}
+
 /* ─── Gantt helpers ─── */
 
 type ZoomLevel = 'dia' | 'semana' | 'mes';
@@ -575,11 +594,18 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg
             <GripVertical size={13} />
           </button>
         )}
-        <div className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 h-full" onClick={() => onClickItem(orc)}>
+        <div className="flex items-center gap-1.5 overflow-hidden cursor-pointer flex-1 h-full min-w-0" onClick={() => onClickItem(orc)}>
           {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
           <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
           <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
         </div>
+        {orc.responsavel && (
+          <div
+            title={orc.responsavel.name}
+            className={`shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold ${respColor(orc.responsavel.name)}`}>
+            {initials(orc.responsavel.name)}
+          </div>
+        )}
       </div>
 
       {/* Bar area */}
@@ -673,7 +699,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     const e2 = o.dataFim ? new Date(o.dataFim) : addDays(s, 7);
     return {
       left: Math.max(0, daysBetween(start, s)) * pxPerDay,
-      width: Math.max(pxPerDay * 2, daysBetween(s, e2) * pxPerDay),
+      width: Math.max(pxPerDay * 2, (daysBetween(s, e2) + 1) * pxPerDay),
     };
   }
 
@@ -825,11 +851,16 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
               return (
                 <div className="flex items-center shadow-2xl rounded border border-gray-200 bg-white" style={{ height: ROW_H, width: LABEL_W + Math.min(barLeft + barWidth + 20, totalW) }}>
                   <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                    className="shrink-0 flex items-center gap-2 pl-2 pr-2 overflow-hidden border-r border-gray-100 h-full">
+                    className="shrink-0 flex items-center gap-1.5 pl-2 pr-2 overflow-hidden border-r border-gray-100 h-full">
                     <GripVertical size={13} className="text-gray-400 shrink-0" />
                     {activeOrc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
                     <span className="text-xs font-semibold text-gray-800 truncate">{activeOrc.numero}</span>
-                    <span className="text-[10px] text-gray-400 truncate">{activeOrc.cliente}</span>
+                    <span className="text-[10px] text-gray-400 truncate flex-1">{activeOrc.cliente}</span>
+                    {activeOrc.responsavel && (
+                      <div className={`shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold ${respColor(activeOrc.responsavel.name)}`}>
+                        {initials(activeOrc.responsavel.name)}
+                      </div>
+                    )}
                   </div>
                   <div className="relative flex-1 h-full overflow-hidden">
                     <div className="absolute rounded flex items-center px-2"
