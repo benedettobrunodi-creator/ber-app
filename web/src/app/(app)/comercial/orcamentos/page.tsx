@@ -1291,14 +1291,20 @@ export default function EsteiraDOrcamentosPage() {
   useEffect(() => { if (tab === 'dashboard') loadStats(); }, [tab, loadStats]);
 
   async function handleReorder(orderedIds: string[]) {
-    // Optimistic: assign ordem by position in the new array
     setItems(prev => {
-      const updated = [...prev];
-      orderedIds.forEach((id, index) => {
-        const i = updated.findIndex(o => o.id === id);
-        if (i >= 0) updated[i] = { ...updated[i], ordem: index };
-      });
-      return updated;
+      const idSet = new Set(orderedIds);
+      const reordered = orderedIds.map(id => prev.find(o => o.id === id)!).filter(Boolean);
+      const result: Orcamento[] = [];
+      let inserted = false;
+      for (const item of prev) {
+        if (!idSet.has(item.id)) {
+          result.push(item);
+        } else if (!inserted) {
+          result.push(...reordered);
+          inserted = true;
+        }
+      }
+      return result;
     });
     try {
       await api.post('/orcamentos/reorder', { ids: orderedIds });
