@@ -20,8 +20,8 @@ export const PIPELINE_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO'] as const;
 
 // Deriva categoria automaticamente a partir do status
 export function categoriaFromStatus(status: string): OrcamentoCategoria {
-  if (status === 'A_INICIAR') return 'A_INICIAR';
-  if (['ENTREGUE', 'DECLINADO', 'NO_GO'].includes(status)) return 'SEM_ACAO';
+  if (status === 'A_INICIAR' || status === 'PRODUZIR') return 'A_INICIAR';
+  if (['ENVIADO', 'AGUARDANDO', 'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO'].includes(status)) return 'SEM_ACAO';
   return 'EM_ANDAMENTO';
 }
 
