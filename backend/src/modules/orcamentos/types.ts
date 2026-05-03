@@ -3,11 +3,11 @@ import { z } from 'zod';
 export const ORCAMENTO_STATUSES = [
   'LEAD', 'A_INICIAR', 'PRODUZINDO', 'REVISAO', 'ENVIADO', 'AGUARDANDO',
   'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO', 'CHANGE_ORDER',
-  'FASTERRA', 'PRODUZIR', 'CANCELADO', 'PERDIDO',
+  'PRODUZIR', 'CANCELADO', 'PERDIDO',
 ] as const;
 export type OrcamentoStatus = (typeof ORCAMENTO_STATUSES)[number];
 
-export const ORCAMENTO_CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
+export const ORCAMENTO_CATEGORIAS = ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
 export type OrcamentoCategoria = (typeof ORCAMENTO_CATEGORIAS)[number];
 
 export const ORCAMENTO_TIPOS = ['NOVO', 'REVISAO', 'CHANGE_ORDER'] as const;
@@ -20,7 +20,8 @@ export const PIPELINE_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO'] as const;
 
 // Deriva categoria automaticamente a partir do status
 export function categoriaFromStatus(status: string): OrcamentoCategoria {
-  if (['LEAD', 'A_INICIAR', 'PRODUZIR'].includes(status)) return 'A_INICIAR';
+  if (status === 'LEAD') return 'LEAD';
+  if (['A_INICIAR', 'PRODUZIR'].includes(status)) return 'A_INICIAR';
   if (['ENVIADO', 'AGUARDANDO', 'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO', 'CANCELADO', 'PERDIDO'].includes(status)) return 'SEM_ACAO';
   return 'EM_ANDAMENTO';
 }
@@ -48,6 +49,7 @@ export const createOrcamentoSchema = z.object({
   dataFim: dateOrNull,
   dataEntrega: dateOrNull,
   responsavelId: z.string().uuid().optional().nullable(),
+  terceirizado: z.boolean().default(false),
   observacoes: z.string().optional(),
   changeOrderDe: z.string().uuid().optional().nullable(),
 });

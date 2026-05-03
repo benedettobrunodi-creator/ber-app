@@ -1256,6 +1256,7 @@ model Orcamento {
   dataFim        DateTime? @map("data_fim") @db.Date
   dataEntrega    DateTime? @map("data_entrega") @db.Date
   responsavelId  String?   @map("responsavel_id") @db.Uuid
+  terceirizado   Boolean   @default(false)
   observacoes    String?
   changeOrderDe  String?   @map("change_order_de") @db.Uuid
   createdById    String    @map("created_by_id") @db.Uuid

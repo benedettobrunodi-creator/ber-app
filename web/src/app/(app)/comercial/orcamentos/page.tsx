@@ -42,6 +42,7 @@ interface Orcamento {
   dataFim: string | null;
   dataEntrega: string | null;
   responsavel: Responsavel | null;
+  terceirizado: boolean;
   observacoes: string | null;
   changeOrderDe: string | null;
   pai: { id: string; numero: string; cliente: string } | null;
@@ -69,7 +70,7 @@ const STATUS_LABELS: Record<string, string> = {
   LEAD: 'Lead', A_INICIAR: 'A Iniciar', PRODUZINDO: 'Produzindo', REVISAO: 'Revisão',
   ENVIADO: 'Enviado', AGUARDANDO: 'Aguardando', APROVADO: 'Aprovado',
   ENTREGUE: 'Entregue', DECLINADO: 'Declinado', NO_GO: 'No-Go',
-  CHANGE_ORDER: 'Change Order', FASTERRA: 'FastErra', PRODUZIR: 'A Produzir',
+  CHANGE_ORDER: 'Change Order', PRODUZIR: 'A Produzir',
   CANCELADO: 'Cancelado', PERDIDO: 'Perdido',
 };
 
@@ -85,7 +86,6 @@ const STATUS_COLORS: Record<string, string> = {
   NO_GO: 'bg-gray-500 text-white',
   A_INICIAR: 'border border-gray-400 text-gray-600 bg-transparent',
   CHANGE_ORDER: 'bg-orange-500 text-white',
-  FASTERRA: 'bg-cyan-500 text-white',
   PRODUZIR: 'bg-sky-400 text-white',
   CANCELADO: 'bg-red-400 text-white',
   PERDIDO: 'bg-rose-700 text-white',
@@ -103,15 +103,14 @@ const GANTT_BAR_BG: Record<string, string> = {
   NO_GO: '#6B7280',
   A_INICIAR: 'transparent',
   CHANGE_ORDER: '#F97316',
-  FASTERRA: '#06B6D4',
   PRODUZIR: '#38BDF8',
   CANCELADO: '#F87171',
   PERDIDO: '#9F1239',
 };
 
-const CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
+const CATEGORIAS = ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
 const CATEGORIA_LABELS: Record<string, string> = {
-  EM_ANDAMENTO: 'Em Andamento', A_INICIAR: 'A Iniciar', SEM_ACAO: 'Sem Ação',
+  LEAD: 'Lead', EM_ANDAMENTO: 'Em Andamento', A_INICIAR: 'A Iniciar', SEM_ACAO: 'Sem Ação',
 };
 const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -173,7 +172,7 @@ function addDays(d: Date, n: number) {
 }
 
 function ganttRange(items: Orcamento[]) {
-  const withDates = items.filter(o => (o.categoria === 'EM_ANDAMENTO' || o.categoria === 'A_INICIAR') && (o.dataInicio || o.dataFim));
+  const withDates = items.filter(o => ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR'].includes(o.categoria) && (o.dataInicio || o.dataFim));
   if (withDates.length === 0) {
     const today = new Date();
     return { start: addDays(today, -30), end: addDays(today, 60) };
@@ -235,6 +234,7 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     dataFim: orc?.dataFim ? orc.dataFim.slice(0, 10) : '',
     dataEntrega: orc?.dataEntrega ? orc.dataEntrega.slice(0, 10) : '',
     responsavelId: orc?.responsavel?.id ?? '',
+    terceirizado: orc?.terceirizado ?? false,
     observacoes: orc?.observacoes ?? '',
     changeOrderDe: orc?.changeOrderDe ?? '',
   });
@@ -271,7 +271,8 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
         dataInicio: form.dataInicio || null,
         dataFim: form.dataFim || null,
         dataEntrega: form.dataEntrega || null,
-        responsavelId: form.responsavelId || null,
+        responsavelId: form.terceirizado ? null : (form.responsavelId || null),
+        terceirizado: form.terceirizado,
         observacoes: form.observacoes || undefined,
         changeOrderDe: form.changeOrderDe || null,
       };
@@ -499,9 +500,20 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
               {/* Responsável */}
               <div>
                 <label className={labelCls}>Responsável</label>
-                <select className={inputCls} value={form.responsavelId} onChange={e => setF('responsavelId', e.target.value)}
+                <select className={inputCls}
+                  value={form.terceirizado ? '__terceirizado__' : form.responsavelId}
+                  onChange={e => {
+                    if (e.target.value === '__terceirizado__') {
+                      setF('terceirizado', true);
+                      setF('responsavelId', '');
+                    } else {
+                      setF('terceirizado', false);
+                      setF('responsavelId', e.target.value);
+                    }
+                  }}
                   disabled={!canWrite}>
                   <option value="">— Sem responsável —</option>
+                  <option value="__terceirizado__">Terceirizado</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
@@ -606,7 +618,9 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg
           <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
           <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
         </div>
-        {orc.responsavel && (
+        {orc.terceirizado ? (
+          <div title="Terceirizado" className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold bg-slate-200 text-slate-600">TC</div>
+        ) : orc.responsavel && (
           <div
             title={orc.responsavel.name}
             className={`shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold ${respColor(orc.responsavel.name)}`}>
@@ -696,7 +710,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     }
   }
 
-  const grouped = (['EM_ANDAMENTO', 'A_INICIAR'] as const).map(cat => ({
+  const grouped = (['LEAD', 'EM_ANDAMENTO', 'A_INICIAR'] as const).map(cat => ({
     cat,
     items: items.filter(o => o.categoria === cat && (o.dataInicio || o.dataFim)),
   })).filter(g => g.items.length > 0);
@@ -863,7 +877,9 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                     {activeOrc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
                     <span className="text-xs font-semibold text-gray-800 truncate">{activeOrc.numero}</span>
                     <span className="text-[10px] text-gray-400 truncate flex-1">{activeOrc.cliente}</span>
-                    {activeOrc.responsavel && (
+                    {activeOrc.terceirizado ? (
+                      <div className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold bg-slate-200 text-slate-600">TC</div>
+                    ) : activeOrc.responsavel && (
                       <div className={`shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold ${respColor(activeOrc.responsavel.name)}`}>
                         {initials(activeOrc.responsavel.name)}
                       </div>
@@ -890,7 +906,10 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
           {tooltip.orc.segmento && <p className="text-gray-400">{tooltip.orc.segmento}</p>}
           <p className="text-gray-400">{fmtDate(tooltip.orc.dataInicio)} → {fmtDate(tooltip.orc.dataFim)}</p>
           {tooltip.orc.valorVenda && <p className="text-green-400 font-semibold">{BRL(tooltip.orc.valorVenda)}</p>}
-          {tooltip.orc.responsavel && <p className="text-gray-400">{tooltip.orc.responsavel.name}</p>}
+          {tooltip.orc.terceirizado
+            ? <p className="text-gray-400">Terceirizado</p>
+            : tooltip.orc.responsavel && <p className="text-gray-400">{tooltip.orc.responsavel.name}</p>
+          }
         </div>
       )}
     </div>
@@ -910,7 +929,7 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
     const rows = items.map(o => [
       o.numero, o.cliente, o.segmento ?? '', o.m2 ?? '', o.valorVenda ?? '',
       STATUS_LABELS[o.status] ?? o.status,
-      o.responsavel?.name ?? '',
+      o.terceirizado ? 'Terceirizado' : (o.responsavel?.name ?? ''),
       o.dataInicio?.slice(0, 10) ?? '',
       o.dataFim?.slice(0, 10) ?? '',
     ]);
@@ -984,7 +1003,7 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
                     {o.tipo === 'REVISAO' ? 'Revisão' : o.tipo === 'CHANGE_ORDER' ? 'Change Order' : 'Novo'}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell">{o.responsavel?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell">{o.terceirizado ? 'Terceirizado' : (o.responsavel?.name ?? '—')}</td>
                 <td className="px-3 py-2.5 text-gray-400 text-xs hidden xl:table-cell">{fmtDate(o.dataInicio)}</td>
                 <td className="px-3 py-2.5 text-gray-400 text-xs hidden xl:table-cell">{fmtDate(o.dataFim)}</td>
               </tr>
@@ -1246,7 +1265,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
               layout="vertical"
               data={Object.entries(
                 items.reduce((acc, o) => {
-                  const name = o.responsavel?.name ?? 'Sem resp.';
+                  const name = o.terceirizado ? 'Terceirizado' : (o.responsavel?.name ?? 'Sem resp.');
                   acc[name] = (acc[name] ?? 0) + 1;
                   return acc;
                 }, {} as Record<string, number>),
