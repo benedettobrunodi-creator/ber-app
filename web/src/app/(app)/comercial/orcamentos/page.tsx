@@ -631,7 +631,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
           <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
             {/* Row 1: months */}
             <div className="flex">
-              <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 border-r border-gray-200 bg-gray-50" />
+              <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
               <div className="relative" style={{ width: totalW, height: zoom === 'mes' ? 28 : 20 }}>
                 {monthSpans.map(m => (
                   <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
@@ -648,7 +648,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
             {/* Row 2: days or weeks */}
             {zoom !== 'mes' && (
               <div className="flex border-t border-gray-100">
-                <div style={{ width: LABEL_W, minWidth: LABEL_W, height: 28 }} className="shrink-0 border-r border-gray-200 bg-gray-50" />
+                <div style={{ width: LABEL_W, minWidth: LABEL_W, height: 28 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
                 <div className="relative" style={{ width: totalW, height: 28 }}>
                   {zoom === 'dia' && dayTicks.map(d => (
                     <div key={d.left}
@@ -682,7 +682,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                 <div className="flex items-center bg-gray-50 border-b border-gray-200 sticky z-10"
                   style={{ top: HEADER_H }}>
                   <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                    className="shrink-0 flex items-center gap-2 px-3 py-2 border-r border-gray-200 cursor-pointer select-none"
+                    className="shrink-0 sticky left-0 z-20 flex items-center gap-2 px-3 py-2 border-r border-gray-200 bg-gray-50 cursor-pointer select-none"
                     onClick={() => setCollapsed(c => ({ ...c, [cat]: !c[cat] }))}>
                     {isCollapsed ? <ChevronRight size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                     <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
@@ -709,7 +709,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                       style={{ height: ROW_H }}>
                       {/* Label */}
                       <div style={{ width: LABEL_W, minWidth: LABEL_W }}
-                        className="shrink-0 flex items-center gap-1 pl-1 pr-2 overflow-hidden border-r border-gray-100 h-full">
+                        className="shrink-0 sticky left-0 z-[5] flex items-center gap-1 pl-1 pr-2 overflow-hidden border-r border-gray-100 h-full bg-white group-hover:bg-gray-50/60">
                         {/* Reorder buttons */}
                         <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
