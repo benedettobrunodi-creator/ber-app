@@ -249,7 +249,7 @@ export async function stats() {
       where: { status: 'APROVADO', updatedAt: { gte: thirtyDaysAgo } },
     }),
     prisma.orcamento.count({
-      where: { status: { in: ['DECLINADO', 'NO_GO'] }, updatedAt: { gte: thirtyDaysAgo } },
+      where: { status: { in: ['DECLINADO', 'NO_GO', 'CANCELADO', 'PERDIDO'] }, updatedAt: { gte: thirtyDaysAgo } },
     }),
   ]);
 
