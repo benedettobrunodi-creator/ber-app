@@ -539,6 +539,14 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   const [zoom, setZoom] = useState<ZoomLevel>('semana');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const px = ZOOM_PX[zoom];
+    const { start } = ganttRange(items);
+    const offset = Math.max(0, daysBetween(start, new Date())) * px;
+    scrollRef.current.scrollLeft = Math.max(0, offset - 7 * px);
+  }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pxPerDay = ZOOM_PX[zoom];
   const { start, end } = ganttRange(items);
   const totalDays = daysBetween(start, end);
@@ -610,18 +618,29 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Zoom controls */}
-      <div className="flex items-center justify-end gap-1 px-4 py-2 border-b border-gray-100 bg-white">
-        <span className="text-[10px] text-gray-400 mr-1 uppercase tracking-wide">Zoom</span>
-        {(['dia', 'semana', 'mes'] as ZoomLevel[]).map(z => (
-          <button key={z} onClick={() => setZoom(z)}
-            className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-colors ${
-              zoom === z
-                ? 'bg-[#06A99D] text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}>
-            {z === 'dia' ? 'Dia' : z === 'semana' ? 'Semana' : 'Mês'}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-1 px-4 py-2 border-b border-gray-100 bg-white">
+        <button
+          onClick={() => {
+            if (!scrollRef.current) return;
+            const offset = Math.max(0, todayOffset - 7 * pxPerDay);
+            scrollRef.current.scrollLeft = offset;
+          }}
+          className="px-3 py-1 rounded-md text-[11px] font-bold transition-colors bg-red-50 text-red-500 hover:bg-red-100 border border-red-200">
+          ↩ Ir para hoje
+        </button>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-gray-400 mr-1 uppercase tracking-wide">Zoom</span>
+          {(['dia', 'semana', 'mes'] as ZoomLevel[]).map(z => (
+            <button key={z} onClick={() => setZoom(z)}
+              className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-colors ${
+                zoom === z
+                  ? 'bg-[#06A99D] text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}>
+              {z === 'dia' ? 'Dia' : z === 'semana' ? 'Semana' : 'Mês'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Scroll container */}
