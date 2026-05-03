@@ -70,7 +70,7 @@ const STATUS_LABELS: Record<string, string> = {
   ENVIADO: 'Enviado', AGUARDANDO: 'Aguardando', APROVADO: 'Aprovado',
   ENTREGUE: 'Entregue', DECLINADO: 'Declinado', NO_GO: 'No-Go',
   CHANGE_ORDER: 'Change Order', FASTERRA: 'FastErra', PRODUZIR: 'A Produzir',
-  CANCELADO: 'Cancelado',
+  CANCELADO: 'Cancelado', PERDIDO: 'Perdido',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -88,6 +88,7 @@ const STATUS_COLORS: Record<string, string> = {
   FASTERRA: 'bg-cyan-500 text-white',
   PRODUZIR: 'bg-sky-400 text-white',
   CANCELADO: 'bg-red-400 text-white',
+  PERDIDO: 'bg-rose-700 text-white',
 };
 
 const GANTT_BAR_BG: Record<string, string> = {
@@ -105,6 +106,7 @@ const GANTT_BAR_BG: Record<string, string> = {
   FASTERRA: '#06B6D4',
   PRODUZIR: '#38BDF8',
   CANCELADO: '#F87171',
+  PERDIDO: '#9F1239',
 };
 
 const CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
