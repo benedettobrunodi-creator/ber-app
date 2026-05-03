@@ -66,13 +66,15 @@ interface StatsData {
 /* ─── Constants ─── */
 
 const STATUS_LABELS: Record<string, string> = {
-  A_INICIAR: 'A Iniciar', PRODUZINDO: 'Produzindo', REVISAO: 'Revisão',
+  LEAD: 'Lead', A_INICIAR: 'A Iniciar', PRODUZINDO: 'Produzindo', REVISAO: 'Revisão',
   ENVIADO: 'Enviado', AGUARDANDO: 'Aguardando', APROVADO: 'Aprovado',
   ENTREGUE: 'Entregue', DECLINADO: 'Declinado', NO_GO: 'No-Go',
   CHANGE_ORDER: 'Change Order', FASTERRA: 'FastErra', PRODUZIR: 'A Produzir',
+  CANCELADO: 'Cancelado',
 };
 
 const STATUS_COLORS: Record<string, string> = {
+  LEAD: 'border border-blue-300 text-blue-500 bg-transparent',
   PRODUZINDO: 'bg-[#00B0F0] text-white',
   REVISAO: 'bg-yellow-400 text-gray-900',
   ENVIADO: 'bg-purple-500 text-white',
@@ -85,9 +87,11 @@ const STATUS_COLORS: Record<string, string> = {
   CHANGE_ORDER: 'bg-orange-500 text-white',
   FASTERRA: 'bg-cyan-500 text-white',
   PRODUZIR: 'bg-sky-400 text-white',
+  CANCELADO: 'bg-red-400 text-white',
 };
 
 const GANTT_BAR_BG: Record<string, string> = {
+  LEAD: 'transparent',
   PRODUZINDO: '#00B0F0',
   REVISAO: '#FACC15',
   ENVIADO: '#A855F7',
@@ -100,6 +104,7 @@ const GANTT_BAR_BG: Record<string, string> = {
   CHANGE_ORDER: '#F97316',
   FASTERRA: '#06B6D4',
   PRODUZIR: '#38BDF8',
+  CANCELADO: '#F87171',
 };
 
 const CATEGORIAS = ['EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;

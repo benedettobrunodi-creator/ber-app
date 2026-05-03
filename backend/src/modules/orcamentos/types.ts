@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 export const ORCAMENTO_STATUSES = [
-  'A_INICIAR', 'PRODUZINDO', 'REVISAO', 'ENVIADO', 'AGUARDANDO',
+  'LEAD', 'A_INICIAR', 'PRODUZINDO', 'REVISAO', 'ENVIADO', 'AGUARDANDO',
   'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO', 'CHANGE_ORDER',
-  'FASTERRA', 'PRODUZIR',
+  'FASTERRA', 'PRODUZIR', 'CANCELADO',
 ] as const;
 export type OrcamentoStatus = (typeof ORCAMENTO_STATUSES)[number];
 
@@ -20,8 +20,8 @@ export const PIPELINE_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO'] as const;
 
 // Deriva categoria automaticamente a partir do status
 export function categoriaFromStatus(status: string): OrcamentoCategoria {
-  if (status === 'A_INICIAR' || status === 'PRODUZIR') return 'A_INICIAR';
-  if (['ENVIADO', 'AGUARDANDO', 'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO'].includes(status)) return 'SEM_ACAO';
+  if (['LEAD', 'A_INICIAR', 'PRODUZIR'].includes(status)) return 'A_INICIAR';
+  if (['ENVIADO', 'AGUARDANDO', 'APROVADO', 'ENTREGUE', 'DECLINADO', 'NO_GO', 'CANCELADO'].includes(status)) return 'SEM_ACAO';
   return 'EM_ANDAMENTO';
 }
 
