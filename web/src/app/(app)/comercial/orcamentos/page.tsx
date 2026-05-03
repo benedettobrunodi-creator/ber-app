@@ -710,7 +710,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     }
   }
 
-  const grouped = (['LEAD', 'EM_ANDAMENTO', 'A_INICIAR'] as const).map(cat => ({
+  const grouped = (['EM_ANDAMENTO', 'A_INICIAR', 'LEAD'] as const).map(cat => ({
     cat,
     items: items.filter(o => o.categoria === cat && (o.dataInicio || o.dataFim)),
   })).filter(g => g.items.length > 0);
