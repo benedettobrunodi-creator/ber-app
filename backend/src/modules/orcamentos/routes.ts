@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
-import { requireRole } from '../../middleware/rbac';
+import { requireAnyRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
 import { createOrcamentoSchema, updateOrcamentoSchema } from './types';
 
@@ -16,7 +16,7 @@ router.get('/:id',         controller.getOrcamento);
 router.post('/',             validate(createOrcamentoSchema), controller.createOrcamento);
 router.post('/reorder',      controller.reorderOrcamentos);
 router.patch('/:id',         validate(updateOrcamentoSchema), controller.updateOrcamento);
-router.delete('/:id',        requireRole('coordenacao'), controller.deleteOrcamento);
+router.delete('/:id',        requireAnyRole('coordenacao', 'orcamentos'), controller.deleteOrcamento);
 router.post('/:id/duplicar', controller.duplicarOrcamento);
 
 export default router;

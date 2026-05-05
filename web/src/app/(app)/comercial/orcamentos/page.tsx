@@ -656,7 +656,7 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg
 function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [tooltip, setTooltip] = useState<{ orc: Orcamento; x: number; y: number } | null>(null);
-  const [zoom, setZoom] = useState<ZoomLevel>('semana');
+  const [zoom, setZoom] = useState<ZoomLevel>('dia');
   const [activeId, setActiveId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
