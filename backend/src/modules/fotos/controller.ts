@@ -35,16 +35,47 @@ export async function listPlantas(req: Request, res: Response) {
   sendSuccess(res, plantas);
 }
 
-// POST /v1/obras/:id/plantas  { fileUrl } or multipart file
+// POST /v1/obras/:id/plantas  multipart file (PDF/imagem) ou { fileUrl }
 export async function createPlanta(req: Request, res: Response) {
-  let fileUrl = req.body?.fileUrl;
-  if (!fileUrl && (req as any).file) {
-    fileUrl = await uploadFile((req as any).file);
+  const obraId = req.params.id;
+  const file = (req as any).file as Express.Multer.File | undefined;
+  const bodyName = (req.body?.name as string | undefined)?.trim();
+
+  let fileUrl: string | undefined;
+  let pages: any[] | undefined;
+  let sourceType: 'pdf' | 'image' = 'image';
+
+  if (file) {
+    const isPdf = file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
+    sourceType = isPdf ? 'pdf' : 'image';
+
+    if (!file.buffer) throw AppError.badRequest('Upload requer R2 configurado');
+
+    if (isPdf) {
+      const { convertPdfToPages } = await import('../../services/pdf-converter');
+      const converted = await convertPdfToPages(file.buffer, file.originalname);
+      pages = converted;
+      fileUrl = converted[0]?.imageUrl;
+    } else {
+      const url = await uploadFile(file);
+      fileUrl = url;
+      pages = [{ pageIndex: 0, imageUrl: url, width: 0, height: 0 }];
+    }
+  } else if (req.body?.fileUrl) {
+    fileUrl = toFullUrl(req.body.fileUrl);
+    pages = [{ pageIndex: 0, imageUrl: fileUrl, width: 0, height: 0 }];
+  } else {
+    throw AppError.badRequest('Arquivo (file) ou fileUrl obrigatorio');
   }
-  if (!fileUrl) throw AppError.badRequest('fileUrl ou arquivo obrigatório');
-  fileUrl = toFullUrl(fileUrl);
+
   const planta = await prisma.obraPlanta.create({
-    data: { obraId: req.params.id, fileUrl },
+    data: {
+      obraId,
+      fileUrl: fileUrl!,
+      pages: pages as any,
+      name: bodyName || null,
+      sourceType,
+    },
     include: { ambientes: true },
   });
   sendCreated(res, planta);

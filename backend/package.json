@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
+    "pdf-to-png-converter": "^4.0.0",
     "socket.io": "^4.8.1",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"

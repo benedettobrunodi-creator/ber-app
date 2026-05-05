@@ -1074,12 +1074,15 @@ model ObraChecklistAmbiente {
 // ─── Módulo de Fotos ───────────────────────────────────────────────────────
 
 model ObraPlanta {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId    String   @db.Uuid @map("obra_id")
-  fileUrl   String   @map("file_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  obra      Obra     @relation("ObraPlantas", fields: [obraId], references: [id], onDelete: Cascade)
-  ambientes ObraAmbiente[]
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId     String   @db.Uuid @map("obra_id")
+  fileUrl    String   @map("file_url")
+  pages      Json?
+  name       String?  @db.VarChar(120)
+  sourceType String   @default("pdf") @db.VarChar(20) @map("source_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+  obra       Obra     @relation("ObraPlantas", fields: [obraId], references: [id], onDelete: Cascade)
+  ambientes  ObraAmbiente[]
   @@map("obra_plantas")
 }
 
@@ -1087,6 +1090,7 @@ model ObraAmbiente {
   id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   obraId    String     @db.Uuid @map("obra_id")
   plantaId  String?    @db.Uuid @map("planta_id")
+  pageIndex Int        @default(0) @map("page_index")
   nome      String     @db.VarChar(100)
   posX      Float      @default(0) @map("pos_x")
   posY      Float      @default(0) @map("pos_y")
