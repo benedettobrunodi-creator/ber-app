@@ -2180,12 +2180,18 @@ export default function ObraDetailPage() {
                                 if (!confirm('Deseja substituir a planta atual? Os ambientes serão mantidos.')) return;
                                 try {
                                   await api.delete(`/obras/${params.id}/plantas/${planta.id}`);
-                                  const fd = new FormData(); fd.append('file', f);
-                                  const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                                  const url = up.data.data?.url ?? up.data.url;
-                                  const r = await api.post(`/obras/${params.id}/plantas`, { fileUrl: url });
+                                  const fd = new FormData();
+                                  fd.append('file', f);
+                                  const r = await api.post(
+                                    `/obras/${params.id}/plantas`,
+                                    fd,
+                                    { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }
+                                  );
                                   setPlantas([r.data.data]);
-                                } catch { alert('Erro ao trocar a planta'); }
+                                } catch (err: any) {
+                                  const msg = err?.response?.data?.error?.message || err?.message || 'Erro ao trocar a planta';
+                                  alert(`Erro ao trocar a planta: ${msg}`);
+                                }
                               }} />
                           </label>
                         </div>
