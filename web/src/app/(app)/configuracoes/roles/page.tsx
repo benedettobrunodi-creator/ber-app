@@ -27,6 +27,7 @@ const MODULES = [
   { key: 'normas', label: 'Normas Tecnicas' },
   { key: 'instrucoes', label: 'Instrucoes Tecnicas' },
   { key: 'ponto', label: 'Registro de Ponto' },
+  { key: 'orcamentos', label: 'Esteira de Orcamentos' },
   { key: 'dre', label: 'DRE' },
   { key: 'configuracoes', label: 'Configuracoes' },
 ];

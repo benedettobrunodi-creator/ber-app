@@ -20,3 +20,20 @@ export function requireRole(...allowedRoles: Role[]) {
     throw AppError.forbidden();
   };
 }
+
+/** Grants access if the user's role is explicitly listed OR has level >= max level of listed roles. */
+export function requireAnyRole(...allowedRoles: Role[]) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const userRole = req.user.role as Role;
+    const userLevel = ROLE_HIERARCHY[userRole] || 0;
+    const maxRequiredLevel = Math.max(...allowedRoles.map((r) => ROLE_HIERARCHY[r]));
+
+    if (allowedRoles.includes(userRole) || userLevel >= maxRequiredLevel) {
+      return next();
+    }
+
+    throw AppError.forbidden();
+  };
+}

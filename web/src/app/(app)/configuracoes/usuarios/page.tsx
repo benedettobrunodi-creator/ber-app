@@ -20,6 +20,7 @@ const MODULES = [
   { key: 'normas',        label: 'Normas Técnicas' },
   { key: 'instrucoes',    label: 'Instruções Técnicas' },
   { key: 'ponto',         label: 'Registro de Ponto' },
+  { key: 'orcamentos',    label: 'Esteira de Orçamentos' },
   { key: 'dre',           label: 'DRE' },
   { key: 'configuracoes', label: 'Configurações' },
 ];
