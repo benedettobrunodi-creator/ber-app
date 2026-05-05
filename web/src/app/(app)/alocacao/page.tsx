@@ -1981,7 +1981,7 @@ export default function AlocacaoPage() {
       if (alRes.status === 'fulfilled') setAlocacoes(alRes.value.data.data ?? []);
       if (obRes.status === 'fulfilled')
         setObras(
-          (obRes.value.data.data ?? []).filter((o: ObraInfo) => o.status !== 'cancelada'),
+          (obRes.value.data.data ?? []),
         );
       if (usRes.status === 'fulfilled') setUsers(usRes.value.data.data ?? []);
       if (reRes.status === 'fulfilled') setRecursosExternos(reRes.value.data.data ?? []);

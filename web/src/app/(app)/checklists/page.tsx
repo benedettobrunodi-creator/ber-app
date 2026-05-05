@@ -69,7 +69,7 @@ export default function ChecklistsPage() {
     api.get('/obras', { params: { limit: 100 } })
       .then(r => {
         const all: Obra[] = r.data.data ?? [];
-        setObras(all.filter(o => ['em_andamento','planejamento'].includes(o.status)));
+        setObras(all);
       })
       .catch(() => {})
       .finally(() => setLoading(false));

@@ -260,7 +260,7 @@ export default function ApontamentoPage() {
       setLoadingObras(true);
       setShowObraModal(true);
       try {
-        const res = await api.get('/obras', { params: { status: 'em_andamento' } });
+        const res = await api.get('/obras', { params: { limit: 200 } });
         setObras(res.data.data);
       } catch {
         setObras([]);

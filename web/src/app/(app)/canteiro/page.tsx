@@ -72,10 +72,8 @@ export default function CanteiroPage() {
         const obrasRes = await api.get('/obras');
         const obras: Obra[] = obrasRes.data.data;
 
-        const activeObras = obras.filter((o) => o.status === 'em_andamento');
-
         const results = await Promise.all(
-          activeObras.map(async (obra) => {
+          obras.map(async (obra) => {
             try {
               const res = await api.get(`/obras/${obra.id}/canteiro`);
               const checklists: CanteiroChecklist[] = res.data.data;

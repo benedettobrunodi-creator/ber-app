@@ -399,7 +399,7 @@ export default function PainelDeGestao() {
 
   // Load obras + their tasks for the grid stats
   useEffect(() => {
-    api.get('/obras', { params: { limit: 100, status: 'em_andamento' } })
+    api.get('/obras', { params: { limit: 100 } })
       .then(r => {
         const obrasData: Obra[] = r.data.data ?? [];
         setObras(obrasData);
