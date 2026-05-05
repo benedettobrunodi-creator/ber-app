@@ -2099,13 +2099,19 @@ export default function ObraDetailPage() {
           };
 
           const handlePlantaUpload = async (file: File) => {
-            const fd = new FormData(); fd.append('file', file);
+            const fd = new FormData();
+            fd.append('file', file);
             try {
-              const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-              const url = up.data.data?.url ?? up.data.url;
-              const r = await api.post(`/obras/${params.id}/plantas`, { fileUrl: url });
+              const r = await api.post(
+                `/obras/${params.id}/plantas`,
+                fd,
+                { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }
+              );
               setPlantas(prev => [r.data.data, ...prev]);
-            } catch { alert('Erro no upload da planta'); }
+            } catch (err: any) {
+              const msg = err?.response?.data?.error?.message || err?.message || 'Erro no upload da planta';
+              alert(`Erro no upload da planta: ${msg}`);
+            }
           };
 
           // Check reference foto when ambiente+categoria change
