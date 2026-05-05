@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database';
 import { BCRYPT_SALT_ROUNDS } from '../../config/constants';
 import { AppError } from '../../utils/errors';
-import type { CreateUserInput, UpdateUserInput, UpdateProfileInput, ChangePasswordInput } from './types';
+import type { CreateUserInput, UpdateUserInput, UpdateProfileInput, ChangePasswordInput, ResetPasswordInput } from './types';
 
 const userSelect = {
   id: true,
@@ -96,6 +96,14 @@ export async function updatePushToken(userId: string, pushToken: string) {
     where: { id: userId },
     data: { pushToken },
   });
+}
+
+export async function resetPassword(id: string, input: ResetPasswordInput) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw AppError.notFound('Usuário');
+
+  const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
+  await prisma.user.update({ where: { id }, data: { passwordHash } });
 }
 
 export async function changePassword(userId: string, input: ChangePasswordInput) {

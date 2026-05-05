@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore, UserRole } from '@/stores/authStore';
 import {
-  Users, UserPlus, ArrowLeft, Save, X, Shield, Search,
+  Users, UserPlus, ArrowLeft, Save, X, Shield, Search, KeyRound,
 } from 'lucide-react';
 
 const MODULES = [
@@ -94,6 +94,10 @@ export default function UsuariosPage() {
   const [form, setForm] = useState<UserFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [pwdModal, setPwdModal] = useState<UserRecord | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSubmitting, setPwdSubmitting] = useState(false);
 
   async function fetchUsers() {
     setLoading(true);
@@ -187,6 +191,28 @@ export default function UsuariosPage() {
       setError(err.response?.data?.error?.message || 'Erro ao salvar usuário.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openPwdModal(u: UserRecord) {
+    setPwdModal(u);
+    setNewPassword('');
+    setPwdError('');
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pwdModal) return;
+    if (newPassword.length < 6) { setPwdError('Senha deve ter no mínimo 6 caracteres.'); return; }
+    setPwdSubmitting(true);
+    setPwdError('');
+    try {
+      await api.put(`/users/${pwdModal.id}/password`, { newPassword });
+      setPwdModal(null);
+    } catch (err: any) {
+      setPwdError(err.response?.data?.error?.message || 'Erro ao redefinir senha.');
+    } finally {
+      setPwdSubmitting(false);
     }
   }
 
@@ -298,6 +324,11 @@ export default function UsuariosPage() {
                       className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-ber-olive text-xs font-semibold text-white">
                       Editar
                     </button>
+                    <button onClick={() => openPwdModal(u)}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-ber-teal text-white"
+                      title="Redefinir senha">
+                      <KeyRound size={16} />
+                    </button>
                     <button onClick={() => handleToggleActive(u)}
                       className={`min-h-[44px] rounded-lg px-3 text-xs font-semibold text-white ${u.isActive ? 'bg-red-500' : 'bg-green-600'}`}>
                       {u.isActive ? 'Desativar' : 'Reativar'}
@@ -366,6 +397,11 @@ export default function UsuariosPage() {
                             className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors">
                             Editar
                           </button>
+                          <button onClick={() => openPwdModal(u)}
+                            className="rounded-lg bg-ber-teal p-1.5 text-white hover:opacity-90 transition-colors"
+                            title="Redefinir senha">
+                            <KeyRound size={14} />
+                          </button>
                           <button onClick={() => handleToggleActive(u)}
                             className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors ${
                               u.isActive ? 'bg-red-500' : 'bg-green-600'
@@ -381,6 +417,48 @@ export default function UsuariosPage() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Modal — redefinir senha */}
+      {pwdModal && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-ber-carbon">Redefinir Senha</h2>
+                <p className="text-xs text-ber-gray">{pwdModal.name}</p>
+              </div>
+              <button onClick={() => setPwdModal(null)} className="rounded p-1 text-ber-gray hover:text-ber-carbon">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ber-carbon">Nova senha</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  autoFocus
+                  className="w-full rounded-lg border border-ber-gray/20 px-3 py-2.5 text-sm text-ber-carbon outline-none focus:border-ber-teal"
+                />
+              </div>
+              {pwdError && <p className="text-sm font-medium text-red-500">{pwdError}</p>}
+              <div className="flex justify-end gap-3 pt-1">
+                <button type="button" onClick={() => setPwdModal(null)}
+                  className="rounded-lg border border-ber-gray/20 px-4 py-2.5 text-sm font-semibold text-ber-gray hover:bg-gray-50 transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={pwdSubmitting}
+                  className="flex items-center gap-2 rounded-lg bg-ber-teal px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-colors disabled:opacity-50">
+                  <KeyRound size={16} />
+                  {pwdSubmitting ? 'Salvando...' : 'Salvar Senha'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Modal — criar/editar */}

@@ -41,6 +41,11 @@ export async function updatePushToken(req: Request, res: Response) {
   sendSuccess(res, { message: 'Push token atualizado' });
 }
 
+export async function resetPassword(req: Request, res: Response) {
+  await userService.resetPassword(req.params.id, req.body);
+  sendSuccess(res, { message: 'Senha redefinida com sucesso' });
+}
+
 export async function changePassword(req: Request, res: Response) {
   await userService.changePassword(req.user!.userId, req.body);
   sendSuccess(res, { message: 'Senha alterada com sucesso' });

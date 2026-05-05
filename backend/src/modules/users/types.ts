@@ -33,7 +33,12 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6),
 });
 
+export const resetPasswordSchema = z.object({
+  newPassword: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
