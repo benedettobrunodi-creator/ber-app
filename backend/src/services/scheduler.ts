@@ -18,8 +18,8 @@ export function startScheduler() {
     }
   });
 
-  // ClickUp sync — a cada 1 hora (substituiu Trello)
-  cron.schedule('0 * * * *', async () => {
+  // ClickUp sync — 1x ao dia às 06h (BRT)
+  cron.schedule('0 6 * * *', async () => {
     console.log('[Scheduler] ClickUp sync iniciado...');
     try {
       const [progressResult, taskResults] = await Promise.all([
@@ -31,7 +31,7 @@ export function startScheduler() {
     } catch (err) {
       console.error('[Scheduler] ClickUp sync falhou:', (err as Error).message);
     }
-  });
+  }, { timezone: 'America/Sao_Paulo' });
 
   // Checklist pendente notifications — diariamente as 08h
   cron.schedule('0 8 * * *', async () => {
@@ -44,7 +44,7 @@ export function startScheduler() {
     }
   });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (*/1h), Checklist notifications (08h)');
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h)');
 }
 
 async function checkPendingChecklists() {
