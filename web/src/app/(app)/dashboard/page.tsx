@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import CollapsibleSection from '@/components/CollapsibleSection';
+import ObrasClickUpPanel, { ObraClickUpRow } from '@/components/ObrasClickUpPanel';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // ─── Paleta Command Center (Light) ───────────────────────────────────────────
@@ -117,6 +118,7 @@ export default function DashboardPage() {
   const [fvsData, setFvsData] = useState<Record<string, number>>({});
   const [seqData, setSeqData] = useState<{ aguardando: number; atrasadas: number }>({ aguardando: 0, atrasadas: 0 });
   const [qualidade, setQualidade] = useState<{ pendentes: number; naoConformes: number }>({ pendentes: 0, naoConformes: 0 });
+  const [clickupSummary, setClickupSummary] = useState<ObraClickUpRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
 
@@ -165,6 +167,10 @@ export default function DashboardPage() {
         }
       }));
       setQualidade({ pendentes, naoConformes });
+
+      // ClickUp summary (KPIs por obra)
+      const cuRes = await safe(() => api.get('/obras/clickup-summary').then(r => r.data), { data: [] });
+      setClickupSummary((cuRes?.data ?? []) as ObraClickUpRow[]);
 
       setLoading(false);
     }
@@ -498,6 +504,23 @@ export default function DashboardPage() {
             <MetricRow label="Status geral" value={totalAlertas === 0 ? '✓ OK' : `${totalAlertas} pendência${totalAlertas > 1 ? 's' : ''}`} accent={totalAlertas === 0 ? C.teal : C.red} />
           </CollapsibleSection>
         </div>
+
+        {/* ── TAREFAS CLICKUP ── */}
+        <CollapsibleSection
+          title="Tarefas (ClickUp)"
+          count={clickupSummary.reduce((s, o) => s + o.atrasadas, 0)}
+          accent={
+            clickupSummary.some((o) => o.farol === 'vermelho')
+              ? 'red'
+              : clickupSummary.some((o) => o.farol === 'amarelo')
+              ? 'olive'
+              : 'green'
+          }
+          defaultOpen={true}
+        >
+          <ObrasClickUpPanel rows={clickupSummary} />
+        </CollapsibleSection>
+
 
       </div>
     </div>
