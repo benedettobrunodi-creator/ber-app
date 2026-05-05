@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { getClickUpSummary, getObraKpiDetail } from '../../services/clickup-kpis';
 import { AppError } from '../../utils/errors';
 import type { CreateObraInput, UpdateObraInput, AddMemberInput } from './types';
 
@@ -189,6 +190,7 @@ export async function getStats(obraId: string) {
     totalTasks += tc._count;
   }
 
+  const clickup = await getObraKpiDetail(obraId);
   return {
     progress: obra.progressPercent,
     members: memberCount,
@@ -197,6 +199,7 @@ export async function getStats(obraId: string) {
       total: totalTasks,
       ...tasks,
     },
+    clickup,
   };
 }
 
@@ -217,4 +220,8 @@ export async function isObraMember(obraId: string, userId: string): Promise<bool
     where: { obraId_userId: { obraId, userId } },
   });
   return !!member;
+}
+
+export async function getClickUpSummaryForDashboard() {
+  return getClickUpSummary();
 }

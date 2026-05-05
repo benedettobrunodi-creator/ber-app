@@ -111,3 +111,8 @@ export async function updateProgresso(req: Request, res: Response) {
 
   return res.json({ obra: obra.name, progresso: valor, trelloAtualizado });
 }
+
+export async function getClickUpSummary(req: Request, res: Response) {
+  const summary = await obraService.getClickUpSummaryForDashboard();
+  sendSuccess(res, summary);
+}
