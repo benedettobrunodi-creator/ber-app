@@ -153,6 +153,21 @@ export async function removeMember(obraId: string, userId: string) {
   });
 }
 
+export async function getCounts(userId: string, userRole: string) {
+  const where: any = {};
+  if (userRole === 'gestor') {
+    where.members = { some: { userId } };
+  }
+
+  const [total, ativas, atrasadas] = await Promise.all([
+    prisma.obra.count({ where }),
+    prisma.obra.count({ where: { ...where, status: 'em_andamento' } }),
+    prisma.obra.count({ where: { ...where, status: 'em_andamento', progressPercent: { lt: 20 } } }),
+  ]);
+
+  return { total, ativas, atrasadas };
+}
+
 export async function getStats(obraId: string) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId } });
   if (!obra) throw AppError.notFound('Obra');

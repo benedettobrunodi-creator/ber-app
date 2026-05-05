@@ -10,6 +10,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get('/counts', requireRole('campo'), controller.getCounts);
 router.get('/', requireRole('campo'), controller.listObras);
 router.post("/progresso", controller.updateProgresso);
 router.get('/:id', requireRole('campo'), controller.getObra);

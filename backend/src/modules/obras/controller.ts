@@ -62,6 +62,11 @@ export async function syncClickUpTasks(req: Request, res: Response) {
   sendSuccess(res, result);
 }
 
+export async function getCounts(req: Request, res: Response) {
+  const counts = await obraService.getCounts(req.user!.userId, req.user!.role);
+  sendSuccess(res, counts);
+}
+
 export async function getStats(req: Request, res: Response) {
   const stats = await obraService.getStats(req.params.id);
   sendSuccess(res, stats);

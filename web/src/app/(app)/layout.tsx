@@ -169,12 +169,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) return;
     const fetchCounts = async () => {
       try {
-        const r = await api.get('/obras');
-        const all: any[] = r.data?.data ?? [];
-        const ativas = all.filter((o: any) => o.status === 'em_andamento');
-        const atrasadas = ativas.filter((o: any) => (o.progressPercent ?? o.progress ?? 0) < 20).length;
-        setCounts({ '/obras': ativas.length });
-        setKpi({ ativas: ativas.length, total: all.length, atrasadas });
+        const r = await api.get('/obras/counts');
+        const { total = 0, ativas = 0, atrasadas = 0 } = r.data?.data ?? {};
+        setCounts({ '/obras': ativas });
+        setKpi({ ativas, total, atrasadas });
       } catch { /* silent */ }
     };
     fetchCounts();
