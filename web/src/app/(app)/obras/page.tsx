@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Plus, MapPin, Calendar, User, HardHat, Archive, Trash2, RefreshCw, X, AlertTriangle } from 'lucide-react';
+import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, RefreshCw, X, AlertTriangle } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
@@ -116,6 +116,15 @@ export default function ObrasPage() {
     }
   }
 
+  async function handleUnarchive(obra: Obra) {
+    try {
+      await api.put(`/obras/${obra.id}`, { status: 'em_andamento' });
+      fetchObras();
+    } catch {
+      /* handled by interceptor */
+    }
+  }
+
   async function handleDeletePermanent(obra: Obra) {
     try {
       await api.delete(`/obras/${obra.id}/permanent`);
@@ -211,7 +220,15 @@ export default function ObrasPage() {
               <div key={obra.id} className="group relative rounded-lg border border-ber-offwhite bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
                 {/* Action buttons (visible on hover) */}
                 <div className="absolute right-2 top-2 hidden items-center gap-1 group-hover:flex">
-                  {obra.status !== 'cancelada' && (
+                  {obra.status === 'cancelada' ? (
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleUnarchive(obra); }}
+                      title="Desarquivar obra"
+                      className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-green-50 hover:text-green-600"
+                    >
+                      <ArchiveRestore size={15} />
+                    </button>
+                  ) : (
                     <button
                       onClick={(e) => { e.preventDefault(); setConfirmObra(obra); }}
                       title="Arquivar obra"
