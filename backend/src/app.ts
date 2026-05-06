@@ -161,13 +161,7 @@ app.get('/v1/fvs-templates', authenticate as any, listTemplates);
 // Módulo de Fotos
 import * as fotosCtrl from './modules/fotos/controller';
 const fotosUpload = multer({
-  storage: isR2Configured() ? multer.memoryStorage() : multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
-    filename: (_req, file, cb) => {
-      const u = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      cb(null, `${u}${path.extname(file.originalname)}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 const wf = (fn: any) => (req: any, res: any, next: any) => fn(req, res).catch(next);
