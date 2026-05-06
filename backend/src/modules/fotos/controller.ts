@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs/promises';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { sendSuccess, sendCreated } from '../../utils/response';
@@ -12,12 +13,19 @@ function toFullUrl(urlOrPath: string): string {
   return `${env.backendUrl}${urlOrPath}`;
 }
 
-/** Upload a multer file to R2 (memory buffer) or return disk path */
+/** Upload a multer file to R2 (memory buffer) or save to local disk */
 async function uploadFile(file: Express.Multer.File): Promise<string> {
   if (isR2Configured() && file.buffer) {
     return uploadToR2(file.buffer, file.originalname, file.mimetype);
   }
-  // Fallback: disk storage
+  // No R2: if multer used memoryStorage, save buffer manually to disk
+  if (file.buffer) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    await fs.writeFile(path.join(env.uploadDir, filename), file.buffer);
+    return toFullUrl(`/uploads/${filename}`);
+  }
+  // diskStorage: filename already set
   return toFullUrl(`/uploads/${file.filename}`);
 }
 
@@ -49,7 +57,7 @@ export async function createPlanta(req: Request, res: Response) {
     const isPdf = file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
     sourceType = isPdf ? 'pdf' : 'image';
 
-    if (!file.buffer) throw AppError.badRequest('Upload requer R2 configurado');
+    if (isPdf && !isR2Configured()) throw AppError.badRequest('Upload de PDF requer armazenamento R2 configurado (S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY)');
 
     if (isPdf) {
       const { convertPdfToPages } = await import('../../services/pdf-converter');
