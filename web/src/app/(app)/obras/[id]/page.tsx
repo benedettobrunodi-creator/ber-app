@@ -2105,7 +2105,7 @@ export default function ObraDetailPage() {
               const r = await api.post(
                 `/obras/${params.id}/plantas`,
                 fd,
-                { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }
+                { timeout: 120000 }
               );
               setPlantas(prev => [r.data.data, ...prev]);
             } catch (err: any) {
@@ -2185,7 +2185,7 @@ export default function ObraDetailPage() {
                                   const r = await api.post(
                                     `/obras/${params.id}/plantas`,
                                     fd,
-                                    { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }
+                                    { timeout: 120000 }
                                   );
                                   setPlantas([r.data.data]);
                                 } catch (err: any) {
