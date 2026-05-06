@@ -2,20 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api').replace('/v1', '');
-
-/** URLs do Google Drive/Docs precisam ser buscadas pelo proxy do backend para evitar CORS */
-function needsProxy(url: string): boolean {
-  return url.includes('drive.google.com') || url.includes('docs.google.com');
-}
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/v1$/, '');
 
 function proxyUrl(url: string): string {
   return `${API_BASE}/v1/proxy/pdf?url=${encodeURIComponent(url)}`;
 }
 
+function isExternalUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://');
+}
+
 /**
  * Loads a PDF and returns the first page as a base64 PNG data URL.
- * Does NOT render anything — use the dataUrl in an <img> or Konva.Image.
+ * Always fetches via proxy (authenticated fetch) to avoid CORS issues
+ * regardless of where the file is hosted (R2, Google Drive, etc.).
  */
 export function usePdfAsImage(src: string | undefined): { dataUrl: string | null; error: boolean; loading: boolean } {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -37,26 +37,29 @@ export function usePdfAsImage(src: string | undefined): { dataUrl: string | null
         const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-        // pdf.js faz fetch cru sem Authorization — para URLs que precisam de proxy
-        // buscamos o ArrayBuffer manualmente com o token e passamos como data
-        let documentSource: { url: string } | { data: ArrayBuffer };
-        if (needsProxy(src)) {
+        // Always fetch externally-hosted PDFs via our backend proxy:
+        // - avoids CORS restrictions (R2, Google Drive, etc.)
+        // - pdf.js worker cannot send Authorization headers on its own
+        let documentSource: { data: ArrayBuffer } | { url: string };
+        if (isExternalUrl(src)) {
+          const target = proxyUrl(src);
           const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-          const resp = await fetch(proxyUrl(src), {
+          const resp = await fetch(target, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           if (!resp.ok) throw new Error(`Proxy retornou ${resp.status}`);
           documentSource = { data: await resp.arrayBuffer() };
         } else {
-          documentSource = { url: src, disableAutoFetch: true } as any;
+          // Relative URL (e.g. /uploads/...) — same origin, no CORS issue
+          documentSource = { url: src };
         }
 
         const pdf = await pdfjsLib.getDocument({
           ...documentSource,
           isEvalSupported: false,
         }).promise;
-        const page = await pdf.getPage(1);
 
+        const page = await pdf.getPage(1);
         const scale = 2;
         const viewport = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
@@ -65,12 +68,10 @@ export function usePdfAsImage(src: string | undefined): { dataUrl: string | null
         const ctx = canvas.getContext('2d')!;
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        if (!cancelled) {
-          setDataUrl(canvas.toDataURL('image/png'));
-        }
+        if (!cancelled) setDataUrl(canvas.toDataURL('image/png'));
         pdf.destroy();
       } catch (err) {
-        console.error('PDF render error:', err);
+        console.error('[PdfImage] render error:', err);
         if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setLoading(false);

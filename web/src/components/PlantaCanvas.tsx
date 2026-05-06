@@ -34,15 +34,21 @@ export default function PlantaCanvas({
 }: PlantaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [imgError, setImgError] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   // Load image
   useEffect(() => {
     if (!imageSrc) return;
+    setImage(null);
+    setImgError(false);
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => setImage(img);
-    img.onerror = () => console.error('PlantaCanvas: failed to load image');
+    img.onerror = () => {
+      console.error('[PlantaCanvas] failed to load image:', imageSrc.slice(0, 80));
+      setImgError(true);
+    };
     img.src = imageSrc;
   }, [imageSrc]);
 
@@ -69,19 +75,27 @@ export default function PlantaCanvas({
   // Handle click on empty area (add pin mode)
   const handleStageClick = (e: any) => {
     if (!addMode) return;
-    // Only trigger on background click, not on pins
     if (e.target !== e.target.getStage() && e.target.name() !== 'planta-bg') return;
-
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
     if (!pointer || stageSize.width === 0 || stageSize.height === 0) return;
-
     const posX = Math.round((pointer.x / stageSize.width) * 1000) / 10;
     const posY = Math.round((pointer.y / stageSize.height) * 1000) / 10;
     onAddPin(posX, posY);
   };
 
   const PIN_RADIUS = 14;
+
+  if (imgError) {
+    return (
+      <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: 400 }}>
+        <div className="text-center">
+          <span className="text-3xl">🖼️</span>
+          <p className="mt-2 text-xs font-semibold text-gray-500">Erro ao carregar a imagem da planta</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} style={{ cursor: addMode ? 'crosshair' : 'default' }}>
@@ -92,7 +106,6 @@ export default function PlantaCanvas({
           onClick={handleStageClick}
           onTap={handleStageClick}
         >
-          {/* Background image layer */}
           <Layer>
             <KImage
               image={image}
@@ -103,14 +116,12 @@ export default function PlantaCanvas({
             />
           </Layer>
 
-          {/* Pins layer */}
           <Layer>
             {ambientes.map((amb, idx) => {
               const x = (amb.posX / 100) * stageSize.width;
               const y = (amb.posY / 100) * stageSize.height;
               const isSelected = amb.id === selectedId;
               const color = getPinColor(amb);
-              const seqNumber = idx + 1;
 
               return (
                 <Group
@@ -118,25 +129,12 @@ export default function PlantaCanvas({
                   x={x}
                   y={y}
                   listening={!addMode}
-                  onClick={(e) => {
-                    e.cancelBubble = true;
-                    onSelect(isSelected ? null : amb);
-                  }}
-                  onTap={(e) => {
-                    e.cancelBubble = true;
-                    onSelect(isSelected ? null : amb);
-                  }}
+                  onClick={(e) => { e.cancelBubble = true; onSelect(isSelected ? null : amb); }}
+                  onTap={(e) => { e.cancelBubble = true; onSelect(isSelected ? null : amb); }}
                 >
-                  {/* Selection ring */}
                   {isSelected && (
-                    <Circle
-                      radius={PIN_RADIUS + 3}
-                      fill="transparent"
-                      stroke="white"
-                      strokeWidth={2}
-                    />
+                    <Circle radius={PIN_RADIUS + 3} fill="transparent" stroke="white" strokeWidth={2} />
                   )}
-                  {/* Pin circle */}
                   <Circle
                     radius={PIN_RADIUS}
                     fill={color}
@@ -144,9 +142,8 @@ export default function PlantaCanvas({
                     shadowBlur={4}
                     shadowOffsetY={2}
                   />
-                  {/* Number text */}
                   <Text
-                    text={String(seqNumber)}
+                    text={String(idx + 1)}
                     fontSize={10}
                     fontStyle="bold"
                     fill="white"
@@ -164,8 +161,7 @@ export default function PlantaCanvas({
         </Stage>
       )}
 
-      {/* Loading state */}
-      {(!image || stageSize.width === 0) && (
+      {(!image || stageSize.width === 0) && !imgError && (
         <div className="flex items-center justify-center bg-gray-50 rounded-lg" style={{ minHeight: 400 }}>
           <div className="text-center">
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
