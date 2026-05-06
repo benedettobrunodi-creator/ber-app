@@ -50,6 +50,7 @@ export default function PlantaCanvas({
   const updateSize = useCallback(() => {
     if (!containerRef.current || !image) return;
     const containerWidth = containerRef.current.offsetWidth;
+    if (containerWidth <= 0) return;
     const ratio = image.height / image.width;
     setStageSize({
       width: containerWidth,
@@ -58,9 +59,11 @@ export default function PlantaCanvas({
   }, [image]);
 
   useEffect(() => {
+    if (!containerRef.current) return;
     updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    const ro = new ResizeObserver(() => updateSize());
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, [updateSize]);
 
   // Handle click on empty area (add pin mode)

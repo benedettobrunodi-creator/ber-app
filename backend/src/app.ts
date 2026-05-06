@@ -250,6 +250,53 @@ app.post('/v1/uploads', authenticate, genericUpload.single('file'), async (req, 
   }
 });
 
+// ── PDF Proxy — permite que o frontend leia PDFs externos (ex: Google Drive) sem CORS ──
+// Suporta URLs do Drive: /file/d/{ID}/view, /file/d/{ID}/preview e uc?id={ID}
+function driveDownloadUrl(url: string): string {
+  const viewMatch = url.match(/\/file\/d\/([^/]+)\//);
+  if (viewMatch) return `https://drive.google.com/uc?export=download&id=${viewMatch[1]}`;
+  const ucMatch = url.match(/[?&]id=([^&]+)/);
+  if (ucMatch) return `https://drive.google.com/uc?export=download&id=${ucMatch[1]}`;
+  return url;
+}
+
+app.get('/v1/proxy/pdf', authenticate, async (req, res) => {
+  const raw = req.query.url as string;
+  if (!raw) return res.status(400).json({ error: { message: 'url obrigatória' } });
+
+  let targetUrl: string;
+  try {
+    targetUrl = new URL(raw).toString();
+  } catch {
+    return res.status(400).json({ error: { message: 'url inválida' } });
+  }
+
+  if (targetUrl.includes('drive.google.com') || targetUrl.includes('docs.google.com')) {
+    targetUrl = driveDownloadUrl(targetUrl);
+  }
+
+  try {
+    const upstream = await fetch(targetUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 BER-App/1.0' },
+      redirect: 'follow',
+    });
+
+    if (!upstream.ok) {
+      return res.status(502).json({ error: { message: `Upstream retornou ${upstream.status}` } });
+    }
+
+    const contentType = upstream.headers.get('content-type') ?? 'application/pdf';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error('[proxy/pdf] fetch error:', err?.message);
+    return res.status(502).json({ error: { message: 'Erro ao buscar o arquivo remoto' } });
+  }
+});
+
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Rota não encontrada' } });

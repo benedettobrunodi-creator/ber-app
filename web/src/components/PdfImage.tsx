@@ -2,6 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api').replace('/v1', '');
+
+/** URLs do Google Drive/Docs precisam ser buscadas pelo proxy do backend para evitar CORS */
+function needsProxy(url: string): boolean {
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
+}
+
+function proxyUrl(url: string): string {
+  return `${API_BASE}/v1/proxy/pdf?url=${encodeURIComponent(url)}`;
+}
+
 /**
  * Loads a PDF and returns the first page as a base64 PNG data URL.
  * Does NOT render anything — use the dataUrl in an <img> or Konva.Image.
@@ -24,10 +35,12 @@ export function usePdfAsImage(src: string | undefined): { dataUrl: string | null
     (async () => {
       try {
         const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+        const resolvedSrc = needsProxy(src) ? proxyUrl(src) : src;
 
         const pdf = await pdfjsLib.getDocument({
-          url: src,
+          url: resolvedSrc,
           disableAutoFetch: true,
           isEvalSupported: false,
         }).promise;

@@ -360,12 +360,24 @@ function PlantaCanvasWrapper({
   isPdf: (url: string) => boolean;
 }) {
   const resolvedUrl = resolveFileUrl(planta.fileUrl);
-  const { dataUrl: pdfDataUrl, loading: pdfLoading } = usePdfAsImage(
+  const { dataUrl: pdfDataUrl, loading: pdfLoading, error: pdfError } = usePdfAsImage(
     isPdf(planta.fileUrl) ? resolvedUrl : undefined
   );
 
   const imageSrc = isPdf(planta.fileUrl) ? pdfDataUrl : resolvedUrl;
   const plantaAmbientes = ambientes.filter((a: any) => a.plantaId === planta.id);
+
+  if (isPdf(planta.fileUrl) && pdfError) {
+    return (
+      <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: 400 }}>
+        <div className="text-center">
+          <span className="text-3xl">📄</span>
+          <p className="mt-2 text-xs font-semibold text-gray-500">Erro ao carregar planta PDF</p>
+          <p className="mt-1 text-xs text-gray-400">Verifique se o arquivo é válido ou tente novamente.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isPdf(planta.fileUrl) && (pdfLoading || !pdfDataUrl)) {
     return (
@@ -1996,7 +2008,10 @@ export default function ObraDetailPage() {
         {activeTab === 'fotos' && (() => {
           const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
           const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
-          const isPdf = (url: string) => url?.toLowerCase().endsWith('.pdf');
+          const isPdf = (url: string) =>
+            url?.toLowerCase().endsWith('.pdf') ||
+            url?.includes('drive.google.com') ||
+            url?.includes('docs.google.com');
           // Resolve relative /uploads/ paths to the backend URL
           const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace('/v1', '');
           const resolveFileUrl = (url: string) => {
