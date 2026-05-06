@@ -160,9 +160,6 @@ app.get('/v1/fvs-templates', authenticate as any, listTemplates);
 
 // Módulo de Fotos
 import * as fotosCtrl from './modules/fotos/controller';
-import multer from 'multer';
-import path from 'path';
-import { isR2Configured } from './services/storage';
 const fotosUpload = multer({
   storage: isR2Configured() ? multer.memoryStorage() : multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
