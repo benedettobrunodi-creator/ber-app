@@ -37,11 +37,22 @@ export function usePdfAsImage(src: string | undefined): { dataUrl: string | null
         const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-        const resolvedSrc = needsProxy(src) ? proxyUrl(src) : src;
+        // pdf.js faz fetch cru sem Authorization — para URLs que precisam de proxy
+        // buscamos o ArrayBuffer manualmente com o token e passamos como data
+        let documentSource: { url: string } | { data: ArrayBuffer };
+        if (needsProxy(src)) {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+          const resp = await fetch(proxyUrl(src), {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (!resp.ok) throw new Error(`Proxy retornou ${resp.status}`);
+          documentSource = { data: await resp.arrayBuffer() };
+        } else {
+          documentSource = { url: src, disableAutoFetch: true } as any;
+        }
 
         const pdf = await pdfjsLib.getDocument({
-          url: resolvedSrc,
-          disableAutoFetch: true,
+          ...documentSource,
           isEvalSupported: false,
         }).promise;
         const page = await pdf.getPage(1);
