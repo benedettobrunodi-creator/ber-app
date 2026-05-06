@@ -160,9 +160,22 @@ app.get('/v1/fvs-templates', authenticate as any, listTemplates);
 
 // Módulo de Fotos
 import * as fotosCtrl from './modules/fotos/controller';
+import multer from 'multer';
+import path from 'path';
+import { isR2Configured } from './services/storage';
+const fotosUpload = multer({
+  storage: isR2Configured() ? multer.memoryStorage() : multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+    filename: (_req, file, cb) => {
+      const u = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `${u}${path.extname(file.originalname)}`);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 const wf = (fn: any) => (req: any, res: any, next: any) => fn(req, res).catch(next);
 app.get('/v1/obras/:id/plantas',                     authenticate as any, wf(fotosCtrl.listPlantas));
-app.post('/v1/obras/:id/plantas',                    authenticate as any, wf(fotosCtrl.createPlanta));
+app.post('/v1/obras/:id/plantas',                    authenticate as any, fotosUpload.single('file'), wf(fotosCtrl.createPlanta));
 app.delete('/v1/obras/:id/plantas/:plantaId',        authenticate as any, wf(fotosCtrl.deletePlanta));
 app.get('/v1/obras/:id/ambientes',                   authenticate as any, wf(fotosCtrl.listAmbientes));
 app.post('/v1/obras/:id/ambientes',                  authenticate as any, wf(fotosCtrl.createAmbiente));
@@ -170,7 +183,7 @@ app.patch('/v1/obras/:id/ambientes/:ambienteId',     authenticate as any, wf(fot
 app.delete('/v1/obras/:id/ambientes/:ambienteId',    authenticate as any, wf(fotosCtrl.deleteAmbiente));
 app.get('/v1/obras/:id/fotos/referencia',            authenticate as any, wf(fotosCtrl.getFotoReferencia));
 app.get('/v1/obras/:id/fotos',                       authenticate as any, wf(fotosCtrl.listFotos));
-app.post('/v1/obras/:id/fotos',                      authenticate as any, wf(fotosCtrl.createFoto));
+app.post('/v1/obras/:id/fotos',                      authenticate as any, fotosUpload.single('file'), wf(fotosCtrl.createFoto));
 app.post('/v1/obras/:id/fotos/batch',                authenticate as any, wf(fotosCtrl.createFotosBatch));
 app.delete('/v1/obras/:id/fotos/:fotoId',            authenticate as any, wf(fotosCtrl.deleteFoto));
 
