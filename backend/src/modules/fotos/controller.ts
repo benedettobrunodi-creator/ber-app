@@ -22,6 +22,7 @@ async function uploadFile(file: Express.Multer.File): Promise<string> {
   if (file.buffer) {
     const ext = path.extname(file.originalname) || '.jpg';
     const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    await fs.mkdir(env.uploadDir, { recursive: true });
     await fs.writeFile(path.join(env.uploadDir, filename), file.buffer);
     return toFullUrl(`/uploads/${filename}`);
   }
