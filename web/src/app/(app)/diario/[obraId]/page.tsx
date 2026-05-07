@@ -48,18 +48,30 @@ interface DiarioDetalhe {
   equipamentos: Equipamento[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CLIMA_OPTIONS = ['sol', 'parcialmente_nublado', 'nublado', 'chuva', 'tempestade'] as const;
 const CLIMA_LABELS: Record<string, string> = {
-  sol: 'Sol', parcialmente_nublado: 'Parcialmente nublado', nublado: 'Nublado', chuva: 'Chuva', tempestade: 'Tempestade',
+  sol: 'Sol', parcialmente_nublado: 'Parcialmente nublado', nublado: 'Nublado',
+  chuva: 'Chuva', tempestade: 'Tempestade',
+};
+const CLIMA_SHORT: Record<string, string> = {
+  sol: 'Sol', parcialmente_nublado: 'Parcial', nublado: 'Nublado',
+  chuva: 'Chuva', tempestade: 'Tempest.',
 };
 const CLIMA_ICONS: Record<string, React.ReactNode> = {
-  sol: <Sun size={14} className="text-yellow-400" />,
-  parcialmente_nublado: <CloudSun size={14} className="text-yellow-300" />,
-  nublado: <Cloud size={14} className="text-gray-400" />,
-  chuva: <CloudRain size={14} className="text-blue-400" />,
-  tempestade: <Zap size={14} className="text-purple-400" />,
+  sol: <Sun size={14} className="text-yellow-500" />,
+  parcialmente_nublado: <CloudSun size={14} className="text-yellow-500" />,
+  nublado: <Cloud size={14} className="text-ber-gray" />,
+  chuva: <CloudRain size={14} className="text-blue-500" />,
+  tempestade: <Zap size={14} className="text-purple-600" />,
+};
+const CLIMA_ICONS_WHITE: Record<string, React.ReactNode> = {
+  sol: <Sun size={14} className="text-white" />,
+  parcialmente_nublado: <CloudSun size={14} className="text-white" />,
+  nublado: <Cloud size={14} className="text-white" />,
+  chuva: <CloudRain size={14} className="text-white" />,
+  tempestade: <Zap size={14} className="text-white" />,
 };
 const COND_OPTIONS = ['normal', 'parcial', 'interrompido'] as const;
 const COND_LABELS: Record<string, string> = { normal: 'Normal', parcial: 'Parcial', interrompido: 'Interrompido' };
@@ -71,7 +83,8 @@ const OCORRENCIA_TIPOS = ['incidente', 'imprevisto', 'atraso', 'qualidade', 'seg
 const VISITA_TIPOS = ['cliente', 'fiscalizacao', 'fornecedor', 'projetista', 'outro'] as const;
 
 function fmtDate(iso: string) {
-  const d = new Date(iso + 'T12:00:00');
+  const dateOnly = iso.slice(0, 10);
+  const d = new Date(dateOnly + 'T12:00:00');
   return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
@@ -86,17 +99,17 @@ function Section({ title, icon, count, open, onToggle, children }: {
   open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-ber-border bg-ber-card overflow-hidden">
+    <div className="rounded-xl border border-ber-border bg-white shadow-sm overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 text-left"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-sm font-semibold text-white">{title}</span>
-          <span className="rounded-full bg-ber-border px-1.5 py-0.5 text-[10px] font-bold text-gray-400">{count}</span>
+          <span className="text-sm font-semibold text-ber-carbon">{title}</span>
+          <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-ber-gray">{count}</span>
         </div>
-        {open ? <ChevronUp size={14} className="text-gray-500" /> : <ChevronDown size={14} className="text-gray-500" />}
+        {open ? <ChevronUp size={14} className="text-ber-gray" /> : <ChevronDown size={14} className="text-ber-gray" />}
       </button>
       {open && <div className="border-t border-ber-border px-4 pb-4 pt-3">{children}</div>}
     </div>
@@ -116,6 +129,9 @@ export default function DiarioObraPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [patchingHeader, setPatchingHeader] = useState(false);
+  const [obsInternas, setObsInternas] = useState('');
+  const [obsCliente, setObsCliente] = useState('');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     efetivos: true, atividades: true, ocorrencias: false, visitas: false, materiais: false, equipamentos: false,
   });
@@ -129,6 +145,12 @@ export default function DiarioObraPage() {
   const [addingEquipamento, setAddingEquipamento] = useState(false);
 
   const fechado = selected?.status === 'fechado';
+
+  // Sync textarea state when selected diário changes
+  useEffect(() => {
+    setObsInternas(selected?.observacoesInternas ?? '');
+    setObsCliente(selected?.observacoesCliente ?? '');
+  }, [selected?.id]);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -185,6 +207,19 @@ export default function DiarioObraPage() {
     }
   }
 
+  async function patchHeader(data: Partial<{ clima: string; condicaoTrabalho: string; observacoesInternas: string; observacoesCliente: string }>) {
+    if (!selected) return;
+    setPatchingHeader(true);
+    try {
+      const res = await api.patch(`/diario/${selected.id}`, data);
+      setSelected(res.data?.data);
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao salvar');
+    } finally {
+      setPatchingHeader(false);
+    }
+  }
+
   function toggleSection(key: string) {
     setOpenSections(s => ({ ...s, [key]: !s[key] }));
   }
@@ -220,28 +255,28 @@ export default function DiarioObraPage() {
     return (
       <div className="space-y-2">
         {selected?.efetivos.map(ef => (
-          <div key={ef.id} className="flex items-center justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
+          <div key={ef.id} className="flex items-center justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
             <div>
-              <span className="text-white font-medium">{ef.user?.name ?? ef.nomeExterno ?? '—'}</span>
-              {ef.funcao && <span className="ml-2 text-xs text-gray-500">{ef.funcao}</span>}
+              <span className="text-ber-carbon font-medium">{ef.user?.name ?? ef.nomeExterno ?? '—'}</span>
+              {ef.funcao && <span className="ml-2 text-xs text-ber-gray">{ef.funcao}</span>}
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/efetivos/${ef.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2">
+                className="text-ber-gray hover:text-ber-red ml-2">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingEfetivo ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <input placeholder="Nome" value={nome} onChange={e => setNome(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <input placeholder="Função (opcional)" value={funcao} onChange={e => setFuncao(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingEfetivo(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingEfetivo(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -269,39 +304,39 @@ export default function DiarioObraPage() {
     }
 
     const statusColors: Record<string, string> = {
-      em_andamento: 'text-blue-400', concluida: 'text-green-400',
-      nao_realizada: 'text-red-400', parcial: 'text-yellow-400',
+      em_andamento: 'text-blue-600', concluida: 'text-green-600',
+      nao_realizada: 'text-ber-red', parcial: 'text-amber-600',
     };
 
     return (
       <div className="space-y-2">
         {selected?.atividades.map(at => (
-          <div key={at.id} className="flex items-start justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
+          <div key={at.id} className="flex items-start justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm">{at.descricao}</p>
-              <p className={`text-xs mt-0.5 ${statusColors[at.status] ?? 'text-gray-400'}`}>
+              <p className="text-ber-carbon text-sm">{at.descricao}</p>
+              <p className={`text-xs mt-0.5 font-medium ${statusColors[at.status] ?? 'text-ber-gray'}`}>
                 {ATIVIDADE_STATUS_LABELS[at.status] ?? at.status}
               </p>
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/atividades/${at.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2 shrink-0">
+                className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingAtividade ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <input placeholder="Descrição da atividade" value={desc} onChange={e => setDesc(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <select value={status} onChange={e => setStatus(e.target.value as any)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white outline-none">
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon outline-none focus:border-ber-olive">
               {ATIVIDADE_STATUS.map(s => <option key={s} value={s}>{ATIVIDADE_STATUS_LABELS[s]}</option>)}
             </select>
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingAtividade(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingAtividade(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -332,35 +367,35 @@ export default function DiarioObraPage() {
     return (
       <div className="space-y-2">
         {selected?.ocorrencias.map(oc => (
-          <div key={oc.id} className="flex items-start justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
+          <div key={oc.id} className="flex items-start justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-yellow-500">{oc.tipo}</p>
-              <p className="text-white text-sm mt-0.5">{oc.descricao}</p>
-              {oc.visivelCliente && <p className="text-[10px] text-blue-400 mt-0.5">Visível ao cliente</p>}
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">{oc.tipo}</p>
+              <p className="text-ber-carbon text-sm mt-0.5">{oc.descricao}</p>
+              {oc.visivelCliente && <p className="text-[10px] text-blue-600 mt-0.5 font-medium">Visível ao cliente</p>}
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/ocorrencias/${oc.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2 shrink-0">
+                className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingOcorrencia ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <select value={tipo} onChange={e => setTipo(e.target.value as any)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white outline-none">
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon outline-none focus:border-ber-olive">
               {OCORRENCIA_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <input placeholder="Descrição" value={desc} onChange={e => setDesc(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
-            <label className="flex items-center gap-2 text-xs text-gray-400">
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
+            <label className="flex items-center gap-2 text-xs text-ber-gray cursor-pointer">
               <input type="checkbox" checked={visivelCliente} onChange={e => setVisivelCliente(e.target.checked)} />
               Visível ao cliente
             </label>
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingOcorrencia(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingOcorrencia(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -391,33 +426,33 @@ export default function DiarioObraPage() {
     return (
       <div className="space-y-2">
         {selected?.visitas.map(vi => (
-          <div key={vi.id} className="flex items-start justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
+          <div key={vi.id} className="flex items-start justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">{vi.tipo}</p>
-              {vi.nome && <p className="text-white text-sm mt-0.5">{vi.nome}</p>}
-              {vi.observacao && <p className="text-xs text-gray-500 mt-0.5">{vi.observacao}</p>}
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{vi.tipo}</p>
+              {vi.nome && <p className="text-ber-carbon text-sm mt-0.5">{vi.nome}</p>}
+              {vi.observacao && <p className="text-xs text-ber-gray mt-0.5">{vi.observacao}</p>}
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/visitas/${vi.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2 shrink-0">
+                className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingVisita ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <select value={tipo} onChange={e => setTipo(e.target.value as any)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white outline-none">
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon outline-none focus:border-ber-olive">
               {VISITA_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <input placeholder="Nome (opcional)" value={nome} onChange={e => setNome(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <input placeholder="Observação (opcional)" value={obs} onChange={e => setObs(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingVisita(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingVisita(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -446,23 +481,23 @@ export default function DiarioObraPage() {
     return (
       <div className="space-y-2">
         {selected?.materiais.map(mat => (
-          <div key={mat.id} className="flex items-center justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
-            <span className="text-white">{mat.descricao}</span>
+          <div key={mat.id} className="flex items-center justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
+            <span className="text-ber-carbon">{mat.descricao}</span>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/materiais/${mat.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2">
+                className="text-ber-gray hover:text-ber-red ml-2">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingMaterial ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <input placeholder="Descrição do material" value={desc} onChange={e => setDesc(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingMaterial(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingMaterial(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -491,23 +526,23 @@ export default function DiarioObraPage() {
     return (
       <div className="space-y-2">
         {selected?.equipamentos.map(eq => (
-          <div key={eq.id} className="flex items-center justify-between rounded-lg bg-ber-bg px-3 py-2 text-sm">
-            <span className="text-white">{eq.nome}</span>
+          <div key={eq.id} className="flex items-center justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
+            <span className="text-ber-carbon">{eq.nome}</span>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected.id}/equipamentos/${eq.id}`, refreshDetail)}
-                className="text-gray-600 hover:text-ber-red ml-2">
+                className="text-ber-gray hover:text-ber-red ml-2">
                 <X size={14} />
               </button>
             )}
           </div>
         ))}
         {!fechado && addingEquipamento ? (
-          <div className="space-y-2 rounded-lg bg-ber-bg p-3">
+          <div className="space-y-2 rounded-lg bg-gray-50 border border-ber-border p-3">
             <input placeholder="Nome do equipamento" value={nome} onChange={e => setNome(e.target.value)}
-              className="w-full rounded-lg bg-ber-border px-3 py-2 text-sm text-white placeholder-gray-600 outline-none" />
+              className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/60 outline-none focus:border-ber-olive" />
             <div className="flex gap-2">
               <button onClick={add} className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white">Adicionar</button>
-              <button onClick={() => setAddingEquipamento(false)} className="text-xs text-gray-500">Cancelar</button>
+              <button onClick={() => setAddingEquipamento(false)} className="text-xs text-ber-gray hover:text-ber-carbon">Cancelar</button>
             </div>
           </div>
         ) : !fechado ? (
@@ -528,12 +563,12 @@ export default function DiarioObraPage() {
     <div className="mx-auto max-w-2xl px-4 py-6">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => router.push('/diario')} className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:text-white">
+        <button onClick={() => router.push('/diario')} className="flex h-9 w-9 items-center justify-center rounded-lg text-ber-gray hover:text-ber-carbon hover:bg-gray-100 transition-colors">
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-white truncate">{obra?.name ?? 'Carregando...'}</h1>
-          {obra?.client && <p className="text-xs text-gray-500">{obra.client}</p>}
+          <h1 className="text-lg font-bold text-ber-carbon truncate">{obra?.name ?? 'Carregando...'}</h1>
+          {obra?.client && <p className="text-xs text-ber-gray">{obra.client}</p>}
         </div>
         {!temDiarioHoje && (
           <button
@@ -555,30 +590,30 @@ export default function DiarioObraPage() {
       ) : (
         <div className="mb-6 space-y-2">
           {diarios.length === 0 && (
-            <p className="text-center text-sm text-gray-600 py-6">Nenhum diário registrado. Crie o primeiro acima.</p>
+            <p className="text-center text-sm text-ber-gray py-6">Nenhum diário registrado. Crie o primeiro acima.</p>
           )}
           {diarios.map(d => (
             <button
               key={d.id}
               onClick={() => loadDetail(d.id)}
-              className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+              className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
                 selected?.id === d.id
-                  ? 'border-ber-olive bg-ber-olive/10'
-                  : 'border-ber-border bg-ber-card hover:border-ber-olive/40'
+                  ? 'border-ber-olive bg-ber-olive/5 shadow-sm'
+                  : 'border-ber-border bg-white shadow-sm hover:shadow-md hover:border-ber-olive/40'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {d.clima && CLIMA_ICONS[d.clima]}
-                  <span className="text-sm font-semibold text-white">{fmtDate(d.data)}</span>
+                  <span className="text-sm font-semibold text-ber-carbon">{fmtDate(d.data)}</span>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  d.status === 'fechado' ? 'bg-green-900/40 text-green-400' : 'bg-yellow-900/40 text-yellow-400'
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  d.status === 'fechado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                 }`}>
                   {d.status}
                 </span>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+              <div className="mt-1 flex items-center gap-3 text-xs text-ber-gray">
                 <span>{d._count.efetivos} efetivos</span>
                 <span>{d._count.atividades} atividades</span>
                 <span>{d._count.fotos} fotos</span>
@@ -588,29 +623,31 @@ export default function DiarioObraPage() {
         </div>
       )}
 
-      {/* Detail panel */}
+      {/* Detail loading */}
       {loadingDetail && (
         <div className="flex h-24 items-center justify-center">
           <Loader2 size={20} className="animate-spin text-ber-olive" />
         </div>
       )}
 
+      {/* Detail panel */}
       {selected && !loadingDetail && (
         <div className="space-y-4">
-          {/* Diário header card */}
-          <div className="rounded-xl border border-ber-border bg-ber-card p-4">
-            <div className="flex items-center justify-between mb-3">
+          {/* Header card — editable */}
+          <div className="rounded-xl border border-ber-border bg-white shadow-sm p-4">
+            {/* Top row: date + fechar/reabrir */}
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-bold text-white">{fmtDate(selected.data)}</p>
-                <p className="text-xs text-gray-500">por {selected.criadoPor.name}</p>
+                <p className="text-sm font-bold text-ber-carbon">{fmtDate(selected.data)}</p>
+                <p className="text-xs text-ber-gray mt-0.5">por {selected.criadoPor.name}</p>
               </div>
               <button
                 onClick={fecharReabrir}
                 disabled={saving}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors disabled:opacity-60 ${
                   fechado
-                    ? 'bg-yellow-900/40 text-yellow-400 hover:bg-yellow-900/60'
-                    : 'bg-green-900/40 text-green-400 hover:bg-green-900/60'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                 }`}
               >
                 {saving ? <Loader2 size={12} className="animate-spin" /> : fechado ? <Unlock size={12} /> : <Lock size={12} />}
@@ -618,34 +655,94 @@ export default function DiarioObraPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-600 mb-1">Clima</p>
-                <div className="flex items-center gap-1.5">
-                  {selected.clima && CLIMA_ICONS[selected.clima]}
-                  <span className="text-sm text-white">{selected.clima ? CLIMA_LABELS[selected.clima] : '—'}</span>
-                </div>
+            {/* Clima — 5 toggle buttons */}
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Clima</p>
+                {patchingHeader && <Loader2 size={10} className="animate-spin text-ber-gray" />}
               </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-600 mb-1">Condição</p>
-                <span className="text-sm text-white">{selected.condicaoTrabalho ? COND_LABELS[selected.condicaoTrabalho] : '—'}</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {CLIMA_OPTIONS.map(c => {
+                  const isSelected = selected.clima === c;
+                  return (
+                    <button
+                      key={c}
+                      disabled={fechado || patchingHeader}
+                      onClick={() => patchHeader({ clima: c })}
+                      title={CLIMA_LABELS[c]}
+                      className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isSelected
+                          ? 'bg-ber-olive text-white shadow-sm'
+                          : 'bg-gray-100 text-ber-gray hover:bg-gray-200'
+                      }`}
+                    >
+                      {isSelected ? CLIMA_ICONS_WHITE[c] : CLIMA_ICONS[c]}
+                      {CLIMA_SHORT[c]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {selected.observacoesInternas && (
-              <div className="mt-3">
-                <p className="text-[10px] uppercase tracking-wide text-gray-600 mb-1">Observações internas</p>
-                <p className="text-sm text-gray-300">{selected.observacoesInternas}</p>
+            {/* Condição — 3 toggle buttons */}
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-2">Condição de trabalho</p>
+              <div className="flex gap-1.5">
+                {COND_OPTIONS.map(c => (
+                  <button
+                    key={c}
+                    disabled={fechado || patchingHeader}
+                    onClick={() => patchHeader({ condicaoTrabalho: c })}
+                    className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      selected.condicaoTrabalho === c
+                        ? 'bg-ber-olive text-white shadow-sm'
+                        : 'bg-gray-100 text-ber-gray hover:bg-gray-200'
+                    }`}
+                  >
+                    {COND_LABELS[c]}
+                  </button>
+                ))}
               </div>
-            )}
-            {selected.observacoesCliente && (
-              <div className="mt-3">
-                <p className="text-[10px] uppercase tracking-wide text-gray-600 mb-1">Observações ao cliente</p>
-                <p className="text-sm text-gray-300">{selected.observacoesCliente}</p>
-              </div>
-            )}
+            </div>
+
+            {/* Observações internas */}
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1">Observações internas</p>
+              <textarea
+                value={obsInternas}
+                onChange={e => setObsInternas(e.target.value)}
+                onBlur={() => {
+                  if (obsInternas !== (selected.observacoesInternas ?? '')) {
+                    patchHeader({ observacoesInternas: obsInternas });
+                  }
+                }}
+                disabled={fechado || patchingHeader}
+                rows={2}
+                placeholder="Anotações internas..."
+                className="w-full rounded-lg border border-ber-border bg-gray-50 px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/50 outline-none focus:border-ber-olive focus:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+              />
+            </div>
+
+            {/* Observações ao cliente */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1">Observações ao cliente</p>
+              <textarea
+                value={obsCliente}
+                onChange={e => setObsCliente(e.target.value)}
+                onBlur={() => {
+                  if (obsCliente !== (selected.observacoesCliente ?? '')) {
+                    patchHeader({ observacoesCliente: obsCliente });
+                  }
+                }}
+                disabled={fechado || patchingHeader}
+                rows={2}
+                placeholder="Notas para o cliente..."
+                className="w-full rounded-lg border border-ber-border bg-gray-50 px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/50 outline-none focus:border-ber-olive focus:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+              />
+            </div>
+
             {fechado && selected.fechadoPor && (
-              <p className="mt-3 text-xs text-gray-600">
+              <p className="mt-3 text-xs text-ber-gray border-t border-ber-border pt-3">
                 Fechado por {selected.fechadoPor.name}
               </p>
             )}
@@ -657,27 +754,27 @@ export default function DiarioObraPage() {
             <EfetivosSection />
           </Section>
 
-          <Section title="Atividades" icon={<ClipboardList size={14} className="text-blue-400" />}
+          <Section title="Atividades" icon={<ClipboardList size={14} className="text-blue-500" />}
             count={selected.atividades.length} open={openSections.atividades} onToggle={() => toggleSection('atividades')}>
             <AtividadesSection />
           </Section>
 
-          <Section title="Ocorrências" icon={<AlertTriangle size={14} className="text-yellow-400" />}
+          <Section title="Ocorrências" icon={<AlertTriangle size={14} className="text-amber-500" />}
             count={selected.ocorrencias.length} open={openSections.ocorrencias} onToggle={() => toggleSection('ocorrencias')}>
             <OcorrenciasSection />
           </Section>
 
-          <Section title="Visitas" icon={<UserCheck size={14} className="text-purple-400" />}
+          <Section title="Visitas" icon={<UserCheck size={14} className="text-purple-500" />}
             count={selected.visitas.length} open={openSections.visitas} onToggle={() => toggleSection('visitas')}>
             <VisitasSection />
           </Section>
 
-          <Section title="Materiais" icon={<Package size={14} className="text-orange-400" />}
+          <Section title="Materiais" icon={<Package size={14} className="text-orange-500" />}
             count={selected.materiais.length} open={openSections.materiais} onToggle={() => toggleSection('materiais')}>
             <MateriaisSection />
           </Section>
 
-          <Section title="Equipamentos" icon={<Wrench size={14} className="text-gray-400" />}
+          <Section title="Equipamentos" icon={<Wrench size={14} className="text-ber-gray" />}
             count={selected.equipamentos.length} open={openSections.equipamentos} onToggle={() => toggleSection('equipamentos')}>
             <EquipamentosSection />
           </Section>
