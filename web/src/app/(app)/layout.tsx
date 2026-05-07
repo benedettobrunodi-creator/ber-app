@@ -10,7 +10,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package, FolderOpen, ChevronDown, ChevronRight,
-  Kanban, Menu, X, TrendingUp, CalendarRange, BarChart2,
+  Kanban, Menu, X, TrendingUp, CalendarRange, BarChart2, NotebookPen,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'GESTÃO',
     items: [
       { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
+      { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
       { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
       { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
       { label: 'PMO', href: '/pmo', icon: FolderOpen, perm: 'pmo', children: [
@@ -102,6 +103,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/kanban', perm: 'kanban' },
   { prefix: '/sequenciamento', perm: 'sequenciamento' },
   { prefix: '/checklists', perm: 'checklists' },
+  { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },
   { prefix: '/recebimentos', perm: 'recebimentos' },
   { prefix: '/pmo', perm: 'pmo' },

@@ -80,6 +80,10 @@ model User {
   orcamentosResponsavel Orcamento[]            @relation("OrcResp")
   orcamentosCriados     Orcamento[]            @relation("OrcCriador")
   apiKeys               ApiKey[]               @relation("ApiKeyCreator")
+  diariosCriados        DiarioObra[]           @relation("DiarioCriadoPor")
+  diariosFechados       DiarioObra[]           @relation("DiarioFechadoPor")
+  diarioFotos           DiarioFoto[]           @relation("DiarioFotoUploader")
+  diarioEfetivos        DiarioEfetivo[]        @relation("DiarioEfetivoUser")
 
   @@map("users")
 }
@@ -149,8 +153,10 @@ model Obra {
   fotosObra      ObraFoto[]         @relation("ObraFotos")
   medicoes       Medicao[]          @relation("ObraMedicoes")
   medicaoItens   MedicaoItem[]      @relation("ObraMedicaoItens")
-  comprasMetas   ComprasMeta[]
-  alocacoes      Alocacao[]    @relation("AlocacaoObra")
+  comprasMetas    ComprasMeta[]
+  alocacoes       Alocacao[]    @relation("AlocacaoObra")
+  ambientesDiario Ambiente[]
+  diarios         DiarioObra[]
 
   @@map("obras")
 }
@@ -1292,4 +1298,163 @@ model OrcamentoHistorico {
 
   @@index([orcamentoId])
   @@map("orcamento_historico")
+}
+
+// ── DIÁRIO DE OBRAS ──────────────────────────────────────────────────────────
+
+model Ambiente {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  nome      String   @db.VarChar(100)
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra         @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  diarioFotos DiarioFoto[]
+
+  @@unique([obraId, nome])
+  @@index([obraId])
+  @@map("ambientes")
+}
+
+model DiarioObra {
+  id                  String    @id @default(uuid()) @db.Uuid
+  obraId              String    @map("obra_id") @db.Uuid
+  data                DateTime  @db.Date
+  clima               String?   @db.VarChar(20)
+  condicaoTrabalho    String?   @map("condicao_trabalho") @db.VarChar(20)
+  observacoesInternas String?   @map("observacoes_internas")
+  observacoesCliente  String?   @map("observacoes_cliente")
+  status              String    @default("rascunho") @db.VarChar(20)
+  fechadoEm           DateTime? @map("fechado_em")
+  fechadoPorId        String?   @map("fechado_por_id") @db.Uuid
+  criadoPorId         String    @map("criado_por_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra       Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  fechadoPor User? @relation("DiarioFechadoPor", fields: [fechadoPorId], references: [id])
+  criadoPor  User  @relation("DiarioCriadoPor", fields: [criadoPorId], references: [id])
+
+  efetivos     DiarioEfetivo[]
+  atividades   DiarioAtividade[]
+  fotos        DiarioFoto[]
+  ocorrencias  DiarioOcorrencia[]
+  visitas      DiarioVisita[]
+  materiais    DiarioMaterial[]
+  equipamentos DiarioEquipamento[]
+
+  @@unique([obraId, data])
+  @@index([obraId, data])
+  @@index([status])
+  @@map("diario_obras")
+}
+
+model DiarioEfetivo {
+  id          String   @id @default(uuid()) @db.Uuid
+  diarioId    String   @map("diario_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  nomeExterno String?  @map("nome_externo")
+  funcao      String?  @db.VarChar(100)
+  origem      String   @default("manual") @db.VarChar(20)
+  presente    Boolean  @default(true)
+  observacao  String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+  user   User?      @relation("DiarioEfetivoUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([diarioId])
+  @@map("diario_efetivos")
+}
+
+model DiarioAtividade {
+  id          String   @id @default(uuid()) @db.Uuid
+  diarioId    String   @map("diario_id") @db.Uuid
+  obraEtapaId String?  @map("obra_etapa_id") @db.Uuid
+  descricao   String
+  status      String   @db.VarChar(20)
+  origem      String   @default("manual") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+
+  @@index([diarioId])
+  @@map("diario_atividades")
+}
+
+model DiarioFoto {
+  id           String   @id @default(uuid()) @db.Uuid
+  diarioId     String   @map("diario_id") @db.Uuid
+  ambienteId   String?  @map("ambiente_id") @db.Uuid
+  fileUrl      String   @map("file_url")
+  legenda      String?
+  ordem        Int      @default(0)
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  diario     DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+  ambiente   Ambiente?  @relation(fields: [ambienteId], references: [id], onDelete: SetNull)
+  uploadedBy User       @relation("DiarioFotoUploader", fields: [uploadedById], references: [id])
+
+  @@index([diarioId])
+  @@index([ambienteId])
+  @@map("diario_fotos")
+}
+
+model DiarioOcorrencia {
+  id             String   @id @default(uuid()) @db.Uuid
+  diarioId       String   @map("diario_id") @db.Uuid
+  tipo           String   @db.VarChar(30)
+  descricao      String
+  visivelCliente Boolean  @default(false) @map("visivel_cliente")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+
+  @@index([diarioId])
+  @@map("diario_ocorrencias")
+}
+
+model DiarioVisita {
+  id             String   @id @default(uuid()) @db.Uuid
+  diarioId       String   @map("diario_id") @db.Uuid
+  tipo           String   @db.VarChar(30)
+  nome           String?  @db.VarChar(255)
+  observacao     String?
+  visivelCliente Boolean  @default(true) @map("visivel_cliente")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+
+  @@index([diarioId])
+  @@map("diario_visitas")
+}
+
+model DiarioMaterial {
+  id                    String   @id @default(uuid()) @db.Uuid
+  diarioId              String   @map("diario_id") @db.Uuid
+  recebimentoMaterialId String?  @map("recebimento_material_id") @db.Uuid
+  descricao             String
+  origem                String   @default("manual") @db.VarChar(20)
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+
+  @@index([diarioId])
+  @@map("diario_materiais")
+}
+
+model DiarioEquipamento {
+  id        String   @id @default(uuid()) @db.Uuid
+  diarioId  String   @map("diario_id") @db.Uuid
+  nome      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  diario DiarioObra @relation(fields: [diarioId], references: [id], onDelete: Cascade)
+
+  @@index([diarioId])
+  @@map("diario_equipamentos")
 }
