@@ -6,7 +6,7 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Plus, X, AlertTriangle, Calendar, Users, HardHat, UserPlus,
-  ChevronDown, ChevronUp, Trash2, Printer,
+  ChevronDown, ChevronUp, Trash2, Printer, Pencil,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -1460,6 +1460,85 @@ function NovaObraModal({ onClose, onSaved }: { onClose: () => void; onSaved: (o:
   );
 }
 
+/* ─── Edit Obra Modal ─── */
+
+function EditObraModal({ obra, onClose, onSaved }: { obra: ObraInfo; onClose: () => void; onSaved: (o: ObraInfo) => void }) {
+  const [name, setName] = useState(obra.name);
+  const [projeto, setProjeto] = useState<PhaseState>({
+    inicio: obra.dataInicioProjeto?.slice(0, 10) ?? '',
+    fim: obra.dataFimProjeto?.slice(0, 10) ?? '',
+    dias: '',
+  });
+  const [projetoNA, setProjetoNA] = useState(!obra.dataInicioProjeto);
+  const [obraPhase, setObraPhase] = useState<PhaseState>({
+    inicio: (obra.dataInicioObra ?? obra.startDate)?.slice(0, 10) ?? '',
+    fim: (obra.dataFimObra ?? obra.expectedEndDate)?.slice(0, 10) ?? '',
+    dias: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload: Record<string, string | null> = { name: name.trim() };
+      if (obraPhase.inicio) { payload.startDate = new Date(obraPhase.inicio).toISOString(); payload.dataInicioObra = obraPhase.inicio; }
+      else { payload.startDate = null; payload.dataInicioObra = null; }
+      if (obraPhase.fim) { payload.expectedEndDate = new Date(obraPhase.fim).toISOString(); payload.dataFimObra = obraPhase.fim; }
+      else { payload.expectedEndDate = null; payload.dataFimObra = null; }
+      if (!projetoNA && projeto.inicio) payload.dataInicioProjeto = projeto.inicio;
+      else payload.dataInicioProjeto = null;
+      if (!projetoNA && projeto.fim) payload.dataFimProjeto = projeto.fim;
+      else payload.dataFimProjeto = null;
+      const res = await api.put(`/obras/${obra.id}`, payload);
+      onSaved(res.data.data ?? res.data);
+    } catch {
+      setError('Erro ao salvar obra');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h2 className="text-base font-semibold text-gray-900">Editar Obra</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSave} className="max-h-[80vh] space-y-4 overflow-y-auto p-6">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Nome da obra *</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <PhaseFields
+            label="Fase de Projeto"
+            value={projeto}
+            onChange={setProjeto}
+            naoAplicavel={projetoNA}
+            onToggleNaoAplicavel={() => { setProjetoNA(v => !v); setProjeto({ inicio: '', fim: '', dias: '' }); }}
+          />
+          <PhaseFields label="Fase de Obra" value={obraPhase} onChange={setObraPhase} />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || !name.trim()}
+              className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Obras Tab ─── */
 
 function ObrasTab({
@@ -1468,14 +1547,17 @@ function ObrasTab({
   onAddedObra,
   onAlocar,
   onDeletedObra,
+  onUpdatedObra,
 }: {
   obras: ObraInfo[];
   alocacoes: Alocacao[];
   onAddedObra: (o: ObraInfo) => void;
   onAlocar: (obraId: string) => void;
   onDeletedObra: (obraId: string) => void;
+  onUpdatedObra: (o: ObraInfo) => void;
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [editingObra, setEditingObra] = useState<ObraInfo | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const today = new Date();
 
@@ -1524,6 +1606,14 @@ function ObrasTab({
         />
       )}
 
+      {editingObra && (
+        <EditObraModal
+          obra={editingObra}
+          onClose={() => setEditingObra(null)}
+          onSaved={o => { onUpdatedObra(o); setEditingObra(null); }}
+        />
+      )}
+
       {/* Lista de obras */}
       <div className="space-y-2">
         {obras.map(o => {
@@ -1561,6 +1651,12 @@ function ObrasTab({
                   className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
                 >
                   <Plus size={11} /> Alocar
+                </button>
+                <button
+                  onClick={() => setEditingObra(o)}
+                  className="rounded-lg border border-gray-200 bg-white p-1 text-gray-400 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                >
+                  <Pencil size={12} />
                 </button>
                 <button
                   onClick={() => {
@@ -2210,6 +2306,7 @@ export default function AlocacaoPage() {
                 onAddedObra={o => setObras(prev => [...prev, o])}
                 onAlocar={obraId => openCreate(undefined, obraId)}
                 onDeletedObra={obraId => setObras(prev => prev.filter(o => o.id !== obraId))}
+                onUpdatedObra={o => setObras(prev => prev.map(x => x.id === o.id ? o : x))}
               />
             )}
 

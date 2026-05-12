@@ -16,11 +16,15 @@ export const updateObraSchema = z.object({
   client: z.string().optional(),
   address: z.string().optional(),
   status: z.enum(OBRA_STATUSES).optional(),
-  startDate: z.string().datetime().optional(),
-  expectedEndDate: z.string().datetime().optional(),
-  actualEndDate: z.string().datetime().optional(),
+  startDate: z.string().datetime().optional().nullable(),
+  expectedEndDate: z.string().datetime().optional().nullable(),
+  actualEndDate: z.string().datetime().optional().nullable(),
   progressPercent: z.number().min(0).max(100).optional(),
   coordinatorId: z.string().uuid().optional(),
+  dataInicioProjeto: z.string().optional().nullable(),
+  dataFimProjeto: z.string().optional().nullable(),
+  dataInicioObra: z.string().optional().nullable(),
+  dataFimObra: z.string().optional().nullable(),
 });
 
 export const addMemberSchema = z.object({

@@ -104,8 +104,14 @@ export async function updateObra(id: string, input: UpdateObraInput) {
 
   const data: any = { ...input };
   if (input.startDate) data.startDate = new Date(input.startDate);
+  else if (input.startDate === null) data.startDate = null;
   if (input.expectedEndDate) data.expectedEndDate = new Date(input.expectedEndDate);
+  else if (input.expectedEndDate === null) data.expectedEndDate = null;
   if (input.actualEndDate) data.actualEndDate = new Date(input.actualEndDate);
+  if ('dataInicioProjeto' in input) data.dataInicioProjeto = input.dataInicioProjeto ? new Date(input.dataInicioProjeto) : null;
+  if ('dataFimProjeto' in input) data.dataFimProjeto = input.dataFimProjeto ? new Date(input.dataFimProjeto) : null;
+  if ('dataInicioObra' in input) data.dataInicioObra = input.dataInicioObra ? new Date(input.dataInicioObra) : null;
+  if ('dataFimObra' in input) data.dataFimObra = input.dataFimObra ? new Date(input.dataFimObra) : null;
 
   const obra = await prisma.obra.update({
     where: { id },
