@@ -8,7 +8,7 @@ import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
-  ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
+  ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen, Home,
   type LucideIcon,
@@ -32,7 +32,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
       { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
       { label: 'Painel de Gestão', href: '/kanban', icon: Kanban, perm: 'kanban' },
-      { label: 'Sequenciamento', href: '/sequenciamento', icon: ListOrdered, perm: 'sequenciamento' },
     ],
   },
   {
@@ -89,7 +88,6 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/dashboard', perm: 'dashboard' },
   { prefix: '/obras', perm: 'obras' },
   { prefix: '/kanban', perm: 'kanban' },
-  { prefix: '/sequenciamento', perm: 'sequenciamento' },
   { prefix: '/checklists', perm: 'checklists' },
   { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },

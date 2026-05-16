@@ -12,7 +12,6 @@ const MODULES = [
   { key: 'dashboard',     label: 'Dashboard' },
   { key: 'obras',         label: 'Obras' },
   { key: 'kanban',        label: 'Kanban' },
-  { key: 'sequenciamento',label: 'Sequenciamento' },
   { key: 'checklists',    label: 'Checklists' },
   { key: 'recebimentos',  label: 'Recebimentos' },
   { key: 'seguranca',     label: 'Segurança' },
