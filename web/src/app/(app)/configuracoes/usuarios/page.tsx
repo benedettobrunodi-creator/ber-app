@@ -15,7 +15,6 @@ const MODULES = [
   { key: 'sequenciamento',label: 'Sequenciamento' },
   { key: 'checklists',    label: 'Checklists' },
   { key: 'recebimentos',  label: 'Recebimentos' },
-  { key: 'pmo',           label: 'PMO' },
   { key: 'seguranca',     label: 'Segurança' },
   { key: 'normas',        label: 'Normas Técnicas' },
   { key: 'instrucoes',    label: 'Instruções Técnicas' },

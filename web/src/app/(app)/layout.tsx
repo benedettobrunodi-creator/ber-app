@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
-  FileText, Package, FolderOpen, ChevronDown, ChevronRight,
+  FileText, Package,
   Kanban, Menu, X, TrendingUp, CalendarRange, BarChart2, NotebookPen,
   type LucideIcon,
 } from 'lucide-react';
@@ -42,17 +42,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
       { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
       { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
-      { label: 'PMO', href: '/pmo', icon: FolderOpen, perm: 'pmo', children: [
-        { label: 'Canteiro', href: '/canteiro' },
-        { label: 'Atas de Reunião', href: '/pmo/atas' },
-        { label: 'Projetos', href: '/pmo/projetos' },
-        { label: 'Documentos', href: '/pmo/documentos' },
-        { label: 'Rel. de Vistoria', href: '/pmo/vistorias' },
-        { label: 'Aprov. Amostras', href: '/pmo/amostras' },
-        { label: 'Shopdrawings', href: '/pmo/shopdrawings' },
-        { label: 'As Builts', href: '/pmo/as-builts' },
-        { label: 'Manual Proprietário', href: '/pmo/manual' },
-      ]},
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
@@ -106,8 +95,6 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },
   { prefix: '/recebimentos', perm: 'recebimentos' },
-  { prefix: '/pmo', perm: 'pmo' },
-  { prefix: '/canteiro', perm: 'pmo' },
   { prefix: '/seguranca', perm: 'seguranca' },
   { prefix: '/normas', perm: 'normas' },
   { prefix: '/instrucoes', perm: 'instrucoes' },
@@ -147,13 +134,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, hydrate, logout } = useAuthStore();
   const perms = getUserPermissions(user);
   const { period, setPeriod, label: periodLabel } = usePeriodStore();
-  const [pmoOpen, setPmoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, number | null>>({});
   const [kpi, setKpi] = useState<{ ativas: number; total: number; atrasadas: number } | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
-  useEffect(() => { if (pathname.startsWith('/pmo') || pathname.startsWith('/canteiro')) setPmoOpen(true); }, [pathname]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   // Route-level access guard — redirect if user lacks permission for current path
@@ -221,42 +206,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname.startsWith(item.href);
-
-                /* Collapsible group (PMO) */
-                if (item.children) {
-                  return (
-                    <div key={item.label}>
-                      <button
-                        onClick={() => setPmoOpen(o => !o)}
-                        className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors ${
-                          active || pmoOpen
-                            ? 'bg-ber-olive/20 text-ber-olive'
-                            : 'text-gray-400 hover:bg-ber-sidebar-hover hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon size={16} />
-                          <span>{item.label}</span>
-                        </div>
-                        {pmoOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </button>
-                      {pmoOpen && (
-                        <div className="ml-6 mt-0.5 space-y-0.5">
-                          {item.children.map(child => (
-                            <Link key={child.href} href={child.href}
-                              className={`block rounded-lg px-3 py-2.5 min-h-[44px] flex items-center text-xs transition-colors ${
-                                pathname.startsWith(child.href)
-                                  ? 'bg-ber-olive/20 text-ber-olive'
-                                  : 'text-gray-500 hover:bg-ber-sidebar-hover hover:text-white'
-                              }`}>
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
 
                 /* Regular nav item */
                 return (
