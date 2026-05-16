@@ -213,90 +213,80 @@ export default function ObrasPage() {
           <p className="mt-1 text-xs text-ber-gray/70">Clique em "Nova Obra" para cadastrar a primeira.</p>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {obras.map((obra) => {
+        <div className="mt-6 overflow-hidden rounded-lg border border-ber-gray/10 bg-white shadow-sm">
+          {/* List header */}
+          <div className="grid grid-cols-[1fr_auto_160px_140px_100px_72px] items-center gap-4 border-b border-ber-gray/10 bg-ber-offwhite px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
+            <span>Obra</span>
+            <span className="w-28 text-left">Status</span>
+            <span>Coordenador</span>
+            <span>Prazo</span>
+            <span className="text-right">Progresso</span>
+            <span />
+          </div>
+
+          {obras.map((obra, idx) => {
             const statusCfg = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
             return (
-              <div key={obra.id} className="group relative rounded-lg border border-ber-offwhite bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-                {/* Action buttons (visible on hover) */}
-                <div className="absolute right-2 top-2 hidden items-center gap-1 group-hover:flex">
-                  {obra.status === 'cancelada' ? (
-                    <button
-                      onClick={(e) => { e.preventDefault(); handleUnarchive(obra); }}
-                      title="Desarquivar obra"
-                      className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-green-50 hover:text-green-600"
-                    >
-                      <ArchiveRestore size={15} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.preventDefault(); setConfirmObra(obra); }}
-                      title="Arquivar obra"
-                      className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-amber-50 hover:text-amber-500"
-                    >
-                      <Archive size={15} />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => { e.preventDefault(); setDeleteObra(obra); }}
-                    title="Excluir permanentemente"
-                    className="rounded-md p-1.5 text-ber-gray/40 transition-colors hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-
-                <Link href={`/obras/${obra.id}`} className="block">
-                  <div className="flex items-start justify-between gap-3 pr-6">
-                    <h2 className="text-sm font-bold text-ber-carbon group-hover:text-ber-teal">
-                      {obra.name}
-                    </h2>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
-                      {statusCfg.label}
-                    </span>
-                  </div>
-
-                  {obra.client && (
-                    <p className="mt-2 text-xs text-ber-gray">{obra.client}</p>
-                  )}
-
-                  {obra.address && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-ber-gray">
-                      <MapPin size={12} />
-                      <span className="truncate">{obra.address}</span>
-                    </div>
-                  )}
-
-                  {/* Progress bar */}
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-ber-carbon">Progresso</span>
-                      <span className="font-bold text-ber-olive">{obra.progressPercent}%</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 rounded-full bg-ber-offwhite">
-                      <div
-                        className="h-full rounded-full bg-ber-olive transition-all"
-                        style={{ width: `${obra.progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="mt-4 flex items-center gap-4 border-t border-ber-offwhite pt-3 text-xs text-ber-gray">
-                    {obra.coordinator && (
-                      <div className="flex items-center gap-1.5">
-                        <User size={12} />
-                        <span>{obra.coordinator.name}</span>
-                      </div>
-                    )}
-                    {obra.expectedEndDate && (
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={12} />
-                        <span>{formatDate(obra.expectedEndDate)}</span>
-                      </div>
+              <div
+                key={obra.id}
+                className={`group relative grid grid-cols-[1fr_auto_160px_140px_100px_72px] items-center gap-4 px-4 py-3 transition-colors hover:bg-ber-teal/5 ${idx !== obras.length - 1 ? 'border-b border-ber-gray/10' : ''} ${obra.status === 'cancelada' ? 'opacity-50' : ''}`}
+              >
+                <Link href={`/obras/${obra.id}`} className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ber-carbon group-hover:text-ber-teal">
+                    {obra.name}
+                  </p>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-ber-gray">
+                    {obra.client && <span className="truncate">{obra.client}</span>}
+                    {obra.client && obra.address && <span>·</span>}
+                    {obra.address && (
+                      <span className="flex items-center gap-1 truncate">
+                        <MapPin size={10} />
+                        {obra.address}
+                      </span>
                     )}
                   </div>
                 </Link>
+
+                <span className={`w-28 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-semibold ${statusCfg.className}`}>
+                  {statusCfg.label}
+                </span>
+
+                <div className="flex items-center gap-1.5 text-xs text-ber-gray">
+                  {obra.coordinator ? (
+                    <><User size={11} /><span className="truncate">{obra.coordinator.name}</span></>
+                  ) : <span className="text-ber-gray/40">—</span>}
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-ber-gray">
+                  {obra.expectedEndDate ? (
+                    <><Calendar size={11} /><span>{formatDate(obra.expectedEndDate)}</span></>
+                  ) : <span className="text-ber-gray/40">—</span>}
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-xs font-bold text-ber-olive">{obra.progressPercent}%</span>
+                  <div className="h-1 w-full rounded-full bg-ber-offwhite">
+                    <div
+                      className="h-full rounded-full bg-ber-olive transition-all"
+                      style={{ width: `${obra.progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  {obra.status === 'cancelada' ? (
+                    <button onClick={() => handleUnarchive(obra)} title="Desarquivar" className="rounded p-1 text-ber-gray hover:bg-green-50 hover:text-green-600">
+                      <ArchiveRestore size={14} />
+                    </button>
+                  ) : (
+                    <button onClick={() => setConfirmObra(obra)} title="Arquivar" className="rounded p-1 text-ber-gray hover:bg-amber-50 hover:text-amber-500">
+                      <Archive size={14} />
+                    </button>
+                  )}
+                  <button onClick={() => setDeleteObra(obra)} title="Excluir" className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             );
           })}
