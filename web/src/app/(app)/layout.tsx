@@ -10,7 +10,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package,
-  Kanban, Menu, X, TrendingUp, CalendarRange, BarChart2, NotebookPen,
+  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -62,14 +62,12 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'FINANCEIRO',
     items: [
       { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
-      { label: 'DRE', href: '/dre', icon: TrendingUp, perm: 'dre' },
     ],
   },
   {
     section: 'ADMIN',
     items: [
-      { label: 'Usuarios', href: '/configuracoes/usuarios', icon: Settings, perm: 'configuracoes' },
-      { label: 'Configuracoes', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
+      { label: 'Configurações', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
     ],
   },
 ];
@@ -81,7 +79,8 @@ const TOP_VIEWS = [
   { label: 'Obras', href: '/obras' },
   { label: 'Painel', href: '/kanban' },
   { label: 'Checklists', href: '/checklists' },
-  { label: 'DRE', href: '/dre' },
+  { label: 'Recebimentos', href: '/recebimentos' },
+  { label: 'Ponto', href: '/ponto' },
 ];
 
 /* ─── Route → permission map for access guard ─── */
@@ -99,7 +98,6 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/normas', perm: 'normas' },
   { prefix: '/instrucoes', perm: 'instrucoes' },
   { prefix: '/ponto', perm: 'ponto' },
-  { prefix: '/dre', perm: 'dre' },
   { prefix: '/configuracoes', perm: 'configuracoes' },
   { prefix: '/comercial/orcamentos', perm: 'orcamentos' },
 ];
