@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, ListOrdered, Play, Send, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Snowflake, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
@@ -160,7 +160,7 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'sequenciamento' | 'recebimentos' | 'fvs' | 'kanban';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban';
 
 interface TouchpointSummary {
   id: string;
@@ -231,86 +231,6 @@ interface CanteiroSummary {
   items: { answer: string | null; required: boolean }[];
   _count: { items: number };
 }
-
-interface SeqEtapa {
-  id: string;
-  templateEtapaId: string | null;
-  name: string;
-  discipline: string;
-  order: number;
-  estimatedDays: number;
-  dependsOn: string[];
-  dependencies?: string[];
-  startDate: string | null;
-  endDate: string | null;
-  estimatedEndDate: string | null;
-  status: string;
-  gestorNotes: string | null;
-  coordenadorNotes: string | null;
-  submitter: { id: string; name: string } | null;
-  submittedAt: string | null;
-  approver: { id: string; name: string } | null;
-  approvedAt: string | null;
-  rejecter: { id: string; name: string } | null;
-  rejectedAt: string | null;
-  rejectionReason: string | null;
-  evidenciaDescricao: string | null;
-  evidenciaFotos: string[];
-  evidenciaRegistradaEm: string | null;
-}
-
-interface Sequenciamento {
-  id: string;
-  frozenAt: string | null;
-  template: { id: string; name: string; segment: string } | null;
-  creator: { id: string; name: string } | null;
-  etapas: SeqEtapa[];
-}
-
-interface SeqTemplate {
-  id: string;
-  name: string;
-  segment: string;
-  etapas: { id: string; name: string; discipline: string; order: number }[];
-}
-
-const DISCIPLINE_COLORS: Record<string, string> = {
-  estrutura: 'bg-gray-100 text-gray-700',
-  hidraulica: 'bg-blue-100 text-blue-700',
-  eletrica: 'bg-amber-100 text-amber-700',
-  alvenaria: 'bg-red-100 text-red-600',
-  ar_condicionado: 'bg-cyan-100 text-cyan-700',
-  impermeabilizacao: 'bg-teal-100 text-teal-700',
-  revestimento: 'bg-purple-100 text-purple-700',
-  marcenaria: 'bg-red-100 text-red-600',
-  vidros: 'bg-blue-100 text-blue-700',
-  acabamento: 'bg-ber-olive/15 text-ber-olive',
-  limpeza: 'bg-gray-100 text-gray-600',
-  outro: 'bg-gray-100 text-gray-600',
-};
-
-const DISCIPLINE_LABELS: Record<string, string> = {
-  estrutura: 'Estrutura',
-  hidraulica: 'Hidráulica',
-  eletrica: 'Elétrica',
-  alvenaria: 'Alvenaria',
-  ar_condicionado: 'Ar Condicionado',
-  impermeabilizacao: 'Impermeabilização',
-  revestimento: 'Revestimento',
-  marcenaria: 'Marcenaria',
-  vidros: 'Vidros',
-  acabamento: 'Acabamento',
-  limpeza: 'Limpeza',
-  outro: 'Outro',
-};
-
-const ETAPA_STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof Check }> = {
-  nao_iniciada: { label: 'Não iniciada', className: 'bg-gray-100 text-gray-500', icon: Clock },
-  em_andamento: { label: 'Em andamento', className: 'bg-teal-100 text-teal-700 animate-pulse', icon: Play },
-  aguardando_aprovacao: { label: 'Aguardando aprovação', className: 'bg-amber-100 text-amber-700', icon: Send },
-  aprovada: { label: 'Aprovada', className: 'bg-ber-olive/15 text-ber-olive', icon: Check },
-  bloqueada: { label: 'Bloqueada', className: 'bg-red-100 text-red-600', icon: Lock },
-};
 
 const CANTEIRO_STATUS: Record<string, { label: string; className: string }> = {
   em_andamento: { label: 'Em andamento', className: 'bg-amber-100 text-amber-700' },
@@ -469,7 +389,7 @@ export default function ObraDetailPage() {
   const [fvsTemplates, setFvsTemplates] = useState<FvsTemplateType[]>([]);
   const [createFvsModal, setCreateFvsModal] = useState(false);
   const [createFvsTemplateId, setCreateFvsTemplateId] = useState('');
-  const [createFvsEtapaId, setCreateFvsEtapaId] = useState('');
+
   const [addFvsItemOpen, setAddFvsItemOpen] = useState(false);
   const [addFvsItemDesc, setAddFvsItemDesc] = useState('');
   const [addFvsItemMomento, setAddFvsItemMomento] = useState<'inicio' | 'conclusao'>('conclusao');
@@ -488,85 +408,15 @@ export default function ObraDetailPage() {
   const [loadingCanteiro, setLoadingCanteiro] = useState(false);
   const [creatingCanteiro, setCreatingCanteiro] = useState(false);
 
-  // Sequenciamento state
-  const [sequenciamento, setSequenciamento] = useState<Sequenciamento | null>(null);
-  const [loadingSeq, setLoadingSeq] = useState(false);
-  const [seqTemplates, setSeqTemplates] = useState<SeqTemplate[]>([]);
-  const [showSeqModal, setShowSeqModal] = useState(false);
-  const [loadingSeqTemplates, setLoadingSeqTemplates] = useState(false);
-  const [selectedSeqTemplate, setSelectedSeqTemplate] = useState('');
-  const [creatingSeq, setCreatingSeq] = useState(false);
-  const [etapaAction, setEtapaAction] = useState<{ id: string; type: 'start' | 'submit' | 'approve' | 'reject' } | null>(null);
-  const [etapaNotes, setEtapaNotes] = useState('');
-  const [etapaSubmitting, setEtapaSubmitting] = useState(false);
-  // FVS inline in etapa modals
-  const [etapaFvs, setEtapaFvs] = useState<ObraFvs | null>(null);
-  const [etapaFvsLoading, setEtapaFvsLoading] = useState(false);
-
-  // Shared helpers for inline FVS sections (etapa modals) and the modal FVS.
-  const fvsItemBlocked = (item: ObraFvsItemType, siblings: ObraFvsItemType[]) => {
-    const myOrdem = item.templateItem?.ordem ?? 0;
-    return siblings.some(o =>
-      o.id !== item.id &&
-      (o.templateItem?.ordem ?? 0) < myOrdem &&
-      !o.checked && !o.na,
-    );
-  };
-  const patchEtapaFvsItem = async (itemId: string, body: any) => {
-    if (!etapaFvs) return;
-    try {
-      const r = await api.patch(`/obra-fvs/${etapaFvs.id}/items/${itemId}`, body);
-      setEtapaFvs(prev => prev ? { ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) } : null);
-    } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro ao salvar');
-    }
-  };
-  const uploadEtapaFvsPhoto = async (itemId: string, file: File) => {
-    if (!etapaFvs) return;
-    try {
-      const fd = new FormData(); fd.append('file', file);
-      const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const url = up.data.data?.url ?? up.data.url;
-      await patchEtapaFvsItem(itemId, { fotoUrl: url });
-    } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro no upload');
-    }
-  };
-  // Rich modal fields
-  const [rf, setRf] = useState({
-    startDate: new Date().toISOString().slice(0,10),
-    fornecedor: '', numOperarios: '', condicoesIniciais: '', fotoInicialUrl: '',
-    endDate: new Date().toISOString().slice(0,10),
-    qtdExecutada: '', qtdPrevista: '', fvsPreenchida: false,
-    hasNaoConf: false, naoConformidades: '', obsConclusao: '',
-    obsAprovador: '',
-  });
-  const [rfFotosEv, setRfFotosEv] = useState<string[]>([]);
-  const [rfFotoInicial, setRfFotoInicial] = useState<string | null>(null);
-  const [uploadingRf, setUploadingRf] = useState(false);
-  const [evidenciaDescricao, setEvidenciaDescricao] = useState('');
-  const [evidenciaFotos, setEvidenciaFotos] = useState<string[]>([]);
-  const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
-
   // Cockpit extra state
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
-  // Sequenciamento accordion + edit requests
-  const [expandedEtapaId, setExpandedEtapaId] = useState<string | null>(null);
-  const [editReqModal, setEditReqModal] = useState<{ etapaId: string; etapaName: string } | null>(null);
-  const [editReqMotivo, setEditReqMotivo] = useState('');
-  const [sendingEditReq, setSendingEditReq] = useState(false);
-  const [editReqSent, setEditReqSent] = useState<Set<string>>(new Set());
-  const [unlockedEtapas, setUnlockedEtapas] = useState<Map<string, Date>>(new Map()); // etapaId -> unlockedUntil
-  const [pendingEditReqs, setPendingEditReqs] = useState<{id:string;etapa:{id:string;name:string};requester:{id:string;name:string};motivo:string|null;createdAt:string}[]>([]);
-  const [resolvingReqId, setResolvingReqId] = useState<string | null>(null);
-
   // Cockpit drag-and-drop order
   const COCKPIT_LAYOUT_VERSION = 2;
   const COCKPIT_STORAGE_KEY = `cockpit-order-${params.id}`;
   const COCKPIT_VERSION_KEY = `cockpit-version-${params.id}`;
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'sequenciamento', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
 
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
@@ -647,22 +497,6 @@ export default function ObraDetailPage() {
   const [addingMember, setAddingMember] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
-  // Edit mode state
-  const [editMode, setEditMode] = useState(false);
-  const [editingEtapaId, setEditingEtapaId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editDays, setEditDays] = useState(0);
-  const [editingDaysId, setEditingDaysId] = useState<string | null>(null);
-  const [inlineDays, setInlineDays] = useState(0);
-  const [showAddEtapa, setShowAddEtapa] = useState(false);
-  const [newEtapaName, setNewEtapaName] = useState('');
-  const [newEtapaDiscipline, setNewEtapaDiscipline] = useState('outro');
-  const [newEtapaDays, setNewEtapaDays] = useState(1);
-  const [newEtapaOrder, setNewEtapaOrder] = useState(1);
-  const [freezing, setFreezing] = useState(false);
-  const [confirmFreeze, setConfirmFreeze] = useState(false);
-  const [removingEtapaId, setRemovingEtapaId] = useState<string | null>(null);
-
   const canChangeStatus = user?.role ? CAN_CHANGE_STATUS.includes(user.role) : false;
 
   async function fetchChecklists() {
@@ -681,15 +515,6 @@ export default function ObraDetailPage() {
     } catch {} finally { setLoadingCanteiro(false); }
   }
 
-  async function fetchSeq() {
-    setLoadingSeq(true);
-    try {
-      const res = await api.get(`/obras/${params.id}/sequenciamento`);
-      setSequenciamento(res.data.data);
-    } catch { setSequenciamento(null); }
-    finally { setLoadingSeq(false); }
-  }
-
   async function fetchRecebimentos() {
     setLoadingRecebimentos(true);
     try {
@@ -701,12 +526,11 @@ export default function ObraDetailPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const [obraRes, tasksRes, checklistsRes, canteiroRes, seqRes, recebimentosRes, touchpointsRes, photosRes] = await Promise.all([
+      const [obraRes, tasksRes, checklistsRes, canteiroRes, recebimentosRes, touchpointsRes, photosRes] = await Promise.all([
         api.get(`/obras/${params.id}`),
         api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } }),
         api.get(`/obras/${params.id}/checklists`),
         api.get(`/obras/${params.id}/canteiro`),
-        api.get(`/obras/${params.id}/sequenciamento`).catch(() => ({ data: { data: null } })),
         api.get(`/obras/${params.id}/recebimentos`),
         api.get(`/obras/${params.id}/touchpoints`, { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
@@ -715,14 +539,11 @@ export default function ObraDetailPage() {
       setTasks(tasksRes.data.data);
       setChecklists(checklistsRes.data.data);
       setCanteiroChecklists(canteiroRes.data.data);
-      setSequenciamento(seqRes.data.data);
       setRecebimentos(recebimentosRes.data.data);
       setTouchpoints(touchpointsRes.data.data ?? []);
       setRecentPhotos(photosRes.data.data ?? []);
       const plRes = await api.get(`/obras/${params.id}/punch-lists`).catch(() => ({ data: { data: [] } }));
       setPunchLists(plRes.data.data ?? []);
-      const pendingReqRes = await api.get(`/obras/${params.id}/edit-requests/pending`).catch(() => ({ data: { data: [] } }));
-      setPendingEditReqs(pendingReqRes.data.data ?? []);
       const fvsRes = await api.get(`/obras/${params.id}/fvs`).catch(() => ({ data: { data: [] } }));
       setObraFvsList(fvsRes.data.data ?? []);
       const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
@@ -891,178 +712,6 @@ export default function ObraDetailPage() {
     } catch {} finally { setCreatingChecklist(false); }
   }
 
-  // ─── Sequenciamento ──────────────────────────────────────────────────────
-
-  async function openSeqModal() {
-    setShowSeqModal(true);
-    setLoadingSeqTemplates(true);
-    setSelectedSeqTemplate('');
-    try {
-      const res = await api.get('/sequenciamento-templates');
-      setSeqTemplates(res.data.data);
-    } catch {} finally { setLoadingSeqTemplates(false); }
-  }
-
-  async function handleCreateSeq() {
-    if (!selectedSeqTemplate) return;
-    setCreatingSeq(true);
-    try {
-      const res = await api.post(`/obras/${params.id}/sequenciamento`, { templateId: selectedSeqTemplate });
-      setSequenciamento(res.data.data);
-      setShowSeqModal(false);
-    } catch {} finally { setCreatingSeq(false); }
-  }
-
-  async function handleEvidenciaUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploadingEvidencia(true);
-    try {
-      for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await api.post('/uploads', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-        setEvidenciaFotos((prev) => [...prev, res.data.data.url]);
-      }
-    } catch {} finally {
-      setUploadingEvidencia(false);
-      e.target.value = '';
-    }
-  }
-
-  async function handleEtapaAction() {
-    if (!etapaAction) return;
-    setEtapaSubmitting(true);
-    try {
-      const { id, type } = etapaAction;
-      const body: Record<string, any> = {};
-      if (type === 'start') {
-        body.startDate = rf.startDate;
-        body.fornecedor = rf.fornecedor || undefined;
-        body.numOperarios = rf.numOperarios ? parseInt(rf.numOperarios) : undefined;
-        body.condicoesIniciais = rf.condicoesIniciais || undefined;
-        body.fotoInicialUrl = rfFotoInicial || undefined;
-        body.gestorNotes = etapaNotes || undefined;
-      }
-      if (type === 'submit') {
-        body.qtdExecutada = rf.qtdExecutada || undefined;
-        body.qtdPrevista = rf.qtdPrevista || undefined;
-        body.fvsPreenchida = rf.fvsPreenchida;
-        body.naoConformidades = rf.hasNaoConf ? rf.naoConformidades : undefined;
-        body.fotosEvidencia = rfFotosEv;
-        body.obsConclusao = rf.obsConclusao || undefined;
-        body.evidenciaDescricao = rf.obsConclusao || undefined;
-        body.evidenciaFotos = rfFotosEv;
-        body.gestorNotes = etapaNotes || undefined;
-      }
-      if (type === 'approve') {
-        body.coordenadorNotes = etapaNotes || undefined;
-        body.obsAprovador = rf.obsAprovador || undefined;
-      }
-      if (type === 'reject') {
-        body.rejectionReason = etapaNotes;
-      }
-      await api.patch(`/obras/${params.id}/etapas/${id}/${type}`, body);
-      setEtapaAction(null);
-      setEtapaNotes('');
-      setEvidenciaDescricao('');
-      setEvidenciaFotos([]);
-      setRfFotosEv([]);
-      setRfFotoInicial(null);
-      fetchSeq();
-    } catch {} finally { setEtapaSubmitting(false); }
-  }
-
-  function getBlockingEtapas(etapa: SeqEtapa): string[] {
-    if (!sequenciamento || etapa.dependsOn.length === 0) return [];
-    return sequenciamento.etapas
-      .filter((e) => etapa.dependsOn.includes(e.templateEtapaId ?? '') && e.status !== 'aprovada')
-      .map((e) => e.name);
-  }
-
-  // ─── Edit mode helpers ────────────────────────────────────────────────────
-
-  const canEdit = sequenciamento && !sequenciamento.frozenAt &&
-    sequenciamento.etapas.every((e) => e.status === 'nao_iniciada');
-  const isFrozen = !!sequenciamento?.frozenAt;
-
-  function startEditingEtapa(etapa: SeqEtapa) {
-    setEditingEtapaId(etapa.id);
-    setEditName(etapa.name);
-    setEditDays(etapa.estimatedDays);
-  }
-
-  async function saveEtapaEdit() {
-    if (!editingEtapaId) return;
-    try {
-      await api.put(`/obras/${params.id}/etapas/${editingEtapaId}`, {
-        name: editName,
-        estimatedDays: editDays,
-      });
-      setEditingEtapaId(null);
-      fetchSeq();
-    } catch {}
-  }
-
-  async function saveInlineDays(etapaId: string) {
-    if (inlineDays < 1) return;
-    try {
-      await api.put(`/obras/${params.id}/etapas/${etapaId}`, { estimatedDays: inlineDays });
-      setEditingDaysId(null);
-      fetchSeq();
-    } catch {}
-  }
-
-  async function handleMoveEtapa(etapaId: string, direction: 'up' | 'down') {
-    if (!sequenciamento) return;
-    const ids = sequenciamento.etapas.map((e) => e.id);
-    const idx = ids.indexOf(etapaId);
-    if (direction === 'up' && idx > 0) {
-      [ids[idx], ids[idx - 1]] = [ids[idx - 1], ids[idx]];
-    } else if (direction === 'down' && idx < ids.length - 1) {
-      [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
-    } else return;
-    try {
-      const res = await api.put(`/obras/${params.id}/sequenciamento/reorder`, { etapaIds: ids });
-      setSequenciamento(res.data.data);
-    } catch {}
-  }
-
-  async function handleAddEtapa() {
-    if (!newEtapaName.trim()) return;
-    try {
-      const res = await api.post(`/obras/${params.id}/sequenciamento/etapas`, {
-        name: newEtapaName,
-        discipline: newEtapaDiscipline,
-        estimatedDays: newEtapaDays,
-        order: newEtapaOrder,
-      });
-      setSequenciamento(res.data.data);
-      setShowAddEtapa(false);
-      setNewEtapaName('');
-      setNewEtapaDiscipline('outro');
-      setNewEtapaDays(1);
-    } catch {}
-  }
-
-  async function handleRemoveEtapa(etapaId: string) {
-    try {
-      const res = await api.delete(`/obras/${params.id}/etapas/${etapaId}`);
-      setSequenciamento(res.data.data);
-      setRemovingEtapaId(null);
-    } catch {}
-  }
-
-  async function handleFreeze() {
-    setFreezing(true);
-    try {
-      const res = await api.post(`/obras/${params.id}/sequenciamento/freeze`);
-      setSequenciamento(res.data.data);
-      setEditMode(false);
-      setConfirmFreeze(false);
-    } catch {} finally { setFreezing(false); }
-  }
-
   // ─── Recebimentos ──────────────────────────────────────────────────────────
 
   async function handleCreateRecebimento(e: React.FormEvent) {
@@ -1113,412 +762,6 @@ export default function ObraDetailPage() {
     return <div className="text-sm text-ber-gray">Carregando...</div>;
   }
 
-  const renderSequenciamento = () => (
-  <div>
-    {!sequenciamento ? (
-      <div className="flex flex-col items-center py-12 text-center">
-        <ListOrdered size={40} className="mb-3 text-ber-gray/30" />
-        <p className="text-sm text-ber-gray">Nenhum sequenciamento definido para esta obra.</p>
-        <button
-          onClick={openSeqModal}
-          className="mt-3 flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black"
-        >
-          <Plus size={14} />
-          Iniciar Sequenciamento
-        </button>
-      </div>
-    ) : (
-      <div>
-        {/* Header bar with progress + edit/freeze controls */}
-        {(() => {
-          const total = sequenciamento.etapas.length;
-          const approved = sequenciamento.etapas.filter((e) => e.status === 'aprovada').length;
-          const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
-          const isGestor = user?.role === 'gestor' || user?.role === 'coordenacao' || user?.role === 'diretoria';
-          return (
-            <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-ber-carbon">
-                    Progresso — {sequenciamento.template?.name ?? 'Sequenciamento'}
-                  </span>
-                  {isFrozen && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
-                      <Snowflake size={11} />
-                      Confirmado em {new Date(sequenciamento.frozenAt!).toLocaleDateString('pt-BR')}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-ber-olive">{approved}/{total} etapas aprovadas ({pct}%)</span>
-                  {canEdit && isGestor && !editMode && (
-                    <button
-                      onClick={() => setEditMode(true)}
-                      className="ml-2 flex items-center gap-1 rounded-md border border-ber-gray/30 px-2.5 py-1 text-xs font-medium text-ber-carbon transition-colors hover:bg-ber-offwhite"
-                    >
-                      <Pencil size={12} /> Editar Sequenciamento
-                    </button>
-                  )}
-                  {editMode && (
-                    <>
-                      <button
-                        onClick={() => { setShowAddEtapa(true); setNewEtapaOrder(sequenciamento.etapas.length + 1); }}
-                        className="ml-2 flex items-center gap-1 rounded-md bg-ber-teal px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-ber-teal/80"
-                      >
-                        <Plus size={12} /> Adicionar Etapa
-                      </button>
-                      <button
-                        onClick={() => setConfirmFreeze(true)}
-                        className="flex items-center gap-1 rounded-md bg-ber-carbon px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-ber-black"
-                      >
-                        <Snowflake size={12} /> Confirmar e Congelar
-                      </button>
-                      <button
-                        onClick={() => { setEditMode(false); setEditingEtapaId(null); }}
-                        className="rounded-md px-2.5 py-1 text-xs font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                      >
-                        Cancelar
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-ber-gray/10">
-                <div
-                  className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-ber-olive'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Etapas list */}
-        <div className="space-y-2">
-          {sequenciamento.etapas.map((etapa, idx) => {
-            const statusCfg = ETAPA_STATUS_CONFIG[etapa.status] || ETAPA_STATUS_CONFIG.nao_iniciada;
-            const StatusIcon = statusCfg.icon;
-            const discColor = DISCIPLINE_COLORS[etapa.discipline] || DISCIPLINE_COLORS.outro;
-            const discLabel = DISCIPLINE_LABELS[etapa.discipline] || etapa.discipline;
-            const blocking = getBlockingEtapas(etapa);
-            const isBlocked = etapa.status === 'nao_iniciada' && blocking.length > 0;
-            const isGestor = user?.role === 'gestor' || user?.role === 'coordenacao' || user?.role === 'diretoria';
-            const isCoord = user?.role === 'coordenacao' || user?.role === 'diretoria';
-            const isEditing = editMode && editingEtapaId === etapa.id;
-
-            const isExpanded = expandedEtapaId === etapa.id;
-
-            return (
-              <div
-                key={etapa.id}
-                className={`rounded-lg bg-white shadow-sm ${isBlocked && !editMode ? 'border border-red-200 opacity-60' : ''} ${editMode ? 'border border-dashed border-ber-gray/30' : 'border border-transparent'}`}
-              >
-                {/* Clickable header row */}
-                <div
-                  className={`flex cursor-pointer items-start gap-3 p-4 ${!editMode ? 'hover:bg-ber-offwhite/50 transition-colors' : ''}`}
-                  onClick={() => !editMode && setExpandedEtapaId(isExpanded ? null : etapa.id)}
-                >
-                  {/* Number + reorder */}
-                  <div className="flex flex-col items-center gap-0.5">
-                    {editMode && (
-                      <button
-                        onClick={() => handleMoveEtapa(etapa.id, 'up')}
-                        disabled={idx === 0}
-                        className="rounded p-0.5 text-ber-gray transition-colors hover:bg-ber-offwhite disabled:opacity-20"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                    )}
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ber-carbon/5 text-sm font-bold text-ber-carbon">
-                      {idx + 1}
-                    </div>
-                    {editMode && (
-                      <button
-                        onClick={() => handleMoveEtapa(etapa.id, 'down')}
-                        disabled={idx === sequenciamento.etapas.length - 1}
-                        className="rounded p-0.5 text-ber-gray transition-colors hover:bg-ber-offwhite disabled:opacity-20"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    {isEditing ? (
-                      /* Inline edit form */
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="flex-1 rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                        />
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min={0}
-                            value={editDays}
-                            onChange={(e) => setEditDays(parseInt(e.target.value) || 0)}
-                            className="w-16 rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                          />
-                          <span className="text-xs text-ber-gray">dias</span>
-                        </div>
-                        <button
-                          onClick={saveEtapaEdit}
-                          className="rounded-md bg-ber-olive px-2.5 py-1 text-xs font-semibold text-ber-black transition-colors hover:bg-ber-olive/80"
-                        >
-                          Salvar
-                        </button>
-                        <button
-                          onClick={() => setEditingEtapaId(null)}
-                          className="rounded-md px-2.5 py-1 text-xs text-ber-gray transition-colors hover:bg-ber-offwhite"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-ber-carbon">{etapa.name}</p>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${discColor}`}>{discLabel}</span>
-                          {editingDaysId === etapa.id ? (
-                            <span className="inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                              <input
-                                type="number" min={1} max={999}
-                                value={inlineDays}
-                                onChange={e => setInlineDays(parseInt(e.target.value) || 1)}
-                                onKeyDown={e => { if (e.key === 'Enter') saveInlineDays(etapa.id); if (e.key === 'Escape') setEditingDaysId(null); }}
-                                onBlur={() => saveInlineDays(etapa.id)}
-                                autoFocus
-                                className="w-12 rounded border border-ber-teal px-1.5 py-0.5 text-[11px] text-center text-ber-carbon focus:outline-none"
-                              />
-                              <span className="text-[10px] text-ber-gray">d</span>
-                            </span>
-                          ) : (
-                            <button
-                              title="Clique para editar prazo"
-                              onClick={e => { e.stopPropagation(); if (etapa.status !== 'aprovada') { setEditingDaysId(etapa.id); setInlineDays(etapa.estimatedDays); } }}
-                              className={`text-[10px] text-ber-gray rounded px-1 py-0.5 transition-colors ${etapa.status !== 'aprovada' ? 'hover:bg-ber-offwhite hover:text-ber-teal cursor-pointer' : 'cursor-default'}`}
-                            >
-                              {etapa.estimatedDays}d {etapa.status !== 'aprovada' && <span className="opacity-0 group-hover:opacity-60 text-[8px]">✎</span>}
-                            </button>
-                          )}
-                          {!editMode && (
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusCfg.className}`}>
-                              <StatusIcon size={10} /> {statusCfg.label}
-                            </span>
-                          )}
-                        </div>
-
-                      </>
-                    )}
-                  </div>
-
-                  {/* Edit-mode action buttons */}
-                  <div className="flex shrink-0 gap-1.5">
-                    {editMode && !isEditing && (
-                      <>
-                        <button onClick={() => startEditingEtapa(etapa)} className="rounded p-1.5 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon" title="Editar"><Pencil size={14} /></button>
-                        <button onClick={() => setRemovingEtapaId(etapa.id)} className="rounded p-1.5 text-ber-gray transition-colors hover:bg-red-50 hover:text-red-500" title="Remover"><Trash2 size={14} /></button>
-                      </>
-                    )}
-                    {/* Chevron toggle (view mode only) */}
-                    {!editMode && (
-                      <span className="ml-1 shrink-0 text-ber-gray/50 transition-transform" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                        <ChevronDown size={16} />
-                      </span>
-                    )}
-                  </div>
-                </div>{/* end header row */}
-
-                {/* Expand panel */}
-                {!editMode && isExpanded && (
-                  <div className="border-t border-ber-offwhite px-4 pb-4 pt-3 space-y-3">
-                    {/* ── Action buttons ── always visible, no freeze requirement for coord/dir */}
-                    {(() => {
-                      const canAct = isFrozen || isCoord;
-                      const hasAction =
-                        (isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct) ||
-                        (isGestor && etapa.status === 'em_andamento') ||
-                        (isCoord && etapa.status === 'aguardando_aprovacao') ||
-                        ['concluida', 'aprovada'].includes(etapa.status);
-                      if (!hasAction) return null;
-                      return (
-                        <div className="flex flex-wrap gap-2 rounded-lg bg-ber-offwhite/60 p-3">
-                          {isGestor && etapa.status === 'nao_iniciada' && !isBlocked && canAct && (
-                            <button
-                              onClick={() => {
-                                setEtapaAction({ id: etapa.id, type: 'start' }); setEtapaNotes(''); setRf(p => ({...p, startDate: new Date().toISOString().slice(0,10), fornecedor:'', numOperarios:'', condicoesIniciais:''})); setRfFotoInicial(null);
-                                setEtapaFvs(null); setEtapaFvsLoading(true);
-                                api.get(`/obras/${params.id}/etapas/${etapa.id}/fvs`).then(r => setEtapaFvs(r.data.data)).catch(() => {}).finally(() => setEtapaFvsLoading(false));
-                              }}
-                              className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
-                            >
-                              <Play size={13} /> Iniciar Etapa
-                            </button>
-                          )}
-                          {isGestor && etapa.status === 'nao_iniciada' && isBlocked && (
-                            <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
-                              <Lock size={12} /> Aguardando: {getBlockingEtapas(etapa).join(', ')}
-                            </span>
-                          )}
-                          {isGestor && etapa.status === 'em_andamento' && (
-                            <button
-                              onClick={() => {
-                              setEtapaAction({ id: etapa.id, type: 'submit' }); setEtapaNotes(''); setEvidenciaDescricao(''); setEvidenciaFotos([]); setRfFotosEv([]); setRf(p => ({...p, qtdExecutada:'', qtdPrevista:'', fvsPreenchida:false, hasNaoConf:false, naoConformidades:'', obsConclusao:''}));
-                              setEtapaFvs(null); setEtapaFvsLoading(true);
-                              api.get(`/obras/${params.id}/etapas/${etapa.id}/fvs`).then(r => setEtapaFvs(r.data.data)).catch(() => {}).finally(() => setEtapaFvsLoading(false));
-                            }}
-                              className="flex items-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-bold text-white hover:bg-blue-600 shadow-sm"
-                            >
-                              <Send size={13} /> Enviar para Aprovação
-                            </button>
-                          )}
-                          {isCoord && etapa.status === 'aguardando_aprovacao' && (
-                            <>
-                              <button
-                                onClick={() => { setEtapaAction({ id: etapa.id, type: 'approve' }); setEtapaNotes(''); }}
-                                className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-2 text-xs font-bold text-white hover:bg-green-600 shadow-sm"
-                              >
-                                <Check size={13} /> Aprovar Etapa
-                              </button>
-                              <button
-                                onClick={() => { setEtapaAction({ id: etapa.id, type: 'reject' }); setEtapaNotes(''); }}
-                                className="flex items-center gap-1.5 rounded-md bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600 shadow-sm"
-                              >
-                                <XCircle size={13} /> Rejeitar
-                              </button>
-                            </>
-                          )}
-                          {['concluida', 'aprovada'].includes(etapa.status) && isCoord && (
-                            (() => {
-                              const exp = unlockedEtapas.get(etapa.id);
-                              const ok = exp && exp > new Date();
-                              return ok
-                                ? <span className="text-xs font-semibold text-green-600">🔓 Liberado até {exp!.toLocaleTimeString('pt-BR')}</span>
-                                : <button
-                                    onClick={async () => {
-                                      try {
-                                        const r1 = await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapa.id}/edit-request`, { motivo: 'Desbloqueio direto' });
-                                        await api.patch(`/sequenciamento/edit-requests/${r1.data.data.id}`, { action: 'approve' });
-                                        setUnlockedEtapas(prev => new Map([...prev, [etapa.id, new Date(Date.now() + 30 * 60 * 1000)]]));
-                                      } catch {}
-                                    }}
-                                    className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-2 text-xs font-bold text-ber-black hover:bg-ber-olive/80 shadow-sm"
-                                  >
-                                    🔓 Desbloquear edição (30 min)
-                                  </button>;
-                            })()
-                          )}
-                          {['concluida', 'aprovada'].includes(etapa.status) && isGestor && !isCoord && (
-                            (() => {
-                              const pending = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
-                              const exp = unlockedEtapas.get(etapa.id);
-                              const ok = exp && exp > new Date();
-                              return pending
-                                ? <span className="text-xs font-semibold text-amber-600">⏳ Solicitação pendente — aguardando aprovação</span>
-                                : ok
-                                  ? <span className="text-xs font-semibold text-green-600">🔓 Edição liberada até {exp!.toLocaleTimeString('pt-BR')}</span>
-                                  : <button
-                                      onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }}
-                                      className="flex items-center gap-1.5 rounded-md border border-ber-gray/40 bg-white px-3 py-2 text-xs font-semibold text-ber-gray hover:bg-ber-offwhite shadow-sm"
-                                    >
-                                      🔒 Solicitar edição
-                                    </button>;
-                            })()
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Início real</p><p className="mt-0.5 text-ber-carbon">{etapa.startDate ? new Date(etapa.startDate).toLocaleDateString('pt-BR') : '—'}</p></div>
-                      <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Conclusão</p><p className="mt-0.5 text-ber-carbon">{etapa.endDate ? new Date(etapa.endDate).toLocaleDateString('pt-BR') : etapa.estimatedEndDate ? `Prev. ${new Date(etapa.estimatedEndDate).toLocaleDateString('pt-BR')}` : '—'}</p></div>
-                      <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Duração estimada</p><p className="mt-0.5 text-ber-carbon">{etapa.estimatedDays} dia{etapa.estimatedDays !== 1 ? 's' : ''}</p></div>
-                      <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Disciplina</p><p className="mt-0.5 text-ber-carbon capitalize">{DISCIPLINE_LABELS[etapa.discipline] ?? etapa.discipline}</p></div>
-                      {etapa.submitter && <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Enviado por</p><p className="mt-0.5 text-ber-carbon">{etapa.submitter.name}</p></div>}
-                      {etapa.approver && <div><p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Aprovado por</p><p className="mt-0.5 text-ber-carbon">{etapa.approver.name}</p></div>}
-                    </div>
-
-                    {/* Dependencies */}
-                    {etapa.dependencies && etapa.dependencies.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Dependências</p>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {etapa.dependencies.map((depId: string) => {
-                            const dep = sequenciamento!.etapas.find(e => e.id === depId);
-                            return dep ? (
-                              <span key={depId} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${dep.status === 'aprovada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                                {dep.status === 'aprovada' ? '✓' : '⏳'} {dep.name}
-                              </span>
-                            ) : null;
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    {(etapa.gestorNotes || etapa.coordenadorNotes || etapa.rejectionReason) && (
-                      <div className="space-y-2">
-                        {etapa.rejectionReason && <div className="rounded-md bg-red-50 p-2.5 text-xs text-red-700"><strong>Rejeitada:</strong> {etapa.rejectionReason}{etapa.rejecter && <span className="text-red-400"> — {etapa.rejecter.name}</span>}</div>}
-                        {etapa.gestorNotes && !['sim','não','nao','true','false','yes','no'].includes(etapa.gestorNotes.toLowerCase().trim()) && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Gestor:</strong> {etapa.gestorNotes}</div>}
-                        {etapa.coordenadorNotes && <div className="rounded-md bg-ber-offwhite p-2.5 text-xs text-ber-carbon"><strong className="text-ber-gray">Coordenador:</strong> {etapa.coordenadorNotes}</div>}
-                      </div>
-                    )}
-
-                    {/* Edit unlock for concluida/aprovada */}
-                    {['concluida','aprovada'].includes(etapa.status) && isCoord && (
-                      (() => {
-                        const unlockExp = unlockedEtapas.get(etapa.id);
-                        const unlocked = unlockExp && unlockExp > new Date();
-                        return unlocked
-                          ? <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 font-medium">🔓 Edição liberada até {unlockExp!.toLocaleTimeString('pt-BR')}</div>
-                          : <button onClick={async () => {
-                              try {
-                                const res = await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapa.id}/edit-request`, { motivo: 'Desbloqueio direto' });
-                                const reqId = res.data.data.id;
-                                await api.patch(`/sequenciamento/edit-requests/${reqId}`, { action: 'approve' });
-                                setUnlockedEtapas(prev => new Map([...prev, [etapa.id, new Date(Date.now() + 30*60*1000)]]));
-                              } catch {}
-                            }} className="flex items-center gap-1.5 rounded-lg bg-ber-olive/90 px-3 py-2 text-xs font-semibold text-white hover:bg-ber-olive">🔓 Desbloquear edição (30 min)</button>;
-                      })()
-                    )}
-                    {['concluida','aprovada'].includes(etapa.status) && isGestor && !isCoord && (
-                      (() => {
-                        const hasPend = editReqSent.has(etapa.id) || pendingEditReqs.some(r => r.etapa.id === etapa.id);
-                        const unlockExp = unlockedEtapas.get(etapa.id);
-                        const unlocked = unlockExp && unlockExp > new Date();
-                        return hasPend
-                          ? <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 font-medium">⏳ Solicitação de edição pendente — aguardando aprovação</div>
-                          : unlocked
-                            ? <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 font-medium">🔓 Edição liberada até {unlockExp!.toLocaleTimeString('pt-BR')}</div>
-                            : <button onClick={() => { setEditReqModal({ etapaId: etapa.id, etapaName: etapa.name }); setEditReqMotivo(''); }} className="flex items-center gap-1.5 rounded-lg border border-ber-gray/30 bg-ber-offwhite px-3 py-2 text-xs font-medium text-ber-gray hover:bg-white">🔒 Editar (requer autorização)</button>;
-                      })()
-                    )}
-
-                    {/* Blocked warning */}
-                    {isBlocked && <p className="flex items-center gap-1 text-xs text-red-500"><Lock size={11} /> Aguardando: {blocking.join(', ')}</p>}
-
-                    {/* Evidências */}
-                    {(etapa.evidenciaDescricao || etapa.evidenciaFotos.length > 0) && (
-                      <div className="rounded-md bg-ber-offwhite p-2.5">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Evidência{etapa.evidenciaRegistradaEm && ` — ${new Date(etapa.evidenciaRegistradaEm).toLocaleDateString('pt-BR')}`}</p>
-                        {etapa.evidenciaDescricao && <p className="mb-1.5 text-xs text-ber-carbon">{etapa.evidenciaDescricao}</p>}
-                        {etapa.evidenciaFotos.length > 0 && <div className="flex flex-wrap gap-1.5">{etapa.evidenciaFotos.map((url: string, i: number) => <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block h-14 w-14 overflow-hidden rounded border border-ber-gray/15 hover:opacity-80"><img src={url} alt={`Evidência ${i+1}`} className="h-full w-full object-cover" /></a>)}</div>}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    )}
-  </div>
-  );
-
   if (!obra) {
     return <div className="text-sm text-ber-gray">Obra não encontrada.</div>;
   }
@@ -1527,13 +770,13 @@ export default function ObraDetailPage() {
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'cockpit', label: '🎛 Cockpit' },
-    { key: 'sequenciamento', label: `Sequenciamento${sequenciamento ? ` (${sequenciamento.etapas.filter(e => e.status === 'aprovada').length}/${sequenciamento.etapas.length})` : ''}` },
     { key: 'fvs', label: `FVS (${obraFvsList.length})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
   ];
+
 
   return (
     <div className="p-4 md:p-6">
@@ -1710,12 +953,9 @@ export default function ObraDetailPage() {
             ),
             burndown: (
               <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
-                  {sequenciamento && <button onClick={() => setActiveTab('sequenciamento')} className="text-xs font-medium text-ber-teal hover:underline">Ver sequenciamento →</button>}
-                </div>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
                 <div className="mt-3">
-                  <BurndownChart etapas={sequenciamento?.etapas ?? []} />
+                  <BurndownChart etapas={[]} />
                 </div>
               </div>
             ),
@@ -1785,7 +1025,6 @@ export default function ObraDetailPage() {
                 {recebimentos.length === 0 ? <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p> : <div className="mt-3 space-y-2"><div><p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p><div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3"><p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p><p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p><span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>{(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}</span></div></div><div className="flex items-center justify-between text-xs text-ber-gray"><span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''}</span><button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button></div></div>}
               </div>
             ),
-            sequenciamento: renderSequenciamento(),
             punchlist: (
               <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
@@ -1842,39 +1081,6 @@ export default function ObraDetailPage() {
                       {touchpoints.map(tp => <div key={tp.id} className="rounded-lg border border-ber-offwhite p-3"><div className="flex items-center gap-2"><span className="rounded-full bg-ber-teal/10 px-2.5 py-0.5 text-xs font-semibold text-ber-teal">{TOUCHPOINT_LABELS[tp.type] ?? tp.type}</span><span className="text-xs text-ber-gray">{new Date(tp.occurredAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}</span></div><p className="mt-1.5 text-sm font-medium text-ber-carbon">{tp.title}</p>{tp.nextAction && <p className="mt-1 text-xs text-ber-gray">→ {tp.nextAction}{tp.nextActionDue && <span className="ml-1 font-semibold text-amber-600">({new Date(tp.nextActionDue).toLocaleDateString('pt-BR')})</span>}</p>}</div>)}
                     </div>
                     <div className="border-t border-ber-offwhite px-5 py-3 text-right"><button onClick={() => { setShowTPHistory(false); setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }} className="text-sm font-medium text-ber-teal hover:underline">+ Registrar novo</button></div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Edit Request modal ── */}
-              {editReqModal && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4" onClick={() => setEditReqModal(null)}>
-                  <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white shadow-xl max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-4">
-                      <h2 className="font-bold text-ber-carbon">Solicitar Edição</h2>
-                      <button onClick={() => setEditReqModal(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                    </div>
-                    <div className="px-5 py-4 space-y-3">
-                      <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-                        <p className="font-bold">🔒 Etapa com acesso restrito</p>
-                        <p className="mt-1">A etapa <strong>{editReqModal.etapaName}</strong> está {sequenciamento?.etapas.find(e => e.id === editReqModal.etapaId)?.status}. Para editar, é necessária aprovação do coordenador ou diretoria.</p>
-                        <p className="mt-1">Após aprovação, você terá <strong>30 minutos</strong> para realizar as edições.</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Motivo da solicitação</label>
-                        <textarea rows={3} value={editReqMotivo} onChange={e => setEditReqMotivo(e.target.value)} placeholder="Explique por que precisa editar esta etapa..." className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div className="flex justify-end gap-3 pt-1">
-                        <button onClick={() => setEditReqModal(null)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
-                        <button
-                          disabled={sendingEditReq}
-                          onClick={() => { if (editReqModal) { const { etapaId } = editReqModal; sendingEditReq || (async () => { setSendingEditReq(true); try { await api.post(`/obras/${params.id}/sequenciamento/etapas/${etapaId}/edit-request`, { motivo: editReqMotivo || undefined }); setEditReqSent(prev => new Set([...prev, etapaId])); setEditReqModal(null); } catch {} finally { setSendingEditReq(false); } })(); }}}
-                          className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50"
-                        >
-                          {sendingEditReq ? 'Enviando...' : 'Enviar solicitação'}
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -2815,578 +2021,6 @@ export default function ObraDetailPage() {
           </div>
         )}
 
-        {activeTab === 'sequenciamento' && renderSequenciamento()}
-      </div>
-
-      {/* ─── Confirm Freeze Modal ─── */}
-      {confirmFreeze && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="px-6 py-5">
-              <div className="mb-3 flex items-center gap-2">
-                <Snowflake size={20} className="text-blue-600" />
-                <h2 className="text-lg font-black text-ber-carbon">Congelar Sequenciamento?</h2>
-              </div>
-              <p className="text-sm text-ber-gray">
-                Após congelar, não será mais possível editar, reordenar, adicionar ou remover etapas.
-                As etapas poderão então ser iniciadas e seguir o fluxo de aprovação.
-              </p>
-              <div className="mt-5 flex justify-end gap-3">
-                <button
-                  onClick={() => setConfirmFreeze(false)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleFreeze}
-                  disabled={freezing}
-                  className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50"
-                >
-                  <Snowflake size={14} />
-                  {freezing ? 'Congelando...' : 'Confirmar e Congelar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Confirm Remove Etapa Modal ─── */}
-      {removingEtapaId && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="px-6 py-5">
-              <h2 className="mb-2 text-lg font-black text-ber-carbon">Remover Etapa?</h2>
-              <p className="text-sm text-ber-gray">
-                A etapa &quot;{sequenciamento?.etapas.find((e) => e.id === removingEtapaId)?.name}&quot; será removida permanentemente.
-              </p>
-              <div className="mt-5 flex justify-end gap-3">
-                <button
-                  onClick={() => setRemovingEtapaId(null)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleRemoveEtapa(removingEtapaId)}
-                  className="rounded-md bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600"
-                >
-                  Remover
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Add Etapa Modal ─── */}
-      {showAddEtapa && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-              <h2 className="text-lg font-black text-ber-carbon">Adicionar Etapa</h2>
-              <button
-                onClick={() => setShowAddEtapa(false)}
-                className="rounded p-1 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="space-y-3 px-6 py-5">
-              <div>
-                <label className="block text-sm font-medium text-ber-carbon">Nome da etapa *</label>
-                <input
-                  type="text"
-                  value={newEtapaName}
-                  onChange={(e) => setNewEtapaName(e.target.value)}
-                  placeholder="Ex: Pintura externa"
-                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-ber-carbon">Disciplina</label>
-                <select
-                  value={newEtapaDiscipline}
-                  onChange={(e) => setNewEtapaDiscipline(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                >
-                  {Object.entries(DISCIPLINE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-ber-carbon">Duração estimada (dias)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={newEtapaDays}
-                    onChange={(e) => setNewEtapaDays(parseInt(e.target.value) || 0)}
-                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ber-carbon">Posição</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={(sequenciamento?.etapas.length ?? 0) + 1}
-                    value={newEtapaOrder}
-                    onChange={(e) => setNewEtapaOrder(parseInt(e.target.value) || 1)}
-                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setShowAddEtapa(false)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleAddEtapa}
-                  disabled={!newEtapaName.trim()}
-                  className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50"
-                >
-                  <Plus size={14} /> Adicionar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Etapa Action Modal (Rich Forms) ─── */}
-      {etapaAction && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
-          <div className="w-full max-w-lg rounded-t-2xl md:rounded-xl bg-white shadow-2xl max-h-[90dvh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4 shrink-0">
-              <div>
-                <h2 className="text-base font-black text-ber-carbon">
-                  {etapaAction.type === 'start' && '🚀 Iniciar Etapa'}
-                  {etapaAction.type === 'submit' && '📋 Concluir e Enviar para Aprovação'}
-                  {etapaAction.type === 'approve' && '✅ Aprovar Etapa'}
-                  {etapaAction.type === 'reject' && '❌ Rejeitar Etapa'}
-                </h2>
-                <p className="text-xs text-ber-gray mt-0.5">
-                  {sequenciamento?.etapas.find(e => e.id === etapaAction.id)?.name ?? ''}
-                </p>
-              </div>
-              <button onClick={() => setEtapaAction(null)} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
-            </div>
-
-            {/* Body */}
-            <div className="overflow-y-auto px-6 py-4 space-y-4">
-
-              {/* ── INICIAR ── */}
-              {etapaAction.type === 'start' && (<>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Data real de início *</label>
-                    <input type="date" value={rf.startDate} onChange={e => setRf(p => ({...p, startDate: e.target.value}))}
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Nº de operários</label>
-                    <input type="number" min={0} value={rf.numOperarios} onChange={e => setRf(p => ({...p, numOperarios: e.target.value}))}
-                      placeholder="Ex: 3"
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fornecedor / equipe executando</label>
-                    <input type="text" value={rf.fornecedor} onChange={e => setRf(p => ({...p, fornecedor: e.target.value}))}
-                      placeholder="Ex: Equipe Hidráulica A, Fornecedor X"
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Condições iniciais / pré-requisitos atendidos</label>
-                    <textarea rows={3} value={rf.condicoesIniciais} onChange={e => setRf(p => ({...p, condicoesIniciais: e.target.value}))}
-                      placeholder="Descreva as condições iniciais e quais pré-requisitos foram verificados..."
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Foto do estado inicial (opcional)</label>
-                    <div className="mt-1 flex items-center gap-3">
-                      {rfFotoInicial && <img src={rfFotoInicial} alt="Inicial" className="h-16 w-16 rounded-lg object-cover border border-ber-gray/20" />}
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-ber-gray/30 px-3 py-2 text-xs font-medium text-ber-gray hover:bg-ber-offwhite">
-                        <Camera size={13} /> {uploadingRf ? 'Enviando...' : rfFotoInicial ? 'Trocar foto' : 'Adicionar foto'}
-                        <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploadingRf}
-                          onChange={async e => {
-                            const file = e.target.files?.[0]; if (!file) return;
-                            setUploadingRf(true);
-                            try {
-                              const fd = new FormData(); fd.append('file', file);
-                              const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                              setRfFotoInicial(r.data.data?.url ?? r.data.url);
-                            } catch {} finally { setUploadingRf(false); }
-                          }} />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                {/* FVS Pré-execução inline */}
-                {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
-                {etapaFvs && (() => {
-                  const inicioItems = [...etapaFvs.items]
-                    .filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio')
-                    .sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
-                  if (!inicioItems.length) return null;
-                  const obrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
-                  const obrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
-                  const grouped: Record<string, typeof inicioItems> = {};
-                  inicioItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
-                  return (
-                    <div className="rounded-lg border-2 border-amber-200 bg-amber-50/50 p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-amber-800">📋 FVS Pré-execução — {etapaFvs.template?.code}</p>
-                        <span className={`text-[10px] font-bold ${obrigChecked === obrigTotal ? 'text-green-600' : 'text-amber-700'}`}>{obrigChecked}/{obrigTotal}</span>
-                      </div>
-                      {Object.entries(grouped).map(([secao, items]) => (
-                        <div key={secao}>
-                          <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600 mb-1">{secao}</p>
-                          {items.map(item => {
-                            const blocked = fvsItemBlocked(item, inicioItems);
-                            const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
-                            const photoMissing = needsPhoto && !item.fotoUrl;
-                            const canCheck = !blocked && !photoMissing;
-                            return (
-                            <div key={item.id} className={`py-0.5 ${blocked ? 'opacity-50' : ''}`}>
-                              <div className="flex items-start gap-2">
-                                <input type="checkbox" checked={item.checked}
-                                  disabled={item.na || (!item.checked && !canCheck)}
-                                  title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
-                                  onChange={() => patchEtapaFvsItem(item.id, { checked: !item.checked })}
-                                  className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-30" />
-                                <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                  {needsPhoto && <span className="mr-0.5 text-amber-500">📷</span>}
-                                  {item.templateItem?.descricao ?? item.descricao}
-                                  {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
-                                </span>
-                                <button type="button"
-                                  disabled={blocked && !item.na}
-                                  onClick={() => patchEtapaFvsItem(item.id, { na: !item.na })}
-                                  className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold disabled:opacity-40 ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                                  N/A
-                                </button>
-                              </div>
-                              {(needsPhoto || item.fotoUrl) && (
-                                <div className="mt-1 ml-5 flex items-center gap-2">
-                                  {item.fotoUrl && (
-                                    <a href={item.fotoUrl} target="_blank" rel="noreferrer">
-                                      <img src={item.fotoUrl} alt="foto" className="h-10 w-10 rounded object-cover border border-ber-gray/15" />
-                                    </a>
-                                  )}
-                                  <label className={`flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600'}`}>
-                                    <Camera size={9} />
-                                    {item.fotoUrl ? 'Trocar' : 'Foto obrigatória'}
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
-                                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadEtapaFvsPhoto(item.id, f); }} />
-                                  </label>
-                                </div>
-                              )}
-                            </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                <div>
-                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações (opcional)</label>
-                  <textarea rows={2} value={etapaNotes} onChange={e => setEtapaNotes(e.target.value)} placeholder="Observações adicionais..."
-                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                </div>
-              </>)}
-
-              {/* ── CONCLUIR (submit) ── */}
-              {etapaAction.type === 'submit' && (<>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Qtd. prevista</label>
-                    <input type="text" value={rf.qtdPrevista} onChange={e => setRf(p => ({...p, qtdPrevista: e.target.value}))}
-                      placeholder="Ex: 120m²"
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Qtd. executada *</label>
-                    <input type="text" value={rf.qtdExecutada} onChange={e => setRf(p => ({...p, qtdExecutada: e.target.value}))}
-                      placeholder="Ex: 118m²"
-                      className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                  </div>
-                </div>
-
-                {/* FVS Conclusão inline */}
-                {etapaFvsLoading && <p className="text-xs text-ber-gray animate-pulse">Carregando FVS...</p>}
-                {etapaFvs && (() => {
-                  const conclusaoItems = [...etapaFvs.items]
-                    .filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao')
-                    .sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
-                  if (!conclusaoItems.length) return (
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
-                      <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
-                      <div><p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p><p className="text-xs text-ber-gray">Sem itens de conclusão nesta FVS</p></div>
-                    </label>
-                  );
-                  const obrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
-                  const obrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
-                  const allDone = obrigChecked === obrigTotal;
-                  const grouped: Record<string, typeof conclusaoItems> = {};
-                  conclusaoItems.forEach(i => { const s = i.templateItem?.secao ?? 'Geral'; (grouped[s] = grouped[s] ?? []).push(i); });
-                  // Auto-set fvsPreenchida based on checklist state
-                  if (allDone && !rf.fvsPreenchida) setRf(p => ({...p, fvsPreenchida: true}));
-                  if (!allDone && rf.fvsPreenchida) setRf(p => ({...p, fvsPreenchida: false}));
-                  return (
-                    <div className={`rounded-lg border-2 p-3 space-y-2 ${allDone ? 'border-green-400 bg-green-50/50' : 'border-blue-200 bg-blue-50/50'}`}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-blue-800">📋 FVS Conclusão — {etapaFvs.template?.code}</p>
-                        <span className={`text-[10px] font-bold ${allDone ? 'text-green-600' : 'text-blue-700'}`}>{obrigChecked}/{obrigTotal} {allDone ? '✓' : ''}</span>
-                      </div>
-                      <div className="max-h-48 overflow-y-auto space-y-2">
-                        {Object.entries(grouped).map(([secao, items]) => (
-                          <div key={secao}>
-                            <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 mb-1">{secao}</p>
-                            {items.map(item => {
-                              const blocked = fvsItemBlocked(item, conclusaoItems);
-                              const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
-                              const photoMissing = needsPhoto && !item.fotoUrl;
-                              const canCheck = !blocked && !photoMissing;
-                              return (
-                              <div key={item.id} className={`py-0.5 ${blocked ? 'opacity-50' : ''}`}>
-                                <div className="flex items-start gap-2">
-                                  <input type="checkbox" checked={item.checked}
-                                    disabled={item.na || (!item.checked && !canCheck)}
-                                    title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
-                                    onChange={() => patchEtapaFvsItem(item.id, { checked: !item.checked })}
-                                    className="mt-0.5 h-3.5 w-3.5 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-30" />
-                                  <span className={`flex-1 text-xs leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                                    {needsPhoto && <span className="mr-0.5 text-amber-500">📷</span>}
-                                    {item.templateItem?.descricao ?? item.descricao}
-                                    {!item.templateItem?.obrigatorio && item.templateItem && <span className="text-[9px] text-ber-gray/50 ml-1">(opcional)</span>}
-                                  </span>
-                                  <button type="button"
-                                    disabled={blocked && !item.na}
-                                    onClick={() => patchEtapaFvsItem(item.id, { na: !item.na })}
-                                    className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-bold disabled:opacity-40 ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
-                                    N/A
-                                  </button>
-                                </div>
-                                {(needsPhoto || item.fotoUrl) && (
-                                  <div className="mt-1 ml-5 flex items-center gap-2">
-                                    {item.fotoUrl && (
-                                      <a href={item.fotoUrl} target="_blank" rel="noreferrer">
-                                        <img src={item.fotoUrl} alt="foto" className="h-10 w-10 rounded object-cover border border-ber-gray/15" />
-                                      </a>
-                                    )}
-                                    <label className={`flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600'}`}>
-                                      <Camera size={9} />
-                                      {item.fotoUrl ? 'Trocar' : 'Foto obrigatória'}
-                                      <input type="file" accept="image/*" capture="environment" className="hidden"
-                                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadEtapaFvsPhoto(item.id, f); }} />
-                                    </label>
-                                  </div>
-                                )}
-                              </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-                {!etapaFvs && !etapaFvsLoading && (
-                  <label className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-colors ${rf.fvsPreenchida ? 'border-green-400 bg-green-50' : 'border-ber-gray/30 bg-ber-offwhite/50'}`}>
-                    <input type="checkbox" checked={rf.fvsPreenchida} onChange={e => setRf(p => ({...p, fvsPreenchida: e.target.checked}))} className="h-4 w-4 rounded accent-green-500" />
-                    <div><p className="text-sm font-semibold text-ber-carbon">FVS preenchida ✓</p><p className="text-xs text-ber-gray">Ficha de Verificação de Serviço foi preenchida e assinada</p></div>
-                  </label>
-                )}
-
-                {/* Não conformidades */}
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-ber-carbon">
-                    <input type="checkbox" checked={rf.hasNaoConf} onChange={e => setRf(p => ({...p, hasNaoConf: e.target.checked}))} className="h-4 w-4 rounded accent-red-500" />
-                    Houve não conformidades?
-                  </label>
-                  {rf.hasNaoConf && (
-                    <textarea rows={3} value={rf.naoConformidades} onChange={e => setRf(p => ({...p, naoConformidades: e.target.value}))}
-                      placeholder="Descreva as não conformidades encontradas..."
-                      className="mt-2 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none" />
-                  )}
-                </div>
-
-                {/* Fotos de evidência */}
-                <div>
-                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">
-                    Fotos de evidência <span className="text-red-500">* (mín. 1)</span>
-                  </label>
-                  <div className="mt-1.5 flex flex-wrap gap-2">
-                    {rfFotosEv.map((url, i) => (
-                      <div key={i} className="group relative">
-                        <img src={url} alt={`Ev ${i+1}`} className="h-16 w-16 rounded-lg object-cover border border-ber-gray/20" />
-                        <button type="button" onClick={() => setRfFotosEv(prev => prev.filter((_,j) => j !== i))}
-                          className="absolute -right-1.5 -top-1.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
-                          <X size={10} />
-                        </button>
-                      </div>
-                    ))}
-                    <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-ber-gray/30 text-ber-gray/50 hover:border-ber-teal hover:text-ber-teal transition-colors">
-                      <Camera size={16} />
-                      <span className="text-[9px] mt-0.5">{uploadingRf ? '...' : '+ foto'}</span>
-                      <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={uploadingRf}
-                        onChange={async e => {
-                          const files = Array.from(e.target.files ?? []); if (!files.length) return;
-                          setUploadingRf(true);
-                          try {
-                            for (const file of files) {
-                              const fd = new FormData(); fd.append('file', file);
-                              const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                              setRfFotosEv(prev => [...prev, r.data.data?.url ?? r.data.url]);
-                            }
-                          } catch {} finally { setUploadingRf(false); }
-                        }} />
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações finais</label>
-                  <textarea rows={3} value={rf.obsConclusao} onChange={e => setRf(p => ({...p, obsConclusao: e.target.value}))}
-                    placeholder="Observações sobre a execução, pontos de atenção para o coordenador..."
-                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                </div>
-              </>)}
-
-              {/* ── APROVAR ── */}
-              {etapaAction.type === 'approve' && (
-                <div>
-                  <div className="mb-3 flex items-start gap-3 rounded-lg bg-green-50 p-3">
-                    <span className="text-2xl">✅</span>
-                    <div>
-                      <p className="text-sm font-semibold text-green-800">Confirmar aprovação desta etapa?</p>
-                      <p className="text-xs text-green-700 mt-0.5">A etapa passará para status <strong>Aprovada</strong> e as dependentes serão desbloqueadas.</p>
-                    </div>
-                  </div>
-                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações do aprovador (opcional)</label>
-                  <textarea rows={3} value={rf.obsAprovador} onChange={e => setRf(p => ({...p, obsAprovador: e.target.value}))}
-                    placeholder="Observações, ressalvas ou comentários para o registro..."
-                    className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                </div>
-              )}
-
-              {/* ── REJEITAR ── */}
-              {etapaAction.type === 'reject' && (
-                <div>
-                  <div className="mb-3 flex items-start gap-3 rounded-lg bg-red-50 p-3">
-                    <span className="text-2xl">❌</span>
-                    <div>
-                      <p className="text-sm font-semibold text-red-800">Rejeitar esta etapa?</p>
-                      <p className="text-xs text-red-700 mt-0.5">A etapa voltará para <strong>Em andamento</strong> para correção pelo gestor.</p>
-                    </div>
-                  </div>
-                  <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Motivo da rejeição *</label>
-                  <textarea rows={4} value={etapaNotes} onChange={e => setEtapaNotes(e.target.value)}
-                    placeholder="Descreva o motivo da rejeição e o que precisa ser corrigido..."
-                    className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none" />
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3 border-t border-ber-offwhite px-6 py-4 shrink-0">
-              <button onClick={() => setEtapaAction(null)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
-              <button
-                onClick={handleEtapaAction}
-                disabled={
-                  etapaSubmitting ||
-                  (etapaAction.type === 'submit' && rfFotosEv.length === 0) ||
-                  (etapaAction.type === 'submit' && !rf.fvsPreenchida) ||
-                  (etapaAction.type === 'reject' && !etapaNotes.trim())
-                }
-                className={`flex items-center gap-2 rounded-md px-5 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50 transition-colors ${
-                  etapaAction.type === 'reject' ? 'bg-red-500 hover:bg-red-600' :
-                  etapaAction.type === 'approve' ? 'bg-green-500 hover:bg-green-600' :
-                  'bg-ber-carbon hover:bg-ber-black'
-                }`}
-              >
-                {etapaSubmitting ? 'Salvando...' :
-                  etapaAction.type === 'start' ? '🚀 Iniciar Etapa' :
-                  etapaAction.type === 'submit' ? '📋 Enviar para Aprovação' :
-                  etapaAction.type === 'approve' ? '✅ Aprovar Etapa' :
-                  '❌ Rejeitar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Sequenciamento Template Modal ─── */}
-      {showSeqModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-              <h2 className="text-lg font-black text-ber-carbon">Iniciar Sequenciamento</h2>
-              <button
-                onClick={() => setShowSeqModal(false)}
-                className="rounded p-1 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              {loadingSeqTemplates ? (
-                <p className="py-8 text-center text-sm text-ber-gray">Buscando templates...</p>
-              ) : seqTemplates.length === 0 ? (
-                <p className="py-8 text-center text-sm text-ber-gray">Nenhum template encontrado.</p>
-              ) : (
-                <>
-                  <p className="mb-3 text-sm text-ber-gray">Selecione o tipo de obra:</p>
-                  <div className="space-y-1.5">
-                    {seqTemplates.map((tpl) => (
-                      <button
-                        key={tpl.id}
-                        onClick={() => setSelectedSeqTemplate(tpl.id)}
-                        className={`w-full rounded-md px-4 py-3 text-left transition-colors ${
-                          selectedSeqTemplate === tpl.id
-                            ? 'bg-ber-teal text-white'
-                            : 'bg-ber-offwhite/50 text-ber-carbon hover:bg-ber-offwhite'
-                        }`}
-                      >
-                        <p className="text-sm font-medium">{tpl.name}</p>
-                        <p className={`mt-0.5 text-xs ${selectedSeqTemplate === tpl.id ? 'text-white/70' : 'text-ber-gray'}`}>
-                          {tpl.segment} — {tpl.etapas.length} etapas
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-5 flex justify-end gap-3">
-                    <button
-                      onClick={() => setShowSeqModal(false)}
-                      className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleCreateSeq}
-                      disabled={!selectedSeqTemplate || creatingSeq}
-                      className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50"
-                    >
-                      <ListOrdered size={14} />
-                      {creatingSeq ? 'Criando...' : 'Criar Sequenciamento'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
         {/* ─── FVS Tab ─── */}
         {activeTab === 'fvs' && (() => {
           const FVS_STATUS: Record<string, { label: string; color: string }> = {
@@ -3697,6 +2331,7 @@ export default function ObraDetailPage() {
             )}
           </div>
         )}
+      </div>
 
       {/* ─── Trello Board Picker Modal ─── */}
       {showTrelloModal && (
@@ -4456,23 +3091,14 @@ export default function ObraDetailPage() {
                   {fvsTemplates.map(t => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa da obra</label>
-                <select value={createFvsEtapaId} onChange={e => setCreateFvsEtapaId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none">
-                  <option value="">Sem vínculo com etapa</option>
-                  {sequenciamento?.etapas?.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
-              </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-ber-offwhite px-6 py-4">
               <button onClick={() => setCreateFvsModal(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
               <button disabled={!createFvsTemplateId}
                 onClick={async () => {
                   if (!createFvsTemplateId) return;
-                  const etapaId = createFvsEtapaId || (sequenciamento?.etapas?.[0]?.id ?? '');
                   try {
-                    const r = await api.post(`/obras/${params.id}/etapas/${etapaId}/fvs`, { templateId: createFvsTemplateId });
+                    const r = await api.post(`/obras/${params.id}/fvs`, { templateId: createFvsTemplateId });
                     setObraFvsList(prev => [r.data.data, ...prev]);
                     setActiveFvs(r.data.data);
                     setFvsModalOpen(true);
