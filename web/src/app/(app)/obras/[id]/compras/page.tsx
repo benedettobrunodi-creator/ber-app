@@ -228,6 +228,7 @@ export default function ComprasPage() {
   const itemsOk = onlyItems.filter(i => i.compradoOk);
   const itemsPend = onlyItems.filter(i => !i.compradoOk);
 
+  const totalVendaBruta = onlyItems.reduce((s, i) => s + i.venda, 0);
   const totalVenda = onlyItems.reduce((s, i) => s + baseItem(i), 0);
   const totalMeta = onlyItems.reduce((s, i) => s + metaItem(i), 0);
   const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
@@ -352,7 +353,10 @@ export default function ComprasPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <p className="text-xs text-ber-gray">Total Venda</p>
-              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVenda)}</p>
+              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVendaBruta)}</p>
+              {comissao > 0 && (
+                <p className="text-xs text-ber-teal font-semibold mt-0.5">Líq. {fmtBRL(totalVenda)}</p>
+              )}
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <p className="text-xs text-ber-gray">Total Meta</p>
@@ -443,6 +447,7 @@ export default function ComprasPage() {
                 <th className="px-3 py-3 text-left min-w-[140px]">Categoria</th>
                 <th className="px-3 py-3 text-left min-w-[160px]">Descritivo</th>
                 <th className="px-3 py-3 text-right">Venda</th>
+                {comissao > 0 && <th className="px-3 py-3 text-right whitespace-nowrap">Venda Líq.</th>}
                 <th className="px-3 py-3 text-center w-20">% Meta</th>
                 <th className="px-3 py-3 text-right">Meta</th>
                 <th className="px-3 py-3 text-right min-w-[100px]">Comprado</th>
@@ -465,9 +470,10 @@ export default function ComprasPage() {
                     const children = items.filter(
                       c => c.tipo === 'item' && c.n && item.n && c.n.startsWith(item.n + '.')
                     );
-                    const etapaVenda = children.reduce((s, c) => s + baseItem(c), 0);
+                    const etapaVendaBruta = children.reduce((s, c) => s + c.venda, 0);
+                    const etapaVendaLiq = children.reduce((s, c) => s + baseItem(c), 0);
                     const etapaMeta = children.reduce((s, c) => s + metaItem(c), 0);
-                    const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
+                    const etapaPctMeta = etapaVendaLiq > 0 ? (1 - etapaMeta / etapaVendaLiq) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => {
                       const childComprado = c.splits.length > 0
                         ? c.splits.reduce((ss, sp) => ss + sp.valor, 0)
@@ -475,7 +481,7 @@ export default function ComprasPage() {
                       return s + childComprado;
                     }, 0);
                     const effectiveComprado = etapaComprado > 0 ? etapaComprado : item.comprado;
-                    const etapaSavOrc = etapaVenda - effectiveComprado;
+                    const etapaSavOrc = etapaVendaLiq - effectiveComprado;
                     const etapaSavMeta = etapaMeta - effectiveComprado;
                     return (
                       <tr key={item.id} className="bg-ber-carbon/5 border-t-2 border-ber-carbon/10">
@@ -499,8 +505,13 @@ export default function ComprasPage() {
                           />
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-carbon">
-                          {fmtBRL(etapaVenda)}
+                          {fmtBRL(etapaVendaBruta)}
                         </td>
+                        {comissao > 0 && (
+                          <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-teal/80">
+                            {fmtBRL(etapaVendaLiq)}
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-center text-xs tabular-nums font-bold text-ber-carbon">
                           {etapaPctMeta.toFixed(0)}%
                         </td>
@@ -767,7 +778,12 @@ export default function ComprasPage() {
                       <td className="px-3 py-2 text-ber-gray text-xs pl-7">{item.n}</td>
                       <td className="px-3 py-2 font-medium text-ber-carbon text-xs">{item.categoria}</td>
                       <td className="px-3 py-2 text-ber-gray text-xs">{item.descritivo || '—'}</td>
-                      <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(baseItem(item))}</td>
+                      <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(item.venda)}</td>
+                      {comissao > 0 && (
+                        <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal/80 font-medium">
+                          {isElegivelComissao(item) ? fmtBRL(baseItem(item)) : '—'}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-center">
                         <input
                           type="number"
