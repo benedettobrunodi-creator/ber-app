@@ -152,6 +152,13 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
       const colCValues = new Set(allRows.map(r => String(r['C'] ?? '').trim()).filter(Boolean));
       console.log('[import] distinct col C values:', [...colCValues].slice(0, 20));
 
+      // Log todas as colunas da primeira linha de dados (tipo Etapa/Item) para mapear colunas de preço
+      const firstDataRow = allRows.find(r => ['etapa','item','subetapa'].includes(String(r['C'] ?? '').trim().toLowerCase()));
+      if (firstDataRow) {
+        const nonNull = Object.entries(firstDataRow).filter(([,v]) => v !== null && v !== '').map(([k,v]) => `${k}=${JSON.stringify(v)}`);
+        console.log('[import] first data row cols:', nonNull.join(' | '));
+      }
+
       for (let i = 0; i < allRows.length; i++) {
         const parsed = parseRow(allRows[i]);
         if (parsed) rows.push(parsed);
@@ -294,5 +301,28 @@ export async function clear(req: Request, res: Response, next: NextFunction) {
     const { id: obraId } = req.params;
     await prisma.comprasMeta.deleteMany({ where: { obraId } });
     res.json({ data: { deleted: true } });
+  } catch (err) { next(err); }
+}
+
+// GET /v1/obras/:id/compras/config
+export async function getConfig(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: obraId } = req.params;
+    const config = await prisma.comprasConfig.findUnique({ where: { obraId } });
+    res.json({ data: { comissao: config?.comissao ?? 0 } });
+  } catch (err) { next(err); }
+}
+
+// PUT /v1/obras/:id/compras/config
+export async function upsertConfig(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id: obraId } = req.params;
+    const comissao = Number(req.body.comissao) || 0;
+    const config = await prisma.comprasConfig.upsert({
+      where: { obraId },
+      update: { comissao },
+      create: { obraId, comissao },
+    });
+    res.json({ data: { comissao: config.comissao } });
   } catch (err) { next(err); }
 }

@@ -71,6 +71,11 @@ function semaforo(comprado: number, meta: number): '🟢' | '🟡' | '🔴' {
   return '🟢';
 }
 
+function isElegivelComissao(item: CompraItem): boolean {
+  const cat = item.categoria.toLowerCase();
+  return item.tipo === 'item' && !cat.includes('taxa') && !cat.includes('imposto');
+}
+
 export default function ComprasPage() {
   const { id: obraId } = useParams<{ id: string }>();
   const [items, setItems] = useState<CompraItem[]>([]);
@@ -81,17 +86,26 @@ export default function ComprasPage() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [localText, setLocalText] = useState<Record<string, string>>({});
+  const [comissao, setComissao] = useState(0);
+  const [comissaoText, setComissaoText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const comissaoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleCollapse = (etapaN: string) =>
     setCollapsed(prev => ({ ...prev, [etapaN]: !prev[etapaN] }));
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get(`/obras/${obraId}/compras`)
-      .then(({ data }) => setItems([...(data.data || [])].sort(sortByN)))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get(`/obras/${obraId}/compras`),
+      api.get(`/obras/${obraId}/compras/config`),
+    ]).then(([itemsRes, configRes]) => {
+      setItems([...(itemsRes.data.data || [])].sort(sortByN));
+      const c = configRes.data.data.comissao ?? 0;
+      setComissao(c);
+      setComissaoText(c === 0 ? '' : String(c));
+    }).finally(() => setLoading(false));
   }, [obraId]);
 
   useEffect(() => { load(); }, [load]);
@@ -190,13 +204,28 @@ export default function ComprasPage() {
     setConfirmClear(false);
   };
 
+  // Comissão — desconto proporcional sobre itens elegíveis (exceto taxa/imposto)
+  const totalVendaElegivel = items.filter(isElegivelComissao).reduce((s, i) => s + i.venda, 0);
+  const pctComissao = totalVendaElegivel > 0 ? comissao / totalVendaElegivel : 0;
+  const baseItem = (item: CompraItem) =>
+    isElegivelComissao(item) ? item.venda * (1 - pctComissao) : item.venda;
+  const metaItem = (item: CompraItem) => baseItem(item) * (1 - item.pctMeta);
+
+  const saveComissao = (val: number) => {
+    setComissao(val);
+    if (comissaoTimer.current) clearTimeout(comissaoTimer.current);
+    comissaoTimer.current = setTimeout(() => {
+      api.put(`/obras/${obraId}/compras/config`, { comissao: val }).catch(console.error);
+    }, 800);
+  };
+
   // Totais (só itens, não etapas)
   const onlyItems = items.filter(i => i.tipo !== 'etapa');
   const itemsOk = onlyItems.filter(i => i.compradoOk);
   const itemsPend = onlyItems.filter(i => !i.compradoOk);
 
   const totalVenda = onlyItems.reduce((s, i) => s + i.venda, 0);
-  const totalMeta = onlyItems.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
+  const totalMeta = onlyItems.reduce((s, i) => s + metaItem(i), 0);
   const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
@@ -206,7 +235,7 @@ export default function ComprasPage() {
   const okSaving = okVenda - okComprado;
 
   const pendVenda = itemsPend.reduce((s, i) => s + i.venda, 0);
-  const pendMeta = itemsPend.reduce((s, i) => s + i.venda * (1 - i.pctMeta), 0);
+  const pendMeta = itemsPend.reduce((s, i) => s + metaItem(i), 0);
 
   return (
     <div className="p-4 md:p-6">
@@ -240,11 +269,44 @@ export default function ComprasPage() {
         </div>
       </div>
 
+      {/* Comissão */}
+      {items.length > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm border border-ber-gray/10">
+          <span className="text-xs font-medium text-ber-gray whitespace-nowrap">Comissão do orçamento (R$)</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={comissaoText}
+            placeholder="0"
+            onChange={e => setComissaoText(e.target.value)}
+            onBlur={() => {
+              const val = parseComprado(comissaoText);
+              setComissaoText(val === 0 ? '' : String(val));
+              saveComissao(val);
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                const val = parseComprado(comissaoText);
+                setComissaoText(val === 0 ? '' : String(val));
+                saveComissao(val);
+                e.currentTarget.blur();
+              }
+            }}
+            className="w-40 rounded border border-ber-gray/30 px-2 py-1 text-right text-sm tabular-nums focus:border-ber-teal focus:outline-none"
+          />
+          {comissao > 0 && totalVendaElegivel > 0 && (
+            <span className="text-xs text-ber-gray">
+              → {(pctComissao * 100).toFixed(2)}% diluído em {items.filter(isElegivelComissao).length} itens (excl. taxa/imposto)
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Cards de resumo */}
       {items.length > 0 && (
         <div className="mb-4 space-y-3">
           {/* Linha geral */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <p className="text-xs text-ber-gray">Total Venda</p>
               <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVenda)}</p>
@@ -258,9 +320,16 @@ export default function ComprasPage() {
               <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalComprado)}</p>
             </div>
             <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <p className="text-xs text-ber-gray">Saving Total</p>
+              <p className="text-xs text-ber-gray">Saving s/ Orçado</p>
               <p className={`mt-1 text-lg font-bold ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingTotal)}</p>
-              <p className="text-xs text-ber-gray">{savingPct.toFixed(1)}% do orçamento</p>
+              <p className={`text-xs font-semibold ${savingTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>{savingPct.toFixed(1)}%</p>
+            </div>
+            <div className={`rounded-xl p-4 shadow-sm ${totalMeta - totalComprado >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <p className="text-xs text-ber-gray">Saving s/ Meta</p>
+              <p className={`mt-1 text-lg font-bold ${totalMeta - totalComprado >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(totalMeta - totalComprado)}</p>
+              <p className={`text-xs font-semibold ${totalMeta - totalComprado >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {totalMeta > 0 ? (((totalMeta - totalComprado) / totalVenda) * 100).toFixed(1) : '0.0'}%
+              </p>
             </div>
           </div>
           {/* Linha comprados */}
@@ -351,7 +420,7 @@ export default function ComprasPage() {
                       c => c.tipo === 'item' && c.n && item.n && c.n.startsWith(item.n + '.')
                     );
                     const etapaVenda = children.reduce((s, c) => s + c.venda, 0);
-                    const etapaMeta = children.reduce((s, c) => s + c.venda * (1 - c.pctMeta), 0);
+                    const etapaMeta = children.reduce((s, c) => s + metaItem(c), 0);
                     const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => {
                       const childComprado = c.splits.length > 0
@@ -620,7 +689,7 @@ export default function ComprasPage() {
                   const effectiveComprado = hasSplits
                     ? item.splits.reduce((s, sp) => s + sp.valor, 0)
                     : item.comprado;
-                  const meta = item.venda * (1 - item.pctMeta);
+                  const meta = metaItem(item);
                   const savOrç = item.venda - effectiveComprado;
                   const savMeta = meta - effectiveComprado;
                   const status = semaforo(effectiveComprado, meta);

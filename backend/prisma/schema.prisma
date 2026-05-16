@@ -154,6 +154,7 @@ model Obra {
   medicoes       Medicao[]          @relation("ObraMedicoes")
   medicaoItens   MedicaoItem[]      @relation("ObraMedicaoItens")
   comprasMetas    ComprasMeta[]
+  comprasConfig   ComprasConfig?
   alocacoes       Alocacao[]    @relation("AlocacaoObra")
   ambientesDiario Ambiente[]
   diarios         DiarioObra[]
@@ -183,6 +184,17 @@ model ComprasMeta {
 
   @@index([obraId])
   @@map("compras_metas")
+}
+
+model ComprasConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @unique @map("obra_id") @db.Uuid
+  comissao  Float    @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("compras_config")
 }
 
 model ComprasSplit {

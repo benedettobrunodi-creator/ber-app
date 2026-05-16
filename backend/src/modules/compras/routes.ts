@@ -9,6 +9,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 router.use(authenticate);
 
+router.get('/:id/compras/config', requireRole('campo'), controller.getConfig);
+router.put('/:id/compras/config', requireRole('gestor'), controller.upsertConfig);
 router.get('/:id/compras', requireRole('campo'), controller.list);
 router.post('/:id/compras/import', requireRole('gestor'), upload.single('file'), controller.importXlsx);
 router.post('/:id/compras', requireRole('campo'), controller.createItem);
