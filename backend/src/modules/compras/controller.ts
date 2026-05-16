@@ -9,8 +9,14 @@ import * as XLSX from 'xlsx';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 
+function parseNum(val: unknown): number {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return parseFloat(String(val).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
 // row: SheetJS object with column-letter keys (header:'A')
-// Col B = n, Col C = tipo ("Item"/"Etapa"), Col G = categoria, Col S = venda
+// Col B = n, Col C = tipo ("Item"/"Etapa"), Col G = categoria, Col AD = preço c/ BDI, Col S = custo total
 function parseRow(row: Record<string, unknown>): {
   n: string | null; tipo: string; categoria: string; descritivo: string | null;
   venda: number; pctMeta: number; comprado: number; fornecedor: string | null;
@@ -20,15 +26,18 @@ function parseRow(row: Record<string, unknown>): {
   const descricao = String(row['G'] ?? '').trim();
   if (!descricao) return null;
   const tipo = tipoRaw === 'etapa' ? 'etapa' : 'item';
-  const venda = Number(row['S']);
-  if (tipo === 'item' && (!venda || isNaN(venda) || venda === 0)) return null;
+  // Tenta preço com BDI (col AD) primeiro; cai para custo total (col S)
+  const precoTotal = parseNum(row['AD']);
+  const custoTotal = parseNum(row['S']);
+  const venda = precoTotal > 0 ? precoTotal : custoTotal;
+  if (tipo === 'item' && venda === 0) return null;
   const nRaw = String(row['B'] ?? '').trim();
   return {
     n: (nRaw || null)?.substring(0, 20) ?? null,
     tipo,
     categoria: descricao.substring(0, 200),
     descritivo: null,
-    venda: isNaN(venda) ? 0 : venda,
+    venda,
     pctMeta: tipo === 'etapa' ? 0 : 0.2,
     comprado: 0,
     fornecedor: null,
