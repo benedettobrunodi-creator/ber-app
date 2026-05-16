@@ -212,9 +212,7 @@ export default function CanteiroDetailPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const uploadRes = await api.post('/uploads', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const uploadRes = await api.post('/uploads', formData);
       const photoUrl: string = uploadRes.data.data.url;
 
       const item = canteiro?.items.find((i) => i.id === itemId);

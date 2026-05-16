@@ -112,7 +112,7 @@ export default function ChecklistsPage() {
     setSubmitting(true);
     try {
       const fd = new FormData(); fd.append('file', file);
-      const up = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const up = await api.post('/uploads', fd);
       const url = up.data.data?.url ?? up.data.url;
       const r = await api.patch(`/obra-ber-checklists/${cl.id}/items/${itemId}`, { fotoUrl: url });
       const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };

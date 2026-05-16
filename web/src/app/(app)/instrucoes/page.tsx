@@ -163,7 +163,7 @@ function StepPhotoUpload({ photoUrl, onUpload, onRemove }: {
       const compressed = await compressImage(file);
       const fd = new FormData();
       fd.append('file', new File([compressed], file.name, { type: 'image/jpeg' }));
-      const r = await api.post('/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const r = await api.post('/uploads', fd);
       onUpload(r.data.data?.url ?? r.data.url);
     } catch { alert('Erro no upload da foto'); }
     finally { setUploading(false); if (inputRef.current) inputRef.current.value = ''; }

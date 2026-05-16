@@ -82,9 +82,7 @@ export default function RecebimentosObraPage() {
   const uploadFoto = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await api.post('/uploads', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/uploads', formData);
     const url = res.data.data?.url || res.data.url;
     return `${API_BASE.replace('/v1', '')}${url}`;
   };

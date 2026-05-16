@@ -264,9 +264,7 @@ export default function ChecklistDetailPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const uploadRes = await api.post('/uploads', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const uploadRes = await api.post('/uploads', formData);
       const photoUrl: string = uploadRes.data.data.url;
 
       // Update local edit state
