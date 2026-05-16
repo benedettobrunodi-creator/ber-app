@@ -10,7 +10,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, ListOrdered, BookOpen,
   FileText, Package,
-  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen,
+  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen, Home,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -246,13 +246,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-full min-h-dvh flex-col bg-ber-bg">
       {/* ─── Top header ─── */}
       <header className="flex h-14 shrink-0 items-center justify-between bg-ber-sidebar px-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen(true)}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-white"
           >
             <Menu size={22} />
           </button>
+          <Link
+            href="/dashboard"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+            title="Início"
+          >
+            <Home size={18} />
+          </Link>
           <h1 className="text-xl font-black tracking-wider text-white hidden sm:block">BÈR</h1>
         </div>
 
