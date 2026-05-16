@@ -88,6 +88,8 @@ export default function ComprasPage() {
   const [localText, setLocalText] = useState<Record<string, string>>({});
   const [comissao, setComissao] = useState(0);
   const [comissaoText, setComissaoText] = useState('');
+  const [comissaoMode, setComissaoMode] = useState<'R$' | '%'>('R$');
+  const [obraName, setObraName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const comissaoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,11 +102,13 @@ export default function ComprasPage() {
     Promise.all([
       api.get(`/obras/${obraId}/compras`),
       api.get(`/obras/${obraId}/compras/config`),
-    ]).then(([itemsRes, configRes]) => {
+      api.get(`/obras/${obraId}`),
+    ]).then(([itemsRes, configRes, obraRes]) => {
       setItems([...(itemsRes.data.data || [])].sort(sortByN));
       const c = configRes.data.data.comissao ?? 0;
       setComissao(c);
       setComissaoText(c === 0 ? '' : String(c));
+      setObraName(obraRes.data.data?.name ?? obraRes.data.data?.nome ?? '');
     }).finally(() => setLoading(false));
   }, [obraId]);
 
@@ -241,9 +245,14 @@ export default function ComprasPage() {
     <div className="p-4 md:p-6">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <ShoppingCart size={20} className="text-ber-teal" />
-          <h1 className="text-xl font-black text-ber-carbon">Metas de Compra</h1>
+        <div>
+          <div className="flex items-center gap-2">
+            <ShoppingCart size={20} className="text-ber-teal" />
+            <h1 className="text-xl font-black text-ber-carbon">Metas de Compra</h1>
+          </div>
+          {obraName && (
+            <p className="mt-0.5 ml-7 text-sm text-ber-gray font-medium">{obraName}</p>
+          )}
         </div>
         <div className="flex gap-2">
           <button
@@ -271,8 +280,33 @@ export default function ComprasPage() {
 
       {/* Comissão */}
       {items.length > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm border border-ber-gray/10">
-          <span className="text-xs font-medium text-ber-gray whitespace-nowrap">Comissão do orçamento (R$)</span>
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm border border-ber-gray/10 flex-wrap">
+          <span className="text-xs font-medium text-ber-gray whitespace-nowrap">Comissão do orçamento</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                if (comissaoMode === '%') {
+                  // converter % → R$ no campo de texto
+                  const pct = parseComprado(comissaoText) / 100;
+                  const valR = pct * totalVendaElegivel;
+                  setComissaoText(valR === 0 ? '' : valR.toFixed(2));
+                }
+                setComissaoMode('R$');
+              }}
+              className={`px-2 py-0.5 text-xs rounded-l border ${comissaoMode === 'R$' ? 'bg-ber-carbon text-white border-ber-carbon' : 'bg-white text-ber-gray border-ber-gray/30 hover:bg-gray-50'}`}
+            >R$</button>
+            <button
+              onClick={() => {
+                if (comissaoMode === 'R$') {
+                  // converter R$ → % no campo de texto
+                  const pct = totalVendaElegivel > 0 ? (comissao / totalVendaElegivel) * 100 : 0;
+                  setComissaoText(pct === 0 ? '' : pct.toFixed(2));
+                }
+                setComissaoMode('%');
+              }}
+              className={`px-2 py-0.5 text-xs rounded-r border-t border-b border-r ${comissaoMode === '%' ? 'bg-ber-carbon text-white border-ber-carbon' : 'bg-white text-ber-gray border-ber-gray/30 hover:bg-gray-50'}`}
+            >%</button>
+          </div>
           <input
             type="text"
             inputMode="decimal"
@@ -280,23 +314,32 @@ export default function ComprasPage() {
             placeholder="0"
             onChange={e => setComissaoText(e.target.value)}
             onBlur={() => {
-              const val = parseComprado(comissaoText);
-              setComissaoText(val === 0 ? '' : String(val));
-              saveComissao(val);
+              const parsed = parseComprado(comissaoText);
+              const valR = comissaoMode === '%'
+                ? (parsed / 100) * totalVendaElegivel
+                : parsed;
+              setComissaoText(parsed === 0 ? '' : String(parsed));
+              saveComissao(valR);
             }}
             onKeyDown={e => {
               if (e.key === 'Enter') {
-                const val = parseComprado(comissaoText);
-                setComissaoText(val === 0 ? '' : String(val));
-                saveComissao(val);
+                const parsed = parseComprado(comissaoText);
+                const valR = comissaoMode === '%'
+                  ? (parsed / 100) * totalVendaElegivel
+                  : parsed;
+                setComissaoText(parsed === 0 ? '' : String(parsed));
+                saveComissao(valR);
                 e.currentTarget.blur();
               }
             }}
-            className="w-40 rounded border border-ber-gray/30 px-2 py-1 text-right text-sm tabular-nums focus:border-ber-teal focus:outline-none"
+            className="w-36 rounded border border-ber-gray/30 px-2 py-1 text-right text-sm tabular-nums focus:border-ber-teal focus:outline-none"
           />
           {comissao > 0 && totalVendaElegivel > 0 && (
             <span className="text-xs text-ber-gray">
-              → {(pctComissao * 100).toFixed(2)}% diluído em {items.filter(isElegivelComissao).length} itens (excl. taxa/imposto)
+              {comissaoMode === 'R$'
+                ? `→ ${(pctComissao * 100).toFixed(2)}% sobre orçamento`
+                : `→ ${fmtBRL(comissao)}`
+              } · diluído em {items.filter(isElegivelComissao).length} itens (excl. taxa/imposto)
             </span>
           )}
         </div>
@@ -306,7 +349,7 @@ export default function ComprasPage() {
       {items.length > 0 && (
         <div className="mb-4 space-y-3">
           {/* Linha geral */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="rounded-xl bg-white p-4 shadow-sm">
               <p className="text-xs text-ber-gray">Total Venda</p>
               <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVenda)}</p>
@@ -322,13 +365,16 @@ export default function ComprasPage() {
             <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
               <p className="text-xs text-ber-gray">Saving s/ Orçado</p>
               <p className={`mt-1 text-lg font-bold ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingTotal)}</p>
-              <p className={`text-xs font-semibold ${savingTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>{savingPct.toFixed(1)}%</p>
+            </div>
+            <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <p className="text-xs text-ber-gray">% Saving s/ Orçado</p>
+              <p className={`mt-1 text-3xl font-black ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{savingPct.toFixed(1)}%</p>
             </div>
             <div className={`rounded-xl p-4 shadow-sm ${totalMeta - totalComprado >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
               <p className="text-xs text-ber-gray">Saving s/ Meta</p>
               <p className={`mt-1 text-lg font-bold ${totalMeta - totalComprado >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(totalMeta - totalComprado)}</p>
               <p className={`text-xs font-semibold ${totalMeta - totalComprado >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {totalMeta > 0 ? (((totalMeta - totalComprado) / totalVenda) * 100).toFixed(1) : '0.0'}%
+                {totalVenda > 0 ? (((totalMeta - totalComprado) / totalVenda) * 100).toFixed(1) : '0.0'}%
               </p>
             </div>
           </div>
