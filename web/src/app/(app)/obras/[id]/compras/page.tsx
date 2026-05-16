@@ -228,17 +228,17 @@ export default function ComprasPage() {
   const itemsOk = onlyItems.filter(i => i.compradoOk);
   const itemsPend = onlyItems.filter(i => !i.compradoOk);
 
-  const totalVenda = onlyItems.reduce((s, i) => s + i.venda, 0);
+  const totalVenda = onlyItems.reduce((s, i) => s + baseItem(i), 0);
   const totalMeta = onlyItems.reduce((s, i) => s + metaItem(i), 0);
   const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
-  const okVenda = itemsOk.reduce((s, i) => s + i.venda, 0);
+  const okVenda = itemsOk.reduce((s, i) => s + baseItem(i), 0);
   const okComprado = itemsOk.reduce((s, i) => s + i.comprado, 0);
   const okSaving = okVenda - okComprado;
 
-  const pendVenda = itemsPend.reduce((s, i) => s + i.venda, 0);
+  const pendVenda = itemsPend.reduce((s, i) => s + baseItem(i), 0);
   const pendMeta = itemsPend.reduce((s, i) => s + metaItem(i), 0);
 
   return (
@@ -465,7 +465,7 @@ export default function ComprasPage() {
                     const children = items.filter(
                       c => c.tipo === 'item' && c.n && item.n && c.n.startsWith(item.n + '.')
                     );
-                    const etapaVenda = children.reduce((s, c) => s + c.venda, 0);
+                    const etapaVenda = children.reduce((s, c) => s + baseItem(c), 0);
                     const etapaMeta = children.reduce((s, c) => s + metaItem(c), 0);
                     const etapaPctMeta = etapaVenda > 0 ? (1 - etapaMeta / etapaVenda) * 100 : 0;
                     const etapaComprado = children.reduce((s, c) => {
@@ -736,7 +736,7 @@ export default function ComprasPage() {
                     ? item.splits.reduce((s, sp) => s + sp.valor, 0)
                     : item.comprado;
                   const meta = metaItem(item);
-                  const savOrç = item.venda - effectiveComprado;
+                  const savOrç = baseItem(item) - effectiveComprado;
                   const savMeta = meta - effectiveComprado;
                   const status = semaforo(effectiveComprado, meta);
                   const progPct = meta > 0 ? Math.min((effectiveComprado / meta) * 100, 100) : 0;
@@ -767,7 +767,7 @@ export default function ComprasPage() {
                       <td className="px-3 py-2 text-ber-gray text-xs pl-7">{item.n}</td>
                       <td className="px-3 py-2 font-medium text-ber-carbon text-xs">{item.categoria}</td>
                       <td className="px-3 py-2 text-ber-gray text-xs">{item.descritivo || '—'}</td>
-                      <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(item.venda)}</td>
+                      <td className="px-3 py-2 text-right text-xs tabular-nums">{fmtBRL(baseItem(item))}</td>
                       <td className="px-3 py-2 text-center">
                         <input
                           type="number"
