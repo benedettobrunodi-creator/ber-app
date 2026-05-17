@@ -440,9 +440,12 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
               </div>
 
               <div>
-                <label className={labelCls}>Cliente *</label>
+                <label className={labelCls}>
+                  Cliente *
+                  {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(editável no CRM)</span>}
+                </label>
                 <input className={inputCls} value={form.cliente} onChange={e => setF('cliente', e.target.value)}
-                  required disabled={!canWrite} />
+                  required disabled={!canWrite || !!crmCtx?.oportunidade} />
               </div>
 
               <div>
@@ -454,15 +457,21 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
               {/* m2 + Valor */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>m²</label>
+                  <label className={labelCls}>
+                    m²
+                    {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(CRM)</span>}
+                  </label>
                   <input type="number" step="0.01" className={inputCls} value={form.m2}
-                    onChange={e => setF('m2', e.target.value)} disabled={!canWrite} placeholder="0" />
+                    onChange={e => setF('m2', e.target.value)} disabled={!canWrite || !!crmCtx?.oportunidade} placeholder="0" />
                 </div>
                 <div>
-                  <label className={labelCls}>R$ Venda</label>
+                  <label className={labelCls}>
+                    R$ Venda
+                    {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(CRM)</span>}
+                  </label>
                   <input className={inputCls} value={form.valorVenda}
                     onChange={e => setF('valorVenda', e.target.value)}
-                    placeholder="1.500.000" disabled={!canWrite} />
+                    placeholder="1.500.000" disabled={!canWrite || !!crmCtx?.oportunidade} />
                 </div>
               </div>
 

@@ -95,8 +95,9 @@ function OportunidadeDrawer({
 }) {
   const isNew = !op?.id;
   const [form, setForm] = useState({
-    titulo: op?.titulo ?? '',
-    valor: op?.valor?.toString() ?? '',
+    titulo: op?.titulo ?? op?.orcamento?.cliente ?? '',
+    valor: op?.valor?.toString() ?? op?.orcamento?.valorVenda?.toString() ?? '',
+    m2: op?.orcamento?.m2?.toString() ?? '',
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
@@ -112,8 +113,9 @@ function OportunidadeDrawer({
     setSaving(true);
     try {
       const payload = {
-        ...form,
+        titulo: form.titulo,
         valor: form.valor ? Number(form.valor) : null,
+        etapa: form.etapa,
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
@@ -124,6 +126,13 @@ function OportunidadeDrawer({
         await api.post('/crm/oportunidades', payload);
       } else {
         await api.patch(`/crm/oportunidades/${op!.id}`, payload);
+        if (op?.orcamento?.id) {
+          await api.patch(`/orcamentos/${op.orcamento.id}`, {
+            cliente: form.titulo,
+            valorVenda: form.valor ? Number(form.valor) : null,
+            m2: form.m2 ? Number(form.m2) : null,
+          });
+        }
       }
       onSave();
     } catch {
@@ -151,7 +160,7 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Valor</label>
               <input
@@ -160,6 +169,16 @@ function OportunidadeDrawer({
                 placeholder="R$"
                 value={form.valor}
                 onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">M²</label>
+              <input
+                type="number"
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                placeholder="0"
+                value={form.m2}
+                onChange={(e) => setForm((f) => ({ ...f, m2: e.target.value }))}
               />
             </div>
             <div>

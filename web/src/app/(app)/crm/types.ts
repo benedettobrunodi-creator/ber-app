@@ -73,7 +73,7 @@ export interface Oportunidade {
   contato: { id: string; nome: string; cargo: string | null } | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;
   atividades: Atividade[];
-  orcamento?: { id: string; numero: string; status: string; valorVenda: number | null } | null;
+  orcamento?: { id: string; numero: string; status: string; valorVenda: number | null; m2: number | null; cliente: string } | null;
   createdAt: string;
   updatedAt: string;
 }

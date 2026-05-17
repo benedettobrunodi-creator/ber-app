@@ -116,7 +116,7 @@ export async function listOportunidades(opts: {
         orderBy: { dataHora: 'asc' },
         take: 1,
       },
-      orcamento: { select: { id: true, numero: true, status: true, valorVenda: true } },
+      orcamento: { select: { id: true, numero: true, status: true, valorVenda: true, m2: true, cliente: true } },
     },
   });
 }
@@ -132,7 +132,7 @@ export async function getOportunidadeById(id: string) {
       historico: { orderBy: { alteradoEm: 'desc' }, take: 30 },
       orcamento: {
         select: {
-          id: true, numero: true, status: true, valorVenda: true,
+          id: true, numero: true, status: true, valorVenda: true, m2: true, cliente: true,
           obra: { select: { id: true, name: true, status: true, fase: true } },
         },
       },
