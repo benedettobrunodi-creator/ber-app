@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert, Phone, Mail, MapPin, Users, CheckCircle2, Circle } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert, Phone, Mail, MapPin, Users, CheckCircle2, Circle, LayoutGrid, CalendarDays } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
@@ -527,9 +527,125 @@ function OportunidadeDrawer({
   );
 }
 
+const MESES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function MesAMesView({
+  oportunidades,
+  onCardClick,
+}: {
+  oportunidades: Oportunidade[];
+  onCardClick: (op: Oportunidade) => void;
+}) {
+  const ativas = oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa));
+  const ano = new Date().getFullYear();
+
+  const meses = useMemo(() => {
+    const map: Record<number, Oportunidade[]> = {};
+    for (let i = 1; i <= 12; i++) map[i] = [];
+
+    for (const op of ativas) {
+      if (!op.dataFechamentoPrevisto) {
+        (map[0] ??= []).push(op);
+        continue;
+      }
+      const d = new Date(op.dataFechamentoPrevisto);
+      const m = d.getMonth() + 1;
+      (map[m] ??= []).push(op);
+    }
+    return map;
+  }, [ativas]);
+
+  const semData = meses[0] ?? [];
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+      {Array.from({ length: 12 }, (_, i) => i + 1).map((mes) => {
+        const cards = meses[mes] ?? [];
+        const totalValor = cards.reduce((s, c) => s + Number(c.valor ?? 0), 0);
+        const label = `${MESES_LABEL[mes - 1]} ${ano}`;
+        const isPassado = mes < new Date().getMonth() + 1;
+        return (
+          <div key={mes} className="flex-shrink-0 w-64 flex flex-col">
+            <div className={`mb-2 px-3 py-2 rounded-xl border ${isPassado ? 'bg-ber-surface border-ber-border' : 'bg-white border-ber-border'}`}>
+              <p className={`text-xs font-bold uppercase tracking-wide ${isPassado ? 'text-ber-gray' : 'text-ber-carbon'}`}>{label}</p>
+              <p className="text-base font-bold text-ber-teal mt-0.5">{totalValor > 0 ? fmt(totalValor) : <span className="text-ber-gray/40 font-normal text-xs">sem valor</span>}</p>
+              <p className="text-[10px] text-ber-gray">{cards.length} oportunidade{cards.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
+              {cards.map((op) => {
+                const etapa = ETAPA_MAP[op.etapa as keyof typeof ETAPA_MAP];
+                return (
+                  <div
+                    key={op.id}
+                    onClick={() => onCardClick(op)}
+                    className="bg-white border border-ber-border rounded-lg p-3 cursor-pointer hover:border-ber-teal/40 hover:shadow-sm transition-all"
+                  >
+                    <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2">{op.titulo}</p>
+                    {op.empresa && <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>}
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-ber-carbon">{op.valor != null ? fmt(op.valor) : '--'}</span>
+                      {etapa && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                          style={{ backgroundColor: etapa.color + '20', color: etapa.color }}
+                        >
+                          {etapa.label}
+                        </span>
+                      )}
+                    </div>
+                    {op.responsavel && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
+                          {op.responsavel.name.charAt(0)}
+                        </div>
+                        <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {cards.length === 0 && (
+                <p className="text-center text-xs text-ber-gray/40 py-4">—</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {semData.length > 0 && (
+        <div className="flex-shrink-0 w-64 flex flex-col">
+          <div className="mb-2 px-3 py-2 rounded-xl border bg-amber-50 border-amber-200">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Sem data</p>
+            <p className="text-base font-bold text-amber-600 mt-0.5">
+              {fmt(semData.reduce((s, c) => s + Number(c.valor ?? 0), 0))}
+            </p>
+            <p className="text-[10px] text-amber-600">{semData.length} oportunidade{semData.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex-1 bg-amber-50/50 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {semData.map((op) => (
+              <div
+                key={op.id}
+                onClick={() => onCardClick(op)}
+                className="bg-white border border-amber-200 rounded-lg p-3 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
+              >
+                <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2">{op.titulo}</p>
+                {op.empresa && <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>}
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-xs font-bold text-ber-carbon">{op.valor != null ? fmt(op.valor) : '--'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TabPipeline({ oportunidades, empresas, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [viewMode, setViewMode] = useState<'kanban' | 'mes'>('kanban');
 
   const semForecast = oportunidades.filter(
     (op) => !['ganho', 'perdido'].includes(op.etapa) && forecastGaps(op).length > 0
@@ -561,12 +677,28 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
             {oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa)).length} ativos
           </span>
         </div>
-        <button
-          onClick={() => setDrawerOp('new')}
-          className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80"
-        >
-          <Plus size={14} /> Nova Oportunidade
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-ber-surface border border-ber-border rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${viewMode === 'kanban' ? 'bg-white text-ber-carbon shadow-sm' : 'text-ber-gray hover:text-ber-carbon'}`}
+            >
+              <LayoutGrid size={13} /> Etapas
+            </button>
+            <button
+              onClick={() => setViewMode('mes')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${viewMode === 'mes' ? 'bg-white text-ber-carbon shadow-sm' : 'text-ber-gray hover:text-ber-carbon'}`}
+            >
+              <CalendarDays size={13} /> Mês a mês
+            </button>
+          </div>
+          <button
+            onClick={() => setDrawerOp('new')}
+            className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80"
+          >
+            <Plus size={14} /> Nova
+          </button>
+        </div>
       </div>
 
       {semForecast > 0 && !alertDismissed && (
@@ -582,6 +714,9 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
         </div>
       )}
 
+      {viewMode === 'mes' ? (
+        <MesAMesView oportunidades={oportunidades} onCardClick={(op) => setDrawerOp(op)} />
+      ) : (
       <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
           const cards = byEtapa[etapa.value] ?? [];
@@ -618,6 +753,7 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
           );
         })}
       </div>
+      )}
 
       {drawerOp !== null && (
         <OportunidadeDrawer
