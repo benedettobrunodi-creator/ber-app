@@ -2,6 +2,14 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 dotenv.config();
 
+/** Remove all non-printable ASCII characters (keeps 0x20–0x7E). Prevents
+ *  "Invalid character in header content" errors in Node.js HTTP headers. */
+function sanitizeEnv(v: string | undefined): string | undefined {
+  if (v === undefined) return undefined;
+  // eslint-disable-next-line no-control-regex
+  return v.replace(/[^\x20-\x7e]/g, '').trim() || undefined;
+}
+
 export const env = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -18,12 +26,12 @@ export const env = {
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
 
-  s3Endpoint: process.env.S3_ENDPOINT?.trim(),
-  s3Bucket: process.env.S3_BUCKET?.trim(),
-  s3AccessKey: process.env.S3_ACCESS_KEY?.trim(),
-  s3SecretKey: process.env.S3_SECRET_KEY?.trim(),
-  s3Region: (process.env.S3_REGION || 'auto').trim(),
-  s3PublicUrl: (process.env.S3_PUBLIC_URL || '').trim(),
+  s3Endpoint: sanitizeEnv(process.env.S3_ENDPOINT),
+  s3Bucket: sanitizeEnv(process.env.S3_BUCKET),
+  s3AccessKey: sanitizeEnv(process.env.S3_ACCESS_KEY),
+  s3SecretKey: sanitizeEnv(process.env.S3_SECRET_KEY),
+  s3Region: sanitizeEnv(process.env.S3_REGION) || 'auto',
+  s3PublicUrl: sanitizeEnv(process.env.S3_PUBLIC_URL) || '',
 
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
   firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY,

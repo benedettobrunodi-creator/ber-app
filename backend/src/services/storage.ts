@@ -51,3 +51,9 @@ export async function deleteFromR2(publicUrl: string): Promise<void> {
 export function isR2Configured(): boolean {
   return !!(env.s3Endpoint && env.s3Bucket && env.s3AccessKey && env.s3SecretKey && env.s3PublicUrl);
 }
+
+// Startup diagnostic — visible in Railway logs
+console.log('[R2]', isR2Configured()
+  ? `configurado — endpoint: ${env.s3Endpoint} bucket: ${env.s3Bucket} key: ${env.s3AccessKey?.slice(0, 4)}***`
+  : 'NÃO configurado — upload usa /tmp/uploads',
+);
