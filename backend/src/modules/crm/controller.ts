@@ -112,8 +112,8 @@ export async function getOportunidade(req: Request, res: Response, next: NextFun
 export async function createOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = createOportunidadeSchema.parse(req.body);
-    const user = (req as Request & { user: { id: string; name: string } }).user;
-    const data = await svc.createOportunidade(body, user.id, user.name);
+    const user = req.user!;
+    const data = await svc.createOportunidade(body, user.userId, user.email);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
@@ -121,8 +121,8 @@ export async function createOportunidade(req: Request, res: Response, next: Next
 export async function updateOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = updateOportunidadeSchema.parse(req.body);
-    const user = (req as Request & { user: { id: string; name: string } }).user;
-    const data = await svc.updateOportunidade(req.params.id, body, user.name);
+    const user = req.user!;
+    const data = await svc.updateOportunidade(req.params.id, body, user.email);
     res.json(data);
   } catch (e) { next(e); }
 }
@@ -154,8 +154,8 @@ export async function listAtividades(req: Request, res: Response, next: NextFunc
 export async function createAtividade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = createAtividadeSchema.parse(req.body);
-    const user = (req as Request & { user: { id: string } }).user;
-    const data = await svc.createAtividade(body, user.id);
+    const user = req.user!;
+    const data = await svc.createAtividade(body, user.userId);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
@@ -249,10 +249,10 @@ export async function getNutricao(req: Request, res: Response, next: NextFunctio
 
 export async function criarOrcamentoDeOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = (req as Request & { user: { id: string } }).user;
+    const user = req.user!;
     const data = await intSvc.criarOrcamentoDeOportunidade(
       req.params.id,
-      user.id,
+      user.userId,
       req.body,
     );
     res.status(201).json(data);
@@ -268,8 +268,8 @@ export async function vincularOrcamento(req: Request, res: Response, next: NextF
 
 export async function criarObraDeOrcamento(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = (req as Request & { user: { id: string } }).user;
-    const data = await intSvc.criarObraDeOrcamento(req.params.id, user.id, req.body);
+    const user = req.user!;
+    const data = await intSvc.criarObraDeOrcamento(req.params.id, user.userId, req.body);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
