@@ -162,6 +162,7 @@ function OportunidadeDrawer({
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
     setSaving(true);
+    setErr('');
     try {
       const payload = {
         titulo: form.titulo,
@@ -180,17 +181,19 @@ function OportunidadeDrawer({
         await api.post('/crm/oportunidades', payload);
       } else {
         await api.patch(`/crm/oportunidades/${op!.id}`, payload);
+        // Sync orcamento vinculado — non-fatal; schema rejeita 0 e null
         if (op?.orcamento?.id) {
-          await api.patch(`/orcamentos/${op.orcamento.id}`, {
-            cliente: form.titulo,
-            valorVenda: form.valor ? Number(form.valor) : null,
-            m2: form.m2 ? Number(form.m2) : null,
-          });
+          try {
+            const orcPayload: Record<string, unknown> = { cliente: form.titulo };
+            const v = Number(form.valor); if (v > 0) orcPayload.valorVenda = v;
+            const m = Number(form.m2);   if (m > 0) orcPayload.m2 = m;
+            await api.patch(`/orcamentos/${op.orcamento.id}`, orcPayload);
+          } catch { /* não bloqueia */ }
         }
       }
       onSave();
-    } catch {
-      setErr('Erro ao salvar');
+    } catch (e: any) {
+      setErr(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
     } finally {
       setSaving(false);
     }

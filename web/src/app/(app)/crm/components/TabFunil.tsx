@@ -63,6 +63,27 @@ export default function TabFunil() {
     setMetasEdit(novo);
   };
 
+  // Ao editar um mês, redistribui o saldo restante igualmente nos meses seguintes
+  const handleMetaChange = (i: number, value: number) => {
+    setMetasEdit((prev) => {
+      const anoTotal = prev.reduce((s, v) => s + v, 0);
+      const novo = [...prev];
+      novo[i] = value;
+      const restanteMeses = 11 - i;
+      if (restanteMeses > 0 && anoTotal > 0) {
+        const somaAte = novo.slice(0, i + 1).reduce((s, v) => s + v, 0);
+        const disponivelResto = anoTotal - somaAte;
+        const porMes = Math.round(disponivelResto / restanteMeses);
+        for (let j = i + 1; j < 12; j++) {
+          novo[j] = j === 11
+            ? Math.max(0, disponivelResto - porMes * (restanteMeses - 1))
+            : Math.max(0, porMes);
+        }
+      }
+      return novo;
+    });
+  };
+
   const totalMetasEdit = metasEdit.reduce((s, v) => s + v, 0);
 
   const saveMetas = async () => {
@@ -200,7 +221,7 @@ export default function TabFunil() {
                     className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
                     value={v || ''}
                     placeholder="0"
-                    onChange={(e) => setMetasEdit((prev) => { const n = [...prev]; n[i] = Number(e.target.value); return n; })}
+                    onChange={(e) => handleMetaChange(i, Number(e.target.value))}
                   />
                 </div>
               ))}
