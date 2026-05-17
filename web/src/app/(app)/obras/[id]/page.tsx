@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
@@ -29,7 +29,6 @@ interface ObraDetail {
   progressPercent: number;
   startDate: string | null;
   expectedEndDate: string | null;
-  trelloBoardId: string | null;
   coordinator: { id: string; name: string; avatarUrl: string | null } | null;
   members: { user: { id: string; name: string; role: string; avatarUrl: string | null }; joinedAt: string }[];
   _count: { tasks: number; photos: number };
@@ -44,12 +43,6 @@ interface Task {
   dueDate: string | null;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
   creator: { id: string; name: string } | null;
-}
-
-interface TrelloBoard {
-  id: string;
-  name: string;
-  url: string;
 }
 
 // ─── Fotos types ────────────────────────────────────────────────────────────
@@ -340,14 +333,6 @@ export default function ObraDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // Trello state
-  const [showTrelloModal, setShowTrelloModal] = useState(false);
-  const [trelloBoards, setTrelloBoards] = useState<TrelloBoard[]>([]);
-  const [loadingBoards, setLoadingBoards] = useState(false);
-  const [selectedBoard, setSelectedBoard] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ created: number; skipped: number } | null>(null);
-
   // Checklists state
   // Fotos
   const imgRef = useRef<HTMLImageElement>(null);
@@ -605,48 +590,6 @@ export default function ObraDetailPage() {
     }
   }
 
-  // ─── Trello ────────────────────────────────────────────────────────────────
-
-  async function openTrelloModal() {
-    setShowTrelloModal(true);
-    setLoadingBoards(true);
-    setSelectedBoard('');
-    setSyncResult(null);
-    try {
-      const res = await api.get('/obras/trello/boards');
-      setTrelloBoards(res.data.data);
-    } catch {
-      /* handled */
-    } finally {
-      setLoadingBoards(false);
-    }
-  }
-
-  async function handleTrelloSync(boardId: string) {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await api.post(`/obras/${params.id}/trello/sync`, { boardId });
-      setSyncResult({ created: res.data.data.created, skipped: res.data.data.skipped });
-      setObra((prev) => prev ? { ...prev, trelloBoardId: boardId } : prev);
-      // Reload tasks
-      const tasksRes = await api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } });
-      setTasks(tasksRes.data.data);
-      // Also reload obra for updated _count
-      const obraRes = await api.get(`/obras/${params.id}`);
-      setObra(obraRes.data.data);
-    } catch {
-      /* handled */
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function handleResync() {
-    if (!obra?.trelloBoardId) return;
-    await handleTrelloSync(obra.trelloBoardId);
-  }
-
   // ─── Equipe ──────────────────────────────────────────────────────────────
 
   async function openAddMemberModal() {
@@ -816,24 +759,6 @@ export default function ObraDetailPage() {
           )}
         </div>
 
-        {/* Trello button */}
-        {obra.trelloBoardId ? (
-          <button
-            onClick={handleResync}
-            disabled={syncing}
-            className="flex items-center gap-2 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm font-medium text-ber-carbon transition-colors hover:bg-white disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Trello'}
-          </button>
-        ) : (
-          <button
-            onClick={openTrelloModal}
-            className="flex items-center gap-2 rounded-md border border-ber-teal px-3 py-1.5 text-sm font-medium text-ber-teal transition-colors hover:bg-ber-teal hover:text-white"
-          >
-            Vincular Trello
-          </button>
-        )}
       </div>
 
       {/* Tabs */}
@@ -2321,79 +2246,7 @@ export default function ObraDetailPage() {
         )}
       </div>
 
-      {/* ─── Trello Board Picker Modal ─── */}
-      {showTrelloModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-              <h2 className="text-lg font-black text-ber-carbon">Vincular Board do Trello</h2>
-              <button
-                onClick={() => setShowTrelloModal(false)}
-                className="rounded p-1 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="px-6 py-5">
-              {loadingBoards ? (
-                <p className="py-8 text-center text-sm text-ber-gray">Buscando boards...</p>
-              ) : trelloBoards.length === 0 ? (
-                <p className="py-8 text-center text-sm text-ber-gray">
-                  Nenhum board encontrado no Trello.
-                </p>
-              ) : (
-                <>
-                  <p className="mb-3 text-sm text-ber-gray">
-                    Selecione o board correspondente a esta obra:
-                  </p>
-                  <div className="max-h-64 space-y-1.5 overflow-y-auto">
-                    {trelloBoards.map((board) => (
-                      <button
-                        key={board.id}
-                        onClick={() => setSelectedBoard(board.id)}
-                        className={`w-full rounded-md px-4 py-3 text-left text-sm font-medium transition-colors ${
-                          selectedBoard === board.id
-                            ? 'bg-ber-teal text-white'
-                            : 'bg-ber-offwhite/50 text-ber-carbon hover:bg-ber-offwhite'
-                        }`}
-                      >
-                        {board.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {syncResult && (
-                    <div className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-800">
-                      Sync concluído: {syncResult.created} tarefas criadas, {syncResult.skipped} já existiam.
-                    </div>
-                  )}
-
-                  <div className="mt-5 flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowTrelloModal(false)}
-                      className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite"
-                    >
-                      {syncResult ? 'Fechar' : 'Cancelar'}
-                    </button>
-                    {!syncResult && (
-                      <button
-                        onClick={() => handleTrelloSync(selectedBoard)}
-                        disabled={!selectedBoard || syncing}
-                        className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50"
-                      >
-                        <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-                        {syncing ? 'Sincronizando...' : 'Vincular e Sincronizar'}
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── New Checklist Modal ─── */}
       {showNewChecklistModal && (

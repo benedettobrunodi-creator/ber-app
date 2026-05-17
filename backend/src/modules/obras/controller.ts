@@ -87,29 +87,7 @@ export async function updateProgresso(req: Request, res: Response) {
   // Atualizar banco
   await prisma.obra.update({ where: { id: obra.id }, data: { progressPercent: valor } });
 
-  // Atualizar Trello
-  let trelloAtualizado = false;
-  if (obra.trelloBoardId) {
-    try {
-      const { getBoardCards } = await import('../../services/trello');
-      const key = process.env.TRELLO_API_KEY || '';
-      const token = process.env.TRELLO_TOKEN || '';
-      const cards = await getBoardCards(obra.trelloBoardId);
-      const progressCard = cards.find((c: any) => c.name.toLowerCase().includes('progresso geral'));
-      if (progressCard) {
-        await fetch(`https://api.trello.com/1/cards/${progressCard.id}?key=${key}&token=${token}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ desc: `Progresso: ${valor}%` }),
-        });
-        trelloAtualizado = true;
-      }
-    } catch (err) {
-      console.error('[updateProgresso] Erro Trello:', err);
-    }
-  }
-
-  return res.json({ obra: obra.name, progresso: valor, trelloAtualizado });
+  return res.json({ obra: obra.name, progresso: valor });
 }
 
 export async function getClickUpSummary(req: Request, res: Response) {

@@ -18,7 +18,6 @@ import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './modules/auth/routes';
 import userRoutes from './modules/users/routes';
 import obraRoutes from './modules/obras/routes';
-import trelloRoutes from './modules/obras/trello-routes';
 import taskRoutes, { obraTaskRoutes } from './modules/tasks/routes';
 import proposalRoutes from './modules/proposals/routes';
 import meetingRoutes from './modules/meetings/routes';
@@ -110,7 +109,6 @@ app.get('/health', (_req, res) => {
 app.use('/v1/auth', authRoutes);
 app.use('/v1/users', userRoutes);
 app.use('/v1/obras', obraRoutes);
-app.use('/v1/obras', trelloRoutes);
 app.use('/v1/obras/:obraId/tasks', obraTaskRoutes);
 app.use('/v1/tasks', taskRoutes);
 app.use('/v1/proposals', proposalRoutes);
