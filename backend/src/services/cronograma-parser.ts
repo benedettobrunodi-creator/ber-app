@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export interface CronogramaTask {
   wbs: string;
   nome: string;
@@ -48,39 +46,54 @@ export async function parseCronogramaPDF(
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+  const base64 = pdfBuffer.toString('base64');
 
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        data: pdfBuffer.toString('base64'),
-        mimeType: 'application/pdf',
+  const body = {
+    contents: [
+      {
+        parts: [
+          { inline_data: { mime_type: 'application/pdf', data: base64 } },
+          { text: PROMPT },
+        ],
       },
-    },
-    PROMPT,
-  ]);
+    ],
+  };
 
-  const text = result.response.text();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Gemini API ${response.status}: ${err}`);
+  }
+
+  const data = await response.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+
+  const text = data.candidates?.[0]?.content?.parts
+    ?.filter((p) => p.text)
+    .map((p) => p.text)
+    .join('') ?? '';
+
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   let raw: {
     progresso_geral: number;
     tarefas: {
-      wbs: string;
-      nome: string;
-      inicio: string | null;
-      fim: string | null;
-      duracao_dias: number | null;
-      percentual_concluido: number;
-      eh_resumo: boolean;
-      nivel: number;
+      wbs: string; nome: string; inicio: string | null; fim: string | null;
+      duracao_dias: number | null; percentual_concluido: number; eh_resumo: boolean; nivel: number;
     }[];
   };
   try {
     raw = JSON.parse(clean);
   } catch {
-    throw new Error('Gemini não retornou JSON válido: ' + clean.slice(0, 200));
+    throw new Error('Gemini não retornou JSON válido: ' + clean.slice(0, 300));
   }
 
   return {
