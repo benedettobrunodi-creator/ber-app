@@ -218,6 +218,10 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
+  const [crmOportunidades, setCrmOportunidades] = useState<{ id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null }[]>([]);
+  const [vinculando, setVinculando] = useState(false);
+  const [showVincular, setShowVincular] = useState(false);
+  const [selectedOpId, setSelectedOpId] = useState('');
 
   useEffect(() => {
     if (orc?.id) {
@@ -226,6 +230,31 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
       setCrmCtx(null);
     }
   }, [orc?.id]);
+
+  useEffect(() => {
+    if (!isNew) {
+      api.get('/crm/oportunidades').then(r => {
+        setCrmOportunidades((r.data as { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null; orcamentoId: string | null }[])
+          .filter((o) => !['ganho', 'perdido'].includes(o.etapa) && !o.orcamentoId));
+      }).catch(() => {});
+    }
+  }, [isNew]);
+
+  async function handleVincular() {
+    if (!selectedOpId || !orc?.id) return;
+    setVinculando(true);
+    try {
+      await api.patch(`/crm/oportunidades/${selectedOpId}/vincular-orcamento`, { orcamentoId: orc.id });
+      const r = await api.get(`/crm/orcamentos/${orc.id}/contexto`);
+      setCrmCtx(r.data);
+      setShowVincular(false);
+      setSelectedOpId('');
+    } catch {
+      // silencioso
+    } finally {
+      setVinculando(false);
+    }
+  }
 
   const [form, setForm] = useState({
     numero: orc?.numero ?? '',
@@ -555,10 +584,10 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
               </div>
 
               {/* Integração CRM */}
-              {crmCtx && (crmCtx.oportunidade || crmCtx.obra) && (
+              {!isNew && (
                 <div className="rounded-lg border border-[#5A7A7A]/30 bg-[#5A7A7A]/5 p-3 space-y-2">
                   <p className="text-[10px] font-bold text-[#5A7A7A] uppercase tracking-wide">Integração CRM</p>
-                  {crmCtx.oportunidade && (
+                  {crmCtx?.oportunidade ? (
                     <div className="flex items-start gap-2">
                       <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Origem</span>
                       <div>
@@ -567,8 +596,35 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                         <p className="text-[10px] text-[#5A7A7A] capitalize">{crmCtx.oportunidade.etapa.replace('_', ' ')}</p>
                       </div>
                     </div>
+                  ) : (
+                    <div>
+                      {!showVincular ? (
+                        <button type="button" onClick={() => setShowVincular(true)}
+                          className="text-xs text-[#5A7A7A] hover:text-[#3d5c5c] underline underline-offset-2">
+                          + Vincular a uma oportunidade CRM
+                        </button>
+                      ) : (
+                        <div className="flex gap-2 items-center">
+                          <select value={selectedOpId} onChange={e => setSelectedOpId(e.target.value)}
+                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                            <option value="">Selecionar oportunidade…</option>
+                            {crmOportunidades.map(op => (
+                              <option key={op.id} value={op.id}>
+                                {op.titulo}{op.empresa ? ` — ${op.empresa.razaoSocial}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="button" onClick={handleVincular} disabled={!selectedOpId || vinculando}
+                            className="text-xs bg-[#5A7A7A] text-white rounded-lg px-3 py-1.5 disabled:opacity-40">
+                            {vinculando ? '…' : 'Vincular'}
+                          </button>
+                          <button type="button" onClick={() => setShowVincular(false)}
+                            className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  {crmCtx.obra && (
+                  {crmCtx?.obra && (
                     <div className="flex items-start gap-2">
                       <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Obra</span>
                       <div>
