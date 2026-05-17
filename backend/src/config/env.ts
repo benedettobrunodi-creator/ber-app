@@ -18,12 +18,12 @@ export const env = {
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
 
-  s3Endpoint: process.env.S3_ENDPOINT,
-  s3Bucket: process.env.S3_BUCKET,
-  s3AccessKey: process.env.S3_ACCESS_KEY,
-  s3SecretKey: process.env.S3_SECRET_KEY,
-  s3Region: process.env.S3_REGION || 'auto',
-  s3PublicUrl: process.env.S3_PUBLIC_URL || '',
+  s3Endpoint: process.env.S3_ENDPOINT?.trim(),
+  s3Bucket: process.env.S3_BUCKET?.trim(),
+  s3AccessKey: process.env.S3_ACCESS_KEY?.trim(),
+  s3SecretKey: process.env.S3_SECRET_KEY?.trim(),
+  s3Region: (process.env.S3_REGION || 'auto').trim(),
+  s3PublicUrl: (process.env.S3_PUBLIC_URL || '').trim(),
 
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
   firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY,
