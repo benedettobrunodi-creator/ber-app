@@ -95,9 +95,11 @@ export interface User {
   avatarUrl: string | null;
 }
 
-export function fmt(value: number | null | undefined): string {
+export function fmt(value: number | string | null | undefined): string {
   if (value == null) return '--';
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  const n = Number(value);
+  if (isNaN(n)) return '--';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
 }
 
 export function fmtDate(iso: string | null | undefined): string {

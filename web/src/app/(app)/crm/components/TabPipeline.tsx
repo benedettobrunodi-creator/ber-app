@@ -96,13 +96,13 @@ function OportunidadeDrawer({
   const isNew = !op?.id;
   const [form, setForm] = useState({
     titulo: op?.titulo ?? op?.orcamento?.cliente ?? '',
-    valor: op?.valor?.toString() ?? op?.orcamento?.valorVenda?.toString() ?? '',
-    m2: op?.orcamento?.m2?.toString() ?? '',
+    valor: op?.valor != null ? String(Number(op.valor) || '') : (op?.orcamento?.valorVenda != null ? String(Number(op.orcamento.valorVenda) || '') : ''),
+    m2: op?.orcamento?.m2 != null ? String(op.orcamento.m2) : '',
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
-    dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
+    dataFechamentoPrevisto: op?.dataFechamentoPrevisto ? String(op.dataFechamentoPrevisto).slice(0, 10) : '',
     observacoes: op?.observacoes ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -256,8 +256,8 @@ function OportunidadeDrawer({
           )}
         </div>
         <div className="p-4 border-t border-ber-border flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
+          <button type="button" onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>

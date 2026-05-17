@@ -258,7 +258,7 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     descricaoCurta: orc?.descricaoCurta ?? '',
     m2: orc?.m2 != null ? String(orc.m2) : '',
     valorVenda: orc?.valorVenda != null
-      ? new Intl.NumberFormat('pt-BR').format(orc.valorVenda) : '',
+      ? new Intl.NumberFormat('pt-BR').format(Number(orc.valorVenda)) : '',
     segmento: orc?.segmento ?? '',
     estrategico: orc?.estrategico ?? false,
     tipo: orc?.tipo ?? 'NOVO',
