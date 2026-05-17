@@ -39,7 +39,7 @@ export default function CrmPage() {
       setOportunidades(ops.data);
       setEmpresas(emps.data);
       setAtividades(ativs.data);
-      setUsers(usrs.data?.users ?? usrs.data ?? []);
+      setUsers(Array.isArray(usrs.data) ? usrs.data : (usrs.data?.data ?? []));
     } finally {
       setLoading(false);
     }
