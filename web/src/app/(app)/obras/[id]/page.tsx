@@ -32,6 +32,7 @@ interface ObraDetail {
   coordinator: { id: string; name: string; avatarUrl: string | null } | null;
   members: { user: { id: string; name: string; role: string; avatarUrl: string | null }; joinedAt: string }[];
   _count: { tasks: number; photos: number };
+  orcamentoId: string | null;
 }
 
 interface Task {
@@ -324,6 +325,7 @@ export default function ObraDetailPage() {
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const [obra, setObra] = useState<ObraDetail | null>(null);
+  const [orcamentoCtx, setOrcamentoCtx] = useState<{ numero: string; status: string; oportunidade: { titulo: string } | null } | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const initialTab = (searchParams.get('tab') as TabKey) || 'cockpit';
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
@@ -537,6 +539,14 @@ export default function ObraDetailPage() {
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
       setObra(obraRes.data.data);
+      const obraData = obraRes.data.data;
+      if (obraData?.orcamentoId) {
+        api.get(`/crm/orcamentos/${obraData.orcamentoId}/contexto`).then(async (ctx) => {
+          const oport = ctx.data.oportunidade;
+          const orc = await api.get(`/orcamentos/${obraData.orcamentoId}`).catch(() => null);
+          setOrcamentoCtx({ numero: orc?.data?.numero ?? obraData.orcamentoId, status: orc?.data?.status ?? '', oportunidade: oport ? { titulo: oport.titulo } : null });
+        }).catch(() => {});
+      }
       setTasks(tasksRes.data.data);
       setChecklists(checklistsRes.data.data);
       setCanteiroChecklists(canteiroRes.data.data);
@@ -824,6 +834,17 @@ export default function ObraDetailPage() {
           </div>
           {obra.client && (
             <p className="mt-0.5 text-sm text-ber-gray">{obra.client}</p>
+          )}
+          {orcamentoCtx && (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-[11px] bg-ber-teal/10 text-ber-teal px-2 py-0.5 rounded-full font-medium">
+                Orç. {orcamentoCtx.numero}
+                {orcamentoCtx.status && <span className="opacity-70">· {orcamentoCtx.status}</span>}
+              </span>
+              {orcamentoCtx.oportunidade && (
+                <span className="text-[11px] text-ber-gray truncate max-w-[200px]">{orcamentoCtx.oportunidade.titulo}</span>
+              )}
+            </div>
           )}
         </div>
 

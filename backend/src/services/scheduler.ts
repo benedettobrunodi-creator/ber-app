@@ -5,6 +5,7 @@ import { syncProgressoFromClickUp } from './clickup';
 import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 // import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
+import { checkCrmAlerts } from '../modules/crm/alerts';
 
 export function startScheduler() {
   // Agendor sync — a cada 30 minutos
@@ -44,7 +45,16 @@ export function startScheduler() {
     }
   });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h)');
+  // CRM Alerts — diariamente às 08h30 (BRT)
+  cron.schedule('30 8 * * 1-5', async () => {
+    try {
+      await checkCrmAlerts();
+    } catch (err) {
+      console.error('[Scheduler] CRM alerts falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex)');
 }
 
 async function checkPendingChecklists() {

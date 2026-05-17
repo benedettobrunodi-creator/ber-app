@@ -21,6 +21,6 @@ EXPOSE ${PORT:-3000}
 # 2. seed-users.sql — INSERT usuarios iniciais com ON CONFLICT DO NOTHING
 #    (nunca sobrescreve senha alterada pelo usuario)
 # 3. start server
-CMD sh -c "npx prisma db push --skip-generate && \
+CMD sh -c "npx prisma db push --skip-generate --accept-data-loss && \
   npx prisma db execute --file prisma/seed-users.sql --schema prisma/schema.prisma && \
   node dist/app.js"
