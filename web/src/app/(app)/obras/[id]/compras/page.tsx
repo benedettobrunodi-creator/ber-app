@@ -84,7 +84,13 @@ export default function ComprasPage() {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem(`compras-collapsed-${obraId}`);
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
   const [localText, setLocalText] = useState<Record<string, string>>({});
   const [comissao, setComissao] = useState(0);
   const [comissaoText, setComissaoText] = useState('');
@@ -93,6 +99,11 @@ export default function ComprasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const comissaoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!obraId) return;
+    try { localStorage.setItem(`compras-collapsed-${obraId}`, JSON.stringify(collapsed)); } catch { /* silent */ }
+  }, [collapsed, obraId]);
 
   const toggleCollapse = (etapaN: string) =>
     setCollapsed(prev => ({ ...prev, [etapaN]: !prev[etapaN] }));
