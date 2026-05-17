@@ -31,7 +31,7 @@ export async function uploadToR2(
     ContentType: contentType,
   }));
 
-  return `${env.s3PublicUrl}/${key}`;
+  return `${env.s3PublicUrl.replace(/\/+$/, '')}/${key}`;
 }
 
 /**

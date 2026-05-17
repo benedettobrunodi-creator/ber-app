@@ -255,9 +255,10 @@ app.post('/v1/uploads', authenticate, (req, res, next) => {
       if (!saved) throw new Error('Não foi possível salvar o arquivo em disco');
       url = `${env.backendUrl}/uploads/${filename}`;
     }
+    console.log('[UPLOAD OK]', url);
     res.status(201).json({ data: { url } });
   } catch (err: any) {
-    console.error('Upload error:', err);
+    console.error('[UPLOAD ERROR]', err?.message, err?.stack?.split('\n')[1]);
     res.status(500).json({ error: { code: 'UPLOAD_FAILED', message: err?.message ?? 'Erro no upload do arquivo' } });
   }
 });
