@@ -210,41 +210,40 @@ app.use('/v1/diario', diarioRouter);
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';
 
-const memoryUpload = multer({
+const genericUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: env.maxFileSize },
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
-    cb(null, allowed.includes(file.mimetype));
-  },
-});
-const diskUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, env.uploadDir),
-    filename: (_req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-    },
-  }),
-  limits: { fileSize: env.maxFileSize },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'];
     cb(null, allowed.includes(file.mimetype));
   },
 });
 
-const genericUpload = isR2Configured() ? memoryUpload : diskUpload;
-
-app.post('/v1/uploads', authenticate, genericUpload.single('file'), async (req, res) => {
+app.post('/v1/uploads', authenticate, (req, res, next) => {
+  genericUpload.single('file')(req, res, (err: any) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: { code: 'FILE_TOO_LARGE', message: 'Arquivo muito grande. Máximo 20 MB.' } });
+      }
+      return next(err);
+    }
+    next();
+  });
+}, async (req: any, res: any) => {
   if (!req.file) {
-    return res.status(400).json({ error: { code: 'NO_FILE', message: 'Nenhum arquivo enviado' } });
+    return res.status(400).json({ error: { code: 'NO_FILE', message: 'Nenhum arquivo enviado ou tipo não suportado' } });
   }
   try {
     let url: string;
-    if (isR2Configured() && req.file.buffer) {
+    if (isR2Configured()) {
       url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
     } else {
-      url = `${env.backendUrl}/uploads/${req.file.filename}`;
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      const dir = path.resolve(env.uploadDir);
+      await fs.promises.mkdir(dir, { recursive: true });
+      await fs.promises.writeFile(path.join(dir, filename), req.file.buffer);
+      url = `${env.backendUrl}/uploads/${filename}`;
     }
     res.status(201).json({ data: { url } });
   } catch (err) {
