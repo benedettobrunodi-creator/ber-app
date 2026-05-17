@@ -237,7 +237,7 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
       const res = await api.post('/crm/oportunidades', {
         titulo: orc.cliente,
         etapa: novaOpEtapa,
-        valorEstimado: orc.valorVenda ?? undefined,
+        valor: orc.valorVenda ?? undefined,
         origem: 'outbound',
       });
       const opId = res.data.id;
@@ -245,8 +245,8 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
       const r = await api.get(`/crm/orcamentos/${orc.id}/contexto`);
       setCrmCtx(r.data);
       setShowCriarOp(false);
-    } catch {
-      // silencioso
+    } catch (err) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao criar oportunidade');
     } finally {
       setCriandoOp(false);
     }
