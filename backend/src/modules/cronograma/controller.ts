@@ -49,8 +49,8 @@ export async function parseCronograma(req: Request, res: Response) {
   const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
   if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma enviado' } });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: { message: 'ANTHROPIC_API_KEY não configurada' } });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({ error: { message: 'GEMINI_API_KEY não configurada' } });
   }
 
   // Fetch PDF bytes

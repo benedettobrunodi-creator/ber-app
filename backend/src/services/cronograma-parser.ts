@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface CronogramaTask {
   wbs: string;
@@ -45,40 +45,23 @@ Regras:
 export async function parseCronogramaPDF(
   pdfBuffer: Buffer,
 ): Promise<CronogramaParseResult> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
-  const base64 = pdfBuffer.toString('base64');
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-  const message = await client.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64,
-            },
-          },
-          {
-            type: 'text',
-            text: PROMPT,
-          },
-        ],
+  const result = await model.generateContent([
+    {
+      inlineData: {
+        data: pdfBuffer.toString('base64'),
+        mimeType: 'application/pdf',
       },
-    ],
-  });
+    },
+    PROMPT,
+  ]);
 
-  const text = message.content
-    .filter((b) => b.type === 'text')
-    .map((b) => (b as { type: 'text'; text: string }).text)
-    .join('');
-
-  // Strip possible markdown fences
+  const text = result.response.text();
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   let raw: {
@@ -97,7 +80,7 @@ export async function parseCronogramaPDF(
   try {
     raw = JSON.parse(clean);
   } catch {
-    throw new Error('Claude não retornou JSON válido: ' + clean.slice(0, 200));
+    throw new Error('Gemini não retornou JSON válido: ' + clean.slice(0, 200));
   }
 
   return {
