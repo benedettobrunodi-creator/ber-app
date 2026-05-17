@@ -131,8 +131,32 @@ function OportunidadeDrawer({
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [empresasLocal, setEmpresasLocal] = useState<Empresa[]>(empresas);
+  const [novaEmpresaMode, setNovaEmpresaMode] = useState(false);
+  const [novaEmpresaForm, setNovaEmpresaForm] = useState({ razaoSocial: '', segmento: '' });
+  const [criandoEmpresa, setCriandoEmpresa] = useState(false);
 
-  const empresaSelecionada = empresas.find((e) => e.id === form.empresaId);
+  const handleCriarEmpresa = async () => {
+    if (!novaEmpresaForm.razaoSocial.trim()) return;
+    setCriandoEmpresa(true);
+    try {
+      const res = await api.post('/crm/empresas', {
+        razaoSocial: novaEmpresaForm.razaoSocial.trim(),
+        segmento: novaEmpresaForm.segmento || null,
+      });
+      const criada: Empresa = res.data;
+      setEmpresasLocal((prev) => [...prev, { ...criada, contatos: [] }]);
+      setForm((f) => ({ ...f, empresaId: criada.id, contatoId: '' }));
+      setNovaEmpresaMode(false);
+      setNovaEmpresaForm({ razaoSocial: '', segmento: '' });
+    } catch {
+      /* silently ignore — empresa create failure shouldn't block oportunidade save */
+    } finally {
+      setCriandoEmpresa(false);
+    }
+  };
+
+  const empresaSelecionada = empresasLocal.find((e) => e.id === form.empresaId);
   const contatosDaEmpresa = empresaSelecionada?.contatos ?? [];
 
   const handleSave = async () => {
@@ -273,13 +297,61 @@ function OportunidadeDrawer({
             <select
               className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
               value={form.empresaId}
-              onChange={(e) => setForm((f) => ({ ...f, empresaId: e.target.value, contatoId: '' }))}
+              onChange={(e) => {
+                if (e.target.value === '__nova__') {
+                  setNovaEmpresaMode(true);
+                  setForm((f) => ({ ...f, empresaId: '', contatoId: '' }));
+                } else {
+                  setNovaEmpresaMode(false);
+                  setForm((f) => ({ ...f, empresaId: e.target.value, contatoId: '' }));
+                }
+              }}
             >
               <option value="">-- nenhuma --</option>
-              {empresas.map((e) => (
+              {empresasLocal.map((e) => (
                 <option key={e.id} value={e.id}>{e.razaoSocial}{e.segmento ? ` · ${e.segmento}` : ''}</option>
               ))}
+              <option value="__nova__">➕ Nova empresa...</option>
             </select>
+
+            {novaEmpresaMode && (
+              <div className="mt-2 p-3 bg-ber-surface border border-ber-border rounded-xl space-y-2">
+                <p className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Nova empresa</p>
+                <input
+                  autoFocus
+                  className="w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                  placeholder="Razão social *"
+                  value={novaEmpresaForm.razaoSocial}
+                  onChange={(e) => setNovaEmpresaForm((f) => ({ ...f, razaoSocial: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCriarEmpresa()}
+                />
+                <select
+                  className="w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                  value={novaEmpresaForm.segmento}
+                  onChange={(e) => setNovaEmpresaForm((f) => ({ ...f, segmento: e.target.value }))}
+                >
+                  <option value="">Segmento (opcional)</option>
+                  {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setNovaEmpresaMode(false); setNovaEmpresaForm({ razaoSocial: '', segmento: '' }); }}
+                    className="flex-1 py-1.5 text-xs text-ber-gray border border-ber-border rounded-lg hover:bg-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCriarEmpresa}
+                    disabled={criandoEmpresa || !novaEmpresaForm.razaoSocial.trim()}
+                    className="flex-1 py-1.5 text-xs text-white bg-ber-teal rounded-lg font-semibold hover:bg-ber-teal/80 disabled:opacity-50"
+                  >
+                    {criandoEmpresa ? 'Criando...' : 'Criar empresa'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           {contatosDaEmpresa.length > 0 && (
             <div>
