@@ -584,12 +584,33 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 <div className="rounded-lg border border-[#5A7A7A]/30 bg-[#5A7A7A]/5 p-3 space-y-2">
                   <p className="text-[10px] font-bold text-[#5A7A7A] uppercase tracking-wide">Integração CRM</p>
                   {crmCtx?.oportunidade ? (
-                    <div className="flex items-start gap-2">
-                      <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Origem</span>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
-                        {crmCtx.oportunidade.empresa && <p className="text-[10px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>}
-                        <p className="text-[10px] text-[#5A7A7A] capitalize">{crmCtx.oportunidade.etapa.replace(/_/g, ' ')}</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-start gap-2">
+                        <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0 pt-0.5">Origem</span>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
+                          {crmCtx.oportunidade.empresa && <p className="text-[10px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Etapa</span>
+                        <select
+                          value={crmCtx.oportunidade.etapa}
+                          onChange={async (e) => {
+                            await api.patch(`/crm/oportunidades/${crmCtx!.oportunidade!.id}`, { etapa: e.target.value });
+                            const r = await api.get(`/crm/orcamentos/${orc!.id}/contexto`);
+                            setCrmCtx(r.data);
+                          }}
+                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
+                        >
+                          <option value="lead">Lead</option>
+                          <option value="qualificacao">Qualificação</option>
+                          <option value="proposta_producao">Proposta em Produção</option>
+                          <option value="proposta_enviada">Proposta Enviada</option>
+                          <option value="negociacao">Negociação</option>
+                          <option value="ganho">Ganho</option>
+                          <option value="perdido">Perdido</option>
+                        </select>
                       </div>
                     </div>
                   ) : (

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, Clock, X, AlertCircle } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
@@ -16,47 +16,68 @@ interface Props {
 function CardOportunidade({
   op,
   onClick,
+  onMove,
+  canMoveLeft,
+  canMoveRight,
 }: {
   op: Oportunidade;
   onClick: () => void;
+  onMove: (dir: 'left' | 'right') => void;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
 }) {
   const proximaAtividade = op.atividades?.[0];
   const vencida = proximaAtividade && new Date(proximaAtividade.dataHora) < new Date();
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-white border border-ber-border rounded-lg p-3 cursor-pointer hover:shadow-md hover:border-ber-teal/40 transition-all group"
-    >
-      <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
-        {op.titulo}
-      </p>
-      {op.empresa && (
-        <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
-      )}
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
-        {op.origem && (
-          <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
-            {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
-          </span>
+    <div className="bg-white border border-ber-border rounded-lg p-3 hover:shadow-md hover:border-ber-teal/40 transition-all group">
+      <div onClick={onClick} className="cursor-pointer">
+        <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
+          {op.titulo}
+        </p>
+        {op.empresa && (
+          <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
+        )}
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
+          {op.origem && (
+            <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
+              {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
+            </span>
+          )}
+        </div>
+        {proximaAtividade && (
+          <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
+            {vencida ? <AlertCircle size={11} /> : <Clock size={11} />}
+            <span className="truncate">{proximaAtividade.notas ?? proximaAtividade.tipo}</span>
+            <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
+          </div>
+        )}
+        {op.responsavel && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
+              {op.responsavel.name.charAt(0)}
+            </div>
+            <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
+          </div>
         )}
       </div>
-      {proximaAtividade && (
-        <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
-          {vencida ? <AlertCircle size={11} /> : <Clock size={11} />}
-          <span className="truncate">{proximaAtividade.notas ?? proximaAtividade.tipo}</span>
-          <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
-        </div>
-      )}
-      {op.responsavel && (
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
-            {op.responsavel.name.charAt(0)}
-          </div>
-          <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
-        </div>
-      )}
+      <div className="mt-2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onMove('left'); }}
+          disabled={!canMoveLeft}
+          className="p-1 rounded hover:bg-ber-surface disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft size={14} className="text-ber-gray" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMove('right'); }}
+          disabled={!canMoveRight}
+          className="p-1 rounded hover:bg-ber-surface disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronRight size={14} className="text-ber-gray" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -278,9 +299,19 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
                 <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(totalValor)}</p>
               )}
               <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
-                {cards.map((op) => (
-                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
-                ))}
+                {cards.map((op) => {
+                  const idx = KANBAN_ETAPAS.findIndex((e) => e.value === etapa.value);
+                  return (
+                    <CardOportunidade
+                      key={op.id}
+                      op={op}
+                      onClick={() => setDrawerOp(op)}
+                      onMove={(dir) => handleMoveEtapa(op.id, KANBAN_ETAPAS[dir === 'left' ? idx - 1 : idx + 1].value)}
+                      canMoveLeft={idx > 0}
+                      canMoveRight={idx < KANBAN_ETAPAS.length - 1}
+                    />
+                  );
+                })}
                 {cards.length === 0 && (
                   <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
                 )}
