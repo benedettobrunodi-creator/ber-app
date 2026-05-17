@@ -46,36 +46,42 @@ export async function uploadCronograma(req: Request, res: Response) {
 
 export async function parseCronograma(req: Request, res: Response) {
   const { id: obraId } = req.params;
-  const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
-  if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma enviado' } });
+  try {
+    const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
+    if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma enviado' } });
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(503).json({ error: { message: 'GEMINI_API_KEY não configurada' } });
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: { message: 'GEMINI_API_KEY não configurada' } });
+    }
+
+    // Fetch PDF bytes
+    let pdfBuffer: Buffer;
+    if (cronograma.fileUrl.startsWith('http')) {
+      const response = await fetch(cronograma.fileUrl);
+      if (!response.ok) throw new Error(`Falha ao baixar PDF: ${response.status} ${response.statusText}`);
+      pdfBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      const localPath = path.resolve(env.uploadDir, path.basename(cronograma.fileUrl));
+      pdfBuffer = fs.readFileSync(localPath);
+    }
+
+    const result = await parseCronogramaPDF(pdfBuffer);
+
+    const updated = await prisma.cronograma.update({
+      where: { id: cronograma.id },
+      data: {
+        parsedAt: new Date(),
+        parsedData: result as unknown as import('@prisma/client').Prisma.JsonObject,
+        progressPct: result.progressoGeral,
+      },
+    });
+
+    return res.json({ data: updated });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[CRONOGRAMA PARSE ERROR]', msg);
+    return res.status(500).json({ error: { message: msg } });
   }
-
-  // Fetch PDF bytes
-  let pdfBuffer: Buffer;
-  if (cronograma.fileUrl.startsWith('http')) {
-    const response = await fetch(cronograma.fileUrl);
-    if (!response.ok) throw new Error('Falha ao baixar PDF');
-    pdfBuffer = Buffer.from(await response.arrayBuffer());
-  } else {
-    const localPath = path.resolve(env.uploadDir, path.basename(cronograma.fileUrl));
-    pdfBuffer = fs.readFileSync(localPath);
-  }
-
-  const result = await parseCronogramaPDF(pdfBuffer);
-
-  const updated = await prisma.cronograma.update({
-    where: { id: cronograma.id },
-    data: {
-      parsedAt: new Date(),
-      parsedData: result as unknown as import('@prisma/client').Prisma.JsonObject,
-      progressPct: result.progressoGeral,
-    },
-  });
-
-  return res.json({ data: updated });
 }
 
 export async function syncToKanban(req: Request, res: Response) {
