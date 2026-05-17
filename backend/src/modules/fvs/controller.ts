@@ -113,7 +113,7 @@ export async function checkItem(req: Request, res: Response) {
   const target = fvs.items.find(i => i.id === itemId);
   if (!target) throw AppError.notFound('Item da FVS não encontrado');
 
-  const isChecking = (checked === true) || (checked === undefined && na === undefined);
+  const isChecking = checked === true;
   const isMarkingNa = na === true;
 
   if (isChecking || isMarkingNa) {
