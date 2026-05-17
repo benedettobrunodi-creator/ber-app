@@ -2530,7 +2530,7 @@ export default function ObraDetailPage() {
             const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
             setActiveCl(updated as ObraBerChecklist);
             setBerChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
-          } catch (e: any) { alert('Erro no upload'); }
+          } catch (e: any) { alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload'); }
           finally { setClSubmitting(false); }
         };
 
@@ -2701,7 +2701,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro ao salvar');
+            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
           } finally { setFvsSubmitting(false); }
         };
 
@@ -2716,7 +2716,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro no upload');
+            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload');
           } finally { setFvsSubmitting(false); }
         };
 

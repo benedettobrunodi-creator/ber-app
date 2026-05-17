@@ -97,8 +97,9 @@ const limiter = rateLimit({
 });
 app.use('/v1/auth', limiter);
 
-// Static files (uploads)
+// Static files (uploads) — serve from configured dir and /tmp/uploads fallback
 app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static('/tmp/uploads'));
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -240,15 +241,24 @@ app.post('/v1/uploads', authenticate, (req, res, next) => {
     } else {
       const ext = path.extname(req.file.originalname) || '.jpg';
       const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      const dir = path.resolve(env.uploadDir);
-      await fs.promises.mkdir(dir, { recursive: true });
-      await fs.promises.writeFile(path.join(dir, filename), req.file.buffer);
+      // Try configured uploadDir first, fall back to /tmp/uploads (always writable in Docker)
+      const dirs = [path.resolve(env.uploadDir), '/tmp/uploads'];
+      let saved = false;
+      for (const dir of dirs) {
+        try {
+          await fs.promises.mkdir(dir, { recursive: true });
+          await fs.promises.writeFile(path.join(dir, filename), req.file.buffer);
+          saved = true;
+          break;
+        } catch { /* try next */ }
+      }
+      if (!saved) throw new Error('Não foi possível salvar o arquivo em disco');
       url = `${env.backendUrl}/uploads/${filename}`;
     }
     res.status(201).json({ data: { url } });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Upload error:', err);
-    res.status(500).json({ error: { code: 'UPLOAD_FAILED', message: 'Erro no upload do arquivo' } });
+    res.status(500).json({ error: { code: 'UPLOAD_FAILED', message: err?.message ?? 'Erro no upload do arquivo' } });
   }
 });
 
