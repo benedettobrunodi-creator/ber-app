@@ -1,3 +1,5 @@
+import Anthropic from '@anthropic-ai/sdk';
+
 export interface CronogramaTask {
   wbs: string;
   nome: string;
@@ -43,43 +45,36 @@ Regras:
 export async function parseCronogramaPDF(
   pdfBuffer: Buffer,
 ): Promise<CronogramaParseResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY não configurada');
 
-  const base64 = pdfBuffer.toString('base64');
+  const client = new Anthropic({ apiKey });
 
-  const body = {
-    contents: [
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 8192,
+    messages: [
       {
-        parts: [
-          { inline_data: { mime_type: 'application/pdf', data: base64 } },
-          { text: PROMPT },
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: pdfBuffer.toString('base64'),
+            },
+          },
+          { type: 'text', text: PROMPT },
         ],
       },
     ],
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API ${response.status}: ${err}`);
-  }
-
-  const data = await response.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-
-  const text = data.candidates?.[0]?.content?.parts
-    ?.filter((p) => p.text)
-    .map((p) => p.text)
-    .join('') ?? '';
+  const text = message.content
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as { type: 'text'; text: string }).text)
+    .join('');
 
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
@@ -93,7 +88,7 @@ export async function parseCronogramaPDF(
   try {
     raw = JSON.parse(clean);
   } catch {
-    throw new Error('Gemini não retornou JSON válido: ' + clean.slice(0, 300));
+    throw new Error('Claude não retornou JSON válido: ' + clean.slice(0, 300));
   }
 
   return {
