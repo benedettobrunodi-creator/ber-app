@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
@@ -12,6 +12,17 @@ interface Props {
   empresas: Empresa[];
   users: User[];
   onRefresh: () => void;
+}
+
+const ETAPAS_FORECAST = ['qualificacao', 'proposta_producao', 'proposta_enviada', 'negociacao', 'ganho'];
+
+function forecastGaps(op: Oportunidade): string[] {
+  if (!ETAPAS_FORECAST.includes(op.etapa)) return [];
+  const gaps: string[] = [];
+  if (!op.valor) gaps.push('valor');
+  if (!op.dataFechamentoPrevisto) gaps.push('fechamento');
+  if (!op.probabilidade) gaps.push('prob.');
+  return gaps;
 }
 
 function CardOportunidade({
@@ -29,9 +40,10 @@ function CardOportunidade({
 }) {
   const proximaAtividade = op.atividades?.[0];
   const vencida = proximaAtividade && new Date(proximaAtividade.dataHora) < new Date();
+  const gaps = forecastGaps(op);
 
   return (
-    <div className="bg-white border border-ber-border rounded-lg p-3 hover:shadow-md hover:border-ber-teal/40 transition-all group">
+    <div className={`bg-white border rounded-lg p-3 hover:shadow-md transition-all group ${gaps.length ? 'border-amber-300 hover:border-amber-400' : 'border-ber-border hover:border-ber-teal/40'}`}>
       <div onClick={onClick} className="cursor-pointer">
         <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
           {op.titulo}
@@ -60,6 +72,12 @@ function CardOportunidade({
               {op.responsavel.name.charAt(0)}
             </div>
             <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
+          </div>
+        )}
+        {gaps.length > 0 && (
+          <div className="mt-2 flex items-center gap-1 text-[10px] text-amber-600">
+            <TriangleAlert size={10} className="shrink-0" />
+            <span>Forecast incompleto: {gaps.join(', ')}</span>
           </div>
         )}
       </div>
@@ -320,6 +338,11 @@ function OportunidadeDrawer({
 
 export default function TabPipeline({ oportunidades, empresas, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
+  const [alertDismissed, setAlertDismissed] = useState(false);
+
+  const semForecast = oportunidades.filter(
+    (op) => !['ganho', 'perdido'].includes(op.etapa) && forecastGaps(op).length > 0
+  ).length;
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -354,6 +377,19 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
           <Plus size={14} /> Nova Oportunidade
         </button>
       </div>
+
+      {semForecast > 0 && !alertDismissed && (
+        <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+          <TriangleAlert size={14} className="shrink-0 text-amber-500" />
+          <span>
+            <strong>{semForecast}</strong> oportunidade{semForecast > 1 ? 's' : ''} sem dados completos para o forecast
+            {' '}(valor, data de fechamento ou probabilidade). Abra o card e preencha.
+          </span>
+          <button onClick={() => setAlertDismissed(true)} className="ml-auto shrink-0 text-amber-400 hover:text-amber-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
