@@ -35,7 +35,7 @@ export async function uploadCronograma(req: Request, res: Response) {
   const cronograma = existing
     ? await prisma.cronograma.update({
         where: { id: existing.id },
-        data: { fileUrl, fileName: req.file.originalname, parsedAt: null, parsedData: null, progressPct: null },
+        data: { fileUrl, fileName: req.file.originalname, parsedAt: null, parsedData: undefined, progressPct: null },
       })
     : await prisma.cronograma.create({
         data: { obraId, fileUrl, fileName: req.file.originalname },
