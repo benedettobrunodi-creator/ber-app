@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,6 +10,27 @@ import { TrendingUp, Target, DollarSign, Pencil, Check, X } from 'lucide-react';
 import { fmt } from '../types';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+
+function MetaInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [raw, setRaw] = useState('');
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <input
+      ref={ref}
+      type="text"
+      inputMode="numeric"
+      className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-right"
+      value={editing ? raw : (value ? BRL.format(value) : '')}
+      placeholder="R$ 0,00"
+      onFocus={() => { setRaw(value ? String(value) : ''); setEditing(true); setTimeout(() => ref.current?.select(), 0); }}
+      onBlur={() => { onChange(Number(raw.replace(/\D/g, '')) || 0); setEditing(false); }}
+      onChange={(e) => setRaw(e.target.value.replace(/[^0-9]/g, ''))}
+    />
+  );
+}
 
 interface FunilData {
   qualificacao: { count: number; valor: number };
@@ -216,13 +237,7 @@ export default function TabFunil() {
               {metasEdit.map((v, i) => (
                 <div key={i}>
                   <p className="text-[10px] font-semibold text-ber-gray mb-1">{MESES[i]}</p>
-                  <input
-                    type="number"
-                    className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
-                    value={v || ''}
-                    placeholder="0"
-                    onChange={(e) => handleMetaChange(i, Number(e.target.value))}
-                  />
+                  <MetaInput value={v} onChange={(n) => handleMetaChange(i, n)} />
                 </div>
               ))}
             </div>

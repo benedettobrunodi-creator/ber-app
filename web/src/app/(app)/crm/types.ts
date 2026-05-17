@@ -99,7 +99,7 @@ export function fmt(value: number | string | null | undefined): string {
   if (value == null) return '--';
   const n = Number(value);
   if (isNaN(n)) return '--';
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
 export function fmtDate(iso: string | null | undefined): string {

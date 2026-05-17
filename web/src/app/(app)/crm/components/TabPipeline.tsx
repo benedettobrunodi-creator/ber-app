@@ -7,6 +7,31 @@ import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Em
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
 
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+
+function MoneyInput({ value, onChange, placeholder, className }: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const n = Number(value.replace(',', '.'));
+  const display = editing || !value ? value : BRL.format(isNaN(n) ? 0 : n);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      value={display}
+      placeholder={placeholder ?? 'R$ 0,00'}
+      onFocus={(e) => { setEditing(true); e.target.select(); }}
+      onBlur={() => setEditing(false)}
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
+    />
+  );
+}
+
 interface Props {
   oportunidades: Oportunidade[];
   empresas: Empresa[];
@@ -220,12 +245,10 @@ function OportunidadeDrawer({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Valor</label>
-              <input
-                type="number"
+              <MoneyInput
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                placeholder="R$"
                 value={form.valor}
-                onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, valor: v }))}
               />
             </div>
             <div>
