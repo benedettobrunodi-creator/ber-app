@@ -95,7 +95,7 @@ export default function CrmPage() {
         ) : (
           <>
             {tab === 'pipeline' && (
-              <TabPipeline oportunidades={oportunidades} users={users} onRefresh={fetchAll} />
+              <TabPipeline oportunidades={oportunidades} empresas={empresas} users={users} onRefresh={fetchAll} />
             )}
             {tab === 'funil' && <TabFunil />}
             {tab === 'empresas' && (

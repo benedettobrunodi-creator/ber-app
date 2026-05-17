@@ -3,12 +3,13 @@
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle } from 'lucide-react';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, User, fmt, fmtDate, diasAtras } from '../types';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
 
 interface Props {
   oportunidades: Oportunidade[];
+  empresas: Empresa[];
   users: User[];
   onRefresh: () => void;
 }
@@ -84,11 +85,13 @@ function CardOportunidade({
 
 function OportunidadeDrawer({
   op,
+  empresas,
   users,
   onClose,
   onSave,
 }: {
   op: Oportunidade | null;
+  empresas: Empresa[];
   users: User[];
   onClose: () => void;
   onSave: () => void;
@@ -102,11 +105,17 @@ function OportunidadeDrawer({
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
+    empresaId: op?.empresa?.id ?? '',
+    contatoId: op?.contato?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto ? String(op.dataFechamentoPrevisto).slice(0, 10) : '',
+    motivoPerda: op?.motivoPerda ?? '',
     observacoes: op?.observacoes ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+
+  const empresaSelecionada = empresas.find((e) => e.id === form.empresaId);
+  const contatosDaEmpresa = empresaSelecionada?.contatos ?? [];
 
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
@@ -119,7 +128,10 @@ function OportunidadeDrawer({
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
+        empresaId: form.empresaId || null,
+        contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
+        motivoPerda: form.etapa === 'perdido' ? (form.motivoPerda || null) : null,
         observacoes: form.observacoes || null,
       };
       if (isNew) {
@@ -239,6 +251,46 @@ function OportunidadeDrawer({
             </div>
           </div>
           <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Empresa</label>
+            <select
+              className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+              value={form.empresaId}
+              onChange={(e) => setForm((f) => ({ ...f, empresaId: e.target.value, contatoId: '' }))}
+            >
+              <option value="">-- nenhuma --</option>
+              {empresas.map((e) => (
+                <option key={e.id} value={e.id}>{e.razaoSocial}{e.segmento ? ` · ${e.segmento}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          {contatosDaEmpresa.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.contatoId}
+                onChange={(e) => setForm((f) => ({ ...f, contatoId: e.target.value }))}
+              >
+                <option value="">-- nenhum --</option>
+                {contatosDaEmpresa.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}{c.cargo ? ` · ${c.cargo}` : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {form.etapa === 'perdido' && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Motivo da perda</label>
+              <textarea
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none"
+                rows={2}
+                placeholder="Ex: preço, concorrente, prazo..."
+                value={form.motivoPerda}
+                onChange={(e) => setForm((f) => ({ ...f, motivoPerda: e.target.value }))}
+              />
+            </div>
+          )}
+          <div>
             <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações</label>
             <textarea
               className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none"
@@ -266,7 +318,7 @@ function OportunidadeDrawer({
   );
 }
 
-export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
+export default function TabPipeline({ oportunidades, empresas, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
 
   const grouped = useCallback(() => {
@@ -343,6 +395,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       {drawerOp !== null && (
         <OportunidadeDrawer
           op={drawerOp === 'new' ? null : drawerOp}
+          empresas={empresas}
           users={users}
           onClose={() => setDrawerOp(null)}
           onSave={() => { setDrawerOp(null); onRefresh(); }}
