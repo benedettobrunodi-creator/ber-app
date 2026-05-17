@@ -76,7 +76,12 @@ export async function parseCronogramaPDF(
     .map((b) => (b as { type: 'text'; text: string }).text)
     .join('');
 
-  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  console.log('[CRONOGRAMA PARSE] resposta bruta:', text.slice(0, 500));
+
+  // Extrai o primeiro objeto JSON completo da resposta
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  const clean = start !== -1 && end !== -1 ? text.slice(start, end + 1) : text.trim();
 
   let raw: {
     progresso_geral: number;
@@ -88,6 +93,7 @@ export async function parseCronogramaPDF(
   try {
     raw = JSON.parse(clean);
   } catch {
+    console.error('[CRONOGRAMA PARSE] JSON inválido:', clean.slice(0, 500));
     throw new Error('Claude não retornou JSON válido: ' + clean.slice(0, 300));
   }
 
