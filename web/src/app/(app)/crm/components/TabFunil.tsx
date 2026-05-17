@@ -4,14 +4,21 @@ import { useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Legend, AreaChart, Area,
+  Legend, AreaChart, Area,
 } from 'recharts';
-import { TrendingUp, Target, DollarSign, Pencil, Check, X } from 'lucide-react';
-import { fmt } from '../types';
+import { TrendingUp, Target, DollarSign, Pencil, Check, X, ChevronRight } from 'lucide-react';
+import { fmt, fmtDate, Oportunidade } from '../types';
+import { ETAPA_MAP } from '../types';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+
+const ETAPA_MACRO_MAP: Record<string, string[]> = {
+  qualificacao: ['lead', 'qualificacao'],
+  propostas: ['proposta_producao', 'proposta_enviada', 'negociacao'],
+  conversao: ['ganho'],
+};
 
 function MetaInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const [editing, setEditing] = useState(false);
@@ -48,7 +55,74 @@ interface MetaRow { ano: number; mes: number; valorMeta: number }
 
 interface VendasMes { mes: number; meta: number; realizado: number; metaAcum: number; realizadoAcum: number }
 
-export default function TabFunil() {
+interface DrilldownState {
+  label: string;
+  items: Oportunidade[];
+  cor?: string;
+}
+
+function DrilldownPanel({ state, onClose }: { state: DrilldownState; onClose: () => void }) {
+  const total = state.items.reduce((s, o) => s + Number(o.valor ?? 0), 0);
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white shadow-2xl flex flex-col h-full">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-ber-border">
+          <div>
+            <h3 className="font-bold text-ber-carbon">{state.label}</h3>
+            <p className="text-xs text-ber-gray mt-0.5">
+              {state.items.length} oportunidade{state.items.length !== 1 ? 's' : ''} · {fmt(total)}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-ber-surface rounded-lg">
+            <X size={16} className="text-ber-gray" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-ber-border">
+          {state.items.length === 0 && (
+            <div className="flex items-center justify-center h-32 text-ber-gray text-sm">Nenhuma oportunidade</div>
+          )}
+          {state.items.map((op) => {
+            const etapa = ETAPA_MAP[op.etapa as keyof typeof ETAPA_MAP];
+            return (
+              <div key={op.id} className="px-5 py-3 hover:bg-ber-surface/50 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-ber-carbon truncate">{op.titulo}</p>
+                    {op.empresa && (
+                      <p className="text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {etapa && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                          style={{ backgroundColor: etapa.color + '20', color: etapa.color }}
+                        >
+                          {etapa.label}
+                        </span>
+                      )}
+                      {op.dataFechamentoPrevisto && (
+                        <span className="text-[10px] text-ber-gray">{fmtDate(op.dataFechamentoPrevisto)}</span>
+                      )}
+                      {op.responsavel && (
+                        <span className="text-[10px] text-ber-gray">{op.responsavel.name.split(' ')[0]}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-ber-carbon">{op.valor != null ? fmt(op.valor) : '--'}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function TabFunil({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
   const [funil, setFunil] = useState<FunilData | null>(null);
   const [forecast, setForecast] = useState<Record<number, ForecastMes>>({});
@@ -57,6 +131,7 @@ export default function TabFunil() {
   const [metasEdit, setMetasEdit] = useState<number[]>(Array(12).fill(0));
   const [metaAnualInput, setMetaAnualInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -84,7 +159,6 @@ export default function TabFunil() {
     setMetasEdit(novo);
   };
 
-  // Ao editar um mês, redistribui o saldo restante igualmente nos meses seguintes
   const handleMetaChange = (i: number, value: number) => {
     setMetasEdit((prev) => {
       const anoTotal = prev.reduce((s, v) => s + v, 0);
@@ -122,11 +196,18 @@ export default function TabFunil() {
     }
   };
 
+  const openDrilldown = (label: string, filter: (o: Oportunidade) => boolean, cor?: string) => {
+    const items = oportunidades
+      .filter(filter)
+      .sort((a, b) => Number(b.valor ?? 0) - Number(a.valor ?? 0));
+    setDrilldown({ label, items, cor });
+  };
+
   const funilData = funil
     ? [
-        { name: 'Qualificação', count: funil.qualificacao.count, valor: funil.qualificacao.valor },
-        { name: 'Propostas',    count: funil.propostas.count,    valor: funil.propostas.valor },
-        { name: 'Conversão',    count: funil.conversao.count,    valor: funil.conversao.valor },
+        { name: 'Qualificação', macro: 'qualificacao', count: funil.qualificacao.count, valor: funil.qualificacao.valor, color: '#5A7A7A' },
+        { name: 'Propostas',    macro: 'propostas',    count: funil.propostas.count,    valor: funil.propostas.valor,    color: '#E6A23C' },
+        { name: 'Conversão',    macro: 'conversao',    count: funil.conversao.count,    valor: funil.conversao.valor,    color: '#3D9E5F' },
       ]
     : [];
 
@@ -150,12 +231,35 @@ export default function TabFunil() {
 
   return (
     <div className="space-y-6">
+      {drilldown && <DrilldownPanel state={drilldown} onClose={() => setDrilldown(null)} />}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={<Target size={18} className="text-ber-teal" />} label="Em Pipeline" value={fmt(funil ? funil.qualificacao.valor + funil.propostas.valor : 0)} />
-        <KpiCard icon={<DollarSign size={18} className="text-ber-green" />} label="Ganho no Ano" value={fmt(totalRealizado)} />
-        <KpiCard icon={<TrendingUp size={18} className="text-ber-olive" />} label="vs Meta" value={totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'} sub={`de ${fmt(totalMeta)}`} />
-        <KpiCard icon={<Target size={18} className="text-purple-500" />} label="Conversão" value={`${Math.round(taxaConversao * 100)}%`} />
+        <KpiCard
+          icon={<Target size={18} className="text-ber-teal" />}
+          label="Em Pipeline"
+          value={fmt(funil ? funil.qualificacao.valor + funil.propostas.valor : 0)}
+          onClick={() => openDrilldown('Em Pipeline', (o) => !['ganho', 'perdido'].includes(o.etapa))}
+        />
+        <KpiCard
+          icon={<DollarSign size={18} className="text-ber-green" />}
+          label="Ganho no Ano"
+          value={fmt(totalRealizado)}
+          onClick={() => openDrilldown('Ganho no Ano', (o) => o.etapa === 'ganho')}
+        />
+        <KpiCard
+          icon={<TrendingUp size={18} className="text-ber-olive" />}
+          label="vs Meta"
+          value={totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
+          sub={`de ${fmt(totalMeta)}`}
+          onClick={() => openDrilldown('Ganhos vs Meta', (o) => o.etapa === 'ganho')}
+        />
+        <KpiCard
+          icon={<Target size={18} className="text-purple-500" />}
+          label="Conversão"
+          value={`${Math.round(taxaConversao * 100)}%`}
+          onClick={() => openDrilldown('Oportunidades Ganhas', (o) => o.etapa === 'ganho')}
+        />
       </div>
 
       {/* Funil Macro */}
@@ -163,20 +267,31 @@ export default function TabFunil() {
         <h3 className="font-bold text-ber-carbon mb-4">Funil de Conversão</h3>
         <div className="flex gap-3 mb-4">
           {funilData.map((f, i) => (
-            <div key={f.name} className="flex-1 text-center">
+            <button
+              key={f.name}
+              className="flex-1 text-center group cursor-pointer"
+              onClick={() => openDrilldown(
+                f.name,
+                (o) => (ETAPA_MACRO_MAP[f.macro] ?? []).includes(o.etapa),
+                f.color,
+              )}
+            >
               <div
-                className="rounded-xl mx-auto flex items-end justify-center transition-all"
+                className="rounded-xl mx-auto flex items-end justify-center transition-all group-hover:opacity-80"
                 style={{
-                  backgroundColor: ['#5A7A7A', '#E6A23C', '#3D9E5F'][i] + '20',
-                  borderBottom: `3px solid ${['#5A7A7A', '#E6A23C', '#3D9E5F'][i]}`,
+                  backgroundColor: f.color + '20',
+                  borderBottom: `3px solid ${f.color}`,
                   height: `${Math.max(40, 160 - i * 40)}px`,
                 }}
               >
-                <span className="text-lg font-bold" style={{ color: ['#5A7A7A', '#E6A23C', '#3D9E5F'][i] }}>{f.count}</span>
+                <span className="text-lg font-bold" style={{ color: f.color }}>{f.count}</span>
               </div>
-              <p className="text-xs font-semibold text-ber-carbon mt-2">{f.name}</p>
+              <p className="text-xs font-semibold text-ber-carbon mt-2 flex items-center justify-center gap-1">
+                {f.name}
+                <ChevronRight size={10} className="text-ber-gray opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
               <p className="text-xs text-ber-gray">{fmt(f.valor)}</p>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -210,7 +325,6 @@ export default function TabFunil() {
 
         {editMetas && (
           <div className="mb-5 space-y-4">
-            {/* Input meta anual */}
             <div className="flex items-end gap-2 p-3 bg-ber-surface rounded-xl">
               <div className="flex-1">
                 <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Meta anual {ano}</label>
@@ -232,7 +346,6 @@ export default function TabFunil() {
               </button>
             </div>
 
-            {/* Grade mensal */}
             <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
               {metasEdit.map((v, i) => (
                 <div key={i}>
@@ -276,12 +389,27 @@ export default function TabFunil() {
   );
 }
 
-function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function KpiCard({
+  icon, label, value, sub, onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="bg-white border border-ber-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">{icon}<p className="text-xs text-ber-gray uppercase tracking-wide">{label}</p></div>
+    <button
+      onClick={onClick}
+      className="bg-white border border-ber-border rounded-xl p-4 text-left w-full hover:border-ber-teal/40 hover:shadow-sm transition-all group"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <p className="text-xs text-ber-gray uppercase tracking-wide">{label}</p>
+        {onClick && <ChevronRight size={10} className="ml-auto text-ber-gray opacity-0 group-hover:opacity-100 transition-opacity" />}
+      </div>
       <p className="text-xl font-bold text-ber-carbon">{value}</p>
       {sub && <p className="text-xs text-ber-gray mt-0.5">{sub}</p>}
-    </div>
+    </button>
   );
 }
