@@ -211,12 +211,13 @@ interface DrawerProps {
   onDeleted: (id: string) => void;
 }
 
-function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDeleted }: DrawerProps) {
+function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onClose, onSaved, onDeleted }: DrawerProps) {
   const isNew = !orc;
-  const [tab, setTab] = useState<'form' | 'historico'>('form');
+  const [tab, setTab] = useState<'crm' | 'historico'>('crm');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [numero, setNumero] = useState('');
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
   const [criandoOp, setCriandoOp] = useState(false);
   const [showCriarOp, setShowCriarOp] = useState(false);
@@ -235,9 +236,8 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     setCriandoOp(true);
     try {
       const res = await api.post('/crm/oportunidades', {
-        titulo: orc.cliente,
+        titulo: orc.cliente || orc.numero,
         etapa: novaOpEtapa,
-        valor: orc.valorVenda ?? undefined,
         origem: 'outbound',
       });
       const opId = res.data.id;
@@ -252,75 +252,21 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     }
   }
 
-  const [form, setForm] = useState({
-    numero: orc?.numero ?? '',
-    cliente: orc?.cliente ?? '',
-    descricaoCurta: orc?.descricaoCurta ?? '',
-    m2: orc?.m2 != null ? String(orc.m2) : '',
-    valorVenda: orc?.valorVenda != null
-      ? new Intl.NumberFormat('pt-BR').format(Number(orc.valorVenda)) : '',
-    segmento: orc?.segmento ?? '',
-    estrategico: orc?.estrategico ?? false,
-    tipo: orc?.tipo ?? 'NOVO',
-    probabilidade: orc?.probabilidade ?? '',
-    status: orc?.status ?? 'A_INICIAR',
-    dataInicio: orc?.dataInicio ? orc.dataInicio.slice(0, 10) : '',
-    dataFim: orc?.dataFim ? orc.dataFim.slice(0, 10) : '',
-    dataEntrega: orc?.dataEntrega ? orc.dataEntrega.slice(0, 10) : '',
-    responsavelId: orc?.responsavel?.id ?? '',
-    terceirizado: orc?.terceirizado ?? false,
-    observacoes: orc?.observacoes ?? '',
-    changeOrderDe: orc?.changeOrderDe ?? '',
-  });
-
-  function setF(key: string, val: unknown) {
-    setForm(f => ({ ...f, [key]: val }));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (form.dataFim && form.dataInicio && form.dataFim < form.dataInicio) {
-      setError('Data Fim deve ser >= Data Início');
-      return;
-    }
+    if (!numero.trim()) { setError('Número obrigatório'); return; }
     setSaving(true);
     setError('');
     try {
-      const parseVal = (s: string) => {
-        if (!s) return undefined;
-        const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
-        return isNaN(n) ? undefined : n;
-      };
-      const body = {
-        numero: form.numero,
-        cliente: form.cliente,
-        descricaoCurta: form.descricaoCurta || undefined,
-        m2: form.m2 ? parseFloat(form.m2) : undefined,
-        valorVenda: parseVal(form.valorVenda),
-        segmento: form.segmento || undefined,
-        estrategico: form.estrategico,
-        tipo: form.tipo,
-        probabilidade: form.probabilidade || null,
-        status: form.status,
-        dataInicio: form.dataInicio || null,
-        dataFim: form.dataFim || null,
-        dataEntrega: form.dataEntrega || null,
-        responsavelId: form.terceirizado ? null : (form.responsavelId || null),
-        terceirizado: form.terceirizado,
-        observacoes: form.observacoes || undefined,
-        changeOrderDe: form.changeOrderDe || null,
-      };
-      const res = isNew
-        ? await api.post('/orcamentos', body)
-        : await api.patch(`/orcamentos/${orc!.id}`, body);
+      const res = await api.post('/orcamentos', {
+        numero: numero.trim(),
+        cliente: numero.trim(),
+        status: 'A_INICIAR',
+      });
       onSaved(res.data.data);
     } catch (err: any) {
       const errData = err.response?.data?.error;
-      if (errData?.details?.length) {
-        setError(errData.details.map((d: any) => `${d.field}: ${d.message}`).join(' · '));
-      } else {
-        setError(errData?.message ?? 'Erro ao salvar');
-      }
+      setError(errData?.message ?? 'Erro ao criar');
     } finally {
       setSaving(false);
     }
@@ -349,60 +295,85 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     }
   }
 
-  const inputCls = 'w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#06A99D] focus:ring-1 focus:ring-[#06A99D] focus:outline-none disabled:bg-gray-50 disabled:text-gray-400';
+  const inputCls = 'w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#06A99D] focus:ring-1 focus:ring-[#06A99D] focus:outline-none';
   const labelCls = 'mb-1 block text-xs font-semibold text-gray-600 uppercase tracking-wide';
 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/40" onClick={onClose} />
-      <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
+      <div className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
             <h2 className="text-base font-bold text-gray-900">
               {isNew ? 'Novo Orçamento' : `Orçamento ${orc!.numero}`}
             </h2>
-            {!isNew && <p className="text-xs text-gray-500">{orc!.cliente}</p>}
+            {!isNew && orc!.cliente && orc!.cliente !== orc!.numero && (
+              <p className="text-xs text-gray-500">{orc!.cliente}</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {!isNew && canWrite && (
               <>
-                <button onClick={handleDuplicar} title="Duplicar" className="rounded-lg p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+                <button type="button" onClick={handleDuplicar} title="Duplicar" className="rounded-lg p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100">
                   <Copy size={15} />
                 </button>
-                <button onClick={handleDelete} disabled={deleting} title="Excluir" className="rounded-lg p-2 text-gray-400 hover:text-red-600 hover:bg-red-50">
+                <button type="button" onClick={handleDelete} disabled={deleting} title="Excluir" className="rounded-lg p-2 text-gray-400 hover:text-red-600 hover:bg-red-50">
                   <Trash2 size={15} />
                 </button>
               </>
             )}
-            <button onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100">
               <X size={16} />
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — só para existentes */}
         {!isNew && (
           <div className="flex border-b border-gray-100 px-5">
-            {(['form', 'historico'] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
+            {(['crm', 'historico'] as const).map(t => (
+              <button key={t} type="button" onClick={() => setTab(t)}
                 className={`py-2.5 px-1 mr-5 text-xs font-semibold uppercase tracking-wide border-b-2 transition-colors ${
                   tab === t ? 'border-[#06A99D] text-[#06A99D]' : 'border-transparent text-gray-400 hover:text-gray-700'
                 }`}>
-                {t === 'form' ? 'Dados' : 'Histórico'}
+                {t === 'crm' ? 'CRM' : 'Histórico'}
               </button>
             ))}
           </div>
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
-          {tab === 'historico' && orc ? (
-            <div className="p-5 space-y-3">
-              {(orc.historico ?? []).length === 0 && (
+        <div className="flex-1 overflow-y-auto p-5">
+          {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
+
+          {/* Novo orçamento — só pede o número */}
+          {isNew && (
+            <form id="orc-new-form" onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className={labelCls}>Número *</label>
+                <input
+                  className={inputCls}
+                  value={numero}
+                  onChange={e => setNumero(e.target.value)}
+                  placeholder="ex: 582.26"
+                  required
+                  autoFocus
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  As demais informações são gerenciadas pelo CRM.
+                </p>
+              </div>
+            </form>
+          )}
+
+          {/* Histórico */}
+          {!isNew && tab === 'historico' && (
+            <div className="space-y-3">
+              {(orc!.historico ?? []).length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-8">Nenhuma alteração registrada</p>
               )}
-              {(orc.historico ?? []).map(h => (
+              {(orc!.historico ?? []).map(h => (
                 <div key={h.id} className="rounded-lg border border-gray-100 p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold text-gray-700 uppercase">{h.campo}</span>
@@ -416,243 +387,46 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 </div>
               ))}
             </div>
-          ) : (
-            <form id="orc-form" onSubmit={handleSubmit} className="p-5 space-y-4">
-              {/* Número + Cliente */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Número *</label>
-                  <input className={inputCls} value={form.numero} onChange={e => setF('numero', e.target.value)}
-                    placeholder="582.26" required disabled={!canWrite} />
-                </div>
-                <div>
-                  <label className={labelCls}>Estratégico</label>
-                  <div className="flex items-center gap-3 mt-2">
-                    <button type="button" onClick={() => canWrite && setF('estrategico', !form.estrategico)}
-                      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        form.estrategico ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                      {form.estrategico ? <Star size={12} className="fill-yellow-500 text-yellow-500" /> : <StarOff size={12} />}
-                      {form.estrategico ? 'Sim' : 'Não'}
-                    </button>
-                  </div>
-                </div>
-              </div>
+          )}
 
-              <div>
-                <label className={labelCls}>
-                  Cliente *
-                  {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(editável no CRM)</span>}
-                </label>
-                <input className={inputCls} value={form.cliente} onChange={e => setF('cliente', e.target.value)}
-                  required disabled={!canWrite || !!crmCtx?.oportunidade} />
-              </div>
-
-              <div>
-                <label className={labelCls}>Descrição Curta</label>
-                <input className={inputCls} value={form.descricaoCurta} onChange={e => setF('descricaoCurta', e.target.value)}
-                  disabled={!canWrite} />
-              </div>
-
-              {/* m2 + Valor */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>
-                    m²
-                    {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(CRM)</span>}
-                  </label>
-                  <input type="number" step="0.01" className={inputCls} value={form.m2}
-                    onChange={e => setF('m2', e.target.value)} disabled={!canWrite || !!crmCtx?.oportunidade} placeholder="0" />
-                </div>
-                <div>
-                  <label className={labelCls}>
-                    R$ Venda
-                    {crmCtx?.oportunidade && <span className="ml-1 text-[10px] text-[#5A7A7A] normal-case font-normal">(CRM)</span>}
-                  </label>
-                  <input className={inputCls} value={form.valorVenda}
-                    onChange={e => setF('valorVenda', e.target.value)}
-                    placeholder="1.500.000" disabled={!canWrite || !!crmCtx?.oportunidade} />
-                </div>
-              </div>
-
-              {/* Segmento */}
-              <div>
-                <label className={labelCls}>Segmento</label>
-                <select className={inputCls} value={form.segmento} onChange={e => setF('segmento', e.target.value)}
-                  disabled={!canWrite}>
-                  <option value="">— Selecionar —</option>
-                  {SEGMENTOS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              {/* Status + Tipo */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>Status</label>
-                  <select className={inputCls} value={form.status} onChange={e => setF('status', e.target.value)}
-                    disabled={!canWrite}>
-                    {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Tipo</label>
-                  <div className="flex gap-1.5 mt-1">
-                    {([
-                      { key: 'NOVO',         label: 'Novo',         active: 'bg-[#06A99D] text-white border-[#06A99D]' },
-                      { key: 'REVISAO',      label: 'Revisão',      active: 'bg-orange-500 text-white border-orange-500' },
-                      { key: 'CHANGE_ORDER', label: 'Change Order', active: 'bg-purple-600 text-white border-purple-600' },
-                    ] as const).map(t => (
-                      <button key={t.key} type="button"
-                        disabled={!canWrite}
-                        onClick={() => canWrite && setF('tipo', t.key)}
-                        className={`flex-1 rounded-md py-1.5 text-[11px] font-bold border transition-colors ${
-                          form.tipo === t.key ? t.active : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-                        }`}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Probabilidade — só aparece para propostas enviadas */}
-              {PIPELINE_STATUSES.includes(form.status) && (
-                <div>
-                  <label className={labelCls}>Probabilidade de Fechamento</label>
-                  <div className="flex gap-2 mt-1">
-                    {PROBABILIDADES.map(p => {
-                      const c = PROB_COLORS[p];
-                      const selected = form.probabilidade === p;
-                      return (
-                        <button key={p} type="button"
-                          disabled={!canWrite}
-                          onClick={() => canWrite && setF('probabilidade', selected ? '' : p)}
-                          className={`flex-1 rounded-md py-2 text-xs font-bold border transition-colors ${
-                            selected
-                              ? `${c.bg} ${c.text} ${c.border} border-2`
-                              : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
-                          }`}>
-                          {PROB_LABELS[p]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Responsável */}
-              <div>
-                <label className={labelCls}>Responsável</label>
-                <select className={inputCls}
-                  value={form.terceirizado ? '__terceirizado__' : form.responsavelId}
-                  onChange={e => {
-                    if (e.target.value === '__terceirizado__') {
-                      setF('terceirizado', true);
-                      setF('responsavelId', '');
-                    } else {
-                      setF('terceirizado', false);
-                      setF('responsavelId', e.target.value);
-                    }
-                  }}
-                  disabled={!canWrite}>
-                  <option value="">— Sem responsável —</option>
-                  <option value="__terceirizado__">Terceirizado</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </div>
-
-              {/* Datas */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelCls}>Início</label>
-                  <input type="date" className={inputCls} value={form.dataInicio}
-                    onChange={e => setF('dataInicio', e.target.value)} disabled={!canWrite} />
-                </div>
-                <div>
-                  <label className={labelCls}>Fim</label>
-                  <input type="date" className={inputCls} value={form.dataFim}
-                    onChange={e => setF('dataFim', e.target.value)} disabled={!canWrite}
-                    min={form.dataInicio || undefined} />
-                </div>
-                <div>
-                  <label className={labelCls}>Entrega</label>
-                  <input type="date" className={inputCls} value={form.dataEntrega}
-                    onChange={e => setF('dataEntrega', e.target.value)} disabled={!canWrite} />
-                </div>
-              </div>
-
-              {/* Observações */}
-              <div>
-                <label className={labelCls}>Observações</label>
-                <textarea className={`${inputCls} h-20 resize-none`} value={form.observacoes}
-                  onChange={e => setF('observacoes', e.target.value)} disabled={!canWrite} />
-              </div>
-
-              {/* Integração CRM */}
-              {!isNew && (
-                <div className="rounded-lg border border-[#5A7A7A]/30 bg-[#5A7A7A]/5 p-3 space-y-2">
-                  <p className="text-[10px] font-bold text-[#5A7A7A] uppercase tracking-wide">Integração CRM</p>
-                  {crmCtx?.oportunidade ? (
-                    <div className="space-y-1.5">
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0 pt-0.5">Origem</span>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
-                          {crmCtx.oportunidade.empresa && <p className="text-[10px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Etapa</span>
-                        <select
-                          value={crmCtx.oportunidade.etapa}
-                          onChange={async (e) => {
-                            await api.patch(`/crm/oportunidades/${crmCtx!.oportunidade!.id}`, { etapa: e.target.value });
-                            const r = await api.get(`/crm/orcamentos/${orc!.id}/contexto`);
-                            setCrmCtx(r.data);
-                          }}
-                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
-                        >
-                          <option value="lead">Lead</option>
-                          <option value="qualificacao">Qualificação</option>
-                          <option value="proposta_producao">Proposta em Produção</option>
-                          <option value="proposta_enviada">Proposta Enviada</option>
-                          <option value="negociacao">Negociação</option>
-                          <option value="ganho">Ganho</option>
-                          <option value="perdido">Perdido</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : (
+          {/* CRM */}
+          {!isNew && tab === 'crm' && (
+            <div className="space-y-2">
+              {crmCtx?.oportunidade ? (
+                <div className="rounded-lg border border-[#5A7A7A]/30 bg-[#5A7A7A]/5 p-4 space-y-3">
+                  <p className="text-[10px] font-bold text-[#5A7A7A] uppercase tracking-wide">Oportunidade Vinculada</p>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0 pt-0.5">Negócio</span>
                     <div>
-                      {!showCriarOp ? (
-                        <button type="button" onClick={() => setShowCriarOp(true)}
-                          className="text-xs text-[#5A7A7A] hover:text-[#3d5c5c] underline underline-offset-2">
-                          + Criar oportunidade no CRM
-                        </button>
-                      ) : (
-                        <div className="space-y-2">
-                          <p className="text-[10px] text-gray-500">Onde no pipeline?</p>
-                          <div className="flex gap-2 items-center">
-                            <select value={novaOpEtapa} onChange={e => setNovaOpEtapa(e.target.value)}
-                              className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
-                              <option value="lead">Lead</option>
-                              <option value="qualificacao">Qualificação</option>
-                              <option value="proposta_producao">Proposta em Produção</option>
-                              <option value="proposta_enviada">Proposta Enviada</option>
-                              <option value="negociacao">Negociação</option>
-                            </select>
-                            <button type="button" onClick={handleCriarOportunidade} disabled={criandoOp}
-                              className="text-xs bg-[#5A7A7A] text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap">
-                              {criandoOp ? '…' : 'Criar'}
-                            </button>
-                            <button type="button" onClick={() => setShowCriarOp(false)}
-                              className="text-xs text-gray-400 hover:text-gray-600">✕</button>
-                          </div>
-                        </div>
+                      <p className="text-sm font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
+                      {crmCtx.oportunidade.empresa && (
+                        <p className="text-[11px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>
                       )}
                     </div>
-                  )}
-                  {crmCtx?.obra && (
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Etapa CRM</span>
+                    <select
+                      value={crmCtx.oportunidade.etapa}
+                      onChange={async (e) => {
+                        try {
+                          await api.patch(`/crm/oportunidades/${crmCtx!.oportunidade!.id}`, { etapa: e.target.value });
+                          const r = await api.get(`/crm/orcamentos/${orc!.id}/contexto`);
+                          setCrmCtx(r.data);
+                        } catch { setError('Erro ao atualizar etapa'); }
+                      }}
+                      className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-[#5A7A7A]"
+                    >
+                      <option value="lead">Lead</option>
+                      <option value="qualificacao">Qualificação</option>
+                      <option value="proposta_producao">Proposta em Produção</option>
+                      <option value="proposta_enviada">Proposta Enviada</option>
+                      <option value="negociacao">Negociação</option>
+                      <option value="ganho">Ganho</option>
+                      <option value="perdido">Perdido</option>
+                    </select>
+                  </div>
+                  {crmCtx.obra && (
                     <div className="flex items-start gap-2">
                       <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Obra</span>
                       <div>
@@ -662,24 +436,53 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center space-y-3">
+                  <p className="text-xs text-gray-400">Nenhuma oportunidade CRM vinculada</p>
+                  {canWrite && !showCriarOp && (
+                    <button type="button" onClick={() => setShowCriarOp(true)}
+                      className="text-sm font-semibold text-[#5A7A7A] hover:text-[#3d5c5c] underline underline-offset-2">
+                      + Criar oportunidade no CRM
+                    </button>
+                  )}
+                  {canWrite && showCriarOp && (
+                    <div className="space-y-2 text-left">
+                      <p className="text-[10px] text-gray-500">Onde no pipeline?</p>
+                      <div className="flex gap-2 items-center">
+                        <select value={novaOpEtapa} onChange={e => setNovaOpEtapa(e.target.value)}
+                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                          <option value="lead">Lead</option>
+                          <option value="qualificacao">Qualificação</option>
+                          <option value="proposta_producao">Proposta em Produção</option>
+                          <option value="proposta_enviada">Proposta Enviada</option>
+                          <option value="negociacao">Negociação</option>
+                        </select>
+                        <button type="button" onClick={handleCriarOportunidade} disabled={criandoOp}
+                          className="text-xs bg-[#5A7A7A] text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap">
+                          {criandoOp ? '…' : 'Criar'}
+                        </button>
+                        <button type="button" onClick={() => setShowCriarOp(false)}
+                          className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-
-            </form>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        {(tab === 'form' && canWrite) && (
+        {/* Footer — só para novo */}
+        {isNew && canWrite && (
           <div className="border-t border-gray-100 px-5 py-4">
-            {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
             <div className="flex gap-2">
               <button type="button" onClick={onClose}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 Cancelar
               </button>
-              <button form="orc-form" type="submit" disabled={saving}
+              <button form="orc-new-form" type="submit" disabled={saving}
                 className="flex-1 rounded-lg bg-[#06A99D] px-4 py-2 text-sm font-bold text-white hover:bg-[#058e83] disabled:opacity-50">
-                {saving ? 'Salvando…' : isNew ? 'Criar' : 'Salvar'}
+                {saving ? 'Criando…' : 'Criar'}
               </button>
             </div>
           </div>
