@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight, Upload, RefreshCw } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
@@ -153,7 +153,7 @@ const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> 
   low: { text: 'Baixa', className: 'text-ber-gray' },
 };
 
-type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma';
 
 interface TouchpointSummary {
   id: string;
@@ -332,6 +332,22 @@ export default function ObraDetailPage() {
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '', priority: 'medium' as TaskPriority, dueDate: '' });
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Cronograma state
+  const [cronograma, setCronograma] = useState<{
+    id: string; fileUrl: string; fileName: string;
+    parsedAt: string | null; parsedData: {
+      progressoGeral: number;
+      tarefas: { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; ehResumo: boolean; nivel: number }[];
+    } | null;
+    progressPct: number | null;
+  } | null>(null);
+  const [cronogramaLoading, setCronogramaLoading] = useState(false);
+  const [cronogramaUploading, setCronogramaUploading] = useState(false);
+  const [cronogramaParsing, setCronogramaParsing] = useState(false);
+  const [cronogramaSyncing, setCronogramaSyncing] = useState(false);
+  const [cronogramaSyncResult, setCronogramaSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
+  const cronogramaInputRef = useRef<HTMLInputElement>(null);
 
   // Checklists state
   // Fotos
@@ -552,6 +568,57 @@ export default function ObraDetailPage() {
   }
 
   useEffect(() => {
+    setCronogramaLoading(true);
+    api.get(`/obras/${params.id}/cronograma`)
+      .then(r => setCronograma(r.data.data))
+      .catch(() => {})
+      .finally(() => setCronogramaLoading(false));
+  }, [params.id]);
+
+  async function handleCronogramaUpload(file: File) {
+    setCronogramaUploading(true);
+    setCronogramaSyncResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await api.post(`/obras/${params.id}/cronograma/upload`, form);
+      setCronograma(r.data.data);
+    } catch (e: unknown) {
+      alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro no upload');
+    } finally {
+      setCronogramaUploading(false);
+    }
+  }
+
+  async function handleCronogramaParse() {
+    setCronogramaParsing(true);
+    setCronogramaSyncResult(null);
+    try {
+      const r = await api.post(`/obras/${params.id}/cronograma/parse`);
+      setCronograma(r.data.data);
+    } catch (e: unknown) {
+      alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao processar');
+    } finally {
+      setCronogramaParsing(false);
+    }
+  }
+
+  async function handleCronogramaSync() {
+    setCronogramaSyncing(true);
+    try {
+      const r = await api.post(`/obras/${params.id}/cronograma/sync`);
+      setCronogramaSyncResult(r.data.data);
+      // Reload tasks
+      const tasksRes = await api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } });
+      setTasks(tasksRes.data.data);
+    } catch (e: unknown) {
+      alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao sincronizar');
+    } finally {
+      setCronogramaSyncing(false);
+    }
+  }
+
+  useEffect(() => {
     fetchData();
   }, [params.id]);
 
@@ -718,6 +785,7 @@ export default function ObraDetailPage() {
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
+    { key: 'cronograma', label: `📅 Cronograma` },
   ];
 
 
@@ -2240,6 +2308,148 @@ export default function ObraDetailPage() {
                     </div>
                   </form>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Cronograma tab ─── */}
+        {activeTab === 'cronograma' && (
+          <div>
+            <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Cronograma da Obra</h3>
+              <div className="flex gap-2">
+                {cronograma && (
+                  <button
+                    onClick={handleCronogramaParse}
+                    disabled={cronogramaParsing}
+                    className="flex items-center gap-1.5 rounded-md bg-ber-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-teal/90 disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={cronogramaParsing ? 'animate-spin' : ''} />
+                    {cronogramaParsing ? 'Processando IA...' : 'Processar com IA'}
+                  </button>
+                )}
+                {cronograma?.parsedData && (
+                  <button
+                    onClick={handleCronogramaSync}
+                    disabled={cronogramaSyncing}
+                    className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-olive/90 disabled:opacity-50"
+                  >
+                    {cronogramaSyncing ? 'Sincronizando...' : '↻ Sincronizar Kanban'}
+                  </button>
+                )}
+                <button
+                  onClick={() => cronogramaInputRef.current?.click()}
+                  disabled={cronogramaUploading}
+                  className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm font-medium text-ber-carbon hover:bg-white disabled:opacity-50"
+                >
+                  <Upload size={13} />
+                  {cronogramaUploading ? 'Enviando...' : cronograma ? 'Substituir PDF' : 'Upload PDF'}
+                </button>
+                <input
+                  ref={cronogramaInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCronogramaUpload(f); e.target.value = ''; }}
+                />
+              </div>
+            </div>
+
+            {cronogramaSyncResult && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                ✅ Kanban atualizado: <strong>{cronogramaSyncResult.created}</strong> tarefas criadas, <strong>{cronogramaSyncResult.updated}</strong> atualizadas · Progresso geral: <strong>{cronogramaSyncResult.progressoGeral}%</strong>
+              </div>
+            )}
+
+            {cronogramaLoading ? (
+              <p className="py-8 text-center text-sm text-ber-gray">Carregando...</p>
+            ) : !cronograma ? (
+              <div
+                onClick={() => cronogramaInputRef.current?.click()}
+                className="cursor-pointer rounded-xl border-2 border-dashed border-ber-gray/20 py-16 text-center hover:border-ber-teal hover:bg-ber-teal/5 transition-colors"
+              >
+                <Upload size={28} className="mx-auto mb-3 text-ber-gray/40" />
+                <p className="text-sm font-medium text-ber-gray">Clique para enviar o cronograma em PDF</p>
+                <p className="mt-1 text-xs text-ber-gray/60">Aceitamos PDF — MS Project, Primavera, Excel impresso, etc.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* PDF viewer */}
+                <div className="rounded-lg border border-ber-border overflow-hidden">
+                  <div className="flex items-center justify-between bg-ber-surface px-4 py-2 border-b border-ber-border">
+                    <span className="text-xs font-medium text-ber-gray truncate">{cronograma.fileName}</span>
+                    <a href={cronograma.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-ber-teal hover:underline shrink-0 ml-2">Abrir ↗</a>
+                  </div>
+                  <iframe
+                    src={cronograma.fileUrl}
+                    className="w-full h-[50vh]"
+                    title="Cronograma PDF"
+                  />
+                </div>
+
+                {/* Parsed tasks */}
+                {cronograma.parsedData ? (
+                  <div>
+                    <div className="mb-3 flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 w-32 rounded-full bg-gray-200 overflow-hidden">
+                          <div
+                            className="h-2 rounded-full bg-ber-olive transition-all"
+                            style={{ width: `${cronograma.progressPct ?? 0}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-ber-carbon">{cronograma.progressPct ?? 0}%</span>
+                      </div>
+                      <span className="text-xs text-ber-gray">
+                        {cronograma.parsedData.tarefas.filter(t => !t.ehResumo).length} tarefas · processado {new Date(cronograma.parsedAt!).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+
+                    <div className="rounded-lg border border-ber-border overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-ber-carbon text-white">
+                          <tr>
+                            <th className="px-3 py-2 text-left w-16">WBS</th>
+                            <th className="px-3 py-2 text-left">Tarefa</th>
+                            <th className="px-3 py-2 text-center w-20">Início</th>
+                            <th className="px-3 py-2 text-center w-20">Fim</th>
+                            <th className="px-3 py-2 text-center w-16">%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cronograma.parsedData.tarefas.map((t, i) => {
+                            const bg = t.ehResumo ? 'bg-ber-carbon/5 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                            const indent = t.nivel > 1 ? `pl-${Math.min(t.nivel * 3, 12)}` : '';
+                            const pct = t.percentualConcluido;
+                            const pctColor = pct >= 100 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-ber-gray';
+                            return (
+                              <tr key={i} className={bg}>
+                                <td className="px-3 py-1.5 text-ber-gray tabular-nums">{t.wbs}</td>
+                                <td className={`px-3 py-1.5 ${indent}`} style={{ paddingLeft: t.nivel > 1 ? `${t.nivel * 12}px` : undefined }}>
+                                  {t.nome}
+                                </td>
+                                <td className="px-3 py-1.5 text-center text-ber-gray tabular-nums">
+                                  {t.inicio ? new Date(t.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}
+                                </td>
+                                <td className="px-3 py-1.5 text-center text-ber-gray tabular-nums">
+                                  {t.fim ? new Date(t.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}
+                                </td>
+                                <td className={`px-3 py-1.5 text-center font-bold tabular-nums ${pctColor}`}>
+                                  {t.ehResumo ? '' : `${pct}%`}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-ber-gray/20 py-8 text-center">
+                    <p className="text-sm text-ber-gray">PDF enviado. Clique em <strong>Processar com IA</strong> para extrair as tarefas.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

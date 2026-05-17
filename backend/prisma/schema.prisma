@@ -158,6 +158,7 @@ model Obra {
   alocacoes       Alocacao[]    @relation("AlocacaoObra")
   ambientesDiario Ambiente[]
   diarios         DiarioObra[]
+  cronogramas     Cronograma[]
 
   @@map("obras")
 }
@@ -242,6 +243,7 @@ model ObraTask {
   clickupListId   String?   @map("clickup_list_id") @db.VarChar(50)
   clickupListName String?   @map("clickup_list_name") @db.VarChar(255)
   clickupStartDate DateTime? @map("clickup_start_date")
+  cronogramaRef  String?   @map("cronograma_ref") @db.VarChar(100)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -1469,4 +1471,21 @@ model DiarioEquipamento {
 
   @@index([diarioId])
   @@map("diario_equipamentos")
+}
+
+model Cronograma {
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  fileUrl     String    @map("file_url")
+  fileName    String    @map("file_name") @db.VarChar(255)
+  parsedAt    DateTime? @map("parsed_at")
+  parsedData  Json?     @map("parsed_data")
+  progressPct Int?      @map("progress_pct")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@map("cronogramas")
 }
