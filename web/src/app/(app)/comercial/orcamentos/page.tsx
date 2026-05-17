@@ -217,6 +217,15 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
+
+  useEffect(() => {
+    if (orc?.id) {
+      api.get(`/crm/orcamentos/${orc.id}/contexto`).then(r => setCrmCtx(r.data)).catch(() => {});
+    } else {
+      setCrmCtx(null);
+    }
+  }, [orc?.id]);
 
   const [form, setForm] = useState({
     numero: orc?.numero ?? '',
@@ -544,6 +553,32 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                 <textarea className={`${inputCls} h-20 resize-none`} value={form.observacoes}
                   onChange={e => setF('observacoes', e.target.value)} disabled={!canWrite} />
               </div>
+
+              {/* Integração CRM */}
+              {crmCtx && (crmCtx.oportunidade || crmCtx.obra) && (
+                <div className="rounded-lg border border-[#5A7A7A]/30 bg-[#5A7A7A]/5 p-3 space-y-2">
+                  <p className="text-[10px] font-bold text-[#5A7A7A] uppercase tracking-wide">Integração CRM</p>
+                  {crmCtx.oportunidade && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Origem</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
+                        {crmCtx.oportunidade.empresa && <p className="text-[10px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>}
+                        <p className="text-[10px] text-[#5A7A7A] capitalize">{crmCtx.oportunidade.etapa.replace('_', ' ')}</p>
+                      </div>
+                    </div>
+                  )}
+                  {crmCtx.obra && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">Obra</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{crmCtx.obra.name}</p>
+                        <p className="text-[10px] text-gray-500">{crmCtx.obra.status} · {crmCtx.obra.fase.replace('_', ' ')}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
             </form>
           )}

@@ -84,6 +84,9 @@ model User {
   diariosFechados       DiarioObra[]           @relation("DiarioFechadoPor")
   diarioFotos           DiarioFoto[]           @relation("DiarioFotoUploader")
   diarioEfetivos        DiarioEfetivo[]        @relation("DiarioEfetivoUser")
+  crmOportunidadesResp  CrmOportunidade[]      @relation("CrmOportResponsavel")
+  crmOportunidadesCriadas CrmOportunidade[]    @relation("CrmOportCreator")
+  crmAtividades         CrmAtividade[]         @relation("CrmAtividadeUsuario")
 
   @@map("users")
 }
@@ -124,9 +127,11 @@ model Obra {
   dataFimProjeto    DateTime? @map("data_fim_projeto") @db.Date
   dataInicioObra    DateTime? @map("data_inicio_obra") @db.Date
   dataFimObra       DateTime? @map("data_fim_obra") @db.Date
+  orcamentoId       String?   @unique @map("orcamento_id") @db.Uuid
 
   // Relations
   coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  orcamento   Orcamento? @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
   faseUpdatedBy  User?            @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
   members     ObraMember[]
   tasks       ObraTask[]
@@ -1287,11 +1292,13 @@ model Orcamento {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  responsavel User?               @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
-  createdBy   User                @relation("OrcCriador", fields: [createdById], references: [id])
-  pai         Orcamento?          @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
-  filhos      Orcamento[]         @relation("CO")
-  historico   OrcamentoHistorico[]
+  responsavel  User?               @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy    User                @relation("OrcCriador", fields: [createdById], references: [id])
+  pai          Orcamento?          @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
+  filhos       Orcamento[]         @relation("CO")
+  historico    OrcamentoHistorico[]
+  obra         Obra?               @relation("ObraOrcamento")
+  oportunidade CrmOportunidade?    @relation("OportOrcamento")
 
   @@index([status])
   @@index([categoria])
@@ -1488,4 +1495,127 @@ model Cronograma {
 
   @@index([obraId])
   @@map("cronogramas")
+}
+
+// ─── CRM ────────────────────────────────────────────────────────────────────
+
+model CrmEmpresa {
+  id            String    @id @default(uuid()) @db.Uuid
+  razaoSocial   String    @map("razao_social") @db.VarChar(255)
+  cnpj          String?   @unique @db.VarChar(18)
+  segmento      String?   @db.VarChar(50)
+  cidade        String?   @db.VarChar(100)
+  site          String?   @db.VarChar(255)
+  nutricao      Boolean   @default(false)
+  ultimoContato DateTime? @map("ultimo_contato")
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  contatos      CrmContato[]
+  oportunidades CrmOportunidade[]
+
+  @@index([nutricao])
+  @@map("crm_empresas")
+}
+
+model CrmContato {
+  id        String   @id @default(uuid()) @db.Uuid
+  empresaId String?  @map("empresa_id") @db.Uuid
+  nome      String   @db.VarChar(255)
+  cargo     String?  @db.VarChar(100)
+  email     String?  @db.VarChar(255)
+  telefone  String?  @db.VarChar(20)
+  principal Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  empresa       CrmEmpresa?       @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  oportunidades CrmOportunidade[]
+
+  @@index([empresaId])
+  @@map("crm_contatos")
+}
+
+model CrmOportunidade {
+  id                     String    @id @default(uuid()) @db.Uuid
+  titulo                 String    @db.VarChar(500)
+  empresaId              String?   @map("empresa_id") @db.Uuid
+  contatoId              String?   @map("contato_id") @db.Uuid
+  responsavelId          String?   @map("responsavel_id") @db.Uuid
+  createdById            String    @map("created_by_id") @db.Uuid
+  valor                  Decimal?  @db.Decimal(14, 2)
+  etapa                  String    @default("lead") @db.VarChar(50)
+  origem                 String?   @db.VarChar(50)
+  probabilidade          String?   @db.VarChar(20)
+  dataFechamentoPrevisto DateTime? @map("data_fechamento_previsto") @db.Date
+  dataEntradaPipeline    DateTime? @map("data_entrada_pipeline") @db.Date
+  motivoPerda            String?   @map("motivo_perda")
+  observacoes            String?
+  orcamentoId            String?   @unique @map("orcamento_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  empresa     CrmEmpresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  contato     CrmContato? @relation(fields: [contatoId], references: [id], onDelete: SetNull)
+  responsavel User?       @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy   User        @relation("CrmOportCreator", fields: [createdById], references: [id])
+  orcamento   Orcamento?  @relation("OportOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  atividades  CrmAtividade[]
+  historico   CrmOportunidadeHistorico[]
+
+  @@index([etapa])
+  @@index([empresaId])
+  @@index([responsavelId])
+  @@map("crm_oportunidades")
+}
+
+model CrmOportunidadeHistorico {
+  id             String   @id @default(uuid()) @db.Uuid
+  oportunidadeId String   @map("oportunidade_id") @db.Uuid
+  campo          String   @db.VarChar(100)
+  valorAntigo    String?  @map("valor_antigo")
+  valorNovo      String?  @map("valor_novo")
+  alteradoPor    String   @map("alterado_por") @db.VarChar(255)
+  alteradoEm     DateTime @default(now()) @map("alterado_em")
+
+  oportunidade CrmOportunidade @relation(fields: [oportunidadeId], references: [id], onDelete: Cascade)
+
+  @@index([oportunidadeId])
+  @@map("crm_oportunidade_historico")
+}
+
+model CrmAtividade {
+  id             String    @id @default(uuid()) @db.Uuid
+  oportunidadeId String?   @map("oportunidade_id") @db.Uuid
+  empresaId      String?   @map("empresa_id") @db.Uuid
+  usuarioId      String    @map("usuario_id") @db.Uuid
+  tipo           String    @db.VarChar(50)
+  dataHora       DateTime  @map("data_hora")
+  duracao        Int?
+  notas          String?
+  googleEventId  String?   @map("google_event_id") @db.VarChar(255)
+  concluida      Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  oportunidade CrmOportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: SetNull)
+  usuario      User             @relation("CrmAtividadeUsuario", fields: [usuarioId], references: [id])
+
+  @@index([oportunidadeId])
+  @@index([usuarioId])
+  @@index([dataHora])
+  @@map("crm_atividades")
+}
+
+model CrmMetaVendas {
+  id        String   @id @default(uuid()) @db.Uuid
+  ano       Int
+  mes       Int
+  valorMeta Decimal  @map("valor_meta") @db.Decimal(14, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([ano, mes])
+  @@map("crm_metas_vendas")
 }

@@ -50,6 +50,7 @@ import clickupRoutes from './modules/clickup/routes';
 import apiKeysRoutes from './modules/api-keys/routes';
 import diarioRouter, { obraDiarioRouter } from './modules/diario/routes';
 import cronogramaRouter from './modules/cronograma/routes';
+import crmRoutes from './modules/crm/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 
@@ -202,6 +203,7 @@ app.use('/v1/roles', rolesRoutes);
 app.use('/v1/alocacoes', alocacoesRoutes);
 app.use('/v1/recursos-externos', recursosExternosRoutes);
 app.use('/v1/orcamentos', orcamentosRoutes);
+app.use('/v1/crm', crmRoutes);
 app.use('/v1/clickup', clickupRoutes);
 app.use('/v1/api-keys', apiKeysRoutes);
 app.use('/v1/obras/:id/diario', obraDiarioRouter);
