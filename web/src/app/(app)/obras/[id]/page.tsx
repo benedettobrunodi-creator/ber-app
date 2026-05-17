@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, RefreshCw, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
@@ -2074,9 +2074,9 @@ export default function ObraDetailPage() {
                 ))}
               </div>
 
-              {/* Cards */}
+              {/* Lista sequencial */}
               {filtered.length === 0 ? (
-                <div className="rounded-xl border-2 border-dashed border-ber-gray/20 p-12 text-center">
+                <div className="rounded-lg border-2 border-dashed border-ber-gray/20 p-12 text-center">
                   <p className="text-sm text-ber-gray/60">Nenhuma FVS {fvsFilter !== 'todos' ? 'com este filtro' : 'criada para esta obra'}.</p>
                   {isGestor && fvsFilter === 'todos' && (
                     <button onClick={() => setCreateFvsModal(true)} className="mt-3 text-sm font-semibold text-ber-teal hover:underline">
@@ -2084,69 +2084,65 @@ export default function ObraDetailPage() {
                     </button>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {filtered.map(fvs => {
-                    const total = fvs.items.length;
-                    const checked = fvs.items.filter(i => i.checked || i.na).length;
-                    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-                    const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
-                    // Cor de borda superior por bloco disciplinar
-                    const BLOCO_ACCENT = [
-                      '#6B7280', // 0 - cinza (geral)
-                      '#3B82F6', // 1 - azul (estrutura)
-                      '#8B5CF6', // 2 - roxo (elétrica bruta)
-                      '#A855F7', // 3 - violeta (elétrica acabamento)
-                      '#F97316', // 4 - laranja (cabeamento/hidráulica)
-                      '#EAB308', // 5 - amarelo (sprinkler/SDAI)
-                      '#10B981', // 6 - verde (drywall/forro)
-                      '#5A7A7A', // 7 - teal BÈR (AC/revestimento)
-                      '#B5B820', // 8 - oliva BÈR (marcenaria/pintura)
-                      '#EF4444', // 9 - vermelho (entrega/comissionamento)
-                    ];
-                    // Cor da borda lateral esquerda por STATUS
-                    const STATUS_ACCENT: Record<string, string> = {
-                      pendente: '#D1D5DB',
-                      inicio_preenchido: '#3B82F6',
-                      aguardando_gestor: '#F97316',
-                      aguardando_coord: '#A855F7',
-                      aprovada: '#10B981',
-                      rejeitada: '#EF4444',
-                    };
-                    const blocoAccent = BLOCO_ACCENT[fvs.template?.bloco ?? 0] ?? '#6B7280';
-                    const statusAccent = STATUS_ACCENT[fvs.status] ?? '#D1D5DB';
-                    const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
-                    return (
-                      <button key={fvs.id} onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
-                        className="group rounded-xl bg-white p-4 text-left transition-all overflow-hidden"
-                        style={{ borderLeft: `4px solid ${statusAccent}`, borderTop: `3px solid ${blocoAccent}`, border: `1px solid #e5e7eb`, borderLeftWidth: '4px', borderTopWidth: '3px', borderTopColor: blocoAccent, borderLeftColor: statusAccent }}>
-                        <div className="flex items-start justify-between gap-2">
+              ) : (() => {
+                const BLOCO_ACCENT = ['#6B7280','#3B82F6','#8B5CF6','#A855F7','#F97316','#EAB308','#10B981','#5A7A7A','#B5B820','#EF4444'];
+                const STATUS_ACCENT: Record<string, string> = {
+                  pendente: '#D1D5DB', inicio_preenchido: '#3B82F6',
+                  aguardando_gestor: '#F97316', aguardando_coord: '#A855F7',
+                  aprovada: '#10B981', rejeitada: '#EF4444',
+                };
+                return (
+                  <div className="overflow-hidden rounded-lg border border-ber-border">
+                    {/* Cabeçalho */}
+                    <div className="grid items-center gap-3 border-b border-ber-border bg-ber-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray"
+                      style={{ gridTemplateColumns: '2rem 1fr 1fr 7rem 6rem' }}>
+                      <span>#</span>
+                      <span>Ficha</span>
+                      <span>Etapa</span>
+                      <span>Progresso</span>
+                      <span>Status</span>
+                    </div>
+                    {/* Linhas */}
+                    {filtered.map((fvs, idx) => {
+                      const total = fvs.items.length;
+                      const checked = fvs.items.filter(i => i.checked || i.na).length;
+                      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+                      const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
+                      const blocoAccent = BLOCO_ACCENT[fvs.template?.bloco ?? 0] ?? '#6B7280';
+                      const statusAccent = STATUS_ACCENT[fvs.status] ?? '#D1D5DB';
+                      const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
+                      return (
+                        <button key={fvs.id}
+                          onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
+                          className={`group grid w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-ber-surface ${idx !== filtered.length - 1 ? 'border-b border-ber-border' : ''}`}
+                          style={{ gridTemplateColumns: '2rem 1fr 1fr 7rem 6rem', borderLeft: `3px solid ${statusAccent}` }}>
+                          {/* # sequencial */}
+                          <span className="text-[11px] font-bold tabular-nums" style={{ color: blocoAccent }}>{String(idx + 1).padStart(2, '0')}</span>
+                          {/* Ficha */}
                           <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: blocoAccent }}>{fvs.template?.code}</p>
-                            <p className="mt-0.5 text-sm font-bold text-ber-carbon leading-tight">{fvs.template?.name ?? 'FVS'}</p>
-                            {fvs.etapa && <p className="mt-0.5 text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
+                            <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: blocoAccent }}>{fvs.template?.code} </span>
+                            <span className="text-xs font-semibold text-ber-carbon">{fvs.template?.name ?? 'FVS'}</span>
                           </div>
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
-                        </div>
-                        {/* Progress */}
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-[10px] text-ber-gray/70 mb-1">
-                            <span>{checked}/{total} itens</span>
-                            <span className="font-bold" style={{ color: pct === 100 ? '#10B981' : 'inherit' }}>{pct}%</span>
+                          {/* Etapa */}
+                          <span className="truncate text-xs text-ber-gray">{fvs.etapa?.name ?? '—'}</span>
+                          {/* Progresso */}
+                          <div className="flex items-center gap-2">
+                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                            </div>
+                            <span className="w-7 text-right text-[10px] tabular-nums text-ber-gray">{pct}%</span>
                           </div>
-                          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                          {/* Status */}
+                          <div className="flex items-center justify-between">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                            <ChevronRight size={13} className="shrink-0 text-ber-gray/40 transition-opacity opacity-0 group-hover:opacity-100" />
                           </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <p className="text-[10px] text-ber-gray/60">{new Date(fvs.createdAt).toLocaleDateString('pt-BR')}</p>
-                          <span className="text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: blocoAccent }}>Abrir →</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
