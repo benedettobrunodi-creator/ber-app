@@ -1840,69 +1840,61 @@ export default function ObraDetailPage() {
                 <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Checklists BÈR</h3>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {berClTemplates.map(tmpl => {
+              <div className="overflow-hidden rounded-lg border border-ber-border">
+                {/* Cabeçalho */}
+                <div className="grid items-center gap-3 border-b border-ber-border bg-ber-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray"
+                  style={{ gridTemplateColumns: '2rem 1fr 5rem 7rem 6rem auto' }}>
+                  <span>#</span>
+                  <span>Checklist</span>
+                  <span>Tipo</span>
+                  <span>Progresso</span>
+                  <span>Status</span>
+                  <span />
+                </div>
+                {/* Linhas */}
+                {berClTemplates.map((tmpl, idx) => {
                   const instances = byCode[tmpl.code] ?? [];
                   const latest = instances[instances.length - 1] ?? null;
-                  const allDone = instances.length > 0 && instances.every(c => c.status === 'concluido');
                   const sc = latest ? (CL_STATUS[latest.status] ?? CL_STATUS.nao_iniciado) : CL_STATUS.nao_iniciado;
                   const totalItems = latest?.items.length ?? tmpl.items.length;
                   const checkedItems = latest?.items.filter(i => i.checked).length ?? 0;
                   const pct = totalItems > 0 ? Math.round(checkedItems / totalItems * 100) : 0;
-                  const COLORS = ['bg-slate-50','bg-blue-50','bg-orange-50','bg-green-50','bg-red-50'];
-                  const CODE_IDX = ['CL_1','CL_2','CL_3','CL_4','CL_5'].indexOf(tmpl.code);
-                  const bgColor = COLORS[CODE_IDX] ?? 'bg-gray-50';
-
+                  const CODE_ACCENT = ['#64748B','#3B82F6','#F97316','#10B981','#EF4444'];
+                  const codeIdx = ['CL_1','CL_2','CL_3','CL_4','CL_5'].indexOf(tmpl.code);
+                  const accent = CODE_ACCENT[codeIdx] ?? '#6B7280';
+                  const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
+                  const statusAccent = latest
+                    ? ({ nao_iniciado: '#D1D5DB', em_preenchimento: '#3B82F6', concluido: '#10B981' }[latest.status] ?? '#D1D5DB')
+                    : '#D1D5DB';
                   return (
-                    <div key={tmpl.id} className={`rounded-xl border border-ber-gray/10 ${bgColor} p-4`}>
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{tmpl.code}</p>
-                          <p className="mt-0.5 text-sm font-bold text-ber-carbon leading-snug">{tmpl.name}</p>
-                          {tmpl.recorrente && (
-                            <span className="mt-1 inline-block rounded-full bg-ber-teal/10 px-2 py-0.5 text-[9px] font-semibold text-ber-teal">Recorrente</span>
-                          )}
-                        </div>
-                        {latest && (
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                    <div key={tmpl.id}
+                      className={`grid items-center gap-3 px-4 py-3 ${idx !== berClTemplates.length - 1 ? 'border-b border-ber-border' : ''}`}
+                      style={{ gridTemplateColumns: '2rem 1fr 5rem 7rem 6rem auto', borderLeft: `3px solid ${statusAccent}` }}>
+                      {/* # */}
+                      <span className="text-[11px] font-bold tabular-nums" style={{ color: accent }}>{String(idx + 1).padStart(2, '0')}</span>
+                      {/* Nome */}
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: accent }}>{tmpl.code} </span>
+                        <span className="text-xs font-semibold text-ber-carbon">{tmpl.name}</span>
+                        {instances.length > 1 && (
+                          <span className="ml-2 text-[10px] text-ber-gray">{instances.length}×</span>
                         )}
                       </div>
-
-                      {/* Instances list */}
-                      {instances.length > 0 && (
-                        <div className="mb-3 space-y-1.5">
-                          {instances.map(cl => {
-                            const s = CL_STATUS[cl.status] ?? CL_STATUS.nao_iniciado;
-                            const checked = cl.items.filter(i => i.checked).length;
-                            const total = cl.items.length;
-                            return (
-                              <button key={cl.id} onClick={() => { setActiveCl(cl); setClModalOpen(true); }}
-                                className="w-full flex items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-left hover:bg-white transition-colors">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
-                                  <span className="text-xs font-medium text-ber-carbon truncate">
-                                    {tmpl.recorrente ? `Visita ${cl.visitaNumero}` : 'Abrir'} · {checked}/{total} itens
-                                  </span>
-                                </div>
-                                <span className="shrink-0 text-[10px] text-ber-gray">{new Date(cl.createdAt).toLocaleDateString('pt-BR')}</span>
-                              </button>
-                            );
-                          })}
+                      {/* Tipo */}
+                      {tmpl.recorrente
+                        ? <span className="rounded-full bg-ber-teal/10 px-2 py-0.5 text-[9px] font-semibold text-ber-teal w-fit">Recorrente</span>
+                        : <span className="text-[10px] text-ber-gray/50">Fixo</span>}
+                      {/* Progresso */}
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                         </div>
-                      )}
-
-                      {/* Progress bar (latest) */}
-                      {latest && (
-                        <div className="mb-3">
-                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10">
-                            <div className="h-full rounded-full bg-ber-teal transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                          <p className="mt-0.5 text-right text-[10px] text-ber-gray">{pct}%</p>
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex flex-wrap gap-2">
+                        <span className="w-7 text-right text-[10px] tabular-nums text-ber-gray">{pct}%</span>
+                      </div>
+                      {/* Status */}
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit ${sc.color}`}>{sc.label}</span>
+                      {/* Ações */}
+                      <div className="flex items-center gap-1.5">
                         {(tmpl.recorrente || instances.length === 0) && (
                           <button
                             onClick={async () => {
@@ -1913,14 +1905,14 @@ export default function ObraDetailPage() {
                                 setActiveCl(newCl); setClModalOpen(true);
                               } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
                             }}
-                            className="flex-1 rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black transition-colors">
-                            {tmpl.recorrente && instances.length > 0 ? '+ Nova visita' : '+ Iniciar'}
+                            className="rounded-md bg-ber-carbon px-2.5 py-1 text-[10px] font-bold text-white hover:bg-ber-black transition-colors whitespace-nowrap">
+                            {tmpl.recorrente && instances.length > 0 ? '+ Visita' : '+ Iniciar'}
                           </button>
                         )}
-                        {!tmpl.recorrente && instances.length > 0 && (
-                          <button onClick={() => { setActiveCl(latest!); setClModalOpen(true); }}
-                            className="flex-1 rounded-md border border-ber-gray/20 px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-white transition-colors">
-                            Abrir →
+                        {latest && (
+                          <button onClick={() => { setActiveCl(latest); setClModalOpen(true); }}
+                            className="rounded-md border border-ber-border px-2.5 py-1 text-[10px] font-medium text-ber-carbon hover:bg-ber-surface transition-colors">
+                            Abrir
                           </button>
                         )}
                       </div>
