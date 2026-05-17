@@ -246,7 +246,7 @@ function ITDetailView({ it, discColor, discLabel, statusCfg, canCreate, onBack, 
         <ArrowLeft size={16} /> Voltar
       </button>
 
-      <div className="rounded-xl bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl bg-white overflow-hidden">
         {/* Faixa de disciplina topo */}
         <div className="h-1.5 w-full" style={{ backgroundColor: '#5A7A7A' }} />
 
@@ -608,12 +608,12 @@ export default function InstrucoesPage() {
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ber-gray" />
           <input type="text" value={itSearch} onChange={(e) => setItSearch(e.target.value)}
             placeholder="Buscar por código ou título..."
-            className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+            className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {DISCIPLINE_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setItDiscipline(f.value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${itDiscipline === f.value ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray shadow-sm hover:bg-ber-offwhite'}`}>
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${itDiscipline === f.value ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-offwhite'}`}>
               {f.label}
             </button>
           ))}
@@ -648,7 +648,7 @@ export default function InstrucoesPage() {
               const statusCfg = IT_STATUS[it.status] || IT_STATUS.rascunho;
               return (
                 <button key={it.id} onClick={() => openITView(it.id)}
-                  className="flex w-full items-center gap-4 rounded-lg bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md">
+                  className="flex w-full items-center gap-4 rounded-lg bg-white p-4 text-left transition-shadow hover:shadow-md">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ber-carbon/5">
                     <FileText size={18} className="text-ber-carbon" />
                   </div>
@@ -671,7 +671,7 @@ export default function InstrucoesPage() {
       {/* ─── IT Form Modal ─── */}
       {showITForm && (
         <div className="fixed inset-0 z-50 flex items-end md:items-start justify-center overflow-y-auto bg-black/40 md:py-8">
-          <div className="w-full max-w-2xl rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-t-2xl md:rounded-lg bg-white max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
               <h2 className="text-lg font-black text-ber-carbon">
                 {editingIT ? `Editar ${editingIT.code}` : 'Nova Instrução Técnica'}

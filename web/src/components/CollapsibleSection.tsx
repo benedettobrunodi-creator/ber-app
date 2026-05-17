@@ -34,7 +34,7 @@ export default function CollapsibleSection({
   const s = ACCENT_STYLES[accent];
 
   return (
-    <div className={`rounded-xl bg-white border border-ber-border shadow-sm overflow-hidden border-l-4 ${s.border}`}>
+    <div className={`rounded-xl bg-white border border-ber-border overflow-hidden border-l-4 ${s.border}`}>
       {/* Header */}
       <button
         type="button"

@@ -9,13 +9,13 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // ─── Paleta Command Center (Light) ───────────────────────────────────────────
 const C = {
-  bg:       '#F8F8F6',
+  bg:       '#FFFFFF',
   card:     '#FFFFFF',
-  border:   '#E4E4E0',
+  border:   '#E8E8E4',
   teal:     '#5A7A7A',
   olive:    '#B5B820',
   red:      '#E05555',
-  white:    '#2D2D2D',   // texto principal (invertido)
+  white:    '#2D2D2D',
   gray:     '#868686',
   green:    '#3D9E5F',
 };
@@ -77,7 +77,7 @@ function KpiCard({ name, real, meta, sparkData, status }: {
   };
   const s = statusStyles[status];
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: 'none' }}>
       <div className="flex items-start justify-between mb-3">
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: C.gray }}>{name}</p>
         <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${s.badge}`}>{s.label}</span>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             <SectionTitle label="Diagnóstico" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {/* CRÍTICO */}
-              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: 'none' }}>
                 <div className="px-4 py-2" style={{ backgroundColor: '#FEE2E2' }}>
                   <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.red }}>Crítico</p>
                 </div>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
               </div>
 
               {/* ATENÇÃO */}
-              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: 'none' }}>
                 <div className="px-4 py-2" style={{ backgroundColor: '#FEF3C7' }}>
                   <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#D97706' }}>Atenção</p>
                 </div>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
               </div>
 
               {/* NO AZUL */}
-              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div className="rounded-xl overflow-hidden" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: 'none' }}>
                 <div className="px-4 py-2" style={{ backgroundColor: '#D1FAE5' }}>
                   <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: C.green }}>No Azul</p>
                 </div>
@@ -322,7 +322,7 @@ export default function DashboardPage() {
 
             {/* TOP PRIORIDADES */}
             {totalAlertas > 0 && (
-              <div className="mt-4 rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div className="mt-4 rounded-xl p-4" style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, boxShadow: 'none' }}>
                 <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: C.red }}>
                   Top Prioridades de Ação
                 </p>
@@ -370,7 +370,7 @@ export default function DashboardPage() {
                     key={obra.id}
                     onClick={() => router.push(`/obras/${obra.id}`)}
                     className="rounded-xl text-left transition-all hover:shadow-md"
-                    style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: topBorder, borderTopWidth: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                    style={{ backgroundColor: C.card, border: `1px solid ${C.border}`, borderTopColor: topBorder, borderTopWidth: 4, boxShadow: 'none' }}
                   >
                     <div className="p-4">
                       {/* Nome + dot pulsando */}

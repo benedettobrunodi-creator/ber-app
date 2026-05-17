@@ -298,7 +298,7 @@ export default function UsuariosPage() {
           {/* Mobile cards */}
           <div className="space-y-3 md:hidden">
             {filtered.map(u => (
-              <div key={u.id} className="rounded-lg bg-white p-4 shadow-sm">
+              <div key={u.id} className="rounded-lg bg-white p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ber-teal text-xs font-bold text-white">
                     {getInitials(u.name)}
@@ -338,7 +338,7 @@ export default function UsuariosPage() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-lg bg-white shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-lg bg-white md:block">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
@@ -420,7 +420,7 @@ export default function UsuariosPage() {
       {/* Modal — redefinir senha */}
       {pwdModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-lg bg-white p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-bold text-ber-carbon">Redefinir Senha</h2>
@@ -462,7 +462,7 @@ export default function UsuariosPage() {
       {/* Modal — criar/editar */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-ber-carbon">
                 {editingUser ? 'Editar Usuário' : 'Novo Usuário'}

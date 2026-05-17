@@ -120,12 +120,12 @@ export default function NormasPage() {
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ber-gray" />
           <input type="text" value={normaSearch} onChange={(e) => setNormaSearch(e.target.value)}
             placeholder="Buscar por código, título ou conteúdo..."
-            className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+            className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {DISCIPLINE_FILTERS.map((f) => (
             <button key={f.value} onClick={() => setNormaDiscipline(f.value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${normaDiscipline === f.value ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray shadow-sm hover:bg-ber-offwhite'}`}>
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${normaDiscipline === f.value ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-offwhite'}`}>
               {f.label}
             </button>
           ))}
@@ -149,7 +149,7 @@ export default function NormasPage() {
               const srcColor = SOURCE_COLORS[norma.source] || SOURCE_COLORS.interno;
               const srcLabel = SOURCE_LABELS[norma.source] || norma.source;
               return (
-                <div key={norma.id} className="rounded-lg bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                <div key={norma.id} className="rounded-lg bg-white p-5 transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -186,7 +186,7 @@ export default function NormasPage() {
             <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ber-gray" />
             <input type="text" value={externalQuery} onChange={(e) => setExternalQuery(e.target.value)}
               placeholder="Ex: impermeabilização laje, instalação elétrica residencial..."
-              className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+              className="w-full rounded-lg border border-ber-gray/20 bg-white py-2.5 pl-10 pr-4 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
           </div>
           <button type="submit" disabled={searchingExternal || !externalQuery.trim()}
             className="rounded-lg bg-ber-carbon px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50">
@@ -203,7 +203,7 @@ export default function NormasPage() {
               <div className="space-y-2">
                 {externalResults.map((result, idx) => (
                   <a key={idx} href={result.url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-start gap-3 rounded-lg bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                    className="flex items-start gap-3 rounded-lg bg-white p-4 transition-shadow hover:shadow-md">
                     <ExternalLink size={14} className="mt-0.5 shrink-0 text-ber-teal" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">

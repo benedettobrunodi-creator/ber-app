@@ -8,11 +8,12 @@
   --ber-gray: #868686;
   --ber-black: #000000;
   /* New design system tokens */
-  --ber-bg: #F4F5F7;
+  --ber-bg: #FFFFFF;
   --ber-sidebar: #1E2432;
   --ber-sidebar-hover: #283040;
-  --ber-card: #FFFFFF;
-  --ber-border: #E4E4E0;
+  --ber-card: #FAFAF8;
+  --ber-border: #E8E8E4;
+  --ber-surface: #F7F7F5;
   --ber-red: #E05555;
   --ber-green: #3D9E5F;
   --ber-amber: #E6A23C;
@@ -30,6 +31,7 @@
   --color-ber-sidebar-hover: var(--ber-sidebar-hover);
   --color-ber-card: var(--ber-card);
   --color-ber-border: var(--ber-border);
+  --color-ber-surface: var(--ber-surface);
   --color-ber-red: var(--ber-red);
   --color-ber-green: var(--ber-green);
   --color-ber-amber: var(--ber-amber);

@@ -95,7 +95,7 @@ export default function DiarioListPage() {
             <button
               key={obra.id}
               onClick={() => router.push(`/diario/${obra.id}`)}
-              className="w-full rounded-xl border border-ber-border bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md"
+              className="w-full rounded-xl border border-ber-border bg-white p-4 text-left transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">

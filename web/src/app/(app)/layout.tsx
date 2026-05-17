@@ -243,7 +243,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-dvh flex-col bg-ber-bg">
       {/* ─── Top header ─── */}
-      <header className="flex h-14 shrink-0 items-center justify-between bg-ber-sidebar px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between bg-ber-sidebar px-4 border-b border-white/5">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen(true)}

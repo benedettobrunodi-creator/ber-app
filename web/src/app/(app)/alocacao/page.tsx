@@ -1209,7 +1209,7 @@ function GanttChart({
               {row.bars.map(bar => (
                 <div
                   key={bar.id}
-                  className="group/bar absolute cursor-pointer rounded shadow-sm transition-opacity hover:opacity-100"
+                  className="group/bar absolute cursor-pointer rounded transition-opacity hover:opacity-100"
                   style={{
                     left: bar.left,
                     width: bar.width,
@@ -1272,7 +1272,7 @@ function GanttChart({
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="pointer-events-none fixed z-50 rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+          className="pointer-events-none fixed z-50 rounded-lg border border-gray-200 bg-white p-3"
           style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
         >
           <p className="text-xs font-semibold text-gray-900">{tooltip.obraName}</p>
@@ -1626,7 +1626,7 @@ function ObrasTab({
           const recursos = new Set(obraAlocs.map(a => a.userId ?? a.recursoExternoId)).size;
 
           return (
-            <div key={o.id} className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div key={o.id} className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-sm font-medium text-gray-900">{o.name}</p>
@@ -1779,7 +1779,7 @@ function RecursosTab({
       {stats.map(s => {
         const isExpanded = expanded.has(s.key);
         return (
-          <div key={s.key} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div key={s.key} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             <div
               className="flex cursor-pointer items-center gap-3 px-4 py-3"
               onClick={() => toggleExpand(s.key)}
@@ -1838,7 +1838,7 @@ function RecursosTab({
                     {s.alocacoesAtivas.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs shadow-sm"
+                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs"
                       >
                         <div>
                           <p className="font-medium text-gray-800">{a.obra.name}</p>
@@ -1963,7 +1963,7 @@ function ResumoTab({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {/* Header */}
         <div className="grid items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400"
           style={{ gridTemplateColumns: '1fr 100px 200px 1fr' }}
@@ -2156,7 +2156,7 @@ export default function AlocacaoPage() {
           </button>
           <button
             onClick={() => openCreate()}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Plus size={16} /> Nova Alocação
           </button>

@@ -527,7 +527,7 @@ export default function SegurancaPage() {
                 <p className="mt-4 text-sm font-medium text-ber-gray">Nenhuma APR encontrada</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+              <div className="overflow-x-auto rounded-lg bg-white">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
@@ -583,7 +583,7 @@ export default function SegurancaPage() {
                 <p className="mt-4 text-sm font-medium text-ber-gray">Nenhum EPI registrado</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+              <div className="overflow-x-auto rounded-lg bg-white">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
@@ -645,7 +645,7 @@ export default function SegurancaPage() {
                 {incidents.map((inc) => {
                   const isGrave = inc.severity === 'grave' || inc.severity === 'fatal';
                   return (
-                    <div key={inc.id} className={`rounded-lg bg-white p-5 shadow-sm ${isGrave ? 'border-l-4 border-l-red-500' : ''}`}>
+                    <div key={inc.id} className={`rounded-lg bg-white p-5 ${isGrave ? 'border-l-4 border-l-red-500' : ''}`}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${INCIDENT_SEVERITY[inc.severity] ?? 'bg-ber-gray/15 text-ber-gray'}`}>
                           {inc.severity}
@@ -694,7 +694,7 @@ export default function SegurancaPage() {
                 <p className="mt-4 text-sm font-medium text-ber-gray">Nenhum treinamento encontrado</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg bg-white shadow-sm">
+              <div className="overflow-x-auto rounded-lg bg-white">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase text-ber-gray">
@@ -741,7 +741,7 @@ export default function SegurancaPage() {
       {/* ===== APR MODAL ===== */}
       {aprModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
+          <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Nova APR</h2>
               <button onClick={() => setAprModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -811,7 +811,7 @@ export default function SegurancaPage() {
       {/* ===== EPI MODAL ===== */}
       {epiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Entrega de EPI</h2>
               <button onClick={() => setEpiModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -870,7 +870,7 @@ export default function SegurancaPage() {
       {/* ===== INCIDENT MODAL ===== */}
       {incidentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl md:rounded-lg bg-white p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Incidente</h2>
               <button onClick={() => setIncidentModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">
@@ -959,7 +959,7 @@ export default function SegurancaPage() {
       {/* ===== TRAINING MODAL ===== */}
       {trainingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">Registrar Treinamento</h2>
               <button onClick={() => setTrainingModalOpen(false)} className="rounded p-1 text-ber-gray transition-colors hover:text-ber-carbon">

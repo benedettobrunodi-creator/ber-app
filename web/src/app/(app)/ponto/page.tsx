@@ -336,7 +336,7 @@ export default function ApontamentoPage() {
 
       {/* Card central */}
       <div className="mx-auto mt-8 max-w-md">
-        <div className={`rounded-xl bg-white p-8 text-center shadow-sm ${isCheckedIn ? 'ring-2 ring-ber-olive/30' : ''}`}>
+        <div className={`rounded-xl bg-white p-8 text-center ${isCheckedIn ? 'ring-2 ring-ber-olive/30' : ''}`}>
           {/* Status */}
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
             {isCheckedIn ? 'Em expediente' : 'Fora de expediente'}
@@ -401,7 +401,7 @@ export default function ApontamentoPage() {
       <div className="mx-auto mt-8 max-w-2xl">
         <h2 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Hoje</h2>
         {todayGroup && todayGroup.entries.length > 0 ? (
-          <div className="mt-3 rounded-lg bg-white p-4 shadow-sm">
+          <div className="mt-3 rounded-lg bg-white p-4">
             <div className="space-y-2">
               {todayGroup.entries.map((e) => (
                 <div key={e.id} className="flex items-center gap-3 text-sm">
@@ -427,7 +427,7 @@ export default function ApontamentoPage() {
             )}
           </div>
         ) : (
-          <div className="mt-3 rounded-lg bg-white p-4 text-center text-sm text-ber-gray/60 shadow-sm">
+          <div className="mt-3 rounded-lg bg-white p-4 text-center text-sm text-ber-gray/60">
             Nenhum registro hoje
           </div>
         )}
@@ -443,7 +443,7 @@ export default function ApontamentoPage() {
               const checkins = group.entries.filter((e) => e.type === 'checkin');
               const checkouts = group.entries.filter((e) => e.type === 'checkout');
               return (
-                <div key={group.date} className="rounded-lg bg-white p-4 shadow-sm">
+                <div key={group.date} className="rounded-lg bg-white p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-ber-carbon">{formatDate(group.entries[0].timestamp)}</span>
                     <span className="text-sm font-semibold text-ber-carbon">{group.totalHours != null ? formatHours(group.totalHours) : '--'}</span>
@@ -457,7 +457,7 @@ export default function ApontamentoPage() {
             })}
           </div>
           {/* Desktop table */}
-          <div className="mt-3 hidden overflow-hidden rounded-lg bg-white shadow-sm md:block">
+          <div className="mt-3 hidden overflow-hidden rounded-lg bg-white md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-ber-gray/10 text-xs font-semibold uppercase tracking-wide text-ber-gray">
@@ -491,7 +491,7 @@ export default function ApontamentoPage() {
           </div>
           </>
         ) : (
-          <div className="mt-3 rounded-lg bg-white p-4 text-center text-sm text-ber-gray/60 shadow-sm">
+          <div className="mt-3 rounded-lg bg-white p-4 text-center text-sm text-ber-gray/60">
             Nenhum registro anterior
           </div>
         )}
@@ -500,7 +500,7 @@ export default function ApontamentoPage() {
       {/* Modal selecao de obra */}
       {showObraModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 p-0 md:p-4">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[85dvh] overflow-y-auto">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-xl bg-white p-6 max-h-[85dvh] overflow-y-auto">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-ber-carbon">
                 <HardHat size={18} className="mr-2 inline" />
@@ -568,7 +568,7 @@ export default function ApontamentoPage() {
             Exportar Relatório de Apontamento
           </h2>
 
-          <div className="mt-3 rounded-lg bg-white p-6 shadow-sm">
+          <div className="mt-3 rounded-lg bg-white p-6">
             {/* User multi-select */}
             <div className="mb-5">
               <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">

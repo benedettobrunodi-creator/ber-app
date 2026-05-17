@@ -99,7 +99,7 @@ function Section({ title, icon, count, open, onToggle, children }: {
   open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-ber-border bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-ber-border bg-white overflow-hidden">
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
@@ -598,8 +598,8 @@ export default function DiarioObraPage() {
               onClick={() => loadDetail(d.id)}
               className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
                 selected?.id === d.id
-                  ? 'border-ber-olive bg-ber-olive/5 shadow-sm'
-                  : 'border-ber-border bg-white shadow-sm hover:shadow-md hover:border-ber-olive/40'
+                  ? 'border-ber-olive bg-ber-olive/5'
+                  : 'border-ber-border bg-white hover:shadow-md hover:border-ber-olive/40'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -634,7 +634,7 @@ export default function DiarioObraPage() {
       {selected && !loadingDetail && (
         <div className="space-y-4">
           {/* Header card — editable */}
-          <div className="rounded-xl border border-ber-border bg-white shadow-sm p-4">
+          <div className="rounded-xl border border-ber-border bg-white p-4">
             {/* Top row: date + fechar/reabrir */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -672,7 +672,7 @@ export default function DiarioObraPage() {
                       title={CLIMA_LABELS[c]}
                       className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                         isSelected
-                          ? 'bg-ber-olive text-white shadow-sm'
+                          ? 'bg-ber-olive text-white'
                           : 'bg-gray-100 text-ber-gray hover:bg-gray-200'
                       }`}
                     >
@@ -695,7 +695,7 @@ export default function DiarioObraPage() {
                     onClick={() => patchHeader({ condicaoTrabalho: c })}
                     className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                       selected.condicaoTrabalho === c
-                        ? 'bg-ber-olive text-white shadow-sm'
+                        ? 'bg-ber-olive text-white'
                         : 'bg-gray-100 text-ber-gray hover:bg-gray-200'
                     }`}
                   >

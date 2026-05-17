@@ -288,7 +288,7 @@ function SortableCard({ task }: { task: Task }) {
     <div ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       {...attributes}
-      className={`group rounded-lg border-l-[3px] bg-white p-3 shadow-sm hover:shadow-md transition-shadow ${PRIORITY_BORDER[task.priority]}`}>
+      className={`group rounded-lg border-l-[3px] bg-white p-3 hover:shadow-md transition-shadow ${PRIORITY_BORDER[task.priority]}`}>
       <div className="flex items-start gap-2">
         <button {...listeners}
           className="mt-0.5 shrink-0 cursor-grab text-ber-gray/30 opacity-0 group-hover:opacity-100 transition-opacity touch-none">
@@ -325,7 +325,7 @@ function ObraCard({ obra, tasks, onClick }: { obra: Obra; tasks: Task[]; onClick
 
   return (
     <button onClick={onClick}
-      className="group w-full text-left rounded-2xl border border-ber-border bg-white p-5 shadow-sm hover:shadow-md hover:border-ber-teal/40 transition-all">
+      className="group w-full text-left rounded-2xl border border-ber-border bg-white p-5 hover:shadow-md hover:border-ber-teal/40 transition-all">
       {/* Name + status */}
       <div className="flex items-start justify-between gap-2 mb-4">
         <h3 className="text-sm font-black text-ber-carbon leading-snug group-hover:text-ber-teal transition-colors">
@@ -611,7 +611,7 @@ export default function PainelDeGestao() {
                         <div key={col.key} className={`rounded-xl ${col.bg} p-3`}>
                           <div className="mb-3 flex items-center justify-between px-1">
                             <h3 className={`text-xs font-bold uppercase tracking-wide ${col.color}`}>{col.label}</h3>
-                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-ber-gray shadow-sm">
+                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold text-ber-gray">
                               {colTasks.length}
                             </span>
                           </div>
@@ -631,7 +631,7 @@ export default function PainelDeGestao() {
                   </div>
                   <DragOverlay>
                     {activeTask && (
-                      <div className={`rounded-lg border-l-[3px] bg-white p-3 shadow-xl ${PRIORITY_BORDER[activeTask.priority]} w-[280px]`}>
+                      <div className={`rounded-lg border-l-[3px] bg-white p-3 ${PRIORITY_BORDER[activeTask.priority]} w-[280px]`}>
                         <p className="text-sm font-semibold text-ber-carbon">{activeTask.title}</p>
                       </div>
                     )}

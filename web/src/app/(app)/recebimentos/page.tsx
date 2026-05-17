@@ -41,7 +41,7 @@ export default function RecebimentosPage() {
           <button
             key={obra.id}
             onClick={() => router.push(`/recebimentos/${obra.id}`)}
-            className="w-full bg-white rounded-xl border border-[var(--ber-border)] p-4 flex items-center justify-between hover:border-[var(--ber-olive)] hover:shadow-sm transition-all text-left"
+            className="w-full bg-white rounded-xl border border-[var(--ber-border)] p-4 flex items-center justify-between hover:border-[var(--ber-olive)] hover:transition-all text-left"
           >
             <div className="flex items-center gap-3">
               <Package size={18} className="text-[var(--ber-olive)]" />

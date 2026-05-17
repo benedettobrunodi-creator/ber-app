@@ -899,7 +899,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
       </div>
 
       {tooltip && (
-        <div className="fixed z-50 rounded-lg bg-gray-900 text-white px-3 py-2 text-xs shadow-lg pointer-events-none"
+        <div className="fixed z-50 rounded-lg bg-gray-900 text-white px-3 py-2 text-xs pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y, maxWidth: 260 }}>
           <p className="font-bold">{tooltip.orc.numero} — {tooltip.orc.cliente}</p>
           <p className="text-gray-300">{STATUS_LABELS[tooltip.orc.status]}</p>
@@ -1040,20 +1040,20 @@ function TabPipeline({ items, onClickItem }: { items: Orcamento[]; onClickItem: 
 
         {/* KPIs topo */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Propostas em aberto</p>
             <p className="mt-1 text-2xl font-black text-gray-900">{propostas.length}</p>
           </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Total R$</p>
             <p className="mt-1 text-2xl font-black text-gray-900">{BRL(totalGeral)}</p>
           </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Valor Ponderado</p>
             <p className="mt-1 text-2xl font-black text-[#06A99D]">{BRL(totalPonderado)}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">Alta×80% · Média×50% · Baixa×20%</p>
           </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Sem classificação</p>
             <p className="mt-1 text-2xl font-black text-gray-400">{semProb.length}</p>
           </div>
@@ -1204,7 +1204,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {kpis.map(k => (
-          <div key={k.label} className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+          <div key={k.label} className="rounded-xl bg-white border border-gray-100 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{k.label}</p>
             <p className={`mt-1 text-2xl font-black ${k.color}`}>{k.value}</p>
             <p className="text-[10px] text-gray-400">{k.sub}</p>
@@ -1214,7 +1214,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Donut por status */}
-        <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+        <div className="rounded-xl bg-white border border-gray-100 p-4">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Por Status</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -1230,7 +1230,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
         </div>
 
         {/* Bar por segmento */}
-        <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+        <div className="rounded-xl bg-white border border-gray-100 p-4">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Por Segmento</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={bySegChart} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
@@ -1244,7 +1244,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
         </div>
 
         {/* Burndown semanal */}
-        <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+        <div className="rounded-xl bg-white border border-gray-100 p-4">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Ativos por Semana</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={burndownData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
@@ -1258,7 +1258,7 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
         </div>
 
         {/* Por responsável */}
-        <div className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+        <div className="rounded-xl bg-white border border-gray-100 p-4">
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Por Responsável</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart

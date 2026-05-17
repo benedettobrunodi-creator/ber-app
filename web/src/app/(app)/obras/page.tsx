@@ -49,7 +49,7 @@ interface ConfirmDialogProps {
 function ConfirmDialog({ obraName, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+      <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 max-h-[90dvh] overflow-y-auto">
         <div className="flex items-start justify-between">
           <h2 className="text-base font-bold text-ber-carbon">Arquivar obra?</h2>
           <button onClick={onCancel} className="text-ber-gray hover:text-ber-carbon">
@@ -213,7 +213,7 @@ export default function ObrasPage() {
           <p className="mt-1 text-xs text-ber-gray/70">Clique em "Nova Obra" para cadastrar a primeira.</p>
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-ber-gray/10 bg-white shadow-sm">
+        <div className="mt-6 overflow-hidden rounded-lg border border-ber-gray/10 bg-white">
           {/* List header */}
           <div className="grid grid-cols-[1fr_auto_160px_140px_100px_72px] items-center gap-4 border-b border-ber-gray/10 bg-ber-offwhite px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
             <span>Obra</span>
@@ -310,7 +310,7 @@ export default function ObrasPage() {
 
       {deleteObra && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
                 <AlertTriangle size={20} className="text-red-600" />

@@ -386,7 +386,7 @@ export default function ConfiguracoesPage() {
         {activeTab === 'usuarios' && canManageUsers && (
           <div className="space-y-4">
             <Link href="/configuracoes/usuarios"
-              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              className="flex items-center justify-between rounded-lg bg-white p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-olive/10">
                   <Users size={24} className="text-ber-olive" />
@@ -399,7 +399,7 @@ export default function ConfiguracoesPage() {
               <ArrowRight size={20} className="text-ber-gray" />
             </Link>
             <Link href="/configuracoes/roles"
-              className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+              className="flex items-center justify-between rounded-lg bg-white p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ber-teal/10">
                   <Shield size={24} className="text-ber-teal" />
@@ -417,7 +417,7 @@ export default function ConfiguracoesPage() {
         {activeTab === 'perfil' && (
           <div className="space-y-6">
             {/* Profile form */}
-            <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="rounded-lg bg-white p-6">
               <h2 className="text-lg font-bold text-ber-carbon">Meu Perfil</h2>
               {loadingProfile ? (
                 <div className="py-8 text-center text-sm text-ber-gray">
@@ -468,7 +468,7 @@ export default function ConfiguracoesPage() {
             </div>
 
             {/* Change password */}
-            <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="rounded-lg bg-white p-6">
               <h2 className="text-lg font-bold text-ber-carbon">
                 Alterar Senha
               </h2>
@@ -570,7 +570,7 @@ export default function ConfiguracoesPage() {
           <div className="space-y-6">
 
             {/* Gerar nova chave */}
-            <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="rounded-lg bg-white p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#06A99D]/10">
                   <Key size={20} className="text-[#06A99D]" />
@@ -644,7 +644,7 @@ export default function ConfiguracoesPage() {
             </div>
 
             {/* MCP Config */}
-            <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="rounded-lg bg-white p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
                   <Terminal size={20} className="text-purple-600" />
@@ -664,7 +664,7 @@ export default function ConfiguracoesPage() {
             </div>
 
             {/* Ferramentas disponíveis */}
-            <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="rounded-lg bg-white p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
                   <Bot size={20} className="text-blue-600" />
@@ -697,7 +697,7 @@ export default function ConfiguracoesPage() {
       {/* User modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-ber-carbon">
                 {editingUser ? 'Editar Usuario' : 'Novo Usuario'}

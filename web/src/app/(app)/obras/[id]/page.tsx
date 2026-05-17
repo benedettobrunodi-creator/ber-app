@@ -944,7 +944,7 @@ export default function ObraDetailPage() {
           // ── block definitions ─────────────────────────────────────────────
           const blocks: Record<string, React.ReactNode> = {
             progresso: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Progresso Geral</h3>{faseLabel && <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${faseBadge}`}>{faseLabel}</span>}</div>
                 <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
                 <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
@@ -952,7 +952,7 @@ export default function ObraDetailPage() {
               </div>
             ),
             burndown: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
                 <div className="mt-3">
                   <BurndownChart etapas={[]} />
@@ -960,7 +960,7 @@ export default function ObraDetailPage() {
               </div>
             ),
             timeline: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Linha do Tempo</h3>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div><p className="text-xs text-ber-gray">Início</p><p className="mt-0.5 text-sm font-bold text-ber-carbon">{start ? start.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '--'}</p></div>
@@ -972,7 +972,7 @@ export default function ObraDetailPage() {
               </div>
             ),
             tasks: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Tarefas</h3>{taskOverdue > 0 && <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-600">⚠ {taskOverdue} atrasada{taskOverdue > 1 ? 's' : ''}</span>}</div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-green-50 p-3"><p className="text-3xl font-black text-green-600">{taskDone}</p><p className="mt-1 text-xs font-medium text-green-700">Concluídas</p></div>
@@ -984,14 +984,14 @@ export default function ObraDetailPage() {
               </div>
             ),
             equipe: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Equipe Alocada</h3>
                 {obra.members.length === 0 ? <p className="mt-4 text-sm text-ber-gray">Nenhum membro alocado.</p> : <div className="mt-4 flex flex-wrap gap-3">{obra.members.map(m => <div key={m.user.id} className="flex items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white">{m.user.name.charAt(0)}</div><div><p className="text-xs font-semibold text-ber-carbon">{m.user.name.split(' ')[0]}</p><p className="text-[10px] text-ber-gray capitalize">{m.user.role}</p></div></div>)}</div>}
                 {obra.coordinator && <div className="mt-3 border-t border-ber-offwhite pt-3 flex items-center gap-2"><div className="flex h-7 w-7 items-center justify-center rounded-full bg-ber-carbon text-xs font-bold text-white">{obra.coordinator.name.charAt(0)}</div><div><p className="text-xs font-semibold text-ber-carbon">{obra.coordinator.name}</p><p className="text-[10px] text-ber-gray">Coordenador</p></div></div>}
               </div>
             ),
             touchpoint: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Touchpoints com Cliente</h3>
                   <button onClick={() => { setNewTP({ type: 'reuniao_semanal', occurredAt: new Date().toISOString().slice(0,16), summary: '', nextAction: '', nextActionDue: '' }); setShowTPModal(true); }} className="flex items-center gap-1 rounded-md bg-ber-teal/10 px-2.5 py-1 text-xs font-semibold text-ber-teal hover:bg-ber-teal/20"><Plus size={12} /> Registrar</button>
@@ -1007,26 +1007,26 @@ export default function ObraDetailPage() {
               </div>
             ),
             checklists: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Checklists Críticos</h3><button onClick={() => setActiveTab('checklists')} className="text-xs font-medium text-ber-teal hover:underline">Ver todos →</button></div>
                 {criticalItems.length === 0 ? <div className="mt-4 flex items-center gap-2 text-sm text-ber-olive font-medium"><span>✅</span> Sem pendências críticas</div> : <ul className="mt-3 space-y-2">{criticalItems.map(item => <li key={item.id} className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2"><p className="text-xs font-medium text-ber-carbon truncate flex-1 mr-2">{item.checklistName}</p><span className="shrink-0 rounded-full bg-red-200 px-2 py-0.5 text-[10px] font-bold text-red-700">{item.itemCount}p</span></li>)}</ul>}
               </div>
             ),
             fotos: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Últimas Fotos</h3><button onClick={() => setActiveTab('fotos')} className="text-xs font-medium text-ber-teal hover:underline">Ver galeria →</button></div>
                 {recentPhotos.length === 0 ? <div className="mt-4 flex h-24 items-center justify-center rounded-lg bg-ber-offwhite"><p className="text-sm text-ber-gray/50">Sem fotos</p></div> : <div className="mt-3 grid grid-cols-3 gap-2">{recentPhotos.map(photo => <a key={photo.id} href={photo.imageUrl} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-lg bg-ber-offwhite hover:opacity-80"><img src={photo.thumbnailUrl ?? photo.imageUrl} alt={photo.caption ?? 'Foto'} className="h-full w-full object-cover" /></a>)}</div>}
                 <p className="mt-2 text-right text-xs text-ber-gray">{obra._count.photos} foto{obra._count.photos !== 1 ? 's' : ''}</p>
               </div>
             ),
             medicoes: (
-              <div className="h-full rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Medições / Recebimentos</h3>
                 {recebimentos.length === 0 ? <p className="mt-4 text-sm italic text-ber-gray/60">Nenhuma medição registrada.</p> : <div className="mt-3 space-y-2"><div><p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Último Recebimento</p><div className="mt-1 rounded-lg bg-ber-offwhite/60 p-3"><p className="text-sm font-semibold text-ber-carbon">{recebimentos[0].material}</p><p className="text-xs text-ber-gray">{recebimentos[0].fornecedor} · {new Date(recebimentos[0].dataEntrega).toLocaleDateString('pt-BR')}</p><span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>{(CONDICAO_CONFIG[recebimentos[0].condicao] ?? CONDICAO_CONFIG.aprovado).label}</span></div></div><div className="flex items-center justify-between text-xs text-ber-gray"><span>{recebimentos.length} recebimento{recebimentos.length !== 1 ? 's' : ''}</span><button onClick={() => setActiveTab('recebimentos')} className="font-medium text-ber-teal hover:underline">Ver todos →</button></div></div>}
               </div>
             ),
             punchlist: (
-              <div className="rounded-xl border border-ber-offwhite bg-white p-5 shadow-sm">
+              <div className="rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Pendências / Punch List</h3>
                 {isDeliveryDay && <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2"><span>🔴</span><p className="text-sm font-bold text-red-700">Punch List com Cliente — hoje é dia da entrega!</p></div>}
                 {isPrePunchList && !isDeliveryDay && <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2"><span>⚠️</span><p className="text-sm font-semibold text-amber-700">Faltam {daysToEnd} dia{daysToEnd !== 1 ? 's' : ''} — iniciar Punch List Interno agora</p></div>}
@@ -1175,7 +1175,7 @@ export default function ObraDetailPage() {
                         return (
                           <div
                             key={task.id}
-                            className={`rounded-md border-l-[3px] bg-white p-3 shadow-sm ${PRIORITY_STYLE[task.priority]}`}
+                            className={`rounded-md border-l-[3px] bg-white p-3 ${PRIORITY_STYLE[task.priority]}`}
                           >
                             <p className="text-sm font-medium text-ber-carbon">{task.title}</p>
                             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
@@ -1389,7 +1389,7 @@ export default function ObraDetailPage() {
                           onChange={e => { const f = e.target.files?.[0]; if (f) handlePlantaUpload(f); }} />
                       </label>
                     ) : (
-                      <div className="rounded-xl overflow-hidden border border-ber-gray/10 shadow-sm">
+                      <div className="rounded-xl overflow-hidden border border-ber-gray/10">
                         {/* Botão trocar planta */}
                         <div className="flex items-center justify-end gap-2 bg-gray-50 px-3 py-1.5 border-b border-ber-gray/10">
                           <label className="flex items-center gap-1.5 cursor-pointer rounded-md px-2.5 py-1 text-[10px] font-semibold text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors">
@@ -1461,7 +1461,7 @@ export default function ObraDetailPage() {
 
                   {/* Painel lateral */}
                   {selectedAmbiente && (
-                    <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white shadow-sm overflow-hidden">
+                    <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white overflow-hidden">
                       <div className="border-b border-ber-offwhite px-4 py-3 flex items-center justify-between">
                         <div>
                           <h4 className="text-sm font-bold text-ber-carbon">
@@ -1484,7 +1484,7 @@ export default function ObraDetailPage() {
                           <p className="text-xs text-ber-gray text-center py-6">Nenhuma foto neste ambiente.</p>
                         ) : ambienteFotos.map(foto => (
                           <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
-                            className="w-full rounded-lg overflow-hidden border border-ber-gray/10 hover:shadow-md transition text-left">
+                            className="w-full rounded-lg overflow-hidden border border-ber-gray/10 transition text-left">
                             {isPdf(foto.fileUrl) ? (
                               <div className="w-full h-32 bg-gray-100 flex flex-col items-center justify-center gap-1">
                                 <span className="text-3xl">📄</span>
@@ -1533,7 +1533,7 @@ export default function ObraDetailPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                       {filteredFotos.map(foto => (
                         <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
-                          className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white shadow-sm hover:shadow-md transition text-left">
+                          className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white transition text-left">
                           <div className="relative aspect-square">
                             {isPdf(foto.fileUrl) ? (
                               <div className="h-full w-full bg-gray-100 flex flex-col items-center justify-center gap-1">
@@ -1701,7 +1701,7 @@ export default function ObraDetailPage() {
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {obra.members.map((m) => (
-                  <div key={m.user.id} className="flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm">
+                  <div key={m.user.id} className="flex items-center gap-3 rounded-lg bg-white p-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ber-teal text-sm font-bold text-white uppercase">
                       {m.user.name.charAt(0)}
                     </div>
@@ -1854,7 +1854,7 @@ export default function ObraDetailPage() {
                   const bgColor = COLORS[CODE_IDX] ?? 'bg-gray-50';
 
                   return (
-                    <div key={tmpl.id} className={`rounded-xl border border-ber-gray/10 ${bgColor} p-4 shadow-sm`}>
+                    <div key={tmpl.id} className={`rounded-xl border border-ber-gray/10 ${bgColor} p-4`}>
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{tmpl.code}</p>
@@ -1877,7 +1877,7 @@ export default function ObraDetailPage() {
                             const total = cl.items.length;
                             return (
                               <button key={cl.id} onClick={() => { setActiveCl(cl); setClModalOpen(true); }}
-                                className="w-full flex items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-left hover:bg-white transition-colors shadow-sm">
+                                className="w-full flex items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-left hover:bg-white transition-colors">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
                                   <span className="text-xs font-medium text-ber-carbon truncate">
@@ -1972,7 +1972,7 @@ export default function ObraDetailPage() {
                     <button
                       key={cl.id}
                       onClick={() => router.push(`/obras/${params.id}/canteiro/${cl.id}`)}
-                      className="rounded-lg bg-white p-4 text-left shadow-sm transition-shadow hover:shadow-md"
+                      className="rounded-lg bg-white p-4 text-left transition-shadow"
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <p className="text-sm font-semibold text-ber-carbon">
@@ -2118,7 +2118,7 @@ export default function ObraDetailPage() {
                     const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
                     return (
                       <button key={fvs.id} onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
-                        className="group rounded-xl bg-white p-4 text-left shadow-sm hover:shadow-md transition-all overflow-hidden"
+                        className="group rounded-xl bg-white p-4 text-left transition-all overflow-hidden"
                         style={{ borderLeft: `4px solid ${statusAccent}`, borderTop: `3px solid ${blocoAccent}`, border: `1px solid #e5e7eb`, borderLeftWidth: '4px', borderTopWidth: '3px', borderTopColor: blocoAccent, borderLeftColor: statusAccent }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -2982,7 +2982,7 @@ export default function ObraDetailPage() {
                   {fvs.status === 'pendente' && inicioItems.length > 0 && (
                     <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
                       onClick={() => doAction('submit-inicio')}
-                      className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-600 disabled:opacity-50">
+                      className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50">
                       📋 Enviar Pré-execução para Aprovação
                     </button>
                   )}
@@ -2999,7 +2999,7 @@ export default function ObraDetailPage() {
                         ❌ Rejeitar
                       </button>
                       <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor-inicio')}
-                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-600 disabled:opacity-50">
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
                         ✅ Aprovar Início (Gestor)
                       </button>
                     </>
@@ -3017,7 +3017,7 @@ export default function ObraDetailPage() {
                         ❌ Rejeitar
                       </button>
                       <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord-inicio')}
-                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50">
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
                         ✅ Aprovar Início (Coord.)
                       </button>
                     </>
@@ -3027,7 +3027,7 @@ export default function ObraDetailPage() {
                   {(fvs.status === 'inicio_aprovado' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
                     <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
                       onClick={() => doAction('submit-conclusao')}
-                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
                       📋 Enviar para Aprovação
                     </button>
                   )}
@@ -3044,7 +3044,7 @@ export default function ObraDetailPage() {
                         ❌ Rejeitar
                       </button>
                       <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor')}
-                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-600 disabled:opacity-50">
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
                         ✅ Aprovar (Gestor)
                       </button>
                     </>
@@ -3062,7 +3062,7 @@ export default function ObraDetailPage() {
                         ❌ Rejeitar
                       </button>
                       <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord')}
-                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50">
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
                         ✅ Aprovação Final
                       </button>
                     </>

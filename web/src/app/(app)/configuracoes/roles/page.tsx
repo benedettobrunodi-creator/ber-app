@@ -160,7 +160,7 @@ export default function RolesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {roles.map((r) => (
-            <div key={r.id} className="rounded-lg bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div key={r.id} className="rounded-lg bg-white p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   {r.isSystem && <Lock size={12} className="text-ber-gray" />}
@@ -214,7 +214,7 @@ export default function RolesPage() {
       {/* Modal — criar/editar */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white p-6 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-ber-carbon">
                 {editingRole ? `Editar: ${editingRole.name}` : 'Nova Role'}
