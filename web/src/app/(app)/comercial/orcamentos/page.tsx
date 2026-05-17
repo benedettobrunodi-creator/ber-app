@@ -218,10 +218,9 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
-  const [crmOportunidades, setCrmOportunidades] = useState<{ id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null }[]>([]);
-  const [vinculando, setVinculando] = useState(false);
-  const [showVincular, setShowVincular] = useState(false);
-  const [selectedOpId, setSelectedOpId] = useState('');
+  const [criandoOp, setCriandoOp] = useState(false);
+  const [showCriarOp, setShowCriarOp] = useState(false);
+  const [novaOpEtapa, setNovaOpEtapa] = useState('proposta_enviada');
 
   useEffect(() => {
     if (orc?.id) {
@@ -231,28 +230,25 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
     }
   }, [orc?.id]);
 
-  useEffect(() => {
-    if (!isNew) {
-      api.get('/crm/oportunidades').then(r => {
-        setCrmOportunidades((r.data as { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null; orcamentoId: string | null }[])
-          .filter((o) => !['ganho', 'perdido'].includes(o.etapa) && !o.orcamentoId));
-      }).catch(() => {});
-    }
-  }, [isNew]);
-
-  async function handleVincular() {
-    if (!selectedOpId || !orc?.id) return;
-    setVinculando(true);
+  async function handleCriarOportunidade() {
+    if (!orc?.id) return;
+    setCriandoOp(true);
     try {
-      await api.patch(`/crm/oportunidades/${selectedOpId}/vincular-orcamento`, { orcamentoId: orc.id });
+      const res = await api.post('/crm/oportunidades', {
+        titulo: orc.cliente,
+        etapa: novaOpEtapa,
+        valorEstimado: orc.valorVenda ?? undefined,
+        origem: 'outbound',
+      });
+      const opId = res.data.id;
+      await api.patch(`/crm/oportunidades/${opId}/vincular-orcamento`, { orcamentoId: orc.id });
       const r = await api.get(`/crm/orcamentos/${orc.id}/contexto`);
       setCrmCtx(r.data);
-      setShowVincular(false);
-      setSelectedOpId('');
+      setShowCriarOp(false);
     } catch {
       // silencioso
     } finally {
-      setVinculando(false);
+      setCriandoOp(false);
     }
   }
 
@@ -593,33 +589,35 @@ function OrcamentoDrawer({ orc, users, allOrcs, canWrite, onClose, onSaved, onDe
                       <div>
                         <p className="text-xs font-semibold text-gray-800">{crmCtx.oportunidade.titulo}</p>
                         {crmCtx.oportunidade.empresa && <p className="text-[10px] text-gray-500">{crmCtx.oportunidade.empresa.razaoSocial}</p>}
-                        <p className="text-[10px] text-[#5A7A7A] capitalize">{crmCtx.oportunidade.etapa.replace('_', ' ')}</p>
+                        <p className="text-[10px] text-[#5A7A7A] capitalize">{crmCtx.oportunidade.etapa.replace(/_/g, ' ')}</p>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      {!showVincular ? (
-                        <button type="button" onClick={() => setShowVincular(true)}
+                      {!showCriarOp ? (
+                        <button type="button" onClick={() => setShowCriarOp(true)}
                           className="text-xs text-[#5A7A7A] hover:text-[#3d5c5c] underline underline-offset-2">
-                          + Vincular a uma oportunidade CRM
+                          + Criar oportunidade no CRM
                         </button>
                       ) : (
-                        <div className="flex gap-2 items-center">
-                          <select value={selectedOpId} onChange={e => setSelectedOpId(e.target.value)}
-                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
-                            <option value="">Selecionar oportunidade…</option>
-                            {crmOportunidades.map(op => (
-                              <option key={op.id} value={op.id}>
-                                {op.titulo}{op.empresa ? ` — ${op.empresa.razaoSocial}` : ''}
-                              </option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={handleVincular} disabled={!selectedOpId || vinculando}
-                            className="text-xs bg-[#5A7A7A] text-white rounded-lg px-3 py-1.5 disabled:opacity-40">
-                            {vinculando ? '…' : 'Vincular'}
-                          </button>
-                          <button type="button" onClick={() => setShowVincular(false)}
-                            className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                        <div className="space-y-2">
+                          <p className="text-[10px] text-gray-500">Onde no pipeline?</p>
+                          <div className="flex gap-2 items-center">
+                            <select value={novaOpEtapa} onChange={e => setNovaOpEtapa(e.target.value)}
+                              className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white">
+                              <option value="lead">Lead</option>
+                              <option value="qualificacao">Qualificação</option>
+                              <option value="proposta_producao">Proposta em Produção</option>
+                              <option value="proposta_enviada">Proposta Enviada</option>
+                              <option value="negociacao">Negociação</option>
+                            </select>
+                            <button type="button" onClick={handleCriarOportunidade} disabled={criandoOp}
+                              className="text-xs bg-[#5A7A7A] text-white rounded-lg px-3 py-1.5 disabled:opacity-40 whitespace-nowrap">
+                              {criandoOp ? '…' : 'Criar'}
+                            </button>
+                            <button type="button" onClick={() => setShowCriarOp(false)}
+                              className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                          </div>
                         </div>
                       )}
                     </div>
