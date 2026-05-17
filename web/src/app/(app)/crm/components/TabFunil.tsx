@@ -32,9 +32,10 @@ export default function TabFunil() {
   const [funil, setFunil] = useState<FunilData | null>(null);
   const [forecast, setForecast] = useState<Record<number, ForecastMes>>({});
   const [vendas, setVendas] = useState<VendasMes[]>([]);
-  const [metas, setMetas] = useState<MetaRow[]>([]);
   const [editMetas, setEditMetas] = useState(false);
   const [metasEdit, setMetasEdit] = useState<number[]>(Array(12).fill(0));
+  const [metaAnualInput, setMetaAnualInput] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -46,21 +47,37 @@ export default function TabFunil() {
       setFunil(f.data);
       setForecast(fc.data);
       setVendas(v.data);
-      setMetas(m.data);
       const vals = Array(12).fill(0);
       for (const row of m.data as MetaRow[]) vals[row.mes - 1] = Number(row.valorMeta);
       setMetasEdit(vals);
+      if (vals.every((x) => x === 0)) setEditMetas(true);
     });
   }, [ano]);
 
+  const distribuirAnual = () => {
+    const total = Number(metaAnualInput.replace(/\D/g, ''));
+    if (!total) return;
+    const porMes = Math.round(total / 12);
+    const novo = Array(12).fill(porMes);
+    novo[11] = total - porMes * 11;
+    setMetasEdit(novo);
+  };
+
+  const totalMetasEdit = metasEdit.reduce((s, v) => s + v, 0);
+
   const saveMetas = async () => {
-    await api.put('/crm/metas', {
-      ano,
-      metas: metasEdit.map((v, i) => ({ mes: i + 1, valorMeta: v })).filter((m) => m.valorMeta > 0),
-    });
-    const res = await api.get(`/crm/stats/vendas-vs-meta/${ano}`);
-    setVendas(res.data);
-    setEditMetas(false);
+    setSaving(true);
+    try {
+      await api.put('/crm/metas', {
+        ano,
+        metas: metasEdit.map((v, i) => ({ mes: i + 1, valorMeta: v })).filter((m) => m.valorMeta > 0),
+      });
+      const res = await api.get(`/crm/stats/vendas-vs-meta/${ano}`);
+      setVendas(res.data);
+      setEditMetas(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const funilData = funil
@@ -142,32 +159,70 @@ export default function TabFunil() {
       <div className="bg-white border border-ber-border rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-ber-carbon">Vendas vs Meta Acumulada {ano}</h3>
-          {!editMetas ? (
+          {!editMetas && (
             <button onClick={() => setEditMetas(true)} className="flex items-center gap-1 text-xs text-ber-teal hover:underline">
               <Pencil size={12} /> Editar metas
             </button>
-          ) : (
-            <div className="flex gap-2">
-              <button onClick={saveMetas} className="flex items-center gap-1 text-xs text-ber-green font-semibold"><Check size={12} /> Salvar</button>
-              <button onClick={() => setEditMetas(false)} className="flex items-center gap-1 text-xs text-ber-red"><X size={12} /> Cancelar</button>
-            </div>
           )}
         </div>
-        {editMetas ? (
-          <div className="grid grid-cols-6 gap-2 mb-4">
-            {metasEdit.map((v, i) => (
-              <div key={i}>
-                <p className="text-[10px] text-ber-gray mb-1">{MESES[i]}</p>
+
+        {editMetas && (
+          <div className="mb-5 space-y-4">
+            {/* Input meta anual */}
+            <div className="flex items-end gap-2 p-3 bg-ber-surface rounded-xl">
+              <div className="flex-1">
+                <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Meta anual {ano}</label>
                 <input
-                  type="number"
-                  className="w-full border border-ber-border rounded px-2 py-1 text-xs focus:outline-none focus:border-ber-teal"
-                  value={v || ''}
-                  onChange={(e) => setMetasEdit((prev) => { const n = [...prev]; n[i] = Number(e.target.value); return n; })}
+                  type="text"
+                  inputMode="numeric"
+                  className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-ber-teal"
+                  placeholder="Ex: 12000000"
+                  value={metaAnualInput}
+                  onChange={(e) => setMetaAnualInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && distribuirAnual()}
                 />
               </div>
-            ))}
+              <button
+                onClick={distribuirAnual}
+                className="px-3 py-2 bg-ber-teal text-white text-xs font-semibold rounded-lg hover:bg-ber-teal/80 whitespace-nowrap"
+              >
+                Distribuir igualmente
+              </button>
+            </div>
+
+            {/* Grade mensal */}
+            <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+              {metasEdit.map((v, i) => (
+                <div key={i}>
+                  <p className="text-[10px] font-semibold text-ber-gray mb-1">{MESES[i]}</p>
+                  <input
+                    type="number"
+                    className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
+                    value={v || ''}
+                    placeholder="0"
+                    onChange={(e) => setMetasEdit((prev) => { const n = [...prev]; n[i] = Number(e.target.value); return n; })}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-ber-gray">
+                Total mensal: <span className="font-bold text-ber-carbon">{fmt(totalMetasEdit)}</span>
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setEditMetas(false)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-ber-gray border border-ber-border rounded-lg hover:bg-ber-surface">
+                  <X size={12} /> Cancelar
+                </button>
+                <button onClick={saveMetas} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-ber-teal rounded-lg font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
+                  <Check size={12} /> {saving ? 'Salvando...' : 'Salvar metas'}
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
+        )}
+
+        {!editMetas && (
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={vendasData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
