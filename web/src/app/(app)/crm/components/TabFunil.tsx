@@ -130,7 +130,7 @@ export default function TabFunil() {
             <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
             <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => fmt(v)} />
+            <Tooltip formatter={(v) => fmt(Number(v))} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="esperado" name="Esperado" fill="#5A7A7A" opacity={0.4} radius={[3, 3, 0, 0]} />
             <Bar dataKey="ponderado" name="Ponderado" fill="#5A7A7A" radius={[3, 3, 0, 0]} />
@@ -173,7 +173,7 @@ export default function TabFunil() {
               <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
               <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => fmt(v)} />
+              <Tooltip formatter={(v) => fmt(Number(v))} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Area type="monotone" dataKey="meta" name="Meta" stroke="#E8E8E4" fill="#E8E8E4" strokeWidth={2} strokeDasharray="5 5" />
               <Area type="monotone" dataKey="realizado" name="Realizado" stroke="#3D9E5F" fill="#3D9E5F20" strokeWidth={2} />

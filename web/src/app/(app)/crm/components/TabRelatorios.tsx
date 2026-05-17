@@ -115,7 +115,7 @@ export default function TabRelatorios() {
               <Pie data={origemData} dataKey="value" cx="50%" cy="50%" outerRadius={90} innerRadius={50}>
                 {origemData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Pie>
-              <Tooltip formatter={(v: number, _n, p) => [`${v} leads — ${fmt(p.payload.valor)}`, p.name]} />
+              <Tooltip formatter={(v, _n, p) => [`${Number(v)} leads — ${fmt((p as { payload: { valor: number } }).payload.valor)}`, String(_n)]} />
             </PieChart>
           </ResponsiveContainer>
           <div className="flex-1 space-y-2">
@@ -139,7 +139,7 @@ export default function TabRelatorios() {
             <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
             <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => fmt(v)} />
+            <Tooltip formatter={(v) => fmt(Number(v))} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {allOrigens.map((o) => (
               <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
@@ -161,7 +161,7 @@ export default function TabRelatorios() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" horizontal={false} />
                 <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => fmt(v)} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
                 <Bar dataKey="valor" radius={[0, 4, 4, 0]}>
                   {ticketData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                 </Bar>
