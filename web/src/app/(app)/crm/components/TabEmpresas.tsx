@@ -2,8 +2,71 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
-import { Plus, Search, Building2, X, AlertCircle, ArrowRight } from 'lucide-react';
+import { Plus, Search, Building2, X, AlertCircle, ArrowRight, UserPlus } from 'lucide-react';
 import { SEGMENTOS, Empresa, Contato, diasAtras } from '../types';
+
+function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
+  const [lista, setLista] = useState<Contato[]>(contatos);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ nome: '', cargo: '', email: '', telefone: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleAdd = async () => {
+    if (!form.nome.trim()) return;
+    setSaving(true);
+    try {
+      const res = await api.post('/crm/contatos', { ...form, empresaId, principal: lista.length === 0 });
+      setLista((prev) => [...prev, res.data]);
+      setForm({ nome: '', cargo: '', email: '', telefone: '' });
+      setAdding(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contatos</p>
+        {!adding && (
+          <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-xs text-ber-teal hover:underline">
+            <UserPlus size={12} /> Adicionar
+          </button>
+        )}
+      </div>
+      {lista.map((c) => (
+        <div key={c.id} className="flex items-start gap-2 py-2 border-b border-ber-border last:border-0">
+          <div className="w-7 h-7 rounded-full bg-ber-teal/15 flex items-center justify-center text-xs font-bold text-ber-teal shrink-0">{c.nome.charAt(0)}</div>
+          <div>
+            <p className="text-sm font-semibold text-ber-carbon">{c.nome} {c.principal && <span className="text-[10px] bg-ber-olive/20 text-ber-olive px-1 rounded">Principal</span>}</p>
+            {c.cargo && <p className="text-xs text-ber-gray">{c.cargo}</p>}
+            {c.email && <p className="text-xs text-ber-teal">{c.email}</p>}
+            {c.telefone && <p className="text-xs text-ber-gray">{c.telefone}</p>}
+          </div>
+        </div>
+      ))}
+      {lista.length === 0 && !adding && (
+        <p className="text-xs text-ber-gray/60 py-2">Nenhum contato cadastrado</p>
+      )}
+      {adding && (
+        <div className="mt-2 p-3 bg-ber-surface border border-ber-border rounded-xl space-y-2">
+          <input autoFocus className="w-full border border-ber-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ber-teal" placeholder="Nome *" value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-2">
+            <input className="border border-ber-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ber-teal" placeholder="Cargo" value={form.cargo} onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value }))} />
+            <input className="border border-ber-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ber-teal" placeholder="Telefone" value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} />
+          </div>
+          <input className="w-full border border-ber-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ber-teal" placeholder="E-mail" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+          <div className="flex gap-2">
+            <button onClick={() => setAdding(false)} className="flex-1 py-1.5 text-xs border border-ber-border rounded-lg text-ber-gray hover:bg-white">Cancelar</button>
+            <button onClick={handleAdd} disabled={saving || !form.nome.trim()} className="flex-1 py-1.5 text-xs bg-ber-teal text-white rounded-lg font-semibold disabled:opacity-50">
+              {saving ? 'Salvando...' : 'Salvar contato'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   empresas: Empresa[];
@@ -99,20 +162,8 @@ function EmpresaDrawer({
               <input className="w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" placeholder="E-mail" value={newContato.email} onChange={(e) => setNewContato((c) => ({ ...c, email: e.target.value }))} />
             </div>
           )}
-          {!isNew && empresa?.contatos && empresa.contatos.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-2">Contatos</p>
-              {empresa.contatos.map((c) => (
-                <div key={c.id} className="flex items-start gap-2 py-2 border-b border-ber-border last:border-0">
-                  <div className="w-7 h-7 rounded-full bg-ber-teal/15 flex items-center justify-center text-xs font-bold text-ber-teal shrink-0">{c.nome.charAt(0)}</div>
-                  <div>
-                    <p className="text-sm font-semibold text-ber-carbon">{c.nome} {c.principal && <span className="text-[10px] bg-ber-olive/20 text-ber-olive px-1 rounded">Principal</span>}</p>
-                    {c.cargo && <p className="text-xs text-ber-gray">{c.cargo}</p>}
-                    {c.email && <p className="text-xs text-ber-teal">{c.email}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {!isNew && (
+            <ContatosSection empresaId={empresa!.id} contatos={empresa?.contatos ?? []} />
           )}
         </div>
         <div className="p-4 border-t border-ber-border flex gap-2">

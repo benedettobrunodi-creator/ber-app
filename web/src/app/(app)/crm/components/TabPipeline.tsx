@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert } from 'lucide-react';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
+import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert, Phone, Mail, MapPin, Users, CheckCircle2, Circle } from 'lucide-react';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
 
@@ -160,6 +160,38 @@ function OportunidadeDrawer({
   const [novaEmpresaMode, setNovaEmpresaMode] = useState(false);
   const [novaEmpresaForm, setNovaEmpresaForm] = useState({ razaoSocial: '', segmento: '' });
   const [criandoEmpresa, setCriandoEmpresa] = useState(false);
+  const [atividades, setAtividades] = useState<Atividade[]>([]);
+  const [novaAtividade, setNovaAtividade] = useState(false);
+  const [atForm, setAtForm] = useState({ tipo: 'reuniao', dataHora: '', notas: '', concluida: false });
+  const [savingAt, setSavingAt] = useState(false);
+
+  useEffect(() => {
+    if (!op?.id) return;
+    api.get(`/crm/atividades?oportunidadeId=${op.id}`).then((res) => {
+      setAtividades(Array.isArray(res.data) ? res.data : []);
+    }).catch(() => {});
+    // default datetime to now
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setAtForm((f) => ({ ...f, dataHora: now.toISOString().slice(0, 16) }));
+  }, [op?.id]);
+
+  const handleSaveAtividade = async () => {
+    if (!atForm.dataHora) return;
+    setSavingAt(true);
+    try {
+      const res = await api.post('/crm/atividades', { ...atForm, oportunidadeId: op!.id, duracao: null });
+      setAtividades((prev) => [res.data, ...prev]);
+      setNovaAtividade(false);
+    } finally {
+      setSavingAt(false);
+    }
+  };
+
+  const toggleAtividade = async (a: Atividade) => {
+    await api.patch(`/crm/atividades/${a.id}`, { concluida: !a.concluida });
+    setAtividades((prev) => prev.map((x) => x.id === a.id ? { ...x, concluida: !x.concluida } : x));
+  };
 
   const handleCriarEmpresa = async () => {
     if (!novaEmpresaForm.razaoSocial.trim()) return;
@@ -415,6 +447,67 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
             />
           </div>
+          {!isNew && (
+            <div className="border-t border-ber-border pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Atividades</p>
+                {!novaAtividade && (
+                  <button onClick={() => setNovaAtividade(true)} className="flex items-center gap-1 text-xs text-ber-teal hover:underline">
+                    <Plus size={12} /> Nova
+                  </button>
+                )}
+              </div>
+
+              {novaAtividade && (
+                <div className="mb-3 p-3 bg-ber-surface border border-ber-border rounded-xl space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-ber-gray uppercase">Tipo</label>
+                      <select className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal" value={atForm.tipo} onChange={(e) => setAtForm((f) => ({ ...f, tipo: e.target.value }))}>
+                        {TIPOS_ATIVIDADE.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-ber-gray uppercase">Data e Hora</label>
+                      <input type="datetime-local" className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal" value={atForm.dataHora} onChange={(e) => setAtForm((f) => ({ ...f, dataHora: e.target.value }))} />
+                    </div>
+                  </div>
+                  <textarea className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal resize-none" rows={2} placeholder="Notas..." value={atForm.notas} onChange={(e) => setAtForm((f) => ({ ...f, notas: e.target.value }))} />
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="at-concluida" checked={atForm.concluida} onChange={(e) => setAtForm((f) => ({ ...f, concluida: e.target.checked }))} className="w-3.5 h-3.5" />
+                    <label htmlFor="at-concluida" className="text-xs text-ber-carbon">Já concluída</label>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setNovaAtividade(false)} className="flex-1 py-1.5 text-xs border border-ber-border rounded-lg text-ber-gray hover:bg-white">Cancelar</button>
+                    <button onClick={handleSaveAtividade} disabled={savingAt || !atForm.dataHora} className="flex-1 py-1.5 text-xs bg-ber-teal text-white rounded-lg font-semibold disabled:opacity-50">
+                      {savingAt ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {atividades.slice(0, 5).map((a) => (
+                  <div key={a.id} className="flex items-start gap-2">
+                    <button onClick={() => toggleAtividade(a)} className={`mt-0.5 shrink-0 ${a.concluida ? 'text-ber-green' : 'text-ber-gray/40 hover:text-ber-teal'}`}>
+                      {a.concluida ? <CheckCircle2 size={15} /> : <Circle size={15} />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-semibold ${a.concluida ? 'line-through text-ber-gray' : 'text-ber-carbon'}`}>
+                        {TIPOS_ATIVIDADE.find((t) => t.value === a.tipo)?.label ?? a.tipo}
+                        <span className="ml-2 font-normal text-ber-gray">{fmtDate(a.dataHora)}</span>
+                      </p>
+                      {a.notas && <p className="text-xs text-ber-gray truncate">{a.notas}</p>}
+                    </div>
+                  </div>
+                ))}
+                {atividades.length === 0 && !novaAtividade && (
+                  <p className="text-xs text-ber-gray/50">Nenhuma atividade registrada</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {op?.orcamento && (
             <div className="rounded-lg border border-ber-border bg-ber-surface p-3">
               <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Orçamento Vinculado</p>
