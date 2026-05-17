@@ -49,7 +49,7 @@ export async function parseCronogramaPDF(
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
 
   const result = await model.generateContent([
     {
