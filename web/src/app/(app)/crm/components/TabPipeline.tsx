@@ -417,7 +417,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 border-t border-ber-border bg-ber-surface text-xs font-bold text-ber-carbon">
             <span>{oportunidades.length} itens</span>
             <span /><span /><span /><span />
-            <span className="text-right">{fmt(oportunidades.reduce((s, o) => s + (o.valor ?? 0), 0))}</span>
+            <span className="text-right">{fmt(oportunidades.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</span>
           </div>
         </div>
       )}
@@ -425,7 +425,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       <div className={`flex gap-3 overflow-x-auto pb-4 ${viewMode === 'lista' ? 'hidden' : ''}`} style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
           const cards = byEtapa[etapa.value] ?? [];
-          const totalValor = cards.reduce((s, c) => s + (c.valor ?? 0), 0);
+          const totalValor = cards.reduce((s, c) => s + Number(c.valor ?? 0), 0);
           return (
             <div key={etapa.value} className="flex-shrink-0 w-64 flex flex-col">
               <div className="flex items-center gap-2 mb-2 px-1">
