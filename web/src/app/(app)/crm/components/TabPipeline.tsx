@@ -27,7 +27,7 @@ class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => voi
 }
 
 const TERMINAL_ETAPAS = ['ganho', 'perdido', 'declinado', 'cancelado'];
-const KANBAN_ETAPAS = ETAPAS.filter((e) => !TERMINAL_ETAPAS.includes(e.value));
+const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
 
 interface Props {
   oportunidades: Oportunidade[];
