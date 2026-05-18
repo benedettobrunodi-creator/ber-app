@@ -24,6 +24,11 @@ export async function updateProposal(req: Request, res: Response) {
   sendSuccess(res, proposal);
 }
 
+export async function deleteProposal(req: Request, res: Response) {
+  await proposalService.deleteProposal(req.params.id);
+  sendSuccess(res, { deleted: true });
+}
+
 export async function getStats(_req: Request, res: Response) {
   const stats = await proposalService.getStats();
   sendSuccess(res, stats);

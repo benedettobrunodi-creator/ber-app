@@ -17,5 +17,6 @@ router.get('/', requireAnyRole('coordenacao', 'orcamentos'), controller.listProp
 router.get('/:id', requireAnyRole('coordenacao', 'orcamentos'), controller.getProposal);
 router.post('/', requireRole('coordenacao'), validate(createProposalSchema), controller.createProposal);
 router.put('/:id', requireRole('coordenacao'), validate(updateProposalSchema), controller.updateProposal);
+router.delete('/:id', requireRole('coordenacao'), controller.deleteProposal);
 
 export default router;
