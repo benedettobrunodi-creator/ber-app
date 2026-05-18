@@ -120,6 +120,175 @@ server.tool(
   },
 );
 
+// ─── CRM ─────────────────────────────────────────────────────────────────────
+
+server.tool(
+  'list_oportunidades',
+  'Lista oportunidades do pipeline CRM com filtros opcionais',
+  {
+    etapa: z.string().optional().describe('lead | qualificacao | proposta_producao | proposta_enviada | negociacao | ganho | perdido'),
+    responsavelId: z.string().optional().describe('UUID do responsável'),
+    empresaId: z.string().optional().describe('UUID da empresa'),
+    origem: z.string().optional().describe('gerenciadora | marketing | outbound | networking | broker | arquitetura | recorrente'),
+    search: z.string().optional().describe('Busca por título'),
+  },
+  async ({ etapa, responsavelId, empresaId, origem, search }) => {
+    const params = new URLSearchParams();
+    if (etapa) params.set('etapa', etapa);
+    if (responsavelId) params.set('responsavelId', responsavelId);
+    if (empresaId) params.set('empresaId', empresaId);
+    if (origem) params.set('origem', origem);
+    if (search) params.set('search', search);
+    const data = await req('GET', `/crm/oportunidades?${params}`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'get_oportunidade',
+  'Retorna detalhes completos de uma oportunidade incluindo atividades',
+  { id: z.string().describe('UUID da oportunidade') },
+  async ({ id }) => {
+    const data = await req('GET', `/crm/oportunidades/${id}`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'create_oportunidade',
+  'Cria uma nova oportunidade no pipeline CRM',
+  {
+    titulo: z.string().describe('Título/nome da oportunidade'),
+    valor: z.number().optional().describe('Valor estimado em reais'),
+    etapa: z.string().optional().describe('Default: lead. Opções: lead | qualificacao | proposta_producao | proposta_enviada | negociacao'),
+    origem: z.string().optional().describe('gerenciadora | marketing | outbound | networking | broker | arquitetura | recorrente'),
+    probabilidade: z.string().optional().describe('alta | media | baixa'),
+    empresaId: z.string().optional().describe('UUID da empresa'),
+    contatoId: z.string().optional().describe('UUID do contato'),
+    responsavelId: z.string().optional().describe('UUID do responsável (usuário)'),
+    dataFechamentoPrevisto: z.string().optional().describe('Data prevista de fechamento ISO: YYYY-MM-DD'),
+    observacoes: z.string().optional(),
+  },
+  async (body) => {
+    const data = await req('POST', '/crm/oportunidades', body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'update_oportunidade',
+  'Atualiza campos de uma oportunidade existente (incluindo mover de etapa)',
+  {
+    id: z.string().describe('UUID da oportunidade'),
+    titulo: z.string().optional(),
+    valor: z.number().optional(),
+    etapa: z.string().optional().describe('lead | qualificacao | proposta_producao | proposta_enviada | negociacao | ganho | perdido'),
+    origem: z.string().optional(),
+    probabilidade: z.string().optional().describe('alta | media | baixa'),
+    empresaId: z.string().optional(),
+    contatoId: z.string().optional(),
+    responsavelId: z.string().optional(),
+    dataFechamentoPrevisto: z.string().optional().describe('YYYY-MM-DD ou null para limpar'),
+    motivoPerda: z.string().optional().describe('Obrigatório quando etapa=perdido'),
+    observacoes: z.string().optional(),
+  },
+  async ({ id, ...body }) => {
+    const data = await req('PATCH', `/crm/oportunidades/${id}`, body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'list_empresas_crm',
+  'Lista empresas cadastradas no CRM',
+  {
+    search: z.string().optional().describe('Busca por razão social'),
+    segmento: z.string().optional().describe('Corporativo | Residencial | Industrial | Igreja | Hotel | Outros'),
+    nutricao: z.boolean().optional().describe('Filtrar empresas em nutrição'),
+  },
+  async ({ search, segmento, nutricao }) => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (segmento) params.set('segmento', segmento);
+    if (nutricao !== undefined) params.set('nutricao', String(nutricao));
+    const data = await req('GET', `/crm/empresas?${params}`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'create_empresa_crm',
+  'Cadastra uma nova empresa no CRM',
+  {
+    razaoSocial: z.string().describe('Razão social ou nome da empresa'),
+    cnpj: z.string().optional(),
+    segmento: z.string().optional().describe('Corporativo | Residencial | Industrial | Igreja | Hotel | Outros'),
+    cidade: z.string().optional(),
+  },
+  async (body) => {
+    const data = await req('POST', '/crm/empresas', body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'create_contato_crm',
+  'Adiciona um contato a uma empresa no CRM',
+  {
+    empresaId: z.string().describe('UUID da empresa'),
+    nome: z.string().describe('Nome completo do contato'),
+    cargo: z.string().optional(),
+    email: z.string().optional(),
+    telefone: z.string().optional(),
+  },
+  async (body) => {
+    const data = await req('POST', '/crm/contatos', body);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'create_atividade_crm',
+  'Registra uma atividade (reunião, ligação, e-mail, visita) em uma oportunidade',
+  {
+    oportunidadeId: z.string().describe('UUID da oportunidade'),
+    tipo: z.string().describe('reuniao | ligacao | email | visita | outro'),
+    dataHora: z.string().describe('Data e hora ISO: YYYY-MM-DDTHH:mm'),
+    notas: z.string().optional().describe('Resumo / notas da atividade'),
+    concluida: z.boolean().optional().describe('Default: false'),
+  },
+  async (body) => {
+    const data = await req('POST', '/crm/atividades', { ...body, duracao: null });
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'list_atividades_crm',
+  'Lista atividades de uma oportunidade ou de todas as oportunidades',
+  {
+    oportunidadeId: z.string().optional().describe('Filtrar por oportunidade'),
+    concluida: z.boolean().optional().describe('Filtrar por status de conclusão'),
+  },
+  async ({ oportunidadeId, concluida }) => {
+    const params = new URLSearchParams();
+    if (oportunidadeId) params.set('oportunidadeId', oportunidadeId);
+    if (concluida !== undefined) params.set('concluida', String(concluida));
+    const data = await req('GET', `/crm/atividades?${params}`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
+server.tool(
+  'get_funil_crm',
+  'Retorna resumo do funil de conversão (qualificação, propostas, conversão) com contagens e valores',
+  {},
+  async () => {
+    const data = await req('GET', '/crm/stats/funil');
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  },
+);
+
 // ─── OBRAS ───────────────────────────────────────────────────────────────────
 
 server.tool(
