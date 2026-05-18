@@ -30,8 +30,11 @@ function calcRealizadoPorMes(oportunidades: Oportunidade[], ano: number): Record
   const por: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) por[m] = 0;
   for (const op of oportunidades) {
-    if (op.etapa !== 'ganho' || !op.dataGanho) continue;
-    const d = new Date(op.dataGanho);
+    if (op.etapa !== 'ganho') continue;
+    // preferência: dataGanho (real) → dataFechamentoPrevisto → updatedAt
+    const ref = op.dataGanho ?? op.dataFechamentoPrevisto ?? op.updatedAt;
+    if (!ref) continue;
+    const d = new Date(ref);
     if (d.getFullYear() !== ano) continue;
     por[d.getMonth() + 1] += Number(op.valor ?? 0);
   }
@@ -114,9 +117,17 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         <KpiCard icon={<Target size={18} className="text-ber-teal" />} label="Em Pipeline" value={fmt(funil ? funil.qualificacao.valor + funil.propostas.valor : 0)}
           onClick={() => openDrill('Em Pipeline', oportunidades.filter((o) => !TERMINAL.includes(o.etapa)))} />
         <KpiCard icon={<DollarSign size={18} className="text-ber-green" />} label="Ganho no Ano" value={fmt(totalRealizado)}
-          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => o.etapa === 'ganho' && o.dataGanho && new Date(o.dataGanho).getFullYear() === ano))} />
+          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => {
+            if (o.etapa !== 'ganho') return false;
+            const ref = o.dataGanho ?? o.dataFechamentoPrevisto ?? o.updatedAt;
+            return ref ? new Date(ref).getFullYear() === ano : false;
+          }))} />
         <KpiCard icon={<TrendingUp size={18} className="text-ber-olive" />} label="vs Meta" value={totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'} sub={`de ${fmt(totalMeta)}`}
-          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => o.etapa === 'ganho' && o.dataGanho && new Date(o.dataGanho).getFullYear() === ano))} />
+          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => {
+            if (o.etapa !== 'ganho') return false;
+            const ref = o.dataGanho ?? o.dataFechamentoPrevisto ?? o.updatedAt;
+            return ref ? new Date(ref).getFullYear() === ano : false;
+          }))} />
         <KpiCard icon={<Target size={18} className="text-purple-500" />} label="Conversão" value={`${Math.round(taxaConversao * 100)}%`}
           onClick={() => openDrill('Todas as Oportunidades', oportunidades)} />
       </div>
