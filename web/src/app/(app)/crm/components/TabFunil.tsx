@@ -29,9 +29,8 @@ function calcRealizadoPorMes(oportunidades: Oportunidade[], ano: number): Record
   const por: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) por[m] = 0;
   for (const op of oportunidades) {
-    if (op.etapa !== 'ganho') continue;
-    const raw = op.dataFechamentoPrevisto ?? op.createdAt;
-    const d = new Date(raw);
+    if (op.etapa !== 'ganho' || !op.dataGanho) continue;
+    const d = new Date(op.dataGanho);
     if (d.getFullYear() !== ano) continue;
     por[d.getMonth() + 1] += Number(op.valor ?? 0);
   }

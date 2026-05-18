@@ -165,7 +165,16 @@ export async function updateOportunidade(
   userName: string,
 ) {
   const anterior = await prisma.crmOportunidade.findUniqueOrThrow({ where: { id } });
-  const updated = await prisma.crmOportunidade.update({ where: { id }, data });
+
+  // Seta dataGanho automaticamente quando etapa muda para 'ganho' (se não foi passado manualmente)
+  const dataWrite = { ...data } as Record<string, unknown>;
+  if (data.etapa === 'ganho' && anterior.etapa !== 'ganho' && !data.dataGanho) {
+    dataWrite.dataGanho = new Date();
+  } else if (data.etapa && data.etapa !== 'ganho' && anterior.etapa === 'ganho' && !data.dataGanho) {
+    dataWrite.dataGanho = null;
+  }
+
+  const updated = await prisma.crmOportunidade.update({ where: { id }, data: dataWrite });
 
   const campos = Object.keys(data) as Array<keyof UpdateOportunidadeInput>;
   const historico = campos
@@ -359,24 +368,15 @@ export async function getVendasVsMeta(ano: number) {
 
   const ganhas = await prisma.crmOportunidade.findMany({
     where: { etapa: 'ganho' },
-    select: {
-      valor: true,
-      updatedAt: true,
-      historico: {
-        where: { campo: 'etapa', valorNovo: 'ganho' },
-        orderBy: { alteradoEm: 'desc' },
-        take: 1,
-        select: { alteradoEm: true },
-      },
-    },
+    select: { valor: true, dataGanho: true },
   });
 
   const realizadoPorMes: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) realizadoPorMes[m] = 0;
   for (const op of ganhas) {
-    const dataGanho = op.historico[0]?.alteradoEm ?? op.updatedAt;
-    if (dataGanho.getFullYear() !== ano) continue;
-    const mes = dataGanho.getMonth() + 1;
+    if (!op.dataGanho) continue;
+    if (op.dataGanho.getFullYear() !== ano) continue;
+    const mes = op.dataGanho.getMonth() + 1;
     realizadoPorMes[mes] += Number(op.valor ?? 0);
   }
 

@@ -103,6 +103,7 @@ function OportunidadeDrawer({
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
+    dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
     observacoes: op?.observacoes ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -136,6 +137,7 @@ function OportunidadeDrawer({
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
+        dataGanho: form.dataGanho || null,
         observacoes: form.observacoes || null,
       };
       if (isNew) {
@@ -186,7 +188,7 @@ function OportunidadeDrawer({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fechamento</label>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fechamento Previsto</label>
               <input
                 type="date"
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
@@ -195,6 +197,18 @@ function OportunidadeDrawer({
               />
             </div>
           </div>
+          {form.etapa === 'ganho' && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Data de Ganho</label>
+              <input
+                type="date"
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.dataGanho}
+                onChange={(e) => setForm((f) => ({ ...f, dataGanho: e.target.value }))}
+              />
+              <p className="text-[10px] text-ber-gray mt-0.5">Usado no gráfico de Meta. Preenchido automaticamente ao marcar como Ganho.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa</label>

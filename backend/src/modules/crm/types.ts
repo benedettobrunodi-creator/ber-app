@@ -107,6 +107,7 @@ export const createOportunidadeSchema = z.object({
   probabilidade: z.enum(CRM_PROBABILIDADES).optional().nullable(),
   dataFechamentoPrevisto: dateOrNull,
   dataEntradaPipeline: dateOrNull,
+  dataGanho: dateOrNull,
   motivoPerda: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
   orcamentoId: z.string().uuid().optional().nullable(),

@@ -69,6 +69,7 @@ export interface Oportunidade {
   probabilidade: string | null;
   dataFechamentoPrevisto: string | null;
   dataEntradaPipeline: string | null;
+  dataGanho: string | null;
   motivoPerda: string | null;
   observacoes: string | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
