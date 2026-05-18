@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, Clock, X, AlertCircle } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, User, fmt, fmtDate, diasAtras } from '../types';
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
@@ -84,7 +84,22 @@ function OportunidadeDrawer({
     observacoes: op?.observacoes ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [err, setErr] = useState('');
+
+  const handleDelete = async () => {
+    if (!op?.id) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/crm/oportunidades/${op.id}`);
+      onSave();
+    } catch {
+      setErr('Erro ao excluir');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
@@ -215,11 +230,30 @@ function OportunidadeDrawer({
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-ber-border flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
+        <div className="p-4 border-t border-ber-border space-y-2">
+          {confirmDelete ? (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+              <p className="font-semibold mb-2">Confirmar exclusão?</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100">Cancelar</button>
+                <button onClick={handleDelete} disabled={deleting} className="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                  {deleting ? 'Excluindo...' : 'Excluir definitivamente'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {!isNew && (
+                <button onClick={() => setConfirmDelete(true)} className="p-2 rounded-lg text-ber-gray hover:text-red-600 hover:bg-red-50 border border-ber-border transition-colors">
+                  <Trash2 size={15} />
+                </button>
+              )}
+              <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -228,6 +262,7 @@ function OportunidadeDrawer({
 
 export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -255,15 +290,86 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
             {oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa)).length} ativos
           </span>
         </div>
-        <button
-          onClick={() => setDrawerOp('new')}
-          className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80"
-        >
-          <Plus size={14} /> Nova Oportunidade
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
+            <button
+              onClick={() => setViewMode('kanban')}
+              title="Kanban"
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${viewMode === 'kanban' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
+            >
+              <LayoutGrid size={12} /> Kanban
+            </button>
+            <button
+              onClick={() => setViewMode('lista')}
+              title="Lista"
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${viewMode === 'lista' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
+            >
+              <LayoutList size={12} /> Lista
+            </button>
+          </div>
+          <button
+            onClick={() => setDrawerOp('new')}
+            className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80"
+          >
+            <Plus size={14} /> Nova Oportunidade
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+      {viewMode === 'lista' && (
+        <div className="rounded-xl border border-ber-border bg-white overflow-hidden mb-4">
+          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 bg-ber-surface border-b border-ber-border text-[10px] font-bold uppercase tracking-wide text-ber-gray">
+            <span>Oportunidade</span>
+            <span>Etapa</span>
+            <span>Empresa</span>
+            <span>Responsável</span>
+            <span>Probabilidade</span>
+            <span className="text-right">Valor</span>
+          </div>
+          {oportunidades.length === 0 && (
+            <p className="text-center text-xs text-ber-gray py-10">Nenhuma oportunidade.</p>
+          )}
+          {[...oportunidades]
+            .sort((a, b) => {
+              const order: string[] = ETAPAS.map((e) => e.value);
+              return order.indexOf(a.etapa) - order.indexOf(b.etapa);
+            })
+            .map((op, idx) => {
+              const etapaCfg = ETAPA_MAP[op.etapa];
+              const probCfg = PROBABILIDADES.find((p) => p.value === op.probabilidade);
+              return (
+                <div
+                  key={op.id}
+                  onClick={() => setDrawerOp(op)}
+                  className={`cursor-pointer grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 items-center text-xs hover:bg-ber-surface transition-colors ${idx !== oportunidades.length - 1 ? 'border-b border-ber-border/50' : ''}`}
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ber-carbon truncate">{op.titulo}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: etapaCfg?.color ?? '#aaa' }} />
+                    <span className="text-ber-gray truncate">{etapaCfg?.label ?? op.etapa}</span>
+                  </div>
+                  <span className="text-ber-gray truncate">{op.empresa?.razaoSocial ?? '—'}</span>
+                  <span className="text-ber-gray truncate">{op.responsavel?.name ?? '—'}</span>
+                  <span>
+                    {probCfg
+                      ? <span className="rounded-full bg-ber-surface px-2 py-0.5 text-[10px] font-semibold text-ber-carbon">{probCfg.label} ({probCfg.pct}%)</span>
+                      : <span className="text-ber-gray/40">—</span>}
+                  </span>
+                  <span className="text-right font-bold text-ber-carbon">{fmt(op.valor)}</span>
+                </div>
+              );
+            })}
+          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 border-t border-ber-border bg-ber-surface text-xs font-bold text-ber-carbon">
+            <span>{oportunidades.length} itens</span>
+            <span /><span /><span /><span />
+            <span className="text-right">{fmt(oportunidades.reduce((s, o) => s + (o.valor ?? 0), 0))}</span>
+          </div>
+        </div>
+      )}
+
+      <div className={`flex gap-3 overflow-x-auto pb-4 ${viewMode === 'lista' ? 'hidden' : ''}`} style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
           const cards = byEtapa[etapa.value] ?? [];
           const totalValor = cards.reduce((s, c) => s + (c.valor ?? 0), 0);
