@@ -1,9 +1,30 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Component } from 'react';
+import type { ReactNode } from 'react';
 import api from '@/lib/api';
 import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, User, fmt, fmtDate, diasAtras } from '../types';
+
+class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
+  state = { err: null };
+  static getDerivedStateFromError(e: Error) { return { err: e.message }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={this.props.onClose} />
+          <div className="relative z-10 w-full max-w-md bg-white shadow-xl p-6 flex flex-col gap-4">
+            <p className="font-bold text-red-600">Erro ao abrir</p>
+            <p className="text-sm text-red-500 font-mono break-all">{this.state.err}</p>
+            <button onClick={this.props.onClose} className="self-start px-4 py-2 bg-gray-100 rounded-lg text-sm">Fechar</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
 
@@ -265,9 +286,9 @@ type SortMode = 'etapa' | 'az' | 'recente';
 function sortOportunidades(ops: Oportunidade[], mode: SortMode): Oportunidade[] {
   const sorted = [...ops];
   if (mode === 'az') {
-    sorted.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
+    sorted.sort((a, b) => (a.titulo ?? '').localeCompare(b.titulo ?? '', 'pt-BR'));
   } else if (mode === 'recente') {
-    sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    sorted.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
   } else {
     const order: string[] = ETAPAS.map((e) => e.value);
     sorted.sort((a, b) => order.indexOf(a.etapa) - order.indexOf(b.etapa));
@@ -421,12 +442,14 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       </div>
 
       {drawerOp !== null && (
-        <OportunidadeDrawer
-          op={drawerOp === 'new' ? null : drawerOp}
-          users={users}
-          onClose={() => setDrawerOp(null)}
-          onSave={() => { setDrawerOp(null); onRefresh(); }}
-        />
+        <DrawerBoundary onClose={() => setDrawerOp(null)}>
+          <OportunidadeDrawer
+            op={drawerOp === 'new' ? null : drawerOp}
+            users={users}
+            onClose={() => setDrawerOp(null)}
+            onSave={() => { setDrawerOp(null); onRefresh(); }}
+          />
+        </DrawerBoundary>
       )}
     </div>
   );
