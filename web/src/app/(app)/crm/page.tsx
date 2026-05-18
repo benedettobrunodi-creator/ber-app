@@ -104,7 +104,7 @@ export default function CrmPage() {
             {tab === 'atividades' && (
               <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} onRefresh={fetchAll} />
             )}
-            {tab === 'relatorios' && <TabRelatorios />}
+            {tab === 'relatorios' && <TabRelatorios oportunidades={oportunidades} />}
           </>
         )}
       </div>

@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Target, DollarSign, Pencil, Check, X } from 'lucide-react';
 import { fmt, Oportunidade } from '../types';
+import DrilldownModal from './DrilldownModal';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -37,10 +38,13 @@ function calcRealizadoPorMes(oportunidades: Oportunidade[], ano: number): Record
   return por;
 }
 
+const TERMINAL = ['ganho', 'perdido', 'declinado', 'cancelado'];
+
 export default function TabFunil({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
   const [funil, setFunil] = useState<FunilData | null>(null);
   const [forecast, setForecast] = useState<Record<number, ForecastMes>>({});
+  const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);;
   const [metas, setMetas] = useState<MetaRow[]>([]);
   const [editMetas, setEditMetas] = useState(false);
   const [metasEdit, setMetasEdit] = useState<number[]>(Array(12).fill(0));
@@ -99,31 +103,51 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     ? funil.conversao.count / Math.max(1, funil.qualificacao.count + funil.propostas.count + funil.conversao.count)
     : 0;
 
+  const openDrill = (title: string, ops: Oportunidade[]) => setDrill({ title, ops });
+
   return (
     <div className="space-y-6">
+      {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={<Target size={18} className="text-ber-teal" />} label="Em Pipeline" value={fmt(funil ? funil.qualificacao.valor + funil.propostas.valor : 0)} />
-        <KpiCard icon={<DollarSign size={18} className="text-ber-green" />} label="Ganho no Ano" value={fmt(totalRealizado)} />
-        <KpiCard icon={<TrendingUp size={18} className="text-ber-olive" />} label="vs Meta" value={totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'} sub={`de ${fmt(totalMeta)}`} />
-        <KpiCard icon={<Target size={18} className="text-purple-500" />} label="Conversão" value={`${Math.round(taxaConversao * 100)}%`} />
+        <KpiCard icon={<Target size={18} className="text-ber-teal" />} label="Em Pipeline" value={fmt(funil ? funil.qualificacao.valor + funil.propostas.valor : 0)}
+          onClick={() => openDrill('Em Pipeline', oportunidades.filter((o) => !TERMINAL.includes(o.etapa)))} />
+        <KpiCard icon={<DollarSign size={18} className="text-ber-green" />} label="Ganho no Ano" value={fmt(totalRealizado)}
+          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => o.etapa === 'ganho' && o.dataGanho && new Date(o.dataGanho).getFullYear() === ano))} />
+        <KpiCard icon={<TrendingUp size={18} className="text-ber-olive" />} label="vs Meta" value={totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'} sub={`de ${fmt(totalMeta)}`}
+          onClick={() => openDrill('Ganho no Ano', oportunidades.filter((o) => o.etapa === 'ganho' && o.dataGanho && new Date(o.dataGanho).getFullYear() === ano))} />
+        <KpiCard icon={<Target size={18} className="text-purple-500" />} label="Conversão" value={`${Math.round(taxaConversao * 100)}%`}
+          onClick={() => openDrill('Todas as Oportunidades', oportunidades)} />
       </div>
 
       {/* Funil Macro */}
       <div className="bg-white border border-ber-border rounded-xl p-5">
         <h3 className="font-bold text-ber-carbon mb-4">Funil de Conversão</h3>
         <div className="flex gap-3 mb-4">
-          {funilData.map((f, i) => (
-            <div key={f.name} className="flex-1 text-center">
+          {funilData.map((f, i) => {
+            const bucketEtapas: Record<string, string[]> = {
+              'Qualificação': ['lead', 'qualificacao'],
+              'Propostas':    ['proposta_producao', 'proposta_enviada', 'negociacao'],
+              'Conversão':    ['ganho'],
+            };
+            const etapas = bucketEtapas[f.name] ?? [];
+            const cor = ['#5A7A7A', '#E6A23C', '#3D9E5F'][i];
+            return (
+            <div
+              key={f.name}
+              className="flex-1 text-center cursor-pointer group"
+              onClick={() => openDrill(f.name, oportunidades.filter((o) => etapas.includes(o.etapa)))}
+            >
               <div
-                className="rounded-xl mx-auto flex items-end justify-center transition-all"
+                className="rounded-xl mx-auto flex items-end justify-center transition-all group-hover:opacity-80"
                 style={{
-                  backgroundColor: ['#5A7A7A', '#E6A23C', '#3D9E5F'][i] + '20',
-                  borderBottom: `3px solid ${['#5A7A7A', '#E6A23C', '#3D9E5F'][i]}`,
+                  backgroundColor: cor + '20',
+                  borderBottom: `3px solid ${cor}`,
                   height: `${Math.max(40, 160 - i * 40)}px`,
                 }}
               >
-                <span className="text-lg font-bold" style={{ color: ['#5A7A7A', '#E6A23C', '#3D9E5F'][i] }}>{f.count}</span>
+                <span className="text-lg font-bold" style={{ color: cor }}>{f.count}</span>
               </div>
               <p className="text-xs font-semibold text-ber-carbon mt-2">{f.name}</p>
               <p className="text-xs text-ber-gray">{fmt(f.valor)}</p>
@@ -195,9 +219,12 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   );
 }
 
-function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function KpiCard({ icon, label, value, sub, onClick }: { icon: React.ReactNode; label: string; value: string; sub?: string; onClick?: () => void }) {
   return (
-    <div className="bg-white border border-ber-border rounded-xl p-4">
+    <div
+      className={`bg-white border border-ber-border rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-ber-teal transition-colors' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-center gap-2 mb-2">{icon}<p className="text-xs text-ber-gray uppercase tracking-wide">{label}</p></div>
       <p className="text-xl font-bold text-ber-carbon">{value}</p>
       {sub && <p className="text-xs text-ber-gray mt-0.5">{sub}</p>}

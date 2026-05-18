@@ -6,7 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { fmt } from '../types';
+import { fmt, Oportunidade } from '../types';
+import DrilldownModal from './DrilldownModal';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -32,8 +33,9 @@ const ORIGEM_LABELS: Record<string, string> = {
   sem_origem:   'Sem origem',
 };
 
-export default function TabRelatorios() {
+export default function TabRelatorios({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
+  const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);
   const [pipelineStats, setPipelineStats] = useState<{
     porOrigem: Record<string, { count: number; valor: number }>;
   } | null>(null);
@@ -77,8 +79,12 @@ export default function TabRelatorios() {
         .sort((a, b) => b.valor - a.valor)
     : [];
 
+  const openDrill = (title: string, ops: Oportunidade[]) => setDrill({ title, ops });
+
   return (
     <div className="space-y-6">
+      {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
+
       {/* Win Rate */}
       {winRate && (
         <div className="bg-white border border-ber-border rounded-xl p-5">
@@ -89,15 +95,24 @@ export default function TabRelatorios() {
               <p className="text-xs text-ber-gray mt-1">Taxa de Conversão</p>
             </div>
             <div className="flex-1 grid grid-cols-3 gap-3">
-              <div className="text-center bg-ber-surface rounded-xl p-3">
+              <div
+                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-green transition-all"
+                onClick={() => openDrill('Ganhos', oportunidades.filter((o) => o.etapa === 'ganho'))}
+              >
                 <p className="text-2xl font-bold text-ber-green">{winRate.ganho}</p>
                 <p className="text-xs text-ber-gray">Ganhos</p>
               </div>
-              <div className="text-center bg-ber-surface rounded-xl p-3">
+              <div
+                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-red transition-all"
+                onClick={() => openDrill('Perdidos / Declinados / Cancelados', oportunidades.filter((o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+              >
                 <p className="text-2xl font-bold text-ber-red">{winRate.perdido}</p>
                 <p className="text-xs text-ber-gray">Perdidos</p>
               </div>
-              <div className="text-center bg-ber-surface rounded-xl p-3">
+              <div
+                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-border transition-all"
+                onClick={() => openDrill('Ganhos + Perdidos', oportunidades.filter((o) => ['ganho', 'perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+              >
                 <p className="text-2xl font-bold text-ber-carbon">{winRate.total}</p>
                 <p className="text-xs text-ber-gray">Total</p>
               </div>
@@ -120,7 +135,11 @@ export default function TabRelatorios() {
           </ResponsiveContainer>
           <div className="flex-1 space-y-2">
             {origemData.map((o) => (
-              <div key={o.name} className="flex items-center gap-2">
+              <div
+                key={o.name}
+                className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
+                onClick={() => openDrill(`Origem: ${o.name}`, oportunidades.filter((op) => (op.origem ?? 'sem_origem') === Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0]))}
+              >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
                 <span className="text-sm text-ber-carbon flex-1">{o.name}</span>
                 <span className="text-sm font-bold text-ber-carbon">{o.value}</span>
