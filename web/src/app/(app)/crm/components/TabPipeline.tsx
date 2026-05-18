@@ -26,7 +26,8 @@ class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => voi
   }
 }
 
-const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
+const TERMINAL_ETAPAS = ['ganho', 'perdido', 'declinado', 'cancelado'];
+const KANBAN_ETAPAS = ETAPAS.filter((e) => !TERMINAL_ETAPAS.includes(e.value));
 
 interface Props {
   oportunidades: Oportunidade[];
@@ -313,7 +314,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
     for (const e of KANBAN_ETAPAS) map[e.value] = [];
     for (const op of oportunidades) {
       if (map[op.etapa]) map[op.etapa].push(op);
-      else if (op.etapa !== 'perdido') map['lead'].push(op);
+      else if (!TERMINAL_ETAPAS.includes(op.etapa)) map['lead'].push(op);
     }
     return map;
   }, [oportunidades]);
@@ -331,7 +332,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-ber-carbon">Pipeline</h2>
           <span className="text-xs text-ber-gray bg-ber-surface px-2 py-0.5 rounded-full">
-            {oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa)).length} ativos
+            {oportunidades.filter((o) => !TERMINAL_ETAPAS.includes(o.etapa)).length} ativos
           </span>
         </div>
         <div className="flex items-center gap-2">

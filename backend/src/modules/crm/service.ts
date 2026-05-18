@@ -276,7 +276,7 @@ export async function upsertMetasAnuais(input: UpsertMetasAnuaisInput) {
 
 export async function getPipelineStats() {
   const oportunidades = await prisma.crmOportunidade.findMany({
-    where: { etapa: { notIn: ['perdido'] } },
+    where: { etapa: { notIn: ['perdido', 'declinado', 'cancelado'] } },
     select: { etapa: true, valor: true, probabilidade: true, origem: true },
   });
 
@@ -327,7 +327,7 @@ export async function getFunilMacro() {
 export async function getForecast(ano: number) {
   const oportunidades = await prisma.crmOportunidade.findMany({
     where: {
-      etapa: { notIn: ['perdido'] },
+      etapa: { notIn: ['perdido', 'declinado', 'cancelado'] },
       dataFechamentoPrevisto: {
         gte: new Date(`${ano}-01-01`),
         lte: new Date(`${ano}-12-31`),
@@ -455,7 +455,7 @@ export async function getWinRate(opts: { ano?: number; responsavelId?: string })
   }
   const [ganho, perdido] = await Promise.all([
     prisma.crmOportunidade.count({ where: { ...where, etapa: 'ganho' } }),
-    prisma.crmOportunidade.count({ where: { ...where, etapa: 'perdido' } }),
+    prisma.crmOportunidade.count({ where: { ...where, etapa: { in: ['perdido', 'declinado', 'cancelado'] } } }),
   ]);
   const total = ganho + perdido;
   return { ganho, perdido, total, rate: total > 0 ? ganho / total : 0 };

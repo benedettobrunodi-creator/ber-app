@@ -59,7 +59,7 @@ export default function CrmPage() {
           <p className="text-xs text-ber-gray">Gestão Comercial BÈR</p>
         </div>
         <div className="ml-auto flex items-center gap-3 text-xs text-ber-gray">
-          <span>{oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa)).length} em aberto</span>
+          <span>{oportunidades.filter((o) => !['ganho', 'perdido', 'declinado', 'cancelado'].includes(o.etapa)).length} em aberto</span>
           <span className="text-ber-border">|</span>
           <span>{empresas.length} empresas</span>
         </div>

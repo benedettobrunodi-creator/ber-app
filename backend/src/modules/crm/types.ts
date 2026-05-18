@@ -8,6 +8,8 @@ export const CRM_ETAPAS = [
   'negociacao',
   'ganho',
   'perdido',
+  'declinado',
+  'cancelado',
 ] as const;
 export type CrmEtapa = (typeof CRM_ETAPAS)[number];
 
@@ -19,6 +21,8 @@ export const CRM_ETAPA_MACRO: Record<CrmEtapa, string> = {
   negociacao: 'propostas',
   ganho: 'conversao',
   perdido: 'perdido',
+  declinado: 'perdido',
+  cancelado: 'perdido',
 };
 
 export const CRM_ORIGENS = [

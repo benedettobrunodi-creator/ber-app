@@ -6,6 +6,8 @@ export const ETAPAS = [
   { value: 'negociacao',        label: 'Negociação',         color: '#8B5CF6' },
   { value: 'ganho',             label: 'Ganho',              color: '#3D9E5F' },
   { value: 'perdido',           label: 'Perdido',            color: '#E05555' },
+  { value: 'declinado',         label: 'Declinado',          color: '#F97316' },
+  { value: 'cancelado',         label: 'Cancelado',          color: '#6B7280' },
 ] as const;
 
 export const ETAPA_MAP = Object.fromEntries(ETAPAS.map((e) => [e.value, e]));
