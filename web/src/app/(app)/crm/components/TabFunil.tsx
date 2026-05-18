@@ -26,41 +26,16 @@ interface ForecastMes {
 
 interface MetaRow { ano: number; mes: number; valorMeta: number }
 
-function calcRealizadoPorMes(oportunidades: Oportunidade[], ano: number): Record<number, number> {
-  const por: Record<number, number> = {};
-  for (let m = 1; m <= 12; m++) por[m] = 0;
-  for (const op of oportunidades) {
-    if (op.etapa !== 'ganho') continue;
-    if (op.dataGanho) {
-      // data confiável — filtrar por ano
-      const d = new Date(op.dataGanho);
-      if (d.getFullYear() !== ano) continue;
-      por[d.getMonth() + 1] += Number(op.valor ?? 0);
-    } else {
-      // sem dataGanho: inclui no mês da dataFechamentoPrevisto se existir e for do ano,
-      // senão inclui no mês atual como "sem data definida"
-      const ref = op.dataFechamentoPrevisto;
-      if (ref) {
-        const d = new Date(ref);
-        if (d.getFullYear() !== ano) continue;
-        por[d.getMonth() + 1] += Number(op.valor ?? 0);
-      } else {
-        // fallback: coloca no mês atual
-        const mesAtual = new Date().getMonth() + 1;
-        por[mesAtual] += Number(op.valor ?? 0);
-      }
-    }
-  }
-  return por;
-}
-
 const TERMINAL = ['ganho', 'perdido', 'declinado', 'cancelado'];
+
+interface VendasMes { mes: number; meta: number; realizado: number; metaAcum: number; realizadoAcum: number }
 
 export default function TabFunil({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
   const [funil, setFunil] = useState<FunilData | null>(null);
   const [forecast, setForecast] = useState<Record<number, ForecastMes>>({});
-  const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);;
+  const [vendas, setVendas] = useState<VendasMes[]>([]);
+  const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);
   const [metas, setMetas] = useState<MetaRow[]>([]);
   const [editMetas, setEditMetas] = useState(false);
   const [metasEdit, setMetasEdit] = useState<number[]>(Array(12).fill(0));
@@ -69,10 +44,12 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     Promise.all([
       api.get('/crm/stats/funil'),
       api.get(`/crm/stats/forecast/${ano}`),
+      api.get(`/crm/stats/vendas-vs-meta/${ano}`),
       api.get(`/crm/metas/${ano}`),
-    ]).then(([f, fc, m]) => {
+    ]).then(([f, fc, v, m]) => {
       setFunil(f.data);
       setForecast(fc.data);
+      setVendas(v.data);
       setMetas(m.data);
       const vals = Array(12).fill(0);
       for (const row of m.data as MetaRow[]) vals[row.mes - 1] = Number(row.valorMeta);
@@ -80,13 +57,13 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     });
   }, [ano]);
 
-  const realizadoPorMes = calcRealizadoPorMes(oportunidades, ano);
-
   const saveMetas = async () => {
     await api.put('/crm/metas', {
       ano,
       metas: metasEdit.map((v, i) => ({ mes: i + 1, valorMeta: v })).filter((m) => m.valorMeta > 0),
     });
+    const res = await api.get(`/crm/stats/vendas-vs-meta/${ano}`);
+    setVendas(res.data);
     setEditMetas(false);
   };
 
@@ -104,17 +81,14 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     ponderado: forecast[i + 1]?.ponderado ?? 0,
   }));
 
-  let metaAcum = 0;
-  let realizadoAcum = 0;
-  const vendasData = MESES.map((mes, i) => {
-    const m = i + 1;
-    metaAcum += metasEdit[i] ?? 0;
-    realizadoAcum += realizadoPorMes[m] ?? 0;
-    return { mes, meta: metaAcum, realizado: realizadoAcum };
-  });
+  const vendasData = vendas.map((v) => ({
+    mes: MESES[v.mes - 1],
+    meta: Number(v.metaAcum),
+    realizado: Number(v.realizadoAcum),
+  }));
 
-  const totalRealizado = Object.values(realizadoPorMes).reduce((s, v) => s + v, 0);
-  const totalMeta = metasEdit.reduce((s, v) => s + v, 0);
+  const totalRealizado = vendas.reduce((s, v) => s + Number(v.realizado), 0);
+  const totalMeta = vendas.reduce((s, v) => s + Number(v.meta), 0);
   const taxaConversao = funil
     ? funil.conversao.count / Math.max(1, funil.qualificacao.count + funil.propostas.count + funil.conversao.count)
     : 0;

@@ -368,15 +368,16 @@ export async function getVendasVsMeta(ano: number) {
 
   const ganhas = await prisma.crmOportunidade.findMany({
     where: { etapa: 'ganho' },
-    select: { valor: true, dataGanho: true },
+    select: { valor: true, dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true },
   });
 
   const realizadoPorMes: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) realizadoPorMes[m] = 0;
   for (const op of ganhas) {
-    if (!op.dataGanho) continue;
-    if (op.dataGanho.getFullYear() !== ano) continue;
-    const mes = op.dataGanho.getMonth() + 1;
+    // dataGanho (real) → dataFechamentoPrevisto → updatedAt
+    const ref = op.dataGanho ?? op.dataFechamentoPrevisto ?? op.updatedAt;
+    if (ref.getFullYear() !== ano) continue;
+    const mes = ref.getMonth() + 1;
     realizadoPorMes[mes] += Number(op.valor ?? 0);
   }
 
