@@ -260,9 +260,25 @@ function OportunidadeDrawer({
   );
 }
 
+type SortMode = 'etapa' | 'az' | 'recente';
+
+function sortOportunidades(ops: Oportunidade[], mode: SortMode): Oportunidade[] {
+  const sorted = [...ops];
+  if (mode === 'az') {
+    sorted.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
+  } else if (mode === 'recente') {
+    sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    const order: string[] = ETAPAS.map((e) => e.value);
+    sorted.sort((a, b) => order.indexOf(a.etapa) - order.indexOf(b.etapa));
+  }
+  return sorted;
+}
+
 export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
+  const [sortMode, setSortMode] = useState<SortMode>('etapa');
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -291,6 +307,19 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {viewMode === 'lista' && (
+            <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
+              {([['etapa', 'Etapa'], ['az', 'A–Z'], ['recente', 'Recente']] as [SortMode, string][]).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setSortMode(mode)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${sortMode === mode ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
             <button
               onClick={() => setViewMode('kanban')}
@@ -329,19 +358,14 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           {oportunidades.length === 0 && (
             <p className="text-center text-xs text-ber-gray py-10">Nenhuma oportunidade.</p>
           )}
-          {[...oportunidades]
-            .sort((a, b) => {
-              const order: string[] = ETAPAS.map((e) => e.value);
-              return order.indexOf(a.etapa) - order.indexOf(b.etapa);
-            })
-            .map((op, idx) => {
+          {sortOportunidades(oportunidades, sortMode).map((op, idx) => {
               const etapaCfg = ETAPA_MAP[op.etapa];
               const probCfg = PROBABILIDADES.find((p) => p.value === op.probabilidade);
               return (
                 <div
                   key={op.id}
                   onClick={() => setDrawerOp(op)}
-                  className={`cursor-pointer grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 items-center text-xs hover:bg-ber-surface transition-colors ${idx !== oportunidades.length - 1 ? 'border-b border-ber-border/50' : ''}`}
+                  className="cursor-pointer grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 items-center text-xs hover:bg-ber-surface transition-colors border-b border-ber-border/50 last:border-b-0"
                 >
                   <div className="min-w-0">
                     <p className="font-semibold text-ber-carbon truncate">{op.titulo}</p>
