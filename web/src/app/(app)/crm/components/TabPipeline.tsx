@@ -126,9 +126,11 @@ function OportunidadeDrawer({
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
     setSaving(true);
     try {
+      const valorNum = form.valor ? Number(form.valor) : null;
       const payload = {
-        ...form,
-        valor: form.valor ? Number(form.valor) : null,
+        titulo: form.titulo,
+        etapa: form.etapa,
+        valor: valorNum && valorNum > 0 ? valorNum : null,
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
@@ -141,8 +143,13 @@ function OportunidadeDrawer({
         await api.patch(`/crm/oportunidades/${op!.id}`, payload);
       }
       onSave();
-    } catch {
-      setErr('Erro ao salvar');
+    } catch (e: any) {
+      const details = e?.response?.data?.error?.details;
+      if (details?.length) {
+        setErr(details.map((d: any) => `${d.field}: ${d.message}`).join(' · '));
+      } else {
+        setErr(e?.response?.data?.error?.message ?? e?.message ?? 'Erro ao salvar');
+      }
     } finally {
       setSaving(false);
     }
