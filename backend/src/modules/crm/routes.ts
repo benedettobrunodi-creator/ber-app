@@ -6,8 +6,8 @@ import * as ctrl from './controller';
 const router = Router();
 router.use(authenticate);
 
-const read = requireAnyRole('orcamentos', 'coordenacao', 'pmo', 'diretoria');
-const write = requireAnyRole('orcamentos', 'coordenacao', 'diretoria');
+const read = requireAnyRole('orcamentos', 'comercial', 'coordenacao', 'pmo', 'diretoria');
+const write = requireAnyRole('orcamentos', 'comercial', 'coordenacao', 'diretoria');
 const admin = requireAnyRole('diretoria');
 
 // ── Empresas

@@ -1,5 +1,5 @@
 export const ROLES = [
-  'diretoria', 'coordenacao', 'pmo', 'engenharia', 'financeiro', 'gestor', 'compras', 'orcamentos', 'campo',
+  'diretoria', 'coordenacao', 'pmo', 'engenharia', 'financeiro', 'gestor', 'compras', 'orcamentos', 'comercial', 'campo',
 ] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -12,6 +12,7 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   gestor:      2,
   compras:     1,
   orcamentos:  1,
+  comercial:   1,
   campo:       1,
 };
 
