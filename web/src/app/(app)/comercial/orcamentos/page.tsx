@@ -5,7 +5,7 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Star, StarOff, Plus, X, ChevronDown, ChevronRight, Download,
-  History, Edit2, Copy, Trash2, Search, Filter, GripVertical,
+  History, Edit2, Copy, Trash2, Search, Filter, GripVertical, LayoutList, LayoutGrid,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTip,
@@ -1056,18 +1056,27 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
 /* ─── Tab Pipeline ─── */
 
 function TabPipeline({ items, onClickItem }: { items: Orcamento[]; onClickItem: (o: Orcamento) => void }) {
-  const propostas = items.filter(o => PIPELINE_STATUSES.includes(o.status));
+  const [viewMode, setViewMode] = useState<'cards' | 'lista'>('cards');
 
+  const propostas = items.filter(o => PIPELINE_STATUSES.includes(o.status));
   const byProb = PROBABILIDADES.map(prob => {
     const group = propostas.filter(o => o.probabilidade === prob);
     const total = group.reduce((s, o) => s + Number(o.valorVenda ?? 0), 0);
     const ponderado = total * PROB_WEIGHT[prob];
     return { prob, group, total, ponderado };
   });
-
   const semProb = propostas.filter(o => !o.probabilidade);
   const totalGeral = byProb.reduce((s, b) => s + b.total, 0);
   const totalPonderado = byProb.reduce((s, b) => s + b.ponderado, 0);
+
+  // Lista completa ordenada por status
+  const STATUS_ORDER = ['LEAD','A_INICIAR','PRODUZIR','PRODUZINDO','REVISAO','ENVIADO','AGUARDANDO','APROVADO','ENTREGUE','CHANGE_ORDER','DECLINADO','NO_GO','CANCELADO','PERDIDO'];
+  const allSorted = [...items].sort((a, b) => {
+    const ai = STATUS_ORDER.indexOf(a.status);
+    const bi = STATUS_ORDER.indexOf(b.status);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const totalAllValor = items.reduce((s, o) => s + Number(o.valorVenda ?? 0), 0);
 
   return (
     <div className="flex flex-col h-full overflow-auto">
@@ -1094,76 +1103,132 @@ function TabPipeline({ items, onClickItem }: { items: Orcamento[]; onClickItem: 
           </div>
         </div>
 
-        {/* Cards por probabilidade */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {byProb.map(({ prob, group, total, ponderado }) => {
-            const c = PROB_COLORS[prob];
-            return (
-              <div key={prob} className={`rounded-xl border-2 ${c.border} ${c.bg} p-4`}>
-                {/* Header do card */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`text-sm font-black uppercase tracking-wide ${c.text}`}>
-                    {PROB_LABELS[prob]}
-                  </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.badge}`}>
-                    {group.length} proposta{group.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <p className={`text-xl font-black ${c.text}`}>{BRL(total)}</p>
-                <p className={`text-[11px] mt-0.5 ${c.text} opacity-70`}>
-                  Ponderado: {BRL(ponderado)} ({Math.round(PROB_WEIGHT[prob] * 100)}%)
-                </p>
+        {/* Toggle de view */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-400">
+            {viewMode === 'cards' ? `${propostas.length} propostas enviadas/aguardando/aprovadas` : `${items.length} itens · todos os status`}
+          </p>
+          <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
+            <button
+              onClick={() => setViewMode('cards')}
+              title="Cards por probabilidade"
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'cards' ? 'bg-[#06A99D] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <LayoutGrid size={13} /> Cards
+            </button>
+            <button
+              onClick={() => setViewMode('lista')}
+              title="Lista completa"
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'lista' ? 'bg-[#06A99D] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <LayoutList size={13} /> Lista
+            </button>
+          </div>
+        </div>
 
-                {/* Lista de propostas */}
-                <div className="mt-3 space-y-2">
-                  {group.length === 0 && (
-                    <p className={`text-xs ${c.text} opacity-50 text-center py-3`}>Nenhuma proposta</p>
-                  )}
-                  {group.map(o => (
-                    <div key={o.id}
-                      onClick={() => onClickItem(o)}
-                      className="cursor-pointer rounded-lg bg-white/70 hover:bg-white px-3 py-2 transition-colors">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-gray-800 truncate">{o.cliente}</span>
-                        <StatusBadge status={o.status} />
+        {viewMode === 'cards' ? (
+          <>
+            {/* Cards por probabilidade */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {byProb.map(({ prob, group, total, ponderado }) => {
+                const c = PROB_COLORS[prob];
+                return (
+                  <div key={prob} className={`rounded-xl border-2 ${c.border} ${c.bg} p-4`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className={`text-sm font-black uppercase tracking-wide ${c.text}`}>{PROB_LABELS[prob]}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.badge}`}>
+                        {group.length} proposta{group.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <p className={`text-xl font-black ${c.text}`}>{BRL(total)}</p>
+                    <p className={`text-[11px] mt-0.5 ${c.text} opacity-70`}>
+                      Ponderado: {BRL(ponderado)} ({Math.round(PROB_WEIGHT[prob] * 100)}%)
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {group.length === 0 && (
+                        <p className={`text-xs ${c.text} opacity-50 text-center py-3`}>Nenhuma proposta</p>
+                      )}
+                      {group.map(o => (
+                        <div key={o.id} onClick={() => onClickItem(o)}
+                          className="cursor-pointer rounded-lg bg-white/70 hover:bg-white px-3 py-2 transition-colors">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-gray-800 truncate">{o.cliente}</span>
+                            <StatusBadge status={o.status} />
+                          </div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-[10px] text-gray-400">{o.numero}</span>
+                            <span className="text-xs font-bold text-gray-700">{o.valorVenda ? BRL(o.valorVenda) : '—'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {semProb.length > 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 p-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                  Sem probabilidade classificada ({semProb.length})
+                </p>
+                <div className="space-y-2">
+                  {semProb.map(o => (
+                    <div key={o.id} onClick={() => onClickItem(o)}
+                      className="cursor-pointer flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 hover:border-gray-300 transition-colors">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <span className="text-xs font-semibold text-gray-700 truncate">{o.cliente}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0">{o.numero}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-[10px] text-gray-400">{o.numero}</span>
-                        <span className="text-xs font-bold text-gray-700">
-                          {o.valorVenda ? BRL(o.valorVenda) : '—'}
-                        </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={o.status} />
+                        <span className="text-xs font-bold text-gray-700">{o.valorVenda ? BRL(o.valorVenda) : '—'}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Sem classificação */}
-        {semProb.length > 0 && (
-          <div className="rounded-xl border border-dashed border-gray-300 p-4">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-              Sem probabilidade classificada ({semProb.length})
-            </p>
-            <div className="space-y-2">
-              {semProb.map(o => (
-                <div key={o.id}
-                  onClick={() => onClickItem(o)}
-                  className="cursor-pointer flex items-center justify-between rounded-lg bg-white border border-gray-100 px-3 py-2 hover:border-gray-300 transition-colors">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <span className="text-xs font-semibold text-gray-700 truncate">{o.cliente}</span>
-                    <span className="text-[10px] text-gray-400 shrink-0">{o.numero}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusBadge status={o.status} />
-                    <span className="text-xs font-bold text-gray-700">
-                      {o.valorVenda ? BRL(o.valorVenda) : '—'}
-                    </span>
-                  </div>
+            )}
+          </>
+        ) : (
+          /* Lista completa — todos os status */
+          <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
+            <div className="grid grid-cols-[1fr_120px_100px_90px_80px_90px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+              <span>Cliente / Orçamento</span>
+              <span>Status</span>
+              <span>Responsável</span>
+              <span>Probabilidade</span>
+              <span>Segmento</span>
+              <span className="text-right">Valor</span>
+            </div>
+            {allSorted.length === 0 && (
+              <p className="text-center text-xs text-gray-400 py-10">Nenhum item encontrado.</p>
+            )}
+            {allSorted.map((o, idx) => (
+              <div
+                key={o.id}
+                onClick={() => onClickItem(o)}
+                className={`cursor-pointer grid grid-cols-[1fr_120px_100px_90px_80px_90px] gap-3 px-4 py-2.5 items-center text-xs hover:bg-[#06A99D]/5 transition-colors ${idx !== allSorted.length - 1 ? 'border-b border-gray-50' : ''}`}
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-800 truncate">{o.cliente}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{o.numero}{o.descricaoCurta ? ` · ${o.descricaoCurta}` : ''}</p>
                 </div>
-              ))}
+                <div><StatusBadge status={o.status} /></div>
+                <span className="text-gray-600 truncate">{o.responsavel?.name ?? <span className="text-gray-300">—</span>}</span>
+                <span>
+                  {o.probabilidade
+                    ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${PROB_COLORS[o.probabilidade as Probabilidade]?.badge ?? 'bg-gray-100 text-gray-500'}`}>{PROB_LABELS[o.probabilidade as Probabilidade] ?? o.probabilidade}</span>
+                    : <span className="text-gray-300">—</span>}
+                </span>
+                <span className="text-gray-500 truncate">{o.segmento ?? <span className="text-gray-300">—</span>}</span>
+                <span className="text-right font-bold text-gray-700">{o.valorVenda ? BRL(o.valorVenda) : '—'}</span>
+              </div>
+            ))}
+            <div className="grid grid-cols-[1fr_120px_100px_90px_80px_90px] gap-3 px-4 py-2.5 border-t border-gray-200 bg-gray-50 text-xs font-bold text-gray-700">
+              <span>{items.length} itens</span>
+              <span /><span /><span /><span />
+              <span className="text-right">{BRL(totalAllValor)}</span>
             </div>
           </div>
         )}
