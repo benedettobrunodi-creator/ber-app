@@ -142,7 +142,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
               <p className="text-xs font-semibold text-ber-carbon mt-2">{f.name}</p>
               <p className="text-xs text-ber-gray">{fmt(f.valor)}</p>
             </div>
-          ))}
+          )})}
         </div>
       </div>
 
