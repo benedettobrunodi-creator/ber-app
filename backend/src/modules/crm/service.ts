@@ -373,13 +373,12 @@ export async function getVendasVsMeta(ano: number) {
 
   const realizadoPorMes: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) realizadoPorMes[m] = 0;
-  console.log('[VendasVsMeta] ganhas encontradas:', ganhas.length, 'ano:', ano);
+
   for (const op of ganhas) {
     // dataGanho (real) → dataFechamentoPrevisto → updatedAt
     const ref = op.dataGanho ?? op.dataFechamentoPrevisto ?? op.updatedAt;
     const refAno = ref instanceof Date ? ref.getFullYear() : new Date(ref as any).getFullYear();
     const refMes = ref instanceof Date ? ref.getMonth() + 1 : new Date(ref as any).getMonth() + 1;
-    console.log('[VendasVsMeta] op:', { valor: op.valor, dataGanho: op.dataGanho, dataFechamentoPrevisto: op.dataFechamentoPrevisto, ref, refTipo: typeof ref, refInstDate: ref instanceof Date, refAno, refMes });
     if (refAno !== ano) continue;
     realizadoPorMes[refMes] += Number(op.valor ?? 0);
   }
