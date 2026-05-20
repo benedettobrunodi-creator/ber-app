@@ -27,7 +27,8 @@ class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => voi
 }
 
 const TERMINAL_ETAPAS = ['ganho', 'perdido', 'declinado', 'cancelado'];
-const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
+const ETAPAS_PERDIDAS = ['perdido', 'declinado', 'cancelado'];
+const KANBAN_ETAPAS = ETAPAS.filter((e) => !TERMINAL_ETAPAS.includes(e.value));
 
 interface Props {
   oportunidades: Oportunidade[];
@@ -71,6 +72,9 @@ function CardOportunidade({
           <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
         </div>
       )}
+      {op.motivoPerda && (
+        <p className="mt-2 text-[11px] text-ber-red/80 italic line-clamp-2">"{op.motivoPerda}"</p>
+      )}
       {op.responsavel && (
         <div className="mt-2 flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
@@ -104,6 +108,7 @@ function OportunidadeDrawer({
     responsavelId: op?.responsavel?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
     dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
+    motivoPerda: op?.motivoPerda ?? '',
     observacoes: op?.observacoes ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -129,6 +134,10 @@ function OportunidadeDrawer({
     setSaving(true);
     try {
       const valorNum = form.valor ? Number(form.valor) : null;
+      const isPerdido = ETAPAS_PERDIDAS.includes(form.etapa);
+      if (isPerdido && !form.motivoPerda.trim()) {
+        setErr('Informe o motivo da perda'); setSaving(false); return;
+      }
       const payload = {
         titulo: form.titulo,
         etapa: form.etapa,
@@ -138,6 +147,7 @@ function OportunidadeDrawer({
         responsavelId: form.responsavelId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
         dataGanho: form.dataGanho || null,
+        motivoPerda: isPerdido ? (form.motivoPerda.trim() || null) : null,
         observacoes: form.observacoes || null,
       };
       if (isNew) {
@@ -207,6 +217,18 @@ function OportunidadeDrawer({
                 onChange={(e) => setForm((f) => ({ ...f, dataGanho: e.target.value }))}
               />
               <p className="text-[10px] text-ber-gray mt-0.5">Usado no gráfico de Meta. Preenchido automaticamente ao marcar como Ganho.</p>
+            </div>
+          )}
+          {ETAPAS_PERDIDAS.includes(form.etapa) && (
+            <div>
+              <label className="text-xs font-semibold text-ber-red uppercase tracking-wide">Motivo da Perda *</label>
+              <textarea
+                className="mt-1 w-full border border-ber-red/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-red resize-none bg-red-50/30"
+                rows={3}
+                placeholder="Por que o negócio foi perdido?"
+                value={form.motivoPerda}
+                onChange={(e) => setForm((f) => ({ ...f, motivoPerda: e.target.value }))}
+              />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -334,6 +356,9 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   }, [oportunidades]);
 
   const byEtapa = grouped();
+  const perdidos = oportunidades
+    .filter((o) => ETAPAS_PERDIDAS.includes(o.etapa))
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   const handleMoveEtapa = async (opId: string, etapa: string) => {
     await api.patch(`/crm/oportunidades/${opId}`, { etapa });
@@ -461,6 +486,29 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
             </div>
           );
         })}
+
+        {/* Coluna Perdidos — separador visual + todos os terminais não-ganho */}
+        <div className="flex-shrink-0 w-1 self-stretch mx-1 bg-ber-border/40 rounded-full" />
+        <div className="flex-shrink-0 w-64 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-ber-red" />
+            <span className="text-xs font-bold text-ber-red uppercase tracking-wide">Perdidos</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{perdidos.length}</span>
+          </div>
+          {perdidos.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">
+              {fmt(perdidos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}
+            </p>
+          )}
+          <div className="flex-1 bg-red-50/50 border border-ber-red/10 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {perdidos.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {perdidos.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum perdido</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {drawerOp !== null && (

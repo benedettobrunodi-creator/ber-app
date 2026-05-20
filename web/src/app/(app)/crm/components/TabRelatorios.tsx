@@ -47,8 +47,8 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     Promise.all([
       api.get('/crm/stats/pipeline'),
       api.get(`/crm/stats/pipeline-mes-a-mes/${ano}`),
-      api.get('/crm/stats/ticket-medio'),
-      api.get('/crm/stats/win-rate'),
+      api.get(`/crm/stats/ticket-medio?ano=${ano}`),
+      api.get(`/crm/stats/win-rate?ano=${ano}`),
     ]).then(([ps, pm, tm, wr]) => {
       setPipelineStats(ps.data);
       setPipeMes(pm.data);
@@ -56,6 +56,12 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       setWinRate(wr.data);
     });
   }, [ano]);
+
+  // Filtra oportunidades pelo ano vigente para drilldowns precisos
+  const opsAno = oportunidades.filter((o) => {
+    const ref = o.dataGanho ?? o.dataFechamentoPrevisto ?? o.updatedAt;
+    return new Date(ref).getFullYear() === ano;
+  });
 
   // Origem — pie
   const origemData = pipelineStats
@@ -88,7 +94,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       {/* Win Rate */}
       {winRate && (
         <div className="bg-white border border-ber-border rounded-xl p-5">
-          <h3 className="font-bold text-ber-carbon mb-4">Win Rate</h3>
+          <h3 className="font-bold text-ber-carbon mb-4">Win Rate — {ano}</h3>
           <div className="flex items-center gap-6">
             <div className="text-center">
               <p className="text-4xl font-bold text-ber-green">{Math.round(winRate.rate * 100)}%</p>
@@ -97,21 +103,21 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
             <div className="flex-1 grid grid-cols-3 gap-3">
               <div
                 className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-green transition-all"
-                onClick={() => openDrill('Ganhos', oportunidades.filter((o) => o.etapa === 'ganho'))}
+                onClick={() => openDrill(`Ganhos ${ano}`, opsAno.filter((o) => o.etapa === 'ganho'))}
               >
                 <p className="text-2xl font-bold text-ber-green">{winRate.ganho}</p>
                 <p className="text-xs text-ber-gray">Ganhos</p>
               </div>
               <div
                 className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-red transition-all"
-                onClick={() => openDrill('Perdidos / Declinados / Cancelados', oportunidades.filter((o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+                onClick={() => openDrill(`Perdidos ${ano}`, opsAno.filter((o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
               >
                 <p className="text-2xl font-bold text-ber-red">{winRate.perdido}</p>
                 <p className="text-xs text-ber-gray">Perdidos</p>
               </div>
               <div
                 className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-border transition-all"
-                onClick={() => openDrill('Ganhos + Perdidos', oportunidades.filter((o) => ['ganho', 'perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+                onClick={() => openDrill(`Todos ${ano}`, opsAno.filter((o) => ['ganho', 'perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
               >
                 <p className="text-2xl font-bold text-ber-carbon">{winRate.total}</p>
                 <p className="text-xs text-ber-gray">Total</p>
