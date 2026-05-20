@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 
 const loginSchema = z.object({
@@ -108,6 +109,12 @@ export default function LoginPage() {
           >
             {isSubmitting ? 'Entrando...' : 'Entrar'}
           </button>
+
+          <div className="text-center">
+            <Link href="/forgot-password" className="text-xs text-ber-gray hover:text-ber-teal transition-colors">
+              Esqueci minha senha
+            </Link>
+          </div>
         </form>
       </div>
     </div>
