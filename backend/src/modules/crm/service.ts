@@ -499,27 +499,29 @@ export async function getNutricao() {
 // ── Novos relatórios ──────────────────────────────────────────────────────────
 
 /**
- * Pipeline ativo por mês, baseado em dataFechamentoPrevisto.
+ * Pipeline ativo por mês — visão de pipeline disponível em cada mês.
  *
- * Cada deal ativo aparece APENAS no mês em que está previsto fechar.
- * Quando a data prevista é atualizada, o deal muda de mês automaticamente.
- * Deals sem dataFechamentoPrevisto são agrupados no bucket "semData" (não aparecem nas barras).
- * Deals terminais (ganho/perdido/declinado/cancelado) são excluídos — pipeline = potencial em aberto.
+ * Para cada mês M, porMes[M] = soma de todos os deals ativos cuja data
+ * de fechamento previsto é em M ou DEPOIS. Ou seja, o deal está "em
+ * pipeline" nos meses anteriores ao seu fechamento previsto, não depois.
+ *
+ * Exemplo: deal previsto para junho → aparece nos meses 1-6; em julho
+ * ele já deveria ter sido resolvido e NÃO aparece.
+ *
+ * Quando a data prevista é atualizada, o deal reposiciona automaticamente.
+ * Deals sem data ficam em semData (sem posição no gráfico).
+ * Deals terminais (ganho/perdido/declinado/cancelado) são excluídos.
  */
 export async function getPipelineAtivoAcumulado(ano: number) {
   const ops = await prisma.crmOportunidade.findMany({
     where: {
-      etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] }, // apenas ativos
+      etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] },
     },
-    select: {
-      valor: true,
-      dataFechamentoPrevisto: true,
-    },
+    select: { valor: true, dataFechamentoPrevisto: true },
   });
 
   const porMes: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) porMes[m] = 0;
-
   let semData = 0;
 
   for (const op of ops) {
@@ -532,14 +534,25 @@ export async function getPipelineAtivoAcumulado(ano: number) {
     }
 
     const fechamento = new Date(op.dataFechamentoPrevisto);
-    if (fechamento.getFullYear() !== ano) {
-      // Datas em outros anos: agrupa em sem data para o ano atual
-      semData += val;
+    const anoFechamento = fechamento.getFullYear();
+
+    if (anoFechamento < ano) {
+      // Data já passou (ano anterior) e deal ainda está aberto — não posiciona
       continue;
     }
 
-    const mes = fechamento.getMonth() + 1;
-    porMes[mes] += val;
+    if (anoFechamento > ano) {
+      // Fecha em ano futuro: está no pipeline de todos os meses do ano atual
+      for (let m = 1; m <= 12; m++) porMes[m] += val;
+      continue;
+    }
+
+    // Mesmo ano: aparece nos meses 1 até o mês de fechamento (inclusive)
+    // → deal de junho está em pipeline em jan, fev, mar, abr, mai, jun; NÃO em jul+
+    const mesFechamento = fechamento.getMonth() + 1;
+    for (let m = 1; m <= mesFechamento; m++) {
+      porMes[m] += val;
+    }
   }
 
   return { porMes, semData };

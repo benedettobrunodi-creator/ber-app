@@ -308,8 +308,8 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         <div className="bg-white border border-ber-border rounded-xl p-5">
           <h3 className="font-bold text-ber-carbon mb-1">Pipeline Ativo vs Necessário — {ano}</h3>
           <p className="text-xs text-ber-gray mb-4">
-            Barras = pipeline em aberto no mês (só deals ativos, sem ganhos) ·
-            Linha = pipeline necessário para bater a meta ({Math.round(winRateEfetivo * 100)}% de conversão aplicado)
+            Barras = soma dos deals ativos com fechamento previsto naquele mês ou depois (deal de junho sai do gráfico em julho) ·
+            Linha = pipeline necessário para bater a meta ({Math.round(winRateEfetivo * 100)}% de conversão)
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={pipelineNecessarioData}>
