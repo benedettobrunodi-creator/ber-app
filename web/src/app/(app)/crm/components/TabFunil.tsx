@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import api from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, AreaChart, Area, ComposedChart, Line,
+  Legend, Area, ComposedChart, Line,
 } from 'recharts';
 import { TrendingUp, Target, DollarSign, Pencil, Check, X, Layers } from 'lucide-react';
 import { fmt, Oportunidade } from '../types';
@@ -211,7 +211,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         <p className="text-xs text-ber-gray mb-4">Valor ganho por mês vs meta mensal — deals marcados como <em>ganho</em></p>
 
         {editMetas ? (
-          <div className="grid grid-cols-6 gap-2 mb-4">
+          <div className="grid grid-cols-6 gap-2">
             {metasEdit.map((v, i) => (
               <div key={i}>
                 <p className="text-[10px] text-ber-gray mb-1">{MESES[i]}</p>
@@ -226,21 +226,31 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
           </div>
         ) : (
           <>
-            {/* Barras mensais + linha de meta + linha de projeção acumulada */}
-            <ResponsiveContainer width="100%" height={240}>
+            {/* ── Gráfico 1: Mês a mês ─────────────────────────────── */}
+            <p className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide mb-2">Mês a mês</p>
+            <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={vendasMesAMesData} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
                 <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="mensal" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="acum" orientation="right" tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 10 }} />
+                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                {/* Mês a mês */}
-                <Bar yAxisId="mensal" dataKey="realizado" name="Realizado (mês)" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
-                <Line yAxisId="mensal" type="monotone" dataKey="meta" name="Meta (mês)" stroke="#6B7280" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
-                {/* Acumulado — eixo direito */}
-                <Line yAxisId="acum" type="monotone" dataKey="realizadoAcum" name="Realizado acum." stroke="#3D9E5F" strokeWidth={2} dot={{ fill: '#3D9E5F', r: 2 }} />
-                <Line yAxisId="acum" type="monotone" dataKey="projecao" name="Meta acum. (projeção)" stroke="#F59E0B" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                <Bar dataKey="realizado" name="Realizado" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
+                <Line type="monotone" dataKey="meta" name="Meta" stroke="#6B7280" strokeWidth={2} strokeDasharray="5 3" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            {/* ── Gráfico 2: Acumulado (projeção) ──────────────────── */}
+            <p className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide mt-5 mb-2">Acumulado — trajetória para a meta</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <ComposedChart data={vendasMesAMesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area type="monotone" dataKey="projecao" name="Meta acumulada" stroke="#F59E0B" fill="#F59E0B18" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                <Area type="monotone" dataKey="realizadoAcum" name="Realizado acumulado" stroke="#3D9E5F" fill="#3D9E5F20" strokeWidth={2.5} dot={{ fill: '#3D9E5F', r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
 
@@ -252,9 +262,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
                   style={{ width: `${Math.min(100, totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0)}%` }}
                 />
               </div>
-              <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">
-                {fmt(totalRealizado)} / {fmt(totalMeta)}
-              </span>
+              <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">{fmt(totalRealizado)} / {fmt(totalMeta)}</span>
               <span className={`text-sm font-bold whitespace-nowrap ${totalMeta > 0 && totalRealizado >= totalMeta ? 'text-ber-green' : 'text-ber-gray'}`}>
                 {totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
               </span>

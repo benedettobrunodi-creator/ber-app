@@ -207,31 +207,36 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       )}
 
       {/* ── Origem dos Leads ─────────────────────────────────────── */}
-      <Section title="Origem dos Leads">
-        <div className="flex flex-col md:flex-row gap-6 items-center">
-          <ResponsiveContainer width={220} height={220}>
-            <PieChart>
-              <Pie data={origemData} dataKey="value" cx="50%" cy="50%" outerRadius={90} innerRadius={50}>
-                {origemData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-              </Pie>
-              <Tooltip formatter={(v, _n, p) => [`${Number(v)} leads — ${fmt((p as { payload: { valor: number } }).payload.valor)}`, String(_n)]} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 space-y-2">
-            {origemData.map((o) => (
-              <div
-                key={o.name}
-                className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
-                onClick={() => openDrill(`Origem: ${o.name}`, oportunidades.filter((op) => (op.origem ?? 'sem_origem') === Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0]))}
-              >
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
-                <span className="text-sm text-ber-carbon flex-1">{o.name}</span>
-                <span className="text-sm font-bold text-ber-carbon">{o.value}</span>
-                <span className="text-xs text-ber-gray w-24 text-right">{fmt(o.valor)}</span>
-              </div>
-            ))}
-          </div>
+      <Section title="Origem dos Leads" subtitle={String(ano)}>
+        {/* Totais — legenda clicável */}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mb-5">
+          {origemData.map((o) => (
+            <div
+              key={o.name}
+              className="flex items-center gap-1.5 cursor-pointer hover:opacity-70 transition-opacity"
+              onClick={() => openDrill(`Origem: ${o.name}`, oportunidades.filter((op) => (op.origem ?? 'sem_origem') === Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0]))}
+            >
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+              <span className="text-xs text-ber-carbon font-semibold">{o.name}</span>
+              <span className="text-xs text-ber-gray">({o.value} · {fmt(o.valor)})</span>
+            </div>
+          ))}
         </div>
+
+        {/* Gráfico mês a mês por origem — valor de entrada */}
+        <p className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide mb-2">Entradas por mês</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={pipeMesData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(v) => fmt(Number(v))} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {allOrigens.map((o) => (
+              <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
       </Section>
 
       {/* ── Performance por Responsável ──────────────────────────── */}
@@ -378,22 +383,6 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         </Section>
       )}
 
-      {/* ── Pipeline Entradas Mês a Mês ──────────────────────────── */}
-      <Section title="Entradas no Pipeline Mês a Mês" subtitle={`${ano} — por origem`}>
-        <p className="text-xs text-ber-gray mb-3">Valor dos deals que <em>entraram</em> no pipeline em cada mês (não acumulado)</p>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={pipeMesData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v) => fmt(Number(v))} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            {allOrigens.map((o) => (
-              <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </Section>
 
       {/* ── Recorrência de Clientes ──────────────────────────────── */}
       {recorrencia && recorrencia.total > 0 && (
