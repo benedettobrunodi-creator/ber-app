@@ -160,6 +160,13 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         .sort((a, b) => b.valor - a.valor)
     : [];
 
+  // Ganhos por segmento — apenas segmentos com ao menos 1 ganho
+  const segmentoGanhos = winRateSegmento
+    .filter((s) => s.ganho > 0)
+    .sort((a, b) => b.valorGanho - a.valorGanho);
+  const totalValorGanho = segmentoGanhos.reduce((acc, s) => acc + s.valorGanho, 0);
+  const totalCountGanho = segmentoGanhos.reduce((acc, s) => acc + s.ganho, 0);
+
   // Cohort
   const cohortData = MESES.map((m, i) => {
     const c = cohort[i + 1];
@@ -234,6 +241,85 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
               Declinados = cliente recusou antes de disputa real · Cancelados = projeto inviabilizado externamente.
               Fórmula: {winRate.ganho} ÷ {winRate.total} = {winRate.total > 0 ? Math.round(winRate.rate * 100) : 0}%
             </p>
+          </div>
+        </Section>
+      )}
+
+      {/* ── Ganhos por Segmento ──────────────────────────────────── */}
+      {segmentoGanhos.length > 0 && (
+        <Section title="Ganhos por Segmento" subtitle={String(ano)}>
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+            {/* Donut — Volume R$ */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Volume (R$)</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={segmentoGanhos} dataKey="valorGanho" cx="50%" cy="50%"
+                    outerRadius={82} innerRadius={46}>
+                    {segmentoGanhos.map((_, i) => (
+                      <Cell key={i} fill={SEGMENTO_COLORS[i % SEGMENTO_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => fmt(Number(v))} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Donut — Quantidade */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Quantidade</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={segmentoGanhos} dataKey="ganho" cx="50%" cy="50%"
+                    outerRadius={82} innerRadius={46}>
+                    {segmentoGanhos.map((_, i) => (
+                      <Cell key={i} fill={SEGMENTO_COLORS[i % SEGMENTO_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`${v} deals`, 'Ganhos']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legenda / tabela */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center pt-1">
+              <div className="space-y-1.5">
+                {segmentoGanhos.map((s, i) => (
+                  <div
+                    key={s.segmento}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                    onClick={() =>
+                      openDrill(
+                        `Ganhos: ${s.segmento}`,
+                        opsAno.filter((o) => o.etapa === 'ganho' && o.empresa?.segmento === s.segmento),
+                      )
+                    }
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: SEGMENTO_COLORS[i % SEGMENTO_COLORS.length] }}
+                    />
+                    <span className="text-sm text-ber-carbon font-medium flex-1 truncate">{s.segmento}</span>
+                    <span className="text-xs font-bold text-ber-carbon w-6 text-center">{s.ganho}</span>
+                    <span className="text-xs text-ber-gray w-24 text-right">{fmt(s.valorGanho)}</span>
+                    <span className="text-[11px] text-ber-gray/70 w-9 text-right">
+                      {totalValorGanho > 0 ? `${Math.round((s.valorGanho / totalValorGanho) * 100)}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Linha de total */}
+              <div className="flex items-center gap-2 px-2 mt-2 pt-2 border-t border-ber-border">
+                <span className="w-2.5 h-2.5 shrink-0" />
+                <span className="text-xs font-bold text-ber-gray flex-1">Total</span>
+                <span className="text-xs font-bold text-ber-carbon w-6 text-center">{totalCountGanho}</span>
+                <span className="text-xs font-bold text-ber-carbon w-24 text-right">{fmt(totalValorGanho)}</span>
+                <span className="text-[11px] text-ber-gray/70 w-9 text-right">100%</span>
+              </div>
+            </div>
+
           </div>
         </Section>
       )}
