@@ -230,7 +230,7 @@ export async function saveLancamentos(req: Request, res: Response, next?: any) {
       _sum: { percentualExecutado: true },
     });
     const acumuladoOutros = toNum(outrosLancs._sum.percentualExecutado);
-    const pct = Math.min(l.percentual_executado, 100 - acumuladoOutros);
+    const pct = Math.max(0, Math.min(l.percentual_executado, 100 - acumuladoOutros));
     const valor = (toNum(item.valorOrcado) * pct) / 100;
 
     await prisma.medicaoLancamento.upsert({

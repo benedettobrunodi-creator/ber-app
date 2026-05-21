@@ -25,6 +25,7 @@ export const updateObraSchema = z.object({
   dataFimProjeto: z.string().optional().nullable(),
   dataInicioObra: z.string().optional().nullable(),
   dataFimObra: z.string().optional().nullable(),
+  valorContrato: z.number().positive().optional().nullable(),
 });
 
 export const addMemberSchema = z.object({

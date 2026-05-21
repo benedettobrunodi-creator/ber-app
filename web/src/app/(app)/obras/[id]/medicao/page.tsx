@@ -263,7 +263,12 @@ export default function MedicaoPage() {
   const { id: obraId } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [obra, setObra] = useState<{ name: string } | null>(null);
+  const [obra, setObra] = useState<{ name: string; valorContrato: number | null } | null>(null);
+
+  // Edição do valor do contrato
+  const [editContrato, setEditContrato] = useState(false);
+  const [valorContratoEdit, setValorContratoEdit] = useState('');
+  const [savingContrato, setSavingContrato] = useState(false);
   const [medicoes, setMedicoes] = useState<Medicao[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<MedicaoDetalhe | null>(null);
@@ -389,6 +394,25 @@ export default function MedicaoPage() {
     }
   }
 
+  // ── Valor do contrato ─────────────────────────────────────────────────────
+
+  function startEditContrato() {
+    setValorContratoEdit(obra?.valorContrato != null ? String(obra.valorContrato) : '');
+    setEditContrato(true);
+  }
+
+  async function saveContrato() {
+    setSavingContrato(true);
+    try {
+      const valor = parseFloat(valorContratoEdit.replace(',', '.')) || null;
+      await api.patch(`/obras/${obraId}`, { valorContrato: valor });
+      setObra((prev) => prev ? { ...prev, valorContrato: valor } : prev);
+      setEditContrato(false);
+    } finally {
+      setSavingContrato(false);
+    }
+  }
+
   // ── Edição inline de item ──────────────────────────────────────────────────
 
   function startEditItem(item: MedicaoItem) {
@@ -460,7 +484,36 @@ export default function MedicaoPage() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black text-gray-900 truncate">{obra?.name}</h1>
-            <p className="text-xs text-gray-400">Medição de Contrato</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <p className="text-xs text-gray-400">Valor do Contrato:</p>
+              {editContrato ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={valorContratoEdit}
+                    onChange={(e) => setValorContratoEdit(e.target.value)}
+                    placeholder="0,00"
+                    step={0.01}
+                    className="w-36 rounded border border-gray-300 px-2 py-0.5 text-xs font-semibold focus:border-green-500 focus:outline-none"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveContrato(); if (e.key === 'Escape') setEditContrato(false); }}
+                  />
+                  <button onClick={saveContrato} disabled={savingContrato} className="flex items-center justify-center h-6 w-6 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                    <Check size={11} />
+                  </button>
+                  <button onClick={() => setEditContrato(false)} className="flex items-center justify-center h-6 w-6 rounded border border-gray-200 text-gray-500 hover:bg-gray-50">
+                    <X size={11} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={startEditContrato} className="group flex items-center gap-1 rounded px-1.5 py-0.5 text-xs hover:bg-gray-100 transition-colors">
+                  <span className={obra?.valorContrato != null ? 'font-semibold text-gray-800' : 'text-gray-400 italic'}>
+                    {obra?.valorContrato != null ? fmt(obra.valorContrato) : 'Não definido'}
+                  </span>
+                  <Pencil size={10} className="text-gray-300 group-hover:text-green-600 transition-colors" />
+                </button>
+              )}
+            </div>
           </div>
           {/* BER brand */}
           <span className="hidden md:block text-xs font-black tracking-widest text-gray-300 uppercase">BÈR</span>

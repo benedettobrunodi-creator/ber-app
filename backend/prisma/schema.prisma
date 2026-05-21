@@ -129,6 +129,7 @@ model Obra {
   dataInicioObra    DateTime? @map("data_inicio_obra") @db.Date
   dataFimObra       DateTime? @map("data_fim_obra") @db.Date
   orcamentoId       String?   @unique @map("orcamento_id") @db.Uuid
+  valorContrato     Decimal?  @map("valor_contrato") @db.Decimal(14, 2)
 
   // Relations
   coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
