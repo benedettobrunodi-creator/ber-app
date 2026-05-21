@@ -26,6 +26,7 @@ interface MedicaoItem {
   percentualAcumulado: number;
   valorMedidoTotal: number;
   saldo: number;
+  valorFaturavel: number;
   lancamentoAtual: { percentual: number; valor: number };
 }
 
@@ -35,7 +36,9 @@ interface MedicaoDetalhe {
   periodoInicio: string;
   periodoFim: string;
   status: string;
+  isSinal: boolean;
   totalQuinzena: number;
+  totalFaturavel: number;
   medicoes: { id: string; numero: string }[];
   itens: MedicaoItem[];
 }
@@ -569,6 +572,11 @@ export default function MedicaoPage() {
               <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[detalhe.status]}`}>
                 {STATUS_LABELS[detalhe.status]}
               </span>
+              {detalhe.isSinal && (
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                  Sinal
+                </span>
+              )}
               {saving && <span className="text-[11px] text-gray-400 animate-pulse">Salvando...</span>}
             </div>
             {detalhe.status === 'rascunho' && (
@@ -614,6 +622,7 @@ export default function MedicaoPage() {
                   <th className="px-3 py-3 text-right font-semibold text-xs w-32">Valor Orçado</th>
                   <th className="px-3 py-3 text-center font-semibold text-xs w-28 bg-green-800">% Quinzena</th>
                   <th className="px-3 py-3 text-right font-semibold text-xs w-32 bg-green-800">Valor Quinzena</th>
+                  <th className="px-3 py-3 text-right font-semibold text-xs w-32 bg-amber-700">A Faturar BÈR</th>
                   <th className="px-3 py-3 text-right font-semibold text-xs w-24">% Acum.</th>
                   <th className="px-3 py-3 text-right font-semibold text-xs w-32">Valor Medido</th>
                   <th className="px-3 py-3 text-right font-semibold text-xs w-32">Saldo</th>
@@ -623,9 +632,9 @@ export default function MedicaoPage() {
                 {detalhe.itens.map((item) => {
                   if (item.tipo === 'grupo') {
                     const isOpen = !collapsed.has(item.numero);
-                    const groupTotal = detalhe.itens
-                      .filter((i) => i.numero.startsWith(item.numero + '.') && i.tipo === 'subitem')
-                      .reduce((s, i) => s + i.valorOrcado, 0);
+                    const groupChildren = detalhe.itens.filter((i) => i.numero.startsWith(item.numero + '.') && i.tipo === 'subitem');
+                    const groupTotal = groupChildren.reduce((s, i) => s + i.valorOrcado, 0);
+                    const groupFaturavel = groupChildren.reduce((s, i) => s + i.valorFaturavel, 0);
                     const isEditingThis = editingItem === item.id;
                     const isEditable = canEdit && detalhe.status === 'rascunho';
 
@@ -702,6 +711,9 @@ export default function MedicaoPage() {
                         <td className="px-3 py-3 text-right text-xs font-bold text-green-800 bg-green-50">
                           {fmt(item.lancamentoAtual.valor)}
                         </td>
+                        <td className="px-3 py-3 text-right text-xs font-bold bg-amber-50 text-amber-800">
+                          {groupFaturavel > 0 ? fmt(groupFaturavel) : <span className="text-gray-300">–</span>}
+                        </td>
                         <td className="px-3 py-3 text-right text-xs font-bold text-gray-700">
                           {item.percentualAcumulado.toFixed(0)}%
                         </td>
@@ -766,6 +778,12 @@ export default function MedicaoPage() {
                           </div>
                         ) : <span className="text-xs text-gray-300">–</span>}
                       </td>
+                      {/* A Faturar BÈR */}
+                      <td className="px-3 py-2 text-right bg-amber-50">
+                        {item.valorFaturavel > 0 ? (
+                          <span className="text-xs font-semibold text-amber-700">{fmt(item.valorFaturavel)}</span>
+                        ) : <span className="text-xs text-gray-300">–</span>}
+                      </td>
                       {/* % acumulado */}
                       <td className="px-3 py-3 text-right">
                         <div className="flex flex-col items-end gap-0.5">
@@ -793,7 +811,7 @@ export default function MedicaoPage() {
           {/* ── Footer sticky ── */}
           <div className="border-t-2 border-gray-200 bg-gray-900 px-4 md:px-6 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-6 flex-wrap">
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total Orçado</p>
                   <p className="text-sm font-black text-white">{fmt(totalOrcado)}</p>
@@ -801,6 +819,12 @@ export default function MedicaoPage() {
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total {detalhe.numero}</p>
                   <p className="text-sm font-black text-green-400">{fmt(detalhe.totalQuinzena)}</p>
+                </div>
+                <div className="border-l border-amber-500/40 pl-6">
+                  <p className="text-[10px] text-amber-400 uppercase tracking-wide font-bold">
+                    {detalhe.isSinal ? 'A Faturar (Sinal)' : 'A Faturar BÈR'}
+                  </p>
+                  <p className="text-sm font-black text-amber-400">{fmt(detalhe.totalFaturavel)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total Medido</p>

@@ -127,6 +127,19 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
     });
   }
 
+  // Sinal = primeira medição (Q1)
+  const medicaoSinalId = todasMedicoes[0]?.id;
+  const isSinal = medicao.id === medicaoSinalId;
+
+  // Mapa de % recebida no sinal por item (usado em Q2+)
+  const sinalPctMap = new Map<string, number>();
+  if (!isSinal && medicaoSinalId) {
+    for (const [itemId, medMap] of lancMap.entries()) {
+      const sinalLanc = medMap.get(medicaoSinalId);
+      if (sinalLanc) sinalPctMap.set(itemId, sinalLanc.percentual);
+    }
+  }
+
   const itensEnriquecidos = itens.map((item) => {
     const itemLancs = lancMap.get(item.id) ?? new Map();
     const percentualAcumulado = Array.from(itemLancs.values()).reduce(
@@ -138,6 +151,18 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
 
     // Lançamento desta medição
     const lancAtual = itemLancs.get(id);
+    const pctAtual = lancAtual?.percentual ?? 0;
+
+    let valorFaturavel: number;
+    if (isSinal) {
+      valorFaturavel = lancAtual?.valor ?? 0;
+    } else {
+      const pctSinal = sinalPctMap.get(item.id) ?? 0;
+      const acumuladoBefore = percentualAcumulado - pctAtual;
+      const billableAfter = Math.max(0, percentualAcumulado - pctSinal);
+      const billableBefore = Math.max(0, acumuladoBefore - pctSinal);
+      valorFaturavel = (billableAfter - billableBefore) * valorOrcado / 100;
+    }
 
     return {
       id: item.id,
@@ -149,6 +174,7 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
       percentualAcumulado,
       valorMedidoTotal,
       saldo,
+      valorFaturavel,
       lancamentoAtual: lancAtual
         ? { percentual: lancAtual.percentual, valor: lancAtual.valor }
         : { percentual: 0, valor: 0 },
@@ -158,6 +184,9 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
   const totalQuinzena = medicao.lancamentos.reduce(
     (s, l) => s + toNum(l.valorMedido), 0,
   );
+  const totalFaturavel = itensEnriquecidos
+    .filter(i => i.tipo === 'subitem')
+    .reduce((s, i) => s + i.valorFaturavel, 0);
 
   sendSuccess(res, {
     id: medicao.id,
@@ -165,7 +194,9 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
     periodoInicio: medicao.periodoInicio,
     periodoFim: medicao.periodoFim,
     status: medicao.status,
+    isSinal,
     totalQuinzena,
+    totalFaturavel,
     medicoes: todasMedicoes,
     itens: itensEnriquecidos,
   });
