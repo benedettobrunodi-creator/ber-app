@@ -90,7 +90,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     api.get(`/crm/stats/funil-conversao?ano=${ano}`).then((r) => setFunilConversao(r.data)).catch(() => {});
     api.get('/crm/stats/forecast-horizonte').then((r) => setForecastH(r.data)).catch(() => {});
     api.get('/crm/stats/pipeline-aging').then((r) => setPipelineAging(r.data)).catch(() => {});
-    api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`).then((r) => setPipelineAtivo(r.data)).catch(() => {});
+    api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`).then((r) => setPipelineAtivo(r.data.porMes ?? r.data)).catch(() => {});
   }, [ano]);
 
   const saveMetas = async () => {
@@ -103,7 +103,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`),
     ]);
     setVendas(v2.data);
-    setPipelineAtivo(paa2.data);
+    setPipelineAtivo(paa2.data.porMes ?? paa2.data);
     setEditMetas(false);
   };
 

@@ -36,6 +36,35 @@ const ORIGEM_LABELS: Record<string, string> = {
 const SEGMENTO_COLORS = ['#5A7A7A', '#3B82F6', '#8B5CF6', '#E6A23C', '#EC4899', '#3D9E5F', '#868686'];
 const MOTIVO_COLORS   = ['#EF4444', '#F97316', '#F59E0B', '#8B5CF6', '#3B82F6', '#6B7280', '#94A3B8'];
 
+// Tooltip customizado para o gráfico de motivos de perda
+// Definido fora do componente para preservar a referência entre renders
+function MotivoTooltip({
+  active, payload, opsAno = [],
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { motivo: string; count: number; valor: number } }>;
+  opsAno?: Oportunidade[];
+}) {
+  if (!active || !payload?.length) return null;
+  const { motivo, count, valor } = payload[0].payload;
+  const projetos = opsAno.filter(
+    (o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa) && o.motivoPerda === motivo,
+  );
+  return (
+    <div className="bg-white border border-ber-border rounded-lg p-3 shadow-lg max-w-[240px]">
+      <p className="text-xs font-bold text-ber-carbon mb-1">{motivo}</p>
+      <p className="text-xs text-ber-gray mb-2">{count} deal{count !== 1 ? 's' : ''} · {fmt(valor)}</p>
+      {projetos.length > 0 && (
+        <div className="space-y-0.5">
+          {projetos.map((p) => (
+            <p key={p.id} className="text-[11px] text-ber-carbon truncate">· {p.titulo}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="bg-white border border-ber-border rounded-xl p-5">
@@ -51,6 +80,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 export default function TabRelatorios({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
   const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);
+  const [hoveredMotivo, setHoveredMotivo] = useState<string | null>(null);
 
   const [pipelineStats, setPipelineStats] = useState<{
     porOrigem: Record<string, { count: number; valor: number }>;
@@ -185,22 +215,41 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 <Pie data={motivosPerda} dataKey="count" cx="50%" cy="50%" outerRadius={85} innerRadius={45}>
                   {motivosPerda.map((_, i) => <Cell key={i} fill={MOTIVO_COLORS[i % MOTIVO_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v) => [`${v} ocorrências`]} />
+                {/* Passa opsAno via prop; recharts injeta active/payload via cloneElement */}
+                <Tooltip content={<MotivoTooltip opsAno={opsAno} />} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-2">
-              {motivosPerda.map((m, i) => (
-                <div
-                  key={m.motivo}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
-                  onClick={() => openDrill(`Perdidos: ${m.motivo}`, opsAno.filter((o) => o.etapa === 'perdido' && o.motivoPerda === m.motivo))}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MOTIVO_COLORS[i % MOTIVO_COLORS.length] }} />
-                  <span className="text-sm text-ber-carbon flex-1">{m.motivo}</span>
-                  <span className="text-sm font-bold text-ber-carbon">{m.count}</span>
-                  <span className="text-xs text-ber-gray w-24 text-right">{fmt(m.valor)}</span>
-                </div>
-              ))}
+              {motivosPerda.map((m, i) => {
+                const projetos = opsAno.filter(
+                  (o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa) && o.motivoPerda === m.motivo,
+                );
+                return (
+                  <div
+                    key={m.motivo}
+                    className="relative flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
+                    onClick={() => openDrill(`Perdidos: ${m.motivo}`, projetos)}
+                    onMouseEnter={() => setHoveredMotivo(m.motivo)}
+                    onMouseLeave={() => setHoveredMotivo(null)}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MOTIVO_COLORS[i % MOTIVO_COLORS.length] }} />
+                    <span className="text-sm text-ber-carbon flex-1">{m.motivo}</span>
+                    <span className="text-sm font-bold text-ber-carbon">{m.count}</span>
+                    <span className="text-xs text-ber-gray w-24 text-right">{fmt(m.valor)}</span>
+                    {hoveredMotivo === m.motivo && projetos.length > 0 && (
+                      <div className="absolute left-0 bottom-full mb-1 z-50 bg-white border border-ber-border rounded-lg shadow-lg p-3 w-72 pointer-events-none">
+                        <p className="text-[10px] font-bold text-ber-gray uppercase tracking-wide mb-1.5">Projetos perdidos</p>
+                        {projetos.map((p) => (
+                          <p key={p.id} className="text-xs text-ber-carbon py-0.5 border-b border-ber-border/30 last:border-0 truncate">
+                            {p.titulo}
+                            {p.empresa && <span className="text-ber-gray ml-1.5">· {p.empresa.razaoSocial}</span>}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </Section>
