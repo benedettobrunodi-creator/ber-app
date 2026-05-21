@@ -250,13 +250,19 @@ function OportunidadeDrawer({
           {ETAPAS_PERDIDAS.includes(form.etapa) && (
             <div>
               <label className="text-xs font-semibold text-ber-red uppercase tracking-wide">Motivo da Perda *</label>
-              <textarea
-                className="mt-1 w-full border border-ber-red/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-red resize-none bg-red-50/30"
-                rows={3}
-                placeholder="Por que o negócio foi perdido?"
+              <select
+                className="mt-1 w-full border border-ber-red/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-red bg-red-50/30"
                 value={form.motivoPerda}
                 onChange={(e) => setForm((f) => ({ ...f, motivoPerda: e.target.value }))}
-              />
+              >
+                <option value="">-- Selecione o motivo --</option>
+                <option value="Preço">Preço</option>
+                <option value="Escopo não aderente">Escopo não aderente</option>
+                <option value="Relacionamento com concorrente">Relacionamento com concorrente</option>
+                <option value="Apresentação / Proposta fraca">Apresentação / Proposta fraca</option>
+                <option value="Decisão adiada">Decisão adiada</option>
+                <option value="Sem resposta">Sem resposta</option>
+              </select>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
