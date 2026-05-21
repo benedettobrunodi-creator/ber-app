@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
   Plus, X, AlertTriangle, Calendar, Users, HardHat, UserPlus,
-  ChevronDown, ChevronUp, Trash2, Printer, Pencil,
+  ChevronDown, ChevronUp, Trash2, Printer, Pencil, Search, Download,
 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -495,8 +495,9 @@ function AlocacaoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative flex h-full w-full max-w-[440px] flex-col bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-base font-semibold text-gray-900">
             {editAlocacao ? 'Editar Alocação' : 'Nova Alocação'}
@@ -506,7 +507,7 @@ function AlocacaoModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="max-h-[80vh] space-y-4 overflow-y-auto p-6">
+        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
           {/* Recurso */}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Recurso</label>
@@ -1007,6 +1008,7 @@ function GanttChart({
   viewMode,
   obras,
   conflicts,
+  capacityMap,
   onBarClick,
   onRowEmptyClick,
   onDeleteBar,
@@ -1016,14 +1018,19 @@ function GanttChart({
   viewMode: ViewMode;
   obras: ObraInfo[];
   conflicts: Conflict[];
+  capacityMap: Map<string, number>;
   onBarClick: (alocacaoId: string) => void;
   onRowEmptyClick: (recursoSelectKey: string) => void;
   onDeleteBar: (alocacaoId: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
-  const [recursoOrder, setRecursoOrder] = useState<string[]>([]);
-  const [obraOrder, setObraOrder] = useState<string[]>([]);
+  const [recursoOrder, setRecursoOrder] = useState<string[]>(() => {
+    try { const s = localStorage.getItem('ber_aloc_recurso_order'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [obraOrder, setObraOrder] = useState<string[]>(() => {
+    try { const s = localStorage.getItem('ber_aloc_obra_order'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const today = new Date();
   const pxPerDay = PX_PER_DAY[zoom];
   const chartStart = addDays(today, -CHART_OFFSET[zoom]);
@@ -1078,8 +1085,13 @@ function GanttChart({
     if (newIdx < 0 || newIdx >= order.length) return;
     const next = [...order];
     [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
-    if (viewMode === 'recurso') setRecursoOrder(next);
-    else setObraOrder(next);
+    if (viewMode === 'recurso') {
+      setRecursoOrder(next);
+      try { localStorage.setItem('ber_aloc_recurso_order', JSON.stringify(next)); } catch {}
+    } else {
+      setObraOrder(next);
+      try { localStorage.setItem('ber_aloc_obra_order', JSON.stringify(next)); } catch {}
+    }
   }
 
   const ticks = generateTicks(chartStart, CHART_DAYS[zoom], zoom, pxPerDay);
@@ -1145,6 +1157,17 @@ function GanttChart({
                   </>
                 )}
               </div>
+              {viewMode === 'recurso' && !row.isGroupHeader && (
+                <span className={`mr-1 flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                  (capacityMap.get(row.id) ?? 0) >= 100
+                    ? 'bg-red-100 text-red-700'
+                    : (capacityMap.get(row.id) ?? 0) >= 70
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {capacityMap.get(row.id) ?? 0}%
+                </span>
+              )}
               {showArrows && (
                 <div className="flex flex-shrink-0 flex-col opacity-0 transition-opacity group-hover/row:opacity-100">
                   <button
@@ -1950,7 +1973,35 @@ function ResumoTab({
   users: UserInfo[];
   recursosExternos: RecursoExterno[];
 }) {
-  const entries = buildResumo(alocacoes, users, recursosExternos);
+  const [search, setSearch] = useState('');
+  const allEntries = useMemo(() => buildResumo(alocacoes, users, recursosExternos), [alocacoes, users, recursosExternos]);
+  const entries = useMemo(() => {
+    if (!search.trim()) return allEntries;
+    const q = search.toLowerCase();
+    return allEntries.filter(e => e.nome.toLowerCase().includes(q));
+  }, [allEntries, search]);
+
+  function exportCSV() {
+    const rows = [
+      ['Recurso', 'Tipo', 'Cargo', 'Dedicação Atual (%)', 'Disponível em', 'Próximas obras'],
+      ...allEntries.map(e => [
+        e.nome,
+        e.isExterno ? 'Externo' : 'Interno',
+        FUNCAO_LABELS[e.role] ?? CARGO_LABELS[e.role] ?? e.role,
+        String(e.dedicacaoAtual),
+        e.livreEm ? fmtDate(e.livreEm) : 'Disponível agora',
+        e.periodos.map(p => `${p.obraName} (${p.pct}%)`).join(' | '),
+      ]),
+    ];
+    const csv = '﻿' + rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alocacao_resumo_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function livreInfo(entry: RecursoResumoEntry): { text: string; isNow: boolean; urgent: boolean } {
     if (!entry.livreEm) return { text: 'Disponível agora', isNow: true, urgent: false };
@@ -1963,6 +2014,27 @@ function ResumoTab({
 
   return (
     <div className="space-y-3">
+      {/* Barra de busca + exportar */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar recurso…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-7 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={exportCSV}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+        >
+          <Download size={12} /> Exportar CSV
+        </button>
+        <span className="text-xs text-gray-400">{entries.length} recurso{entries.length !== 1 ? 's' : ''}</span>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {/* Header */}
         <div className="grid items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400"
@@ -2044,6 +2116,7 @@ function ResumoTab({
 
 /* ─── Page ─── */
 
+
 export default function AlocacaoPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -2060,6 +2133,11 @@ export default function AlocacaoPage() {
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showNovoExternoModal, setShowNovoExternoModal] = useState(false);
   const [showNovaObraModal, setShowNovaObraModal] = useState(false);
+
+  // Filtros da Timeline
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterCargos, setFilterCargos] = useState<Set<string>>(new Set());
+  const [filterOcultarEncerradas, setFilterOcultarEncerradas] = useState(false);
 
   useEffect(() => {
     if (user && !perms.configuracoes) router.replace('/dashboard');
@@ -2084,7 +2162,43 @@ export default function AlocacaoPage() {
     }).finally(() => setLoading(false));
   }, [perms.configuracoes]);
 
-  const conflicts = detectConflicts(alocacoes);
+  const conflicts = useMemo(() => detectConflicts(alocacoes), [alocacoes]);
+
+  const capacityMap = useMemo(() => {
+    const today = new Date();
+    const map = new Map<string, number>();
+    for (const a of alocacoes) {
+      const start = resolveStart(a);
+      const end = resolveEnd(a);
+      if (start && start > today) continue;
+      if (end && end < today) continue;
+      const key = a.userId ?? a.recursoExternoId ?? a.id;
+      map.set(key, (map.get(key) ?? 0) + a.dedicacaoPct);
+    }
+    return map;
+  }, [alocacoes]);
+
+  const alocacoesFiltradas = useMemo(() => {
+    let result = alocacoes;
+    if (filterOcultarEncerradas) {
+      const today = new Date();
+      result = result.filter(a => {
+        const end = resolveEnd(a);
+        return !end || end >= today;
+      });
+    }
+    if (filterSearch.trim()) {
+      const q = filterSearch.toLowerCase();
+      result = result.filter(a =>
+        recursoNome(a).toLowerCase().includes(q) ||
+        a.obra.name.toLowerCase().includes(q),
+      );
+    }
+    if (filterCargos.size > 0) {
+      result = result.filter(a => filterCargos.has(a.cargoNaAlocacao));
+    }
+    return result;
+  }, [alocacoes, filterSearch, filterCargos, filterOcultarEncerradas]);
 
   function handleSaved(a: Alocacao) {
     setAlocacoes(prev => [a, ...prev]);
@@ -2202,7 +2316,8 @@ export default function AlocacaoPage() {
           <>
             {/* ── TIMELINE ── */}
             {activeTab === 'timeline' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
+                {/* Toolbar linha 1: view + zoom + quick-add + legenda */}
                 <div className="flex flex-wrap items-center gap-3">
                   {/* View mode toggle */}
                   <div className="flex rounded-lg border border-gray-200 bg-white p-0.5">
@@ -2281,20 +2396,86 @@ export default function AlocacaoPage() {
                   </div>
                 </div>
 
+                {/* Barra de filtros */}
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 print:hidden">
+                  {/* Busca */}
+                  <div className="relative flex-1 min-w-[180px] max-w-xs">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar recurso ou obra…"
+                      value={filterSearch}
+                      onChange={e => setFilterSearch(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 py-1.5 pl-7 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Filtro por cargo */}
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(['coordenador', 'gestor', 'mestre', 'ajudante'] as const).map(c => (
+                      <button
+                        key={c}
+                        onClick={() =>
+                          setFilterCargos(prev => {
+                            const next = new Set(prev);
+                            next.has(c) ? next.delete(c) : next.add(c);
+                            return next;
+                          })
+                        }
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                          filterCargos.has(c)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {CARGO_LABELS[c]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Toggle obras encerradas */}
+                  <button
+                    onClick={() => setFilterOcultarEncerradas(v => !v)}
+                    className={`ml-auto rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                      filterOcultarEncerradas
+                        ? 'bg-gray-700 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {filterOcultarEncerradas ? 'Mostrar encerradas' : 'Ocultar encerradas'}
+                  </button>
+
+                  {/* Limpar filtros */}
+                  {(filterSearch || filterCargos.size > 0 || filterOcultarEncerradas) && (
+                    <button
+                      onClick={() => { setFilterSearch(''); setFilterCargos(new Set()); setFilterOcultarEncerradas(false); }}
+                      className="flex items-center gap-1 text-[10px] text-red-500 hover:text-red-700"
+                    >
+                      <X size={10} /> Limpar
+                    </button>
+                  )}
+
+                  {/* Contador de resultados */}
+                  <span className="text-[10px] text-gray-400">
+                    {alocacoesFiltradas.length}/{alocacoes.length} alocações
+                  </span>
+                </div>
+
                 <GanttChart
-                    alocacoes={alocacoes}
-                    zoom={zoom}
-                    viewMode={viewMode}
-                    obras={obras}
-                    conflicts={conflicts}
-                    onBarClick={openEdit}
-                    onDeleteBar={handleDeleteBar}
-                    onRowEmptyClick={key =>
-                      key.startsWith('obra:')
-                        ? openCreate(undefined, key.slice(5))
-                        : openCreate(key)
-                    }
-                  />
+                  alocacoes={alocacoesFiltradas}
+                  zoom={zoom}
+                  viewMode={viewMode}
+                  obras={obras}
+                  conflicts={conflicts}
+                  capacityMap={capacityMap}
+                  onBarClick={openEdit}
+                  onDeleteBar={handleDeleteBar}
+                  onRowEmptyClick={key =>
+                    key.startsWith('obra:')
+                      ? openCreate(undefined, key.slice(5))
+                      : openCreate(key)
+                  }
+                />
               </div>
             )}
 
