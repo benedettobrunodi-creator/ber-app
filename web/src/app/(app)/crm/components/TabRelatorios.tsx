@@ -87,7 +87,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   } | null>(null);
   const [pipeMes, setPipeMes] = useState<Record<number, Record<string, number>>>({});
   const [ticketMedio, setTicketMedio] = useState<{ geral: number; porOrigem: Record<string, number> } | null>(null);
-  const [winRate, setWinRate] = useState<{ ganho: number; perdido: number; total: number; rate: number } | null>(null);
+  const [winRate, setWinRate] = useState<{ ganho: number; perdido: number; declinado: number; cancelado: number; total: number; rate: number } | null>(null);
   const [motivosPerda, setMotivosPerda] = useState<{ motivo: string; count: number; valor: number }[]>([]);
   const [perfResponsavel, setPerfResponsavel] = useState<{
     name: string; ganho: number; perdido: number; total: number; winRate: number; ticketMedio: number; valorGanho: number;
@@ -175,33 +175,64 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       {winRate && (
         <Section title="Win Rate" subtitle={String(ano)}>
           <div className="flex items-center gap-6">
-            <div className="text-center">
+            <div className="text-center shrink-0">
               <p className="text-4xl font-bold text-ber-green">{Math.round(winRate.rate * 100)}%</p>
               <p className="text-xs text-ber-gray mt-1">Taxa de Conversão</p>
             </div>
-            <div className="flex-1 grid grid-cols-3 gap-3">
+            <div className="flex-1 grid grid-cols-4 gap-2">
               <div
                 className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-green transition-all"
                 onClick={() => openDrill(`Ganhos ${ano}`, opsAno.filter((o) => o.etapa === 'ganho'))}
               >
                 <p className="text-2xl font-bold text-ber-green">{winRate.ganho}</p>
-                <p className="text-xs text-ber-gray">Ganhos</p>
+                <p className="text-[11px] text-ber-gray">Ganhos</p>
               </div>
               <div
                 className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-red transition-all"
-                onClick={() => openDrill(`Perdidos ${ano}`, opsAno.filter((o) => ['perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+                onClick={() => openDrill(`Perdidos ${ano}`, opsAno.filter((o) => o.etapa === 'perdido'))}
               >
                 <p className="text-2xl font-bold text-ber-red">{winRate.perdido}</p>
-                <p className="text-xs text-ber-gray">Perdidos</p>
+                <p className="text-[11px] text-ber-gray">Perdidos</p>
               </div>
               <div
-                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-ber-border transition-all"
-                onClick={() => openDrill(`Todos ${ano}`, opsAno.filter((o) => ['ganho', 'perdido', 'declinado', 'cancelado'].includes(o.etapa)))}
+                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-orange-400 transition-all"
+                onClick={() => openDrill(`Declinados ${ano}`, opsAno.filter((o) => o.etapa === 'declinado'))}
               >
-                <p className="text-2xl font-bold text-ber-carbon">{winRate.total}</p>
-                <p className="text-xs text-ber-gray">Total</p>
+                <p className="text-2xl font-bold text-orange-500">{winRate.declinado}</p>
+                <p className="text-[11px] text-ber-gray">Declinados</p>
+              </div>
+              <div
+                className="text-center bg-ber-surface/60 rounded-xl p-3 opacity-50 cursor-pointer hover:opacity-70 transition-all"
+                onClick={() => openDrill(`Cancelados ${ano}`, opsAno.filter((o) => o.etapa === 'cancelado'))}
+                title="Cancelados não entram no cálculo do win rate"
+              >
+                <p className="text-2xl font-bold text-ber-gray">{winRate.cancelado}</p>
+                <p className="text-[11px] text-ber-gray">Cancelados</p>
               </div>
             </div>
+          </div>
+
+          {/* Legenda de metodologia */}
+          <div className="mt-4 pt-4 border-t border-ber-border">
+            <p className="text-[10px] font-bold text-ber-gray uppercase tracking-wide mb-2">Como é calculada</p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="inline-flex items-center gap-1 text-[11px] bg-ber-green/10 text-ber-green px-2 py-0.5 rounded-full font-semibold">
+                ✓ Ganhos ({winRate.ganho}) — numerador
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: '#E0555512', color: '#E05555' }}>
+                ÷ Perdidos ({winRate.perdido})
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-semibold">
+                ÷ Declinados ({winRate.declinado})
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] bg-ber-surface text-ber-gray/50 px-2 py-0.5 rounded-full line-through">
+                Cancelados ({winRate.cancelado}) — excluídos
+              </span>
+            </div>
+            <p className="text-[10px] text-ber-gray/60 mt-2">
+              Cancelados são excluídos pois representam projetos inviabilizados por fatores externos — não são derrotas competitivas.
+              Fórmula: {winRate.ganho} ÷ {winRate.total} = {winRate.total > 0 ? Math.round(winRate.rate * 100) : 0}%
+            </p>
           </div>
         </Section>
       )}

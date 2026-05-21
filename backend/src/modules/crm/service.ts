@@ -464,12 +464,17 @@ export async function getWinRate(opts: { ano?: number; responsavelId?: string })
       lte: new Date(`${opts.ano}-12-31`),
     };
   }
-  const [ganho, perdido] = await Promise.all([
+  const [ganho, perdido, declinado, cancelado] = await Promise.all([
     prisma.crmOportunidade.count({ where: { ...where, etapa: 'ganho' } }),
-    prisma.crmOportunidade.count({ where: { ...where, etapa: { in: ['perdido', 'declinado', 'cancelado'] } } }),
+    prisma.crmOportunidade.count({ where: { ...where, etapa: 'perdido' } }),
+    prisma.crmOportunidade.count({ where: { ...where, etapa: 'declinado' } }),
+    prisma.crmOportunidade.count({ where: { ...where, etapa: 'cancelado' } }),
   ]);
-  const total = ganho + perdido;
-  return { ganho, perdido, total, rate: total > 0 ? ganho / total : 0 };
+  // Cancelados são EXCLUÍDOS do rate: representam projetos inviabilizados por fatores
+  // externos (orçamento congelado, obra suspensa…), não derrotas competitivas.
+  // Rate = ganho ÷ (ganho + perdido + declinado)
+  const total = ganho + perdido + declinado;
+  return { ganho, perdido, declinado, cancelado, total, rate: total > 0 ? ganho / total : 0 };
 }
 
 export async function getNutricao() {
@@ -494,54 +499,50 @@ export async function getNutricao() {
 // ── Novos relatórios ──────────────────────────────────────────────────────────
 
 /**
- * Pipeline ativo por mês: valor total de deals em aberto ao fim de cada mês.
- * Deals GANHOS nunca entram — pipeline = potencial ainda não fechado.
- * Deals perdidos/cancelados/declinados contribuem até o mês em que foram perdidos.
- * Deals ainda ativos contribuem do mês de entrada até o fim do ano (ou dez).
+ * Pipeline ativo por mês, baseado em dataFechamentoPrevisto.
+ *
+ * Cada deal ativo aparece APENAS no mês em que está previsto fechar.
+ * Quando a data prevista é atualizada, o deal muda de mês automaticamente.
+ * Deals sem dataFechamentoPrevisto são agrupados no bucket "semData" (não aparecem nas barras).
+ * Deals terminais (ganho/perdido/declinado/cancelado) são excluídos — pipeline = potencial em aberto.
  */
 export async function getPipelineAtivoAcumulado(ano: number) {
-  const PERDIDOS = ['perdido', 'declinado', 'cancelado'];
-
   const ops = await prisma.crmOportunidade.findMany({
     where: {
-      etapa: { not: 'ganho' },           // nunca contar deals ganhos no pipeline
-      dataEntradaPipeline: { lte: new Date(`${ano}-12-31`) },
+      etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] }, // apenas ativos
     },
     select: {
       valor: true,
-      etapa: true,
-      dataEntradaPipeline: true,
-      updatedAt: true,
+      dataFechamentoPrevisto: true,
     },
   });
 
   const porMes: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) porMes[m] = 0;
 
+  let semData = 0;
+
   for (const op of ops) {
-    if (!op.dataEntradaPipeline) continue;
     const val = Number(op.valor ?? 0);
     if (val === 0) continue;
 
-    const entrada = new Date(op.dataEntradaPipeline);
-    if (entrada.getFullYear() > ano) continue;
-    const mesInicio = entrada.getFullYear() < ano ? 1 : entrada.getMonth() + 1;
-
-    let mesFim = 12; // ativo: conta até dezembro
-
-    if (PERDIDOS.includes(op.etapa)) {
-      // Perdido/declinado/cancelado: só conta até o mês em que foi perdido
-      const perdidoEm = new Date(op.updatedAt);
-      if (perdidoEm.getFullYear() < ano) continue; // já estava perdido antes do ano
-      if (perdidoEm.getFullYear() === ano) mesFim = perdidoEm.getMonth() + 1;
+    if (!op.dataFechamentoPrevisto) {
+      semData += val;
+      continue;
     }
 
-    for (let m = mesInicio; m <= mesFim; m++) {
-      porMes[m] += val;
+    const fechamento = new Date(op.dataFechamentoPrevisto);
+    if (fechamento.getFullYear() !== ano) {
+      // Datas em outros anos: agrupa em sem data para o ano atual
+      semData += val;
+      continue;
     }
+
+    const mes = fechamento.getMonth() + 1;
+    porMes[mes] += val;
   }
 
-  return porMes;
+  return { porMes, semData };
 }
 
 /** Funil de conversão: distribuição de todas as oportunidades por etapa */
