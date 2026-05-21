@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, Component } from 'react';
+import { useState, useCallback, useEffect, Component } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList } from 'lucide-react';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, User, fmt, fmtDate, diasAtras } from '../types';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon } from 'lucide-react';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
   state = { err: null };
@@ -54,8 +54,19 @@ function CardOportunidade({
       <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
         {op.titulo}
       </p>
-      {op.empresa && (
-        <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
+      <div className="mt-1 flex items-center gap-1.5 min-w-0">
+        {op.empresa && (
+          <p className="text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
+        )}
+        {op.empresa?.segmento && (
+          <span className="text-[10px] bg-ber-surface text-ber-gray px-1 py-0.5 rounded shrink-0">{op.empresa.segmento}</span>
+        )}
+      </div>
+      {op.contato && (
+        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-ber-gray/80">
+          <UserIcon size={10} className="shrink-0" />
+          <span className="truncate">{op.contato.nome}{op.contato.cargo ? ` · ${op.contato.cargo}` : ''}</span>
+        </div>
       )}
       <div className="mt-2 flex items-center justify-between">
         <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
@@ -75,6 +86,12 @@ function CardOportunidade({
       {op.motivoPerda && (
         <p className="mt-2 text-[11px] text-ber-red/80 italic line-clamp-2">"{op.motivoPerda}"</p>
       )}
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-[10px] text-ber-gray/60">toque {diasAtras(op.updatedAt)}</span>
+        {op.dataFechamentoPrevisto && (
+          <span className="text-[10px] text-ber-gray/60">↗ {fmtDate(op.dataFechamentoPrevisto)}</span>
+        )}
+      </div>
       {op.responsavel && (
         <div className="mt-2 flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
@@ -106,6 +123,7 @@ function OportunidadeDrawer({
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
+    contatoId: op?.contato?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
     dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
     motivoPerda: op?.motivoPerda ?? '',
@@ -115,6 +133,15 @@ function OportunidadeDrawer({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [err, setErr] = useState('');
+  const [contatos, setContatos] = useState<Contato[]>([]);
+
+  useEffect(() => {
+    if (op?.empresa?.id) {
+      api.get(`/crm/contatos?empresaId=${op.empresa.id}`)
+        .then((r) => setContatos(r.data))
+        .catch(() => {});
+    }
+  }, [op?.empresa?.id]);
 
   const handleDelete = async () => {
     if (!op?.id) return;
@@ -145,6 +172,7 @@ function OportunidadeDrawer({
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
+        contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
         dataGanho: form.dataGanho || null,
         motivoPerda: isPerdido ? (form.motivoPerda.trim() || null) : null,
@@ -277,6 +305,27 @@ function OportunidadeDrawer({
                 {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
+            {contatos.length > 0 ? (
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.contatoId}
+                onChange={(e) => setForm((f) => ({ ...f, contatoId: e.target.value }))}
+              >
+                <option value="">-- Sem contato --</option>
+                {contatos.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}{c.cargo ? ` · ${c.cargo}` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-1 text-xs text-ber-gray/60 italic">
+                {op?.empresa ? 'Nenhum contato cadastrado para esta empresa' : 'Vincule uma empresa para selecionar o contato'}
+              </p>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações</label>
