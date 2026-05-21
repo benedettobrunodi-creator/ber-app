@@ -195,10 +195,11 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 <p className="text-[11px] text-ber-gray">Perdidos</p>
               </div>
               <div
-                className="text-center bg-ber-surface rounded-xl p-3 cursor-pointer hover:ring-1 hover:ring-orange-400 transition-all"
+                className="text-center bg-ber-surface/60 rounded-xl p-3 opacity-50 cursor-pointer hover:opacity-70 transition-all"
                 onClick={() => openDrill(`Declinados ${ano}`, opsAno.filter((o) => o.etapa === 'declinado'))}
+                title="Declinados não entram no cálculo do win rate"
               >
-                <p className="text-2xl font-bold text-orange-500">{winRate.declinado}</p>
+                <p className="text-2xl font-bold text-orange-400">{winRate.declinado}</p>
                 <p className="text-[11px] text-ber-gray">Declinados</p>
               </div>
               <div
@@ -220,17 +221,17 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 ✓ Ganhos ({winRate.ganho}) — numerador
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: '#E0555512', color: '#E05555' }}>
-                ÷ Perdidos ({winRate.perdido})
+                ÷ Perdidos ({winRate.perdido}) — denominador
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-semibold">
-                ÷ Declinados ({winRate.declinado})
+              <span className="inline-flex items-center gap-1 text-[11px] bg-ber-surface text-ber-gray/50 px-2 py-0.5 rounded-full line-through">
+                Declinados ({winRate.declinado}) — excluídos
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] bg-ber-surface text-ber-gray/50 px-2 py-0.5 rounded-full line-through">
                 Cancelados ({winRate.cancelado}) — excluídos
               </span>
             </div>
             <p className="text-[10px] text-ber-gray/60 mt-2">
-              Cancelados são excluídos pois representam projetos inviabilizados por fatores externos — não são derrotas competitivas.
+              Declinados = cliente recusou antes de disputa real · Cancelados = projeto inviabilizado externamente.
               Fórmula: {winRate.ganho} ÷ {winRate.total} = {winRate.total > 0 ? Math.round(winRate.rate * 100) : 0}%
             </p>
           </div>

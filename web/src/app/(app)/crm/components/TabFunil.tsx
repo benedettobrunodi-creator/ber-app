@@ -71,6 +71,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     responsavel: { name: string } | null;
   }[]>([]);
   const [pipelineAtivo, setPipelineAtivo] = useState<Record<number, number>>({});
+  const [winRateApi, setWinRateApi] = useState<{ rate: number; ganho: number; perdido: number } | null>(null);
 
   useEffect(() => {
     // Chamadas críticas — falha de uma não derruba as outras
@@ -92,6 +93,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     api.get('/crm/stats/forecast-horizonte').then((r) => setForecastH(r.data)).catch(() => {});
     api.get('/crm/stats/pipeline-aging').then((r) => setPipelineAging(r.data)).catch(() => {});
     api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`).then((r) => setPipelineAtivo(r.data.porMes ?? r.data)).catch(() => {});
+    api.get(`/crm/stats/win-rate?ano=${ano}`).then((r) => setWinRateApi(r.data)).catch(() => {});
   }, [ano]);
 
   const saveMetas = async () => {
@@ -123,11 +125,10 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
 
   const openDrill = (title: string, ops: Oportunidade[]) => setDrill({ title, ops });
 
-  // Taxa de conversão real (win rate) — fallback 0.3
-  const winRate = funil
-    ? funil.conversao.count / Math.max(1, funil.qualificacao.count + funil.propostas.count + funil.conversao.count + funil.perdido.count)
-    : 0.3;
-  const winRateEfetivo = winRate > 0.01 ? winRate : 0.3;
+  // Win rate real = ganho ÷ (ganho + perdido), vindo do endpoint /stats/win-rate
+  // Exclui declinados e cancelados (não são derrotas competitivas)
+  // Fallback 30% se ainda não carregou ou não há deals suficientes
+  const winRateEfetivo = winRateApi && winRateApi.rate > 0.01 ? winRateApi.rate : 0.3;
 
   // Gráfico 1: Vendas vs Meta — valores mensais + projeção acumulada para bater a meta
   const vendasMesAMesData = MESES.map((m, i) => {

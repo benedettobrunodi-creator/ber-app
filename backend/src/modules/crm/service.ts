@@ -470,10 +470,10 @@ export async function getWinRate(opts: { ano?: number; responsavelId?: string })
     prisma.crmOportunidade.count({ where: { ...where, etapa: 'declinado' } }),
     prisma.crmOportunidade.count({ where: { ...where, etapa: 'cancelado' } }),
   ]);
-  // Cancelados são EXCLUÍDOS do rate: representam projetos inviabilizados por fatores
-  // externos (orçamento congelado, obra suspensa…), não derrotas competitivas.
-  // Rate = ganho ÷ (ganho + perdido + declinado)
-  const total = ganho + perdido + declinado;
+  // Win rate = ganho ÷ (ganho + perdido) APENAS.
+  // Declinados: cliente recusou antes de uma disputa real → não é derrota competitiva.
+  // Cancelados: projeto inviabilizado por fatores externos → também excluídos.
+  const total = ganho + perdido;
   return { ganho, perdido, declinado, cancelado, total, rate: total > 0 ? ganho / total : 0 };
 }
 
