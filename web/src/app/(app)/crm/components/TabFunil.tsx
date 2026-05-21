@@ -57,6 +57,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);
   const [metas, setMetas] = useState<MetaRow[]>([]);
   const [editMetas, setEditMetas] = useState(false);
+  const [editMetasAcum, setEditMetasAcum] = useState(false);
   const [metasEdit, setMetasEdit] = useState<number[]>(Array(12).fill(0));
   const [funilConversao, setFunilConversao] = useState<{ etapa: string; count: number; valor: number }[]>([]);
   const [forecastH, setForecastH] = useState<{
@@ -105,6 +106,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     setVendas(v2.data);
     setPipelineAtivo(paa2.data.porMes ?? paa2.data);
     setEditMetas(false);
+    setEditMetasAcum(false);
   };
 
   // Dados derivados
@@ -241,34 +243,64 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
 
       {/* ── Card 2: Acumulado — trajetória para a meta ───────────── */}
       <div className="bg-white border border-ber-border rounded-xl p-5">
-        <h3 className="font-bold text-ber-carbon mb-1">Acumulado no Ano — {ano}</h3>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-ber-carbon">Acumulado no Ano — {ano}</h3>
+          {!editMetasAcum ? (
+            <button onClick={() => setEditMetasAcum(true)} className="flex items-center gap-1 text-xs text-ber-teal hover:underline">
+              <Pencil size={12} /> Editar metas
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={saveMetas} className="flex items-center gap-1 text-xs text-ber-green font-semibold"><Check size={12} /> Salvar</button>
+              <button onClick={() => setEditMetasAcum(false)} className="flex items-center gap-1 text-xs text-ber-red"><X size={12} /> Cancelar</button>
+            </div>
+          )}
+        </div>
         <p className="text-xs text-ber-gray mb-4">Realizado acumulado vs projeção necessária para bater a meta anual</p>
 
-        <ResponsiveContainer width="100%" height={220}>
-          <ComposedChart data={vendasMesAMesData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="projecao" name="Meta acumulada" stroke="#F59E0B" fill="#F59E0B15" strokeWidth={2} strokeDasharray="6 3" dot={false} />
-            <Area type="monotone" dataKey="realizadoAcum" name="Realizado acumulado" stroke="#3D9E5F" fill="#3D9E5F20" strokeWidth={2.5} dot={{ fill: '#3D9E5F', r: 3 }} />
-          </ComposedChart>
-        </ResponsiveContainer>
-
-        {/* Barra de progresso anual */}
-        <div className="mt-4 pt-4 border-t border-ber-border flex items-center gap-4">
-          <div className="flex-1 bg-ber-surface rounded-full h-3 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-ber-green transition-all"
-              style={{ width: `${Math.min(100, totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0)}%` }}
-            />
+        {editMetasAcum ? (
+          <div className="grid grid-cols-6 gap-2">
+            {metasEdit.map((v, i) => (
+              <div key={i}>
+                <p className="text-[10px] text-ber-gray mb-1">{MESES[i]}</p>
+                <input
+                  type="number"
+                  className="w-full border border-ber-border rounded px-2 py-1 text-xs focus:outline-none focus:border-ber-teal"
+                  value={v || ''}
+                  onChange={(e) => setMetasEdit((prev) => { const n = [...prev]; n[i] = Number(e.target.value); return n; })}
+                />
+              </div>
+            ))}
           </div>
-          <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">{fmt(totalRealizado)} / {fmt(totalMeta)}</span>
-          <span className={`text-sm font-bold whitespace-nowrap ${totalMeta > 0 && totalRealizado >= totalMeta ? 'text-ber-green' : 'text-ber-gray'}`}>
-            {totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
-          </span>
-        </div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={vendasMesAMesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area type="monotone" dataKey="projecao" name="Meta acumulada" stroke="#F59E0B" fill="#F59E0B15" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                <Area type="monotone" dataKey="realizadoAcum" name="Realizado acumulado" stroke="#3D9E5F" fill="#3D9E5F20" strokeWidth={2.5} dot={{ fill: '#3D9E5F', r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            {/* Barra de progresso anual */}
+            <div className="mt-4 pt-4 border-t border-ber-border flex items-center gap-4">
+              <div className="flex-1 bg-ber-surface rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-ber-green transition-all"
+                  style={{ width: `${Math.min(100, totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0)}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">{fmt(totalRealizado)} / {fmt(totalMeta)}</span>
+              <span className={`text-sm font-bold whitespace-nowrap ${totalMeta > 0 && totalRealizado >= totalMeta ? 'text-ber-green' : 'text-ber-gray'}`}>
+                {totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Pipeline Ativo vs Pipeline Necessário ────────────────── */}
