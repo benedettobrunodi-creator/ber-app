@@ -242,6 +242,60 @@ export async function getNutricao(req: Request, res: Response, next: NextFunctio
   try { res.json(await svc.getNutricao()); } catch (e) { next(e); }
 }
 
+export async function getFunilConversao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getFunilConversao(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getMotivosPerda(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getMotivosPerda(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getPerformanceResponsavel(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getPerformanceResponsavel(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getForecastHorizonte(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getForecastHorizonte()); } catch (e) { next(e); }
+}
+
+export async function getCicloVendas(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getCicloVendas(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getWinRateSegmento(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getWinRateSegmento(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getPipelineAging(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getPipelineAging()); } catch (e) { next(e); }
+}
+
+export async function getRecorrenciaClientes(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getRecorrenciaClientes()); } catch (e) { next(e); }
+}
+
+export async function getCohort(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = Number(req.query.ano) || new Date().getFullYear();
+    res.json(await svc.getCohort(ano));
+  } catch (e) { next(e); }
+}
+
 // ── Integração ────────────────────────────────────────────────────────────────
 
 export async function criarOrcamentoDeOportunidade(req: Request, res: Response, next: NextFunction) {
