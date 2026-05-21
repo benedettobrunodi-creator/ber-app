@@ -55,6 +55,7 @@ router.get('/stats/vendas-vs-meta/:ano', read, ctrl.getVendasVsMeta);
 router.get('/stats/pipeline-mes-a-mes/:ano', read, ctrl.getPipelineMesAMes);
 router.get('/stats/ticket-medio', read, ctrl.getTicketMedio);
 router.get('/stats/win-rate', read, ctrl.getWinRate);
+router.get('/stats/pipeline-ativo-acumulado', read, ctrl.getPipelineAtivoAcumulado);
 router.get('/stats/funil-conversao', read, ctrl.getFunilConversao);
 router.get('/stats/motivos-perda', read, ctrl.getMotivosPerda);
 router.get('/stats/performance-responsavel', read, ctrl.getPerformanceResponsavel);

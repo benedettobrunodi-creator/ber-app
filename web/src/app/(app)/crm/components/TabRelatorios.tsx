@@ -33,35 +33,9 @@ const ORIGEM_LABELS: Record<string, string> = {
   sem_origem:   'Sem origem',
 };
 
-const ETAPA_LABELS: Record<string, string> = {
-  lead:               'Lead',
-  qualificacao:       'Qualificação',
-  proposta_producao:  'Prop. em Produção',
-  proposta_enviada:   'Prop. Enviada',
-  negociacao:         'Negociação',
-  ganho:              'Ganho',
-  perdido:            'Perdido',
-  declinado:          'Declinado',
-  cancelado:          'Cancelado',
-};
-
-const ETAPA_COLORS: Record<string, string> = {
-  lead:               '#94A3B8',
-  qualificacao:       '#60A5FA',
-  proposta_producao:  '#A78BFA',
-  proposta_enviada:   '#C084FC',
-  negociacao:         '#F59E0B',
-  ganho:              '#3D9E5F',
-  perdido:            '#EF4444',
-  declinado:          '#F97316',
-  cancelado:          '#6B7280',
-};
-
 const SEGMENTO_COLORS = ['#5A7A7A', '#3B82F6', '#8B5CF6', '#E6A23C', '#EC4899', '#3D9E5F', '#868686'];
+const MOTIVO_COLORS   = ['#EF4444', '#F97316', '#F59E0B', '#8B5CF6', '#3B82F6', '#6B7280', '#94A3B8'];
 
-const MOTIVO_COLORS = ['#EF4444', '#F97316', '#F59E0B', '#8B5CF6', '#3B82F6', '#6B7280', '#94A3B8'];
-
-// ── Seção reutilizável ────────────────────────────────────────────────────────
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="bg-white border border-ber-border rounded-xl p-5">
@@ -74,28 +48,20 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
   );
 }
 
-// ── Componente principal ───────────────────────────────────────────────────────
 export default function TabRelatorios({ oportunidades }: { oportunidades: Oportunidade[] }) {
   const ano = new Date().getFullYear();
   const [drill, setDrill] = useState<{ title: string; ops: Oportunidade[] } | null>(null);
 
-  // Estado de cada bloco de dados
   const [pipelineStats, setPipelineStats] = useState<{
     porOrigem: Record<string, { count: number; valor: number }>;
   } | null>(null);
   const [pipeMes, setPipeMes] = useState<Record<number, Record<string, number>>>({});
   const [ticketMedio, setTicketMedio] = useState<{ geral: number; porOrigem: Record<string, number> } | null>(null);
   const [winRate, setWinRate] = useState<{ ganho: number; perdido: number; total: number; rate: number } | null>(null);
-  const [funilConversao, setFunilConversao] = useState<{ etapa: string; count: number; valor: number }[]>([]);
   const [motivosPerda, setMotivosPerda] = useState<{ motivo: string; count: number; valor: number }[]>([]);
   const [perfResponsavel, setPerfResponsavel] = useState<{
     name: string; ganho: number; perdido: number; total: number; winRate: number; ticketMedio: number; valorGanho: number;
   }[]>([]);
-  const [forecastH, setForecastH] = useState<{
-    d30: { valor: number; ponderado: number; count: number };
-    d60: { valor: number; ponderado: number; count: number };
-    d90: { valor: number; ponderado: number; count: number };
-  } | null>(null);
   const [cicloVendas, setCicloVendas] = useState<{
     geral: number;
     porOrigem: { origem: string; diasMedio: number; count: number }[];
@@ -103,11 +69,6 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   } | null>(null);
   const [winRateSegmento, setWinRateSegmento] = useState<{
     segmento: string; ganho: number; perdido: number; total: number; winRate: number; valorGanho: number; ticketMedio: number;
-  }[]>([]);
-  const [pipelineAging, setPipelineAging] = useState<{
-    id: string; titulo: string; valor: unknown; etapa: string; updatedAt: string;
-    diasSemMovimento: number; empresa: { razaoSocial: string } | null;
-    responsavel: { name: string } | null;
   }[]>([]);
   const [recorrencia, setRecorrencia] = useState<{
     total: number; recorrentes: number; novos: number; taxa: number;
@@ -123,27 +84,21 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       api.get(`/crm/stats/pipeline-mes-a-mes/${ano}`),
       api.get(`/crm/stats/ticket-medio?ano=${ano}`),
       api.get(`/crm/stats/win-rate?ano=${ano}`),
-      api.get(`/crm/stats/funil-conversao?ano=${ano}`),
       api.get(`/crm/stats/motivos-perda?ano=${ano}`),
       api.get(`/crm/stats/performance-responsavel?ano=${ano}`),
-      api.get('/crm/stats/forecast-horizonte'),
       api.get(`/crm/stats/ciclo-vendas?ano=${ano}`),
       api.get(`/crm/stats/win-rate-segmento?ano=${ano}`),
-      api.get('/crm/stats/pipeline-aging'),
       api.get('/crm/stats/recorrencia-clientes'),
       api.get(`/crm/stats/cohort?ano=${ano}`),
-    ]).then(([ps, pm, tm, wr, fc, mp, pr, fh, cv, wrs, pa, rc, co]) => {
+    ]).then(([ps, pm, tm, wr, mp, pr, cv, wrs, rc, co]) => {
       setPipelineStats(ps.data);
       setPipeMes(pm.data);
       setTicketMedio(tm.data);
       setWinRate(wr.data);
-      setFunilConversao(fc.data);
       setMotivosPerda(mp.data);
       setPerfResponsavel(pr.data);
-      setForecastH(fh.data);
       setCicloVendas(cv.data);
       setWinRateSegmento(wrs.data);
-      setPipelineAging(pa.data);
       setRecorrencia(rc.data);
       setCohort(co.data);
     });
@@ -163,7 +118,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         .sort((a, b) => b.value - a.value)
     : [];
 
-  // Pipeline mês a mês — bar stacked
+  // Pipeline mês a mês (entradas)
   const allOrigens = Array.from(new Set(Object.values(pipeMes).flatMap((m) => Object.keys(m))));
   const pipeMesData = MESES.map((m, i) => {
     const row: Record<string, number | string> = { mes: m };
@@ -178,16 +133,12 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         .sort((a, b) => b.valor - a.valor)
     : [];
 
-  // Cohort data para bar chart
+  // Cohort
   const cohortData = MESES.map((m, i) => {
     const c = cohort[i + 1];
     if (!c) return { mes: m, ganho: 0, perdido: 0, emAberto: 0 };
     return { mes: m, ganho: c.ganho, perdido: c.perdido, emAberto: c.emAberto };
   });
-
-  // Funil: só etapas ativas (excluindo terminais) em ordem
-  const funilAtivo = funilConversao.filter((f) => !['ganho', 'perdido', 'declinado', 'cancelado'].includes(f.etapa));
-  const funilMax = Math.max(...funilAtivo.map((f) => f.count), 1);
 
   return (
     <div className="space-y-6">
@@ -228,61 +179,33 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         </Section>
       )}
 
-      {/* ── Funil de Conversão ───────────────────────────────────── */}
-      {funilAtivo.length > 0 && (
-        <Section title="Funil de Conversão" subtitle={String(ano)}>
-          <div className="space-y-2">
-            {funilAtivo.map((f) => {
-              const pct = Math.round((f.count / funilMax) * 100);
-              return (
+      {/* ── Motivos de Perda ─────────────────────────────────────── */}
+      {motivosPerda.length > 0 && (
+        <Section title="Motivos de Perda" subtitle={String(ano)}>
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            <ResponsiveContainer width={200} height={200}>
+              <PieChart>
+                <Pie data={motivosPerda} dataKey="count" cx="50%" cy="50%" outerRadius={85} innerRadius={45}>
+                  {motivosPerda.map((_, i) => <Cell key={i} fill={MOTIVO_COLORS[i % MOTIVO_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v) => [`${v} ocorrências`]} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex-1 space-y-2">
+              {motivosPerda.map((m, i) => (
                 <div
-                  key={f.etapa}
-                  className="flex items-center gap-3 cursor-pointer group"
-                  onClick={() => openDrill(ETAPA_LABELS[f.etapa] ?? f.etapa, oportunidades.filter((o) => o.etapa === f.etapa))}
+                  key={m.motivo}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
+                  onClick={() => openDrill(`Perdidos: ${m.motivo}`, opsAno.filter((o) => o.etapa === 'perdido' && o.motivoPerda === m.motivo))}
                 >
-                  <span className="text-xs text-ber-gray w-36 shrink-0">{ETAPA_LABELS[f.etapa] ?? f.etapa}</span>
-                  <div className="flex-1 bg-ber-surface rounded-full h-6 overflow-hidden">
-                    <div
-                      className="h-full rounded-full flex items-center pl-2 transition-all group-hover:opacity-80"
-                      style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: ETAPA_COLORS[f.etapa] ?? '#94A3B8' }}
-                    >
-                      {pct > 15 && <span className="text-[10px] font-bold text-white">{fmt(f.valor)}</span>}
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-ber-carbon w-6 text-right">{f.count}</span>
-                </div>
-              );
-            })}
-          </div>
-          {/* Totais ganho + perdido */}
-          {funilConversao.length > 0 && (
-            <div className="mt-4 flex gap-4 border-t border-ber-border pt-4">
-              {funilConversao.filter((f) => ['ganho', 'perdido', 'declinado', 'cancelado'].includes(f.etapa)).map((f) => (
-                <div key={f.etapa} className="text-center">
-                  <span className="w-2 h-2 rounded-full inline-block mr-1.5" style={{ backgroundColor: ETAPA_COLORS[f.etapa] }} />
-                  <span className="text-xs text-ber-gray">{ETAPA_LABELS[f.etapa]}: </span>
-                  <span className="text-xs font-bold text-ber-carbon">{f.count}</span>
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MOTIVO_COLORS[i % MOTIVO_COLORS.length] }} />
+                  <span className="text-sm text-ber-carbon flex-1">{m.motivo}</span>
+                  <span className="text-sm font-bold text-ber-carbon">{m.count}</span>
+                  <span className="text-xs text-ber-gray w-24 text-right">{fmt(m.valor)}</span>
                 </div>
               ))}
             </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Forecast 30 / 60 / 90 dias ──────────────────────────── */}
-      {forecastH && (
-        <Section title="Forecast de Fechamento" subtitle="Próximos 30 / 60 / 90 dias">
-          <div className="grid grid-cols-3 gap-3">
-            {([['30', forecastH.d30], ['60', forecastH.d60], ['90', forecastH.d90]] as [string, typeof forecastH.d30][]).map(([label, d]) => (
-              <div key={label} className="bg-ber-surface rounded-xl p-4 text-center">
-                <p className="text-xs font-bold text-ber-gray mb-2">Em {label} dias</p>
-                <p className="text-xl font-bold text-ber-carbon">{fmt(d.valor)}</p>
-                <p className="text-xs text-ber-teal mt-1">Ponderado: {fmt(d.ponderado)}</p>
-                <p className="text-xs text-ber-gray mt-0.5">{d.count} deal{d.count !== 1 ? 's' : ''}</p>
-              </div>
-            ))}
           </div>
-          <p className="text-[10px] text-ber-gray/60 mt-3">Valor bruto vs valor ponderado pela probabilidade (alta 80% / média 50% / baixa 20%)</p>
         </Section>
       )}
 
@@ -314,36 +237,6 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         </div>
       </Section>
 
-      {/* ── Motivos de Perda ─────────────────────────────────────── */}
-      {motivosPerda.length > 0 && (
-        <Section title="Motivos de Perda" subtitle={String(ano)}>
-          <div className="flex flex-col md:flex-row gap-6 items-center">
-            <ResponsiveContainer width={200} height={200}>
-              <PieChart>
-                <Pie data={motivosPerda} dataKey="count" cx="50%" cy="50%" outerRadius={85} innerRadius={45}>
-                  {motivosPerda.map((_, i) => <Cell key={i} fill={MOTIVO_COLORS[i % MOTIVO_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v) => [`${v} ocorrências`]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 space-y-2">
-              {motivosPerda.map((m, i) => (
-                <div
-                  key={m.motivo}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1 -mx-2 transition-colors"
-                  onClick={() => openDrill(`Perdidos: ${m.motivo}`, opsAno.filter((o) => o.etapa === 'perdido' && o.motivoPerda === m.motivo))}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MOTIVO_COLORS[i % MOTIVO_COLORS.length] }} />
-                  <span className="text-sm text-ber-carbon flex-1">{m.motivo}</span>
-                  <span className="text-sm font-bold text-ber-carbon">{m.count}</span>
-                  <span className="text-xs text-ber-gray w-24 text-right">{fmt(m.valor)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Section>
-      )}
-
       {/* ── Performance por Responsável ──────────────────────────── */}
       {perfResponsavel.length > 0 && (
         <Section title="Performance por Responsável" subtitle={String(ano)}>
@@ -368,10 +261,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                     <td className="py-2.5 px-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-ber-surface rounded-full h-1.5">
-                          <div
-                            className="h-full rounded-full bg-ber-green"
-                            style={{ width: `${Math.round(r.winRate * 100)}%` }}
-                          />
+                          <div className="h-full rounded-full bg-ber-green" style={{ width: `${Math.round(r.winRate * 100)}%` }} />
                         </div>
                         <span className="text-ber-carbon font-bold w-8 text-right">{Math.round(r.winRate * 100)}%</span>
                       </div>
@@ -385,22 +275,6 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
           </div>
         </Section>
       )}
-
-      {/* ── Pipeline Mês a Mês ───────────────────────────────────── */}
-      <Section title="Pipeline Mês a Mês" subtitle={String(ano)}>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={pipeMesData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v) => fmt(Number(v))} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            {allOrigens.map((o) => (
-              <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </Section>
 
       {/* ── Win Rate por Segmento ───────────────────────────────── */}
       {winRateSegmento.length > 0 && (
@@ -419,7 +293,9 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
               </thead>
               <tbody>
                 {winRateSegmento.map((s, i) => (
-                  <tr key={s.segmento} className="border-b border-ber-border/40 hover:bg-ber-surface transition-colors cursor-pointer"
+                  <tr
+                    key={s.segmento}
+                    className="border-b border-ber-border/40 hover:bg-ber-surface transition-colors cursor-pointer"
                     onClick={() => openDrill(`Segmento: ${s.segmento}`, opsAno.filter((o) => o.empresa?.segmento === s.segmento))}
                   >
                     <td className="py-2.5 pr-4 font-semibold text-ber-carbon">
@@ -431,10 +307,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                     <td className="py-2.5 px-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-ber-surface rounded-full h-1.5">
-                          <div
-                            className="h-full rounded-full bg-ber-green"
-                            style={{ width: `${Math.round(s.winRate * 100)}%` }}
-                          />
+                          <div className="h-full rounded-full bg-ber-green" style={{ width: `${Math.round(s.winRate * 100)}%` }} />
                         </div>
                         <span className="text-ber-carbon font-bold w-8 text-right">{Math.round(s.winRate * 100)}%</span>
                       </div>
@@ -508,31 +381,22 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         </Section>
       )}
 
-      {/* ── Pipeline Aging ───────────────────────────────────────── */}
-      {pipelineAging.length > 0 && (
-        <Section title="Deals Frios" subtitle={`${pipelineAging.length} sem movimentação há +30 dias`}>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {pipelineAging.map((op) => {
-              const calor = op.diasSemMovimento >= 90 ? 'bg-red-100 text-red-700' : op.diasSemMovimento >= 60 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700';
-              return (
-                <div key={op.id} className="flex items-center gap-3 py-2 px-3 bg-ber-surface rounded-lg hover:bg-ber-border/20 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-ber-carbon truncate">{op.titulo}</p>
-                    <p className="text-[11px] text-ber-gray truncate">{op.empresa?.razaoSocial ?? '—'} · {op.responsavel?.name ?? '—'}</p>
-                  </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: ETAPA_COLORS[op.etapa] + '22', color: ETAPA_COLORS[op.etapa] }}>
-                    {ETAPA_LABELS[op.etapa] ?? op.etapa}
-                  </span>
-                  <span className="text-xs font-bold text-ber-carbon shrink-0">{fmt(Number(op.valor ?? 0))}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${calor}`}>
-                    {op.diasSemMovimento}d
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      )}
+      {/* ── Pipeline Entradas Mês a Mês ──────────────────────────── */}
+      <Section title="Entradas no Pipeline Mês a Mês" subtitle={`${ano} — por origem`}>
+        <p className="text-xs text-ber-gray mb-3">Valor dos deals que <em>entraram</em> no pipeline em cada mês (não acumulado)</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={pipeMesData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+            <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(v) => fmt(Number(v))} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {allOrigens.map((o) => (
+              <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </Section>
 
       {/* ── Recorrência de Clientes ──────────────────────────────── */}
       {recorrencia && recorrencia.total > 0 && (
@@ -558,16 +422,18 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
             </div>
           </div>
           {recorrencia.topRecorrentes.length > 0 && (
-            <div className="space-y-1.5">
+            <div>
               <p className="text-xs font-bold text-ber-gray uppercase tracking-wide mb-2">Top Clientes Recorrentes</p>
-              {recorrencia.topRecorrentes.map((e, i) => (
-                <div key={e.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-ber-surface transition-colors">
-                  <span className="text-xs font-bold text-ber-gray w-4">{i + 1}</span>
-                  <span className="text-xs font-semibold text-ber-carbon flex-1">{e.razaoSocial}</span>
-                  <span className="text-xs text-ber-gray">{e.projetos} projetos</span>
-                  <span className="text-xs font-bold text-ber-carbon">{fmt(e.valorTotal)}</span>
-                </div>
-              ))}
+              <div className="space-y-1.5">
+                {recorrencia.topRecorrentes.map((e, i) => (
+                  <div key={e.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-ber-surface transition-colors">
+                    <span className="text-xs font-bold text-ber-gray w-4">{i + 1}</span>
+                    <span className="text-xs font-semibold text-ber-carbon flex-1">{e.razaoSocial}</span>
+                    <span className="text-xs text-ber-gray">{e.projetos} projetos</span>
+                    <span className="text-xs font-bold text-ber-carbon">{fmt(e.valorTotal)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Section>

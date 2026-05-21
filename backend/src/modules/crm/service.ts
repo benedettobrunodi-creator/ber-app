@@ -493,6 +493,55 @@ export async function getNutricao() {
 
 // ── Novos relatórios ──────────────────────────────────────────────────────────
 
+/** Pipeline ativo acumulado: valor total em aberto ao fim de cada mês */
+export async function getPipelineAtivoAcumulado(ano: number) {
+  const TERMINAL = ['ganho', 'perdido', 'declinado', 'cancelado'];
+
+  const ops = await prisma.crmOportunidade.findMany({
+    where: {
+      dataEntradaPipeline: { lte: new Date(`${ano}-12-31`) },
+    },
+    select: {
+      valor: true,
+      etapa: true,
+      dataEntradaPipeline: true,
+      dataGanho: true,
+      updatedAt: true,
+      origem: true,
+    },
+  });
+
+  const porMes: Record<number, number> = {};
+  for (let m = 1; m <= 12; m++) porMes[m] = 0;
+
+  for (const op of ops) {
+    if (!op.dataEntradaPipeline) continue;
+    const val = Number(op.valor ?? 0);
+    if (val === 0) continue;
+
+    const entrada = new Date(op.dataEntradaPipeline);
+    // Primeiro mês em que o deal é contado dentro deste ano
+    const mesInicio = entrada.getFullYear() < ano ? 1 : entrada.getMonth() + 1;
+    if (entrada.getFullYear() > ano) continue;
+
+    let mesFim = 12; // padrão: ativo até dez
+
+    if (TERMINAL.includes(op.etapa)) {
+      // Data de fechamento: dataGanho (ganho) ou updatedAt (outros)
+      const refDate = new Date(op.etapa === 'ganho' && op.dataGanho ? op.dataGanho : op.updatedAt);
+      if (refDate.getFullYear() < ano) continue; // fechado antes do ano — skip
+      if (refDate.getFullYear() === ano) mesFim = refDate.getMonth() + 1;
+      // > ano: mesFim fica 12 (ainda ativo neste ano)
+    }
+
+    for (let m = mesInicio; m <= mesFim; m++) {
+      porMes[m] += val;
+    }
+  }
+
+  return porMes;
+}
+
 /** Funil de conversão: distribuição de todas as oportunidades por etapa */
 export async function getFunilConversao(ano?: number) {
   const where: Record<string, unknown> = {};

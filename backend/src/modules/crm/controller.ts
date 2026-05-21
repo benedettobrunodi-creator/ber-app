@@ -242,6 +242,13 @@ export async function getNutricao(req: Request, res: Response, next: NextFunctio
   try { res.json(await svc.getNutricao()); } catch (e) { next(e); }
 }
 
+export async function getPipelineAtivoAcumulado(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
+    res.json(await svc.getPipelineAtivoAcumulado(ano));
+  } catch (e) { next(e); }
+}
+
 export async function getFunilConversao(req: Request, res: Response, next: NextFunction) {
   try {
     const ano = req.query.ano ? Number(req.query.ano) : undefined;
