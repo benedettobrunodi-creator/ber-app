@@ -524,7 +524,7 @@ export default function ComprasPage() {
                           </td>
                         )}
                         <td className="px-3 py-2 text-center text-xs tabular-nums font-bold text-ber-carbon">
-                          {etapaPctMeta.toFixed(0)}%
+                          {etapaPctMeta >= 0 ? `${etapaPctMeta.toFixed(0)}%` : '–'}
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums font-bold text-ber-teal">
                           {fmtBRL(etapaMeta)}
@@ -562,11 +562,11 @@ export default function ComprasPage() {
                             <option value="Fornecedor">Fornecedor</option>
                           </select>
                         </td>
-                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavOrc >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {fmtBRL(etapaSavOrc)}
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavOrc >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                          {etapaSavOrc >= 0 ? fmtBRL(etapaSavOrc) : '–'}
                         </td>
-                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {fmtBRL(etapaSavMeta)}
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavMeta >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                          {etapaSavMeta >= 0 ? fmtBRL(etapaSavMeta) : '–'}
                         </td>
                         <td className="px-3 py-2" />
                       </tr>
@@ -641,7 +641,7 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-center">
                           <input type="number" min={0} max={100} step={1}
                             value={Math.round(item.pctMeta * 100)}
-                            onChange={e => saveItem(item.id, { pctMeta: Number(e.target.value) / 100 })}
+                            onChange={e => saveItem(item.id, { pctMeta: Math.max(0, Math.min(100, Number(e.target.value))) / 100 })}
                             className="w-16 rounded border border-amber-300 px-1 py-0.5 text-center text-xs focus:border-amber-500 focus:outline-none" />
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(meta)}</td>
@@ -800,7 +800,7 @@ export default function ComprasPage() {
                           type="number"
                           min={0} max={100} step={1}
                           value={Math.round(item.pctMeta * 100)}
-                          onChange={e => saveItem(item.id, { pctMeta: Number(e.target.value) / 100 })}
+                          onChange={e => saveItem(item.id, { pctMeta: Math.max(0, Math.min(100, Number(e.target.value))) / 100 })}
                           className="w-16 rounded border border-ber-gray/30 px-1 py-0.5 text-center text-xs focus:border-ber-teal focus:outline-none"
                         />
                       </td>
@@ -857,12 +857,13 @@ export default function ComprasPage() {
                           <Plus size={10} /> split
                         </button>
                       </td>
-                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                        {savOrç >= 0 ? <TrendingDown size={10} className="inline mr-0.5" /> : <TrendingUp size={10} className="inline mr-0.5" />}
-                        {fmtBRL(Math.abs(savOrç))}
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                        {savOrç >= 0 ? (
+                          <><TrendingDown size={10} className="inline mr-0.5" />{fmtBRL(savOrç)}</>
+                        ) : '–'}
                       </td>
-                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                        {fmtBRL(savMeta)}
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savMeta >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
+                        {savMeta >= 0 ? fmtBRL(savMeta) : '–'}
                       </td>
                       <td className="px-3 py-2 text-center text-base">{status}</td>
                     </tr>
