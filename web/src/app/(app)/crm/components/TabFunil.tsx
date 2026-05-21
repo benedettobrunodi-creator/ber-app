@@ -115,13 +115,19 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   const pipelineAtivoAtual = pipelineAtivo[mesAtual] ?? 0;
   const coverageRatio = metaRestante > 0 ? pipelineAtivoAtual / metaRestante : null;
 
-  const taxaConversao = funil
+  const taxaConversaoDisplay = funil
     ? funil.conversao.count / Math.max(1, funil.qualificacao.count + funil.propostas.count + funil.conversao.count)
     : 0;
 
   const openDrill = (title: string, ops: Oportunidade[]) => setDrill({ title, ops });
 
-  // Gráfico Vendas vs Meta — valores mensais (não acumulados)
+  // Taxa de conversão real (win rate) — fallback 0.3
+  const winRate = funil
+    ? funil.conversao.count / Math.max(1, funil.qualificacao.count + funil.propostas.count + funil.conversao.count + funil.perdido.count)
+    : 0.3;
+  const winRateEfetivo = winRate > 0.01 ? winRate : 0.3;
+
+  // Gráfico 1: Vendas vs Meta — valores mensais + projeção acumulada para bater a meta
   const vendasMesAMesData = MESES.map((m, i) => {
     const mesIdx = i + 1;
     const vRow = vendas.find((v) => v.mes === mesIdx);
@@ -129,20 +135,22 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       mes: m,
       realizado: vRow ? Number(vRow.realizado) : 0,
       meta: vRow ? Number(vRow.meta) : 0,
+      realizadoAcum: vRow ? Number(vRow.realizadoAcum) : 0,
+      // Projeção acumulada ideal: soma linear até atingir 100% da meta anual
+      projecao: vRow ? Number(vRow.metaAcum) : 0,
     };
   });
 
-  // Gráfico pipeline ativo acumulado + meta + realizado acumulado
-  const pipelineVsMetaData = MESES.map((m, i) => {
+  // Gráfico 2: Pipeline ativo vs pipeline necessário para bater a meta
+  const pipelineNecessarioData = MESES.map((m, i) => {
     const mesIdx = i + 1;
     const vRow = vendas.find((v) => v.mes === mesIdx);
-    const metaAcum = vRow ? Number(vRow.metaAcum) : 0;
-    const realizadoAcum = vRow ? Number(vRow.realizadoAcum) : 0;
+    const metaMensal = vRow ? Number(vRow.meta) : 0;
     return {
       mes: m,
       pipeline: pipelineAtivo[mesIdx] ?? 0,
-      meta: metaAcum,
-      realizado: realizadoAcum,
+      // Pipeline necessário = meta do mês ÷ taxa de conversão
+      necessario: winRateEfetivo > 0 ? Math.round(metaMensal / winRateEfetivo) : 0,
     };
   });
 
@@ -180,7 +188,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         <KpiCard
           icon={<Layers size={18} className="text-purple-500" />}
           label="Conversão"
-          value={`${Math.round(taxaConversao * 100)}%`}
+          value={`${Math.round(taxaConversaoDisplay * 100)}%`}
           onClick={() => openDrill('Todas as Oportunidades', oportunidades)}
         />
       </div>
@@ -218,67 +226,68 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
           </div>
         ) : (
           <>
-            {/* Barras por mês com indicador de % da meta */}
-            <ResponsiveContainer width="100%" height={220}>
+            {/* Barras mensais + linha de meta + linha de projeção acumulada */}
+            <ResponsiveContainer width="100%" height={240}>
               <ComposedChart data={vendasMesAMesData} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
                 <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <YAxis yAxisId="mensal" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="acum" orientation="right" tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="realizado" name="Realizado" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
-                <Line type="monotone" dataKey="meta" name="Meta" stroke="#6B7280" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                {/* Mês a mês */}
+                <Bar yAxisId="mensal" dataKey="realizado" name="Realizado (mês)" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
+                <Line yAxisId="mensal" type="monotone" dataKey="meta" name="Meta (mês)" stroke="#6B7280" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+                {/* Acumulado — eixo direito */}
+                <Line yAxisId="acum" type="monotone" dataKey="realizadoAcum" name="Realizado acum." stroke="#3D9E5F" strokeWidth={2} dot={{ fill: '#3D9E5F', r: 2 }} />
+                <Line yAxisId="acum" type="monotone" dataKey="projecao" name="Meta acum. (projeção)" stroke="#F59E0B" strokeWidth={2} strokeDasharray="6 3" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
 
-            {/* Acumulado abaixo */}
-            <div className="mt-4 pt-4 border-t border-ber-border">
-              <p className="text-xs font-bold text-ber-gray uppercase tracking-wide mb-3">Acumulado no ano</p>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 bg-ber-surface rounded-full h-3 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-ber-green transition-all"
-                    style={{ width: `${Math.min(100, totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0)}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">
-                  {fmt(totalRealizado)} / {fmt(totalMeta)}
-                </span>
-                <span className={`text-sm font-bold whitespace-nowrap ${totalMeta > 0 && totalRealizado >= totalMeta ? 'text-ber-green' : 'text-ber-gray'}`}>
-                  {totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
-                </span>
+            {/* Barra de progresso anual */}
+            <div className="mt-4 pt-4 border-t border-ber-border flex items-center gap-4">
+              <div className="flex-1 bg-ber-surface rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-ber-green transition-all"
+                  style={{ width: `${Math.min(100, totalMeta > 0 ? (totalRealizado / totalMeta) * 100 : 0)}%` }}
+                />
               </div>
+              <span className="text-sm font-bold text-ber-carbon whitespace-nowrap">
+                {fmt(totalRealizado)} / {fmt(totalMeta)}
+              </span>
+              <span className={`text-sm font-bold whitespace-nowrap ${totalMeta > 0 && totalRealizado >= totalMeta ? 'text-ber-green' : 'text-ber-gray'}`}>
+                {totalMeta > 0 ? `${Math.round((totalRealizado / totalMeta) * 100)}%` : '--'}
+              </span>
             </div>
           </>
         )}
       </div>
 
-      {/* ── Pipeline Ativo vs Realizado Acumulado ────────────────── */}
+      {/* ── Pipeline Ativo vs Pipeline Necessário ────────────────── */}
       {Object.keys(pipelineAtivo).length > 0 && (
         <div className="bg-white border border-ber-border rounded-xl p-5">
-          <h3 className="font-bold text-ber-carbon mb-1">Pipeline Ativo vs Realizado Acumulado — {ano}</h3>
+          <h3 className="font-bold text-ber-carbon mb-1">Pipeline Ativo vs Necessário — {ano}</h3>
           <p className="text-xs text-ber-gray mb-4">
-            Barras = valor total em aberto ao fim de cada mês (carrega deals não fechados de meses anteriores).
-            Linhas = meta acumulada vs fechamentos acumulados.
+            Barras = pipeline em aberto no mês (só deals ativos, sem ganhos) ·
+            Linha = pipeline necessário para bater a meta ({Math.round(winRateEfetivo * 100)}% de conversão aplicado)
           </p>
           <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={pipelineVsMetaData}>
+            <ComposedChart data={pipelineNecessarioData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
               <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v) => fmt(Number(v))} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="pipeline" name="Pipeline Ativo" fill="#5A7A7A" opacity={0.35} radius={[3, 3, 0, 0]} />
-              <Line type="monotone" dataKey="meta" name="Meta Acum." stroke="#6B7280" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-              <Line type="monotone" dataKey="realizado" name="Realizado Acum." stroke="#3D9E5F" strokeWidth={2.5} dot={{ fill: '#3D9E5F', r: 3 }} />
+              <Bar dataKey="pipeline" name="Pipeline Ativo" fill="#5A7A7A" opacity={0.5} radius={[3, 3, 0, 0]} />
+              <Line type="monotone" dataKey="necessario" name="Pipeline Necessário" stroke="#F59E0B" strokeWidth={2.5} strokeDasharray="5 3" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
           {coverageRatio !== null && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-ber-gray border-t border-ber-border pt-3">
+            <div className="mt-3 flex items-center gap-2 text-xs border-t border-ber-border pt-3">
               <span className={`font-bold ${coverageRatio >= 3 ? 'text-ber-green' : coverageRatio >= 1.5 ? 'text-yellow-600' : 'text-ber-red'}`}>
-                {coverageRatio.toFixed(1)}× cobertura
+                {coverageRatio.toFixed(1)}× cobertura hoje
               </span>
-              <span>· {fmt(pipelineAtivoAtual)} em aberto ÷ {fmt(metaRestante)} meta restante</span>
+              <span className="text-ber-gray">· {fmt(pipelineAtivoAtual)} em aberto ÷ {fmt(metaRestante)} meta restante</span>
               <span className="ml-auto text-ber-gray/60">Benchmark: 3–5×</span>
             </div>
           )}

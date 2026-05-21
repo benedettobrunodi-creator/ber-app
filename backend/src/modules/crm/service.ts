@@ -493,21 +493,25 @@ export async function getNutricao() {
 
 // ── Novos relatórios ──────────────────────────────────────────────────────────
 
-/** Pipeline ativo acumulado: valor total em aberto ao fim de cada mês */
+/**
+ * Pipeline ativo por mês: valor total de deals em aberto ao fim de cada mês.
+ * Deals GANHOS nunca entram — pipeline = potencial ainda não fechado.
+ * Deals perdidos/cancelados/declinados contribuem até o mês em que foram perdidos.
+ * Deals ainda ativos contribuem do mês de entrada até o fim do ano (ou dez).
+ */
 export async function getPipelineAtivoAcumulado(ano: number) {
-  const TERMINAL = ['ganho', 'perdido', 'declinado', 'cancelado'];
+  const PERDIDOS = ['perdido', 'declinado', 'cancelado'];
 
   const ops = await prisma.crmOportunidade.findMany({
     where: {
+      etapa: { not: 'ganho' },           // nunca contar deals ganhos no pipeline
       dataEntradaPipeline: { lte: new Date(`${ano}-12-31`) },
     },
     select: {
       valor: true,
       etapa: true,
       dataEntradaPipeline: true,
-      dataGanho: true,
       updatedAt: true,
-      origem: true,
     },
   });
 
@@ -520,18 +524,16 @@ export async function getPipelineAtivoAcumulado(ano: number) {
     if (val === 0) continue;
 
     const entrada = new Date(op.dataEntradaPipeline);
-    // Primeiro mês em que o deal é contado dentro deste ano
-    const mesInicio = entrada.getFullYear() < ano ? 1 : entrada.getMonth() + 1;
     if (entrada.getFullYear() > ano) continue;
+    const mesInicio = entrada.getFullYear() < ano ? 1 : entrada.getMonth() + 1;
 
-    let mesFim = 12; // padrão: ativo até dez
+    let mesFim = 12; // ativo: conta até dezembro
 
-    if (TERMINAL.includes(op.etapa)) {
-      // Data de fechamento: dataGanho (ganho) ou updatedAt (outros)
-      const refDate = new Date(op.etapa === 'ganho' && op.dataGanho ? op.dataGanho : op.updatedAt);
-      if (refDate.getFullYear() < ano) continue; // fechado antes do ano — skip
-      if (refDate.getFullYear() === ano) mesFim = refDate.getMonth() + 1;
-      // > ano: mesFim fica 12 (ainda ativo neste ano)
+    if (PERDIDOS.includes(op.etapa)) {
+      // Perdido/declinado/cancelado: só conta até o mês em que foi perdido
+      const perdidoEm = new Date(op.updatedAt);
+      if (perdidoEm.getFullYear() < ano) continue; // já estava perdido antes do ano
+      if (perdidoEm.getFullYear() === ano) mesFim = perdidoEm.getMonth() + 1;
     }
 
     for (let m = mesInicio; m <= mesFim; m++) {
