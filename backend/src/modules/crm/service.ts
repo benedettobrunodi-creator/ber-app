@@ -326,9 +326,12 @@ export async function getFunilMacro() {
 
   // Para taxa de conversão de proposta: apenas etapas onde a proposta foi emitida
   // (proposta_enviada + negociacao + ganho + perdido competitivo)
-  let valorPropostaEmitida = 0; // proposta_enviada + negociacao (em aberto)
+  let valorPropostaEmitida = 0;
   let valorGanho = 0;
-  let valorPerdidoCompetitivo = 0; // apenas etapa 'perdido' — sem declinado/cancelado
+  let valorPerdidoCompetitivo = 0;
+  let countPropostaEmitida = 0;
+  let countGanho = 0;
+  let countPerdidoCompetitivo = 0;
 
   for (const op of all) {
     const bucket = CRM_ETAPA_MACRO[op.etapa as keyof typeof CRM_ETAPA_MACRO] ?? 'qualificacao';
@@ -336,23 +339,33 @@ export async function getFunilMacro() {
     macro[bucket].valor += Number(op.valor ?? 0);
 
     const val = Number(op.valor ?? 0);
-    if (op.etapa === 'ganho')            valorGanho += val;
-    if (op.etapa === 'perdido')          valorPerdidoCompetitivo += val;
-    if (['proposta_enviada', 'negociacao'].includes(op.etapa)) valorPropostaEmitida += val;
+    if (op.etapa === 'ganho') {
+      valorGanho += val; countGanho++;
+    } else if (op.etapa === 'perdido') {
+      valorPerdidoCompetitivo += val; countPerdidoCompetitivo++;
+    } else if (op.etapa === 'proposta_enviada' || op.etapa === 'negociacao') {
+      valorPropostaEmitida += val; countPropostaEmitida++;
+    }
   }
 
-  // Taxa de conversão de proposta por valor:
-  // Do total que chegou a proposta emitida, quanto % foi fechado como ganho?
-  // Denominador = em aberto (enviada + negociação) + ganho + perdido competitivo
-  const baseConversao = valorPropostaEmitida + valorGanho + valorPerdidoCompetitivo;
-  const taxaConversaoPropostas = baseConversao > 0 ? valorGanho / baseConversao : 0;
+  // Taxa por VALOR — do R$ emitido em proposta, quanto % foi ganho
+  const baseValor = valorPropostaEmitida + valorGanho + valorPerdidoCompetitivo;
+  const taxaConversaoPropostas = baseValor > 0 ? valorGanho / baseValor : 0;
+
+  // Taxa por QUANTIDADE — dos deals que chegaram a proposta emitida, quantos % foram ganhos
+  const baseCount = countPropostaEmitida + countGanho + countPerdidoCompetitivo;
+  const taxaConversaoPropostasCount = baseCount > 0 ? countGanho / baseCount : 0;
 
   return {
     ...macro,
     taxaConversaoPropostas,
+    taxaConversaoPropostasCount,
     valorPropostaEmitida,
     valorGanho,
     valorPerdidoCompetitivo,
+    countPropostaEmitida,
+    countGanho,
+    countPerdidoCompetitivo,
   };
 }
 

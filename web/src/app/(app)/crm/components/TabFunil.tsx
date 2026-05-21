@@ -37,14 +37,18 @@ const ETAPA_COLORS: Record<string, string> = {
 };
 
 interface FunilData {
-  qualificacao:             { count: number; valor: number };
-  propostas:                { count: number; valor: number };
-  conversao:                { count: number; valor: number };
-  perdido:                  { count: number; valor: number };
-  taxaConversaoPropostas:   number;  // valorGanho ÷ (propEmitida + ganho + perdidoCompetitivo)
-  valorPropostaEmitida:     number;
-  valorGanho:               number;
-  valorPerdidoCompetitivo:  number;
+  qualificacao:                  { count: number; valor: number };
+  propostas:                     { count: number; valor: number };
+  conversao:                     { count: number; valor: number };
+  perdido:                       { count: number; valor: number };
+  taxaConversaoPropostas:        number; // por valor R$
+  taxaConversaoPropostasCount:   number; // por quantidade de deals
+  valorPropostaEmitida:          number;
+  valorGanho:                    number;
+  valorPerdidoCompetitivo:       number;
+  countPropostaEmitida:          number;
+  countGanho:                    number;
+  countPerdidoCompetitivo:       number;
 }
 
 interface MetaRow { ano: number; mes: number; valorMeta: number }
@@ -173,7 +177,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
 
       {/* ── KPIs ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <KpiCard
           icon={<Target size={18} className="text-ber-teal" />}
           label="Pipeline Ativo"
@@ -197,9 +201,17 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         />
         <KpiCard
           icon={<Layers size={18} className="text-purple-500" />}
-          label="Conversão"
-          value={`${Math.round(taxaConversaoDisplay * 100)}%`}
-          onClick={() => openDrill('Todas as Oportunidades', oportunidades)}
+          label="Conversão em R$"
+          value={funil ? `${Math.round(funil.taxaConversaoPropostas * 100)}%` : '--'}
+          sub={funil ? `${fmt(funil.valorGanho)} de ${fmt(funil.valorPropostaEmitida + funil.valorGanho + funil.valorPerdidoCompetitivo)}` : 'valor ganho ÷ total proposto'}
+          onClick={() => openDrill('Propostas emitidas', oportunidades.filter((o) => ['proposta_enviada', 'negociacao', 'ganho', 'perdido'].includes(o.etapa)))}
+        />
+        <KpiCard
+          icon={<Layers size={18} className="text-ber-teal" />}
+          label="Conversão em Qtd"
+          value={funil ? `${Math.round(funil.taxaConversaoPropostasCount * 100)}%` : '--'}
+          sub={funil ? `${funil.countGanho} ganhos de ${funil.countPropostaEmitida + funil.countGanho + funil.countPerdidoCompetitivo} propostas` : 'deals ganhos ÷ total proposto'}
+          onClick={() => openDrill('Propostas emitidas', oportunidades.filter((o) => ['proposta_enviada', 'negociacao', 'ganho', 'perdido'].includes(o.etapa)))}
         />
       </div>
 
