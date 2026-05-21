@@ -153,15 +153,21 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
     const lancAtual = itemLancs.get(id);
     const pctAtual = lancAtual?.percentual ?? 0;
 
-    let valorFaturavel: number;
-    if (isSinal) {
-      valorFaturavel = lancAtual?.valor ?? 0;
+    // null = não medido nesta quinzena (não aplicável)
+    // number > 0 = valor faturável excedente ao sinal
+    let valorFaturavel: number | null;
+    if (pctAtual === 0) {
+      valorFaturavel = null;
+    } else if (isSinal) {
+      valorFaturavel = Math.max(0, lancAtual?.valor ?? 0);
     } else {
       const pctSinal = sinalPctMap.get(item.id) ?? 0;
       const acumuladoBefore = percentualAcumulado - pctAtual;
       const billableAfter = Math.max(0, percentualAcumulado - pctSinal);
       const billableBefore = Math.max(0, acumuladoBefore - pctSinal);
-      valorFaturavel = (billableAfter - billableBefore) * valorOrcado / 100;
+      const computed = Math.max(0, (billableAfter - billableBefore) * valorOrcado / 100);
+      // Se houve medição mas 100% já coberto pelo sinal → null (não aplicável)
+      valorFaturavel = computed > 0 ? computed : null;
     }
 
     return {
@@ -185,8 +191,8 @@ export async function getMedicao(req: Request, res: Response, next?: any) {
     (s, l) => s + toNum(l.valorMedido), 0,
   );
   const totalFaturavel = itensEnriquecidos
-    .filter(i => i.tipo === 'subitem')
-    .reduce((s, i) => s + i.valorFaturavel, 0);
+    .filter(i => i.tipo === 'subitem' && i.valorFaturavel !== null && i.valorFaturavel > 0)
+    .reduce((s, i) => s + (i.valorFaturavel as number), 0);
 
   sendSuccess(res, {
     id: medicao.id,

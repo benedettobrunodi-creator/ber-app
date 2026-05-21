@@ -26,7 +26,7 @@ interface MedicaoItem {
   percentualAcumulado: number;
   valorMedidoTotal: number;
   saldo: number;
-  valorFaturavel: number;
+  valorFaturavel: number | null;
   lancamentoAtual: { percentual: number; valor: number };
 }
 
@@ -634,7 +634,7 @@ export default function MedicaoPage() {
                     const isOpen = !collapsed.has(item.numero);
                     const groupChildren = detalhe.itens.filter((i) => i.numero.startsWith(item.numero + '.') && i.tipo === 'subitem');
                     const groupTotal = groupChildren.reduce((s, i) => s + i.valorOrcado, 0);
-                    const groupFaturavel = groupChildren.reduce((s, i) => s + i.valorFaturavel, 0);
+                    const groupFaturavel = groupChildren.reduce((s, i) => s + (i.valorFaturavel ?? 0), 0);
                     const isEditingThis = editingItem === item.id;
                     const isEditable = canEdit && detalhe.status === 'rascunho';
 
@@ -780,9 +780,13 @@ export default function MedicaoPage() {
                       </td>
                       {/* A Faturar BÈR */}
                       <td className="px-3 py-2 text-right bg-amber-50">
-                        {item.valorFaturavel > 0 ? (
+                        {item.valorFaturavel !== null && item.valorFaturavel > 0 ? (
                           <span className="text-xs font-semibold text-amber-700">{fmt(item.valorFaturavel)}</span>
-                        ) : <span className="text-xs text-gray-300">–</span>}
+                        ) : item.lancamentoAtual.percentual > 0 && item.valorFaturavel === null ? (
+                          <span className="text-[10px] font-medium text-gray-400 italic" title="Medição dentro do valor já recebido no sinal">dentro do sinal</span>
+                        ) : (
+                          <span className="text-xs text-gray-300">–</span>
+                        )}
                       </td>
                       {/* % acumulado */}
                       <td className="px-3 py-3 text-right">
