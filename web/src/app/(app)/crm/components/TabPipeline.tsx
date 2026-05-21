@@ -161,7 +161,7 @@ function OportunidadeDrawer({
     setSaving(true);
     try {
       const valorNum = form.valor ? Number(form.valor) : null;
-      const isPerdido = ETAPAS_PERDIDAS.includes(form.etapa);
+      const isPerdido = form.etapa === 'perdido';
       if (isPerdido && !form.motivoPerda.trim()) {
         setErr('Informe o motivo da perda'); setSaving(false); return;
       }
@@ -247,7 +247,7 @@ function OportunidadeDrawer({
               <p className="text-[10px] text-ber-gray mt-0.5">Usado no gráfico de Meta. Preenchido automaticamente ao marcar como Ganho.</p>
             </div>
           )}
-          {ETAPAS_PERDIDAS.includes(form.etapa) && (
+          {form.etapa === 'perdido' && (
             <div>
               <label className="text-xs font-semibold text-ber-red uppercase tracking-wide">Motivo da Perda *</label>
               <select
