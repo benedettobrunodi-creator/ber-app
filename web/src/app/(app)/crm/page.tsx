@@ -5,17 +5,19 @@ import api from '@/lib/api';
 import { Target, Kanban, Building2, Calendar, BarChart2, TrendingUp } from 'lucide-react';
 import TabPipeline from './components/TabPipeline';
 import TabEmpresas from './components/TabEmpresas';
+import TabContatos from './components/TabContatos';
 import TabAtividades from './components/TabAtividades';
 import TabFunil from './components/TabFunil';
 import TabRelatorios from './components/TabRelatorios';
 import { Oportunidade, Empresa, Atividade, User } from './types';
 
-type Tab = 'pipeline' | 'funil' | 'empresas' | 'atividades' | 'relatorios';
+type Tab = 'pipeline' | 'funil' | 'empresas' | 'contatos' | 'atividades' | 'relatorios';
 
 const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
   { value: 'pipeline',   label: 'Pipeline',    icon: <Kanban size={15} /> },
   { value: 'funil',      label: 'Funil',        icon: <TrendingUp size={15} /> },
   { value: 'empresas',   label: 'Empresas',     icon: <Building2 size={15} /> },
+  { value: 'contatos',   label: 'Contatos',     icon: <Target size={15} /> },
   { value: 'atividades', label: 'Atividades',   icon: <Calendar size={15} /> },
   { value: 'relatorios', label: 'Relatórios',   icon: <BarChart2 size={15} /> },
 ];
@@ -100,6 +102,9 @@ export default function CrmPage() {
             {tab === 'funil' && <TabFunil oportunidades={oportunidades} />}
             {tab === 'empresas' && (
               <TabEmpresas empresas={empresas} onRefresh={fetchAll} />
+            )}
+            {tab === 'contatos' && (
+              <TabContatos empresas={empresas} onRefresh={fetchAll} />
             )}
             {tab === 'atividades' && (
               <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} onRefresh={fetchAll} />

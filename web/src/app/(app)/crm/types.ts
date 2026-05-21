@@ -56,8 +56,12 @@ export interface Contato {
   cargo: string | null;
   email: string | null;
   telefone: string | null;
+  whatsapp: string | null;
+  linkedin: string | null;
+  aniversario: string | null;
   principal: boolean;
   empresaId: string | null;
+  empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
 }
 
 export interface Oportunidade {

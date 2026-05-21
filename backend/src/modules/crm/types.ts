@@ -79,6 +79,7 @@ export const createEmpresaSchema = z.object({
   site: z.string().max(255).optional().nullable(),
   nutricao: z.boolean().default(false),
   observacoes: z.string().optional().nullable(),
+  agendorId: z.string().max(50).optional().nullable(),
 });
 export const updateEmpresaSchema = createEmpresaSchema.partial();
 export type CreateEmpresaInput = z.infer<typeof createEmpresaSchema>;
@@ -90,7 +91,11 @@ export const createContatoSchema = z.object({
   cargo: z.string().max(100).optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
   telefone: z.string().max(20).optional().nullable(),
+  whatsapp: z.string().max(30).optional().nullable(),
+  linkedin: z.string().max(255).optional().nullable(),
+  aniversario: dateOrNull,
   principal: z.boolean().default(false),
+  agendorId: z.string().max(50).optional().nullable(),
 });
 export const updateContatoSchema = createContatoSchema.partial();
 export type CreateContatoInput = z.infer<typeof createContatoSchema>;

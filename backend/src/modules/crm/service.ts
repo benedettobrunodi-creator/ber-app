@@ -65,10 +65,22 @@ export async function deleteEmpresa(id: string) {
 
 // ── Contatos ─────────────────────────────────────────────────────────────────
 
-export async function listContatos(empresaId?: string) {
+export async function listContatos(opts?: { empresaId?: string; search?: string }) {
+  const where: Record<string, unknown> = {};
+  if (opts?.empresaId) where.empresaId = opts.empresaId;
+  if (opts?.search) {
+    const q = opts.search;
+    where.OR = [
+      { nome: { contains: q, mode: 'insensitive' } },
+      { cargo: { contains: q, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+      { empresa: { razaoSocial: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
   return prisma.crmContato.findMany({
-    where: empresaId ? { empresaId } : undefined,
+    where,
     orderBy: [{ principal: 'desc' }, { nome: 'asc' }],
+    include: { empresa: { select: { id: true, razaoSocial: true, segmento: true } } },
   });
 }
 

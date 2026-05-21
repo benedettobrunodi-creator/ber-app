@@ -58,7 +58,10 @@ export async function deleteEmpresa(req: Request, res: Response, next: NextFunct
 
 export async function listContatos(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = await svc.listContatos(req.query.empresaId as string | undefined);
+    const data = await svc.listContatos({
+      empresaId: req.query.empresaId as string | undefined,
+      search: req.query.search as string | undefined,
+    });
     res.json(data);
   } catch (e) { next(e); }
 }
