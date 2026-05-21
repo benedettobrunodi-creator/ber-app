@@ -63,6 +63,12 @@ export async function updateProposal(id: string, input: UpdateProposalInput) {
   });
 }
 
+export async function deleteProposal(id: string) {
+  const existing = await prisma.proposal.findUnique({ where: { id } });
+  if (!existing) throw AppError.notFound('Proposta');
+  await prisma.proposal.delete({ where: { id } });
+}
+
 export async function getStats() {
   const [statusCounts, totalValue, wonValue, monthlyData] = await Promise.all([
     prisma.proposal.groupBy({

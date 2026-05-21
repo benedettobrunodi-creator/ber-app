@@ -47,6 +47,9 @@ export const env = {
 
   gmailOAuthToken: process.env.GMAIL_OAUTH_TOKEN,
 
+  resendApiKey: process.env.RESEND_API_KEY,
+  resendFrom: process.env.RESEND_FROM_EMAIL || 'BER App <noreply@ber-engenharia.com.br>',
+
   backendUrl: process.env.BACKEND_URL || `http://localhost:${process.env.PORT || '3000'}`,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3001',
   corsOrigin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {

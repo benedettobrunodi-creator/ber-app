@@ -55,5 +55,15 @@ router.get('/stats/vendas-vs-meta/:ano', read, ctrl.getVendasVsMeta);
 router.get('/stats/pipeline-mes-a-mes/:ano', read, ctrl.getPipelineMesAMes);
 router.get('/stats/ticket-medio', read, ctrl.getTicketMedio);
 router.get('/stats/win-rate', read, ctrl.getWinRate);
+router.get('/stats/pipeline-ativo-acumulado', read, ctrl.getPipelineAtivoAcumulado);
+router.get('/stats/funil-conversao', read, ctrl.getFunilConversao);
+router.get('/stats/motivos-perda', read, ctrl.getMotivosPerda);
+router.get('/stats/performance-responsavel', read, ctrl.getPerformanceResponsavel);
+router.get('/stats/forecast-horizonte', read, ctrl.getForecastHorizonte);
+router.get('/stats/ciclo-vendas', read, ctrl.getCicloVendas);
+router.get('/stats/win-rate-segmento', read, ctrl.getWinRateSegmento);
+router.get('/stats/pipeline-aging', read, ctrl.getPipelineAging);
+router.get('/stats/recorrencia-clientes', read, ctrl.getRecorrenciaClientes);
+router.get('/stats/cohort', read, ctrl.getCohort);
 
 export default router;

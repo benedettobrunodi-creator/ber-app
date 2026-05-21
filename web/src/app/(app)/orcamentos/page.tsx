@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { TrendingUp, DollarSign, Award, Filter } from 'lucide-react';
+import { TrendingUp, DollarSign, Award, Filter, Trash2 } from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -81,6 +81,8 @@ export default function OrcamentosPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<Proposal | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const params = statusFilter ? `?status=${statusFilter}` : '';
@@ -94,9 +96,21 @@ export default function OrcamentosPage() {
     }).finally(() => setLoading(false));
   }, [statusFilter]);
 
-  const displayed = statusFilter
-    ? proposals
-    : proposals;
+  const displayed = proposals;
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/proposals/${confirmDelete.id}`);
+      setProposals(prev => prev.filter(p => p.id !== confirmDelete.id));
+      setConfirmDelete(null);
+    } catch {
+      /* handled by interceptor */
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (loading) return (
     <div className="p-8 flex items-center gap-3 text-[var(--ber-carbon-light)]">
@@ -199,18 +213,52 @@ export default function OrcamentosPage() {
                     <p className="text-xs text-[var(--ber-carbon-light)] mt-1 line-clamp-2">{p.notes}</p>
                   )}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold text-[var(--ber-carbon)]">{fmtCurrency(p.value)}</p>
-                  {p.sentDate && (
-                    <p className="text-xs text-[var(--ber-carbon-light)] mt-0.5">Enviada {fmtDate(p.sentDate)}</p>
-                  )}
-                  {p.closedDate && (
-                    <p className="text-xs text-[var(--ber-carbon-light)]">Fechada {fmtDate(p.closedDate)}</p>
-                  )}
+                <div className="flex items-start gap-3">
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-[var(--ber-carbon)]">{fmtCurrency(p.value)}</p>
+                    {p.sentDate && (
+                      <p className="text-xs text-[var(--ber-carbon-light)] mt-0.5">Enviada {fmtDate(p.sentDate)}</p>
+                    )}
+                    {p.closedDate && (
+                      <p className="text-xs text-[var(--ber-carbon-light)]">Fechada {fmtDate(p.closedDate)}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setConfirmDelete(p)}
+                    title="Excluir lead"
+                    className="mt-0.5 rounded p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6">
+            <h2 className="text-base font-bold text-[var(--ber-carbon)]">Excluir lead?</h2>
+            <p className="mt-2 text-sm text-[var(--ber-carbon-light)]">
+              <strong>"{confirmDelete.title}"</strong> ({confirmDelete.clientName}) será excluído permanentemente.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-[var(--ber-carbon)] hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

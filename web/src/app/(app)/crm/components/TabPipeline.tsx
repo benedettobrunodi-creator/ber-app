@@ -1,256 +1,203 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, Component } from 'react';
+import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, ChevronRight, ChevronLeft, Clock, X, AlertCircle, TriangleAlert, Phone, Mail, MapPin, Users, CheckCircle2, Circle, LayoutGrid, CalendarDays } from 'lucide-react';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Empresa, User, fmt, fmtDate, diasAtras } from '../types';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon } from 'lucide-react';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 
-const KANBAN_ETAPAS = ETAPAS.filter((e) => e.value !== 'perdido');
-
-const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
-
-function MoneyInput({ value, onChange, placeholder, className }: {
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const n = Number(value.replace(',', '.'));
-  const display = editing || !value ? value : BRL.format(isNaN(n) ? 0 : n);
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      className={className}
-      value={display}
-      placeholder={placeholder ?? 'R$ 0,00'}
-      onFocus={(e) => { setEditing(true); e.target.select(); }}
-      onBlur={() => setEditing(false)}
-      onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
-    />
-  );
+class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
+  state = { err: null };
+  static getDerivedStateFromError(e: Error) { return { err: e.message }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={this.props.onClose} />
+          <div className="relative z-10 w-full max-w-md bg-white shadow-xl p-6 flex flex-col gap-4">
+            <p className="font-bold text-red-600">Erro ao abrir</p>
+            <p className="text-sm text-red-500 font-mono break-all">{this.state.err}</p>
+            <button onClick={this.props.onClose} className="self-start px-4 py-2 bg-gray-100 rounded-lg text-sm">Fechar</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
+
+const TERMINAL_ETAPAS = ['ganho', 'perdido', 'declinado', 'cancelado'];
+const ETAPAS_PERDIDAS = ['perdido', 'declinado', 'cancelado'];
+const KANBAN_ETAPAS = ETAPAS.filter((e) => !TERMINAL_ETAPAS.includes(e.value));
 
 interface Props {
   oportunidades: Oportunidade[];
-  empresas: Empresa[];
   users: User[];
   onRefresh: () => void;
-}
-
-const ETAPAS_FORECAST = ['qualificacao', 'proposta_producao', 'proposta_enviada', 'negociacao', 'ganho'];
-
-function forecastGaps(op: Oportunidade): string[] {
-  if (!ETAPAS_FORECAST.includes(op.etapa)) return [];
-  const gaps: string[] = [];
-  if (!op.valor) gaps.push('valor');
-  if (!op.dataFechamentoPrevisto) gaps.push('fechamento');
-  if (!op.probabilidade) gaps.push('prob.');
-  return gaps;
 }
 
 function CardOportunidade({
   op,
   onClick,
-  onMove,
-  canMoveLeft,
-  canMoveRight,
 }: {
   op: Oportunidade;
   onClick: () => void;
-  onMove: (dir: 'left' | 'right') => void;
-  canMoveLeft: boolean;
-  canMoveRight: boolean;
 }) {
   const proximaAtividade = op.atividades?.[0];
   const vencida = proximaAtividade && new Date(proximaAtividade.dataHora) < new Date();
-  const gaps = forecastGaps(op);
 
   return (
-    <div className={`bg-white border rounded-lg p-3 hover:shadow-md transition-all group ${gaps.length ? 'border-amber-300 hover:border-amber-400' : 'border-ber-border hover:border-ber-teal/40'}`}>
-      <div onClick={onClick} className="cursor-pointer">
-        <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
-          {op.titulo}
-        </p>
+    <div
+      onClick={onClick}
+      className="bg-white border border-ber-border rounded-lg p-3 cursor-pointer hover:shadow-md hover:border-ber-teal/40 transition-all group"
+    >
+      <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
+        {op.titulo}
+      </p>
+      <div className="mt-1 flex items-center gap-1.5 min-w-0">
         {op.empresa && (
-          <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
+          <p className="text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
         )}
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
-          {op.origem && (
-            <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
-              {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
-            </span>
-          )}
+        {op.empresa?.segmento && (
+          <span className="text-[10px] bg-ber-surface text-ber-gray px-1 py-0.5 rounded shrink-0">{op.empresa.segmento}</span>
+        )}
+      </div>
+      {op.contato && (
+        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-ber-gray/80">
+          <UserIcon size={10} className="shrink-0" />
+          <span className="truncate">{op.contato.nome}{op.contato.cargo ? ` · ${op.contato.cargo}` : ''}</span>
         </div>
-        {proximaAtividade && (
-          <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
-            {vencida ? <AlertCircle size={11} /> : <Clock size={11} />}
-            <span className="truncate">{proximaAtividade.notas ?? proximaAtividade.tipo}</span>
-            <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
-          </div>
-        )}
-        {op.responsavel && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
-              {op.responsavel.name.charAt(0)}
-            </div>
-            <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
-          </div>
-        )}
-        {gaps.length > 0 && (
-          <div className="mt-2 flex items-center gap-1 text-[10px] text-amber-600">
-            <TriangleAlert size={10} className="shrink-0" />
-            <span>Forecast incompleto: {gaps.join(', ')}</span>
-          </div>
+      )}
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
+        {op.origem && (
+          <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
+            {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
+          </span>
         )}
       </div>
-      <div className="mt-2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); onMove('left'); }}
-          disabled={!canMoveLeft}
-          className="p-1 rounded hover:bg-ber-surface disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft size={14} className="text-ber-gray" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onMove('right'); }}
-          disabled={!canMoveRight}
-          className="p-1 rounded hover:bg-ber-surface disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronRight size={14} className="text-ber-gray" />
-        </button>
+      {proximaAtividade && (
+        <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
+          {vencida ? <AlertCircle size={11} /> : <Clock size={11} />}
+          <span className="truncate">{proximaAtividade.notas ?? proximaAtividade.tipo}</span>
+          <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
+        </div>
+      )}
+      {op.motivoPerda && (
+        <p className="mt-2 text-[11px] text-ber-red/80 italic line-clamp-2">"{op.motivoPerda}"</p>
+      )}
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-[10px] text-ber-gray/60">toque {diasAtras(op.updatedAt)}</span>
+        {op.dataFechamentoPrevisto && (
+          <span className="text-[10px] text-ber-gray/60">↗ {fmtDate(op.dataFechamentoPrevisto)}</span>
+        )}
       </div>
+      {op.responsavel && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
+            {op.responsavel.name.charAt(0)}
+          </div>
+          <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 function OportunidadeDrawer({
   op,
-  empresas,
   users,
   onClose,
   onSave,
 }: {
   op: Oportunidade | null;
-  empresas: Empresa[];
   users: User[];
   onClose: () => void;
   onSave: () => void;
 }) {
   const isNew = !op?.id;
   const [form, setForm] = useState({
-    titulo: op?.titulo ?? op?.orcamento?.cliente ?? '',
-    valor: op?.valor != null ? String(Number(op.valor) || '') : (op?.orcamento?.valorVenda != null ? String(Number(op.orcamento.valorVenda) || '') : ''),
-    m2: op?.orcamento?.m2 != null ? String(op.orcamento.m2) : '',
+    titulo: op?.titulo ?? '',
+    valor: op?.valor?.toString() ?? '',
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
-    empresaId: op?.empresa?.id ?? '',
     contatoId: op?.contato?.id ?? '',
-    dataFechamentoPrevisto: op?.dataFechamentoPrevisto ? String(op.dataFechamentoPrevisto).slice(0, 10) : '',
+    dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
+    dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
     motivoPerda: op?.motivoPerda ?? '',
     observacoes: op?.observacoes ?? '',
+    segmento: op?.empresa?.segmento ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [err, setErr] = useState('');
-  const [empresasLocal, setEmpresasLocal] = useState<Empresa[]>(empresas);
-  const [novaEmpresaMode, setNovaEmpresaMode] = useState(false);
-  const [novaEmpresaForm, setNovaEmpresaForm] = useState({ razaoSocial: '', segmento: '' });
-  const [criandoEmpresa, setCriandoEmpresa] = useState(false);
-  const [atividades, setAtividades] = useState<Atividade[]>([]);
-  const [novaAtividade, setNovaAtividade] = useState(false);
-  const [atForm, setAtForm] = useState({ tipo: 'reuniao', dataHora: '', notas: '', concluida: false });
-  const [savingAt, setSavingAt] = useState(false);
+  const [contatos, setContatos] = useState<Contato[]>([]);
 
   useEffect(() => {
+    if (op?.empresa?.id) {
+      api.get(`/crm/contatos?empresaId=${op.empresa.id}`)
+        .then((r) => setContatos(r.data))
+        .catch(() => {});
+    }
+  }, [op?.empresa?.id]);
+
+  const handleDelete = async () => {
     if (!op?.id) return;
-    api.get(`/crm/atividades?oportunidadeId=${op.id}`).then((res) => {
-      setAtividades(Array.isArray(res.data) ? res.data : []);
-    }).catch(() => {});
-    // default datetime to now
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    setAtForm((f) => ({ ...f, dataHora: now.toISOString().slice(0, 16) }));
-  }, [op?.id]);
-
-  const handleSaveAtividade = async () => {
-    if (!atForm.dataHora) return;
-    setSavingAt(true);
+    setDeleting(true);
     try {
-      const res = await api.post('/crm/atividades', { ...atForm, oportunidadeId: op!.id, duracao: null });
-      setAtividades((prev) => [res.data, ...prev]);
-      setNovaAtividade(false);
-    } finally {
-      setSavingAt(false);
-    }
-  };
-
-  const toggleAtividade = async (a: Atividade) => {
-    await api.patch(`/crm/atividades/${a.id}`, { concluida: !a.concluida });
-    setAtividades((prev) => prev.map((x) => x.id === a.id ? { ...x, concluida: !x.concluida } : x));
-  };
-
-  const handleCriarEmpresa = async () => {
-    if (!novaEmpresaForm.razaoSocial.trim()) return;
-    setCriandoEmpresa(true);
-    try {
-      const res = await api.post('/crm/empresas', {
-        razaoSocial: novaEmpresaForm.razaoSocial.trim(),
-        segmento: novaEmpresaForm.segmento || null,
-      });
-      const criada: Empresa = res.data;
-      setEmpresasLocal((prev) => [...prev, { ...criada, contatos: [] }]);
-      setForm((f) => ({ ...f, empresaId: criada.id, contatoId: '' }));
-      setNovaEmpresaMode(false);
-      setNovaEmpresaForm({ razaoSocial: '', segmento: '' });
+      await api.delete(`/crm/oportunidades/${op.id}`);
+      onSave();
     } catch {
-      /* silently ignore — empresa create failure shouldn't block oportunidade save */
-    } finally {
-      setCriandoEmpresa(false);
+      setErr('Erro ao excluir');
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
-
-  const empresaSelecionada = empresasLocal.find((e) => e.id === form.empresaId);
-  const contatosDaEmpresa = empresaSelecionada?.contatos ?? [];
 
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
     setSaving(true);
-    setErr('');
     try {
+      const valorNum = form.valor ? Number(form.valor) : null;
+      const isPerdido = form.etapa === 'perdido';
+      if (isPerdido && !form.motivoPerda.trim()) {
+        setErr('Informe o motivo da perda'); setSaving(false); return;
+      }
       const payload = {
         titulo: form.titulo,
-        valor: form.valor ? Number(form.valor) : null,
         etapa: form.etapa,
+        valor: valorNum && valorNum > 0 ? valorNum : null,
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
-        empresaId: form.empresaId || null,
         contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
-        motivoPerda: form.etapa === 'perdido' ? (form.motivoPerda || null) : null,
+        dataGanho: form.dataGanho || null,
+        motivoPerda: isPerdido ? (form.motivoPerda.trim() || null) : null,
         observacoes: form.observacoes || null,
       };
       if (isNew) {
         await api.post('/crm/oportunidades', payload);
       } else {
         await api.patch(`/crm/oportunidades/${op!.id}`, payload);
-        // Sync orcamento vinculado — non-fatal; schema rejeita 0 e null
-        if (op?.orcamento?.id) {
-          try {
-            const orcPayload: Record<string, unknown> = { cliente: form.titulo };
-            const v = Number(form.valor); if (v > 0) orcPayload.valorVenda = v;
-            const m = Number(form.m2);   if (m > 0) orcPayload.m2 = m;
-            await api.patch(`/orcamentos/${op.orcamento.id}`, orcPayload);
-          } catch { /* não bloqueia */ }
+        // Atualiza segmento da empresa se mudou
+        if (op?.empresa?.id && form.segmento !== (op.empresa.segmento ?? '')) {
+          await api.patch(`/crm/empresas/${op.empresa.id}`, {
+            segmento: form.segmento || null,
+          });
         }
       }
       onSave();
     } catch (e: any) {
-      setErr(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
+      const details = e?.response?.data?.error?.details;
+      if (details?.length) {
+        setErr(details.map((d: any) => `${d.field}: ${d.message}`).join(' · '));
+      } else {
+        setErr(e?.response?.data?.error?.message ?? e?.message ?? 'Erro ao salvar');
+      }
     } finally {
       setSaving(false);
     }
@@ -274,27 +221,19 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Valor</label>
-              <MoneyInput
-                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                value={form.valor}
-                onChange={(v) => setForm((f) => ({ ...f, valor: v }))}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">M²</label>
               <input
                 type="number"
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                placeholder="0"
-                value={form.m2}
-                onChange={(e) => setForm((f) => ({ ...f, m2: e.target.value }))}
+                placeholder="R$"
+                value={form.valor}
+                onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fechamento</label>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Fechamento Previsto</label>
               <input
                 type="date"
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
@@ -303,6 +242,36 @@ function OportunidadeDrawer({
               />
             </div>
           </div>
+          {form.etapa === 'ganho' && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Data de Ganho</label>
+              <input
+                type="date"
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.dataGanho}
+                onChange={(e) => setForm((f) => ({ ...f, dataGanho: e.target.value }))}
+              />
+              <p className="text-[10px] text-ber-gray mt-0.5">Usado no gráfico de Meta. Preenchido automaticamente ao marcar como Ganho.</p>
+            </div>
+          )}
+          {form.etapa === 'perdido' && (
+            <div>
+              <label className="text-xs font-semibold text-ber-red uppercase tracking-wide">Motivo da Perda *</label>
+              <select
+                className="mt-1 w-full border border-ber-red/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-red bg-red-50/30"
+                value={form.motivoPerda}
+                onChange={(e) => setForm((f) => ({ ...f, motivoPerda: e.target.value }))}
+              >
+                <option value="">-- Selecione o motivo --</option>
+                <option value="Preço">Preço</option>
+                <option value="Escopo não aderente">Escopo não aderente</option>
+                <option value="Relacionamento com concorrente">Relacionamento com concorrente</option>
+                <option value="Apresentação / Proposta fraca">Apresentação / Proposta fraca</option>
+                <option value="Decisão adiada">Decisão adiada</option>
+                <option value="Sem resposta">Sem resposta</option>
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa</label>
@@ -326,6 +295,23 @@ function OportunidadeDrawer({
               </select>
             </div>
           </div>
+          {/* Segmento — atualiza a empresa vinculada */}
+          {(op?.empresa?.id || !isNew) && op?.empresa && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">
+                Segmento
+                <span className="ml-1 font-normal normal-case text-ber-gray/60">({op.empresa.razaoSocial})</span>
+              </label>
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.segmento}
+                onChange={(e) => setForm((f) => ({ ...f, segmento: e.target.value }))}
+              >
+                <option value="">-- Não definido --</option>
+                {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Probabilidade</label>
@@ -351,93 +337,26 @@ function OportunidadeDrawer({
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Empresa</label>
-            <select
-              className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-              value={form.empresaId}
-              onChange={(e) => {
-                if (e.target.value === '__nova__') {
-                  setNovaEmpresaMode(true);
-                  setForm((f) => ({ ...f, empresaId: '', contatoId: '' }));
-                } else {
-                  setNovaEmpresaMode(false);
-                  setForm((f) => ({ ...f, empresaId: e.target.value, contatoId: '' }));
-                }
-              }}
-            >
-              <option value="">-- nenhuma --</option>
-              {empresasLocal.map((e) => (
-                <option key={e.id} value={e.id}>{e.razaoSocial}{e.segmento ? ` · ${e.segmento}` : ''}</option>
-              ))}
-              <option value="__nova__">➕ Nova empresa...</option>
-            </select>
-
-            {novaEmpresaMode && (
-              <div className="mt-2 p-3 bg-ber-surface border border-ber-border rounded-xl space-y-2">
-                <p className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Nova empresa</p>
-                <input
-                  autoFocus
-                  className="w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                  placeholder="Razão social *"
-                  value={novaEmpresaForm.razaoSocial}
-                  onChange={(e) => setNovaEmpresaForm((f) => ({ ...f, razaoSocial: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCriarEmpresa()}
-                />
-                <select
-                  className="w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                  value={novaEmpresaForm.segmento}
-                  onChange={(e) => setNovaEmpresaForm((f) => ({ ...f, segmento: e.target.value }))}
-                >
-                  <option value="">Segmento (opcional)</option>
-                  {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setNovaEmpresaMode(false); setNovaEmpresaForm({ razaoSocial: '', segmento: '' }); }}
-                    className="flex-1 py-1.5 text-xs text-ber-gray border border-ber-border rounded-lg hover:bg-white"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCriarEmpresa}
-                    disabled={criandoEmpresa || !novaEmpresaForm.razaoSocial.trim()}
-                    className="flex-1 py-1.5 text-xs text-white bg-ber-teal rounded-lg font-semibold hover:bg-ber-teal/80 disabled:opacity-50"
-                  >
-                    {criandoEmpresa ? 'Criando...' : 'Criar empresa'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          {contatosDaEmpresa.length > 0 && (
-            <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
+            {contatos.length > 0 ? (
               <select
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
                 value={form.contatoId}
                 onChange={(e) => setForm((f) => ({ ...f, contatoId: e.target.value }))}
               >
-                <option value="">-- nenhum --</option>
-                {contatosDaEmpresa.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}{c.cargo ? ` · ${c.cargo}` : ''}</option>
+                <option value="">-- Sem contato --</option>
+                {contatos.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}{c.cargo ? ` · ${c.cargo}` : ''}
+                  </option>
                 ))}
               </select>
-            </div>
-          )}
-          {form.etapa === 'perdido' && (
-            <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Motivo da perda</label>
-              <textarea
-                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none"
-                rows={2}
-                placeholder="Ex: preço, concorrente, prazo..."
-                value={form.motivoPerda}
-                onChange={(e) => setForm((f) => ({ ...f, motivoPerda: e.target.value }))}
-              />
-            </div>
-          )}
+            ) : (
+              <p className="mt-1 text-xs text-ber-gray/60 italic">
+                {op?.empresa ? 'Nenhum contato cadastrado para esta empresa' : 'Vincule uma empresa para selecionar o contato'}
+              </p>
+            )}
+          </div>
           <div>
             <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações</label>
             <textarea
@@ -447,67 +366,6 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
             />
           </div>
-          {!isNew && (
-            <div className="border-t border-ber-border pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Atividades</p>
-                {!novaAtividade && (
-                  <button onClick={() => setNovaAtividade(true)} className="flex items-center gap-1 text-xs text-ber-teal hover:underline">
-                    <Plus size={12} /> Nova
-                  </button>
-                )}
-              </div>
-
-              {novaAtividade && (
-                <div className="mb-3 p-3 bg-ber-surface border border-ber-border rounded-xl space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-semibold text-ber-gray uppercase">Tipo</label>
-                      <select className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal" value={atForm.tipo} onChange={(e) => setAtForm((f) => ({ ...f, tipo: e.target.value }))}>
-                        {TIPOS_ATIVIDADE.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-ber-gray uppercase">Data e Hora</label>
-                      <input type="datetime-local" className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal" value={atForm.dataHora} onChange={(e) => setAtForm((f) => ({ ...f, dataHora: e.target.value }))} />
-                    </div>
-                  </div>
-                  <textarea className="w-full border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal resize-none" rows={2} placeholder="Notas..." value={atForm.notas} onChange={(e) => setAtForm((f) => ({ ...f, notas: e.target.value }))} />
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="at-concluida" checked={atForm.concluida} onChange={(e) => setAtForm((f) => ({ ...f, concluida: e.target.checked }))} className="w-3.5 h-3.5" />
-                    <label htmlFor="at-concluida" className="text-xs text-ber-carbon">Já concluída</label>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setNovaAtividade(false)} className="flex-1 py-1.5 text-xs border border-ber-border rounded-lg text-ber-gray hover:bg-white">Cancelar</button>
-                    <button onClick={handleSaveAtividade} disabled={savingAt || !atForm.dataHora} className="flex-1 py-1.5 text-xs bg-ber-teal text-white rounded-lg font-semibold disabled:opacity-50">
-                      {savingAt ? 'Salvando...' : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {atividades.slice(0, 5).map((a) => (
-                  <div key={a.id} className="flex items-start gap-2">
-                    <button onClick={() => toggleAtividade(a)} className={`mt-0.5 shrink-0 ${a.concluida ? 'text-ber-green' : 'text-ber-gray/40 hover:text-ber-teal'}`}>
-                      {a.concluida ? <CheckCircle2 size={15} /> : <Circle size={15} />}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold ${a.concluida ? 'line-through text-ber-gray' : 'text-ber-carbon'}`}>
-                        {TIPOS_ATIVIDADE.find((t) => t.value === a.tipo)?.label ?? a.tipo}
-                        <span className="ml-2 font-normal text-ber-gray">{fmtDate(a.dataHora)}</span>
-                      </p>
-                      {a.notas && <p className="text-xs text-ber-gray truncate">{a.notas}</p>}
-                    </div>
-                  </div>
-                ))}
-                {atividades.length === 0 && !novaAtividade && (
-                  <p className="text-xs text-ber-gray/50">Nenhuma atividade registrada</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {op?.orcamento && (
             <div className="rounded-lg border border-ber-border bg-ber-surface p-3">
               <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Orçamento Vinculado</p>
@@ -516,152 +374,76 @@ function OportunidadeDrawer({
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-ber-border flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
-          <button type="button" onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
+        <div className="p-4 border-t border-ber-border space-y-2">
+          {confirmDelete ? (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+              <p className="font-semibold mb-2">Confirmar exclusão?</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100">Cancelar</button>
+                <button onClick={handleDelete} disabled={deleting} className="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                  {deleting ? 'Excluindo...' : 'Excluir definitivamente'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              {!isNew && (
+                <button onClick={() => setConfirmDelete(true)} className="p-2 rounded-lg text-ber-gray hover:text-red-600 hover:bg-red-50 border border-ber-border transition-colors">
+                  <Trash2 size={15} />
+                </button>
+              )}
+              <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-const MESES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+type SortMode = 'etapa' | 'az' | 'recente';
 
-function MesAMesView({
-  oportunidades,
-  onCardClick,
-}: {
-  oportunidades: Oportunidade[];
-  onCardClick: (op: Oportunidade) => void;
-}) {
-  const ativas = oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa));
-  const ano = new Date().getFullYear();
-
-  const meses = useMemo(() => {
-    const map: Record<number, Oportunidade[]> = {};
-    for (let i = 1; i <= 12; i++) map[i] = [];
-
-    for (const op of ativas) {
-      if (!op.dataFechamentoPrevisto) {
-        (map[0] ??= []).push(op);
-        continue;
-      }
-      const d = new Date(op.dataFechamentoPrevisto);
-      const m = d.getMonth() + 1;
-      (map[m] ??= []).push(op);
-    }
-    return map;
-  }, [ativas]);
-
-  const semData = meses[0] ?? [];
-
-  return (
-    <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
-      {Array.from({ length: 12 }, (_, i) => i + 1).map((mes) => {
-        const cards = meses[mes] ?? [];
-        const totalValor = cards.reduce((s, c) => s + Number(c.valor ?? 0), 0);
-        const label = `${MESES_LABEL[mes - 1]} ${ano}`;
-        const isPassado = mes < new Date().getMonth() + 1;
-        return (
-          <div key={mes} className="flex-shrink-0 w-64 flex flex-col">
-            <div className={`mb-2 px-3 py-2 rounded-xl border ${isPassado ? 'bg-ber-surface border-ber-border' : 'bg-white border-ber-border'}`}>
-              <p className={`text-xs font-bold uppercase tracking-wide ${isPassado ? 'text-ber-gray' : 'text-ber-carbon'}`}>{label}</p>
-              <p className="text-base font-bold text-ber-teal mt-0.5">{totalValor > 0 ? fmt(totalValor) : <span className="text-ber-gray/40 font-normal text-xs">sem valor</span>}</p>
-              <p className="text-[10px] text-ber-gray">{cards.length} oportunidade{cards.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
-              {cards.map((op) => {
-                const etapa = ETAPA_MAP[op.etapa as keyof typeof ETAPA_MAP];
-                return (
-                  <div
-                    key={op.id}
-                    onClick={() => onCardClick(op)}
-                    className="bg-white border border-ber-border rounded-lg p-3 cursor-pointer hover:border-ber-teal/40 hover:shadow-sm transition-all"
-                  >
-                    <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2">{op.titulo}</p>
-                    {op.empresa && <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>}
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-ber-carbon">{op.valor != null ? fmt(op.valor) : '--'}</span>
-                      {etapa && (
-                        <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                          style={{ backgroundColor: etapa.color + '20', color: etapa.color }}
-                        >
-                          {etapa.label}
-                        </span>
-                      )}
-                    </div>
-                    {op.responsavel && (
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-full bg-ber-teal/20 flex items-center justify-center text-[9px] font-bold text-ber-teal shrink-0">
-                          {op.responsavel.name.charAt(0)}
-                        </div>
-                        <span className="text-[10px] text-ber-gray truncate">{op.responsavel.name}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {cards.length === 0 && (
-                <p className="text-center text-xs text-ber-gray/40 py-4">—</p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      {semData.length > 0 && (
-        <div className="flex-shrink-0 w-64 flex flex-col">
-          <div className="mb-2 px-3 py-2 rounded-xl border bg-amber-50 border-amber-200">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Sem data</p>
-            <p className="text-base font-bold text-amber-600 mt-0.5">
-              {fmt(semData.reduce((s, c) => s + Number(c.valor ?? 0), 0))}
-            </p>
-            <p className="text-[10px] text-amber-600">{semData.length} oportunidade{semData.length !== 1 ? 's' : ''}</p>
-          </div>
-          <div className="flex-1 bg-amber-50/50 rounded-xl p-2 space-y-2 overflow-y-auto">
-            {semData.map((op) => (
-              <div
-                key={op.id}
-                onClick={() => onCardClick(op)}
-                className="bg-white border border-amber-200 rounded-lg p-3 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
-              >
-                <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2">{op.titulo}</p>
-                {op.empresa && <p className="mt-1 text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>}
-                <div className="mt-1 flex items-center justify-between">
-                  <span className="text-xs font-bold text-ber-carbon">{op.valor != null ? fmt(op.valor) : '--'}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function sortOportunidades(ops: Oportunidade[], mode: SortMode): Oportunidade[] {
+  const sorted = [...ops];
+  if (mode === 'az') {
+    sorted.sort((a, b) => (a.titulo ?? '').localeCompare(b.titulo ?? '', 'pt-BR'));
+  } else if (mode === 'recente') {
+    sorted.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+  } else {
+    const order: string[] = ETAPAS.map((e) => e.value);
+    sorted.sort((a, b) => order.indexOf(a.etapa) - order.indexOf(b.etapa));
+  }
+  return sorted;
 }
 
-export default function TabPipeline({ oportunidades, empresas, users, onRefresh }: Props) {
+export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
-  const [alertDismissed, setAlertDismissed] = useState(false);
-  const [viewMode, setViewMode] = useState<'kanban' | 'mes'>('kanban');
-
-  const semForecast = oportunidades.filter(
-    (op) => !['ganho', 'perdido'].includes(op.etapa) && forecastGaps(op).length > 0
-  ).length;
+  const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
+  const [sortMode, setSortMode] = useState<SortMode>('etapa');
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
     for (const e of KANBAN_ETAPAS) map[e.value] = [];
     for (const op of oportunidades) {
       if (map[op.etapa]) map[op.etapa].push(op);
-      else if (op.etapa !== 'perdido') map['lead'].push(op);
+      else if (!TERMINAL_ETAPAS.includes(op.etapa)) map['lead'].push(op);
     }
     return map;
   }, [oportunidades]);
 
   const byEtapa = grouped();
+  const byTerminal = (etapa: string) =>
+    oportunidades
+      .filter((o) => o.etapa === etapa)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const ganhos     = byTerminal('ganho');
+  const perdidos   = byTerminal('perdido');
+  const declinados = byTerminal('declinado');
+  const cancelados = byTerminal('cancelado');
 
   const handleMoveEtapa = async (opId: string, etapa: string) => {
     await api.patch(`/crm/oportunidades/${opId}`, { etapa });
@@ -674,53 +456,100 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-ber-carbon">Pipeline</h2>
           <span className="text-xs text-ber-gray bg-ber-surface px-2 py-0.5 rounded-full">
-            {oportunidades.filter((o) => !['ganho', 'perdido'].includes(o.etapa)).length} ativos
+            {oportunidades.filter((o) => !TERMINAL_ETAPAS.includes(o.etapa)).length} ativos
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-ber-surface border border-ber-border rounded-lg p-0.5">
+          {viewMode === 'lista' && (
+            <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
+              {([['etapa', 'Etapa'], ['az', 'A–Z'], ['recente', 'Recente']] as [SortMode, string][]).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setSortMode(mode)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${sortMode === mode ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${viewMode === 'kanban' ? 'bg-white text-ber-carbon shadow-sm' : 'text-ber-gray hover:text-ber-carbon'}`}
+              title="Kanban"
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${viewMode === 'kanban' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
             >
-              <LayoutGrid size={13} /> Etapas
+              <LayoutGrid size={12} /> Kanban
             </button>
             <button
-              onClick={() => setViewMode('mes')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${viewMode === 'mes' ? 'bg-white text-ber-carbon shadow-sm' : 'text-ber-gray hover:text-ber-carbon'}`}
+              onClick={() => setViewMode('lista')}
+              title="Lista"
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${viewMode === 'lista' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
             >
-              <CalendarDays size={13} /> Mês a mês
+              <LayoutList size={12} /> Lista
             </button>
           </div>
           <button
             onClick={() => setDrawerOp('new')}
             className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80"
           >
-            <Plus size={14} /> Nova
+            <Plus size={14} /> Nova Oportunidade
           </button>
         </div>
       </div>
 
-      {semForecast > 0 && !alertDismissed && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-          <TriangleAlert size={14} className="shrink-0 text-amber-500" />
-          <span>
-            <strong>{semForecast}</strong> oportunidade{semForecast > 1 ? 's' : ''} sem dados completos para o forecast
-            {' '}(valor, data de fechamento ou probabilidade). Abra o card e preencha.
-          </span>
-          <button onClick={() => setAlertDismissed(true)} className="ml-auto shrink-0 text-amber-400 hover:text-amber-600">
-            <X size={14} />
-          </button>
+      {viewMode === 'lista' && (
+        <div className="rounded-xl border border-ber-border bg-white overflow-hidden mb-4">
+          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 bg-ber-surface border-b border-ber-border text-[10px] font-bold uppercase tracking-wide text-ber-gray">
+            <span>Oportunidade</span>
+            <span>Etapa</span>
+            <span>Empresa</span>
+            <span>Responsável</span>
+            <span>Probabilidade</span>
+            <span className="text-right">Valor</span>
+          </div>
+          {oportunidades.length === 0 && (
+            <p className="text-center text-xs text-ber-gray py-10">Nenhuma oportunidade.</p>
+          )}
+          {sortOportunidades(oportunidades, sortMode).map((op, idx) => {
+              const etapaCfg = ETAPA_MAP[op.etapa];
+              const probCfg = PROBABILIDADES.find((p) => p.value === op.probabilidade);
+              return (
+                <div
+                  key={op.id}
+                  onClick={() => setDrawerOp(op)}
+                  className="cursor-pointer grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 items-center text-xs hover:bg-ber-surface transition-colors border-b border-ber-border/50 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ber-carbon truncate">{op.titulo}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: etapaCfg?.color ?? '#aaa' }} />
+                    <span className="text-ber-gray truncate">{etapaCfg?.label ?? op.etapa}</span>
+                  </div>
+                  <span className="text-ber-gray truncate">{op.empresa?.razaoSocial ?? '—'}</span>
+                  <span className="text-ber-gray truncate">{op.responsavel?.name ?? '—'}</span>
+                  <span>
+                    {probCfg
+                      ? <span className="rounded-full bg-ber-surface px-2 py-0.5 text-[10px] font-semibold text-ber-carbon">{probCfg.label} ({probCfg.pct}%)</span>
+                      : <span className="text-ber-gray/40">—</span>}
+                  </span>
+                  <span className="text-right font-bold text-ber-carbon">{fmt(op.valor)}</span>
+                </div>
+              );
+            })}
+          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 border-t border-ber-border bg-ber-surface text-xs font-bold text-ber-carbon">
+            <span>{oportunidades.length} itens</span>
+            <span /><span /><span /><span />
+            <span className="text-right">{fmt(oportunidades.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</span>
+          </div>
         </div>
       )}
 
-      {viewMode === 'mes' ? (
-        <MesAMesView oportunidades={oportunidades} onCardClick={(op) => setDrawerOp(op)} />
-      ) : (
-      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+      <div className={`flex gap-3 overflow-x-auto pb-4 ${viewMode === 'lista' ? 'hidden' : ''}`} style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
           const cards = byEtapa[etapa.value] ?? [];
-          const totalValor = cards.reduce((s, c) => s + (c.valor ?? 0), 0);
+          const totalValor = cards.reduce((s, c) => s + Number(c.valor ?? 0), 0);
           return (
             <div key={etapa.value} className="flex-shrink-0 w-64 flex flex-col">
               <div className="flex items-center gap-2 mb-2 px-1">
@@ -732,19 +561,9 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
                 <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(totalValor)}</p>
               )}
               <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
-                {cards.map((op) => {
-                  const idx = KANBAN_ETAPAS.findIndex((e) => e.value === etapa.value);
-                  return (
-                    <CardOportunidade
-                      key={op.id}
-                      op={op}
-                      onClick={() => setDrawerOp(op)}
-                      onMove={(dir) => handleMoveEtapa(op.id, KANBAN_ETAPAS[dir === 'left' ? idx - 1 : idx + 1].value)}
-                      canMoveLeft={idx > 0}
-                      canMoveRight={idx < KANBAN_ETAPAS.length - 1}
-                    />
-                  );
-                })}
+                {cards.map((op) => (
+                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+                ))}
                 {cards.length === 0 && (
                   <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
                 )}
@@ -752,17 +571,100 @@ export default function TabPipeline({ oportunidades, empresas, users, onRefresh 
             </div>
           );
         })}
+
+        {/* Coluna Ganhos */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-90">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#3D9E5F' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#3D9E5F' }}>Ganhos</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{ganhos.length}</span>
+          </div>
+          {ganhos.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(ganhos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-green-50/50 border border-green-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {ganhos.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {ganhos.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Separador antes das colunas de perdas ── */}
+        <div className="flex-shrink-0 w-1 self-stretch mx-1 bg-ber-border/40 rounded-full" />
+
+        {/* Coluna Perdidos */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#E05555' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#E05555' }}>Perdidos</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{perdidos.length}</span>
+          </div>
+          {perdidos.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(perdidos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-red-50/50 border border-red-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {perdidos.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {perdidos.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* Coluna Declinados */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#F97316' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#F97316' }}>Declinados</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{declinados.length}</span>
+          </div>
+          {declinados.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(declinados.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-orange-50/50 border border-orange-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {declinados.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {declinados.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* Coluna Cancelados */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#6B7280' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#6B7280' }}>Cancelados</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{cancelados.length}</span>
+          </div>
+          {cancelados.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(cancelados.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-gray-50/50 border border-gray-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {cancelados.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {cancelados.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
       </div>
-      )}
 
       {drawerOp !== null && (
-        <OportunidadeDrawer
-          op={drawerOp === 'new' ? null : drawerOp}
-          empresas={empresas}
-          users={users}
-          onClose={() => setDrawerOp(null)}
-          onSave={() => { setDrawerOp(null); onRefresh(); }}
-        />
+        <DrawerBoundary onClose={() => setDrawerOp(null)}>
+          <OportunidadeDrawer
+            op={drawerOp === 'new' ? null : drawerOp}
+            users={users}
+            onClose={() => setDrawerOp(null)}
+            onSave={() => { setDrawerOp(null); onRefresh(); }}
+          />
+        </DrawerBoundary>
       )}
     </div>
   );

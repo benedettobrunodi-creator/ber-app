@@ -87,6 +87,7 @@ model User {
   crmOportunidadesResp  CrmOportunidade[]      @relation("CrmOportResponsavel")
   crmOportunidadesCriadas CrmOportunidade[]    @relation("CrmOportCreator")
   crmAtividades         CrmAtividade[]         @relation("CrmAtividadeUsuario")
+  resetTokens           PasswordResetToken[]
 
   @@map("users")
 }
@@ -1550,6 +1551,7 @@ model CrmOportunidade {
   probabilidade          String?   @db.VarChar(20)
   dataFechamentoPrevisto DateTime? @map("data_fechamento_previsto") @db.Date
   dataEntradaPipeline    DateTime? @map("data_entrada_pipeline") @db.Date
+  dataGanho              DateTime? @map("data_ganho") @db.Date
   motivoPerda            String?   @map("motivo_perda")
   observacoes            String?
   orcamentoId            String?   @unique @map("orcamento_id") @db.Uuid
@@ -1618,4 +1620,17 @@ model CrmMetaVendas {
 
   @@unique([ano, mes])
   @@map("crm_metas_vendas")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

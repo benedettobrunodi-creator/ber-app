@@ -112,8 +112,7 @@ export async function getOportunidade(req: Request, res: Response, next: NextFun
 export async function createOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = createOportunidadeSchema.parse(req.body);
-    const user = req.user!;
-    const data = await svc.createOportunidade(body, user.userId, user.email);
+    const data = await svc.createOportunidade(body, req.user!.userId, req.user!.email);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
@@ -121,8 +120,7 @@ export async function createOportunidade(req: Request, res: Response, next: Next
 export async function updateOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = updateOportunidadeSchema.parse(req.body);
-    const user = req.user!;
-    const data = await svc.updateOportunidade(req.params.id, body, user.email);
+    const data = await svc.updateOportunidade(req.params.id, body, req.user!.email);
     res.json(data);
   } catch (e) { next(e); }
 }
@@ -154,8 +152,7 @@ export async function listAtividades(req: Request, res: Response, next: NextFunc
 export async function createAtividade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = createAtividadeSchema.parse(req.body);
-    const user = req.user!;
-    const data = await svc.createAtividade(body, user.userId);
+    const data = await svc.createAtividade(body, req.user!.userId);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
@@ -245,14 +242,74 @@ export async function getNutricao(req: Request, res: Response, next: NextFunctio
   try { res.json(await svc.getNutricao()); } catch (e) { next(e); }
 }
 
+export async function getPipelineAtivoAcumulado(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
+    res.json(await svc.getPipelineAtivoAcumulado(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getFunilConversao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getFunilConversao(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getMotivosPerda(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getMotivosPerda(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getPerformanceResponsavel(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getPerformanceResponsavel(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getForecastHorizonte(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getForecastHorizonte()); } catch (e) { next(e); }
+}
+
+export async function getCicloVendas(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getCicloVendas(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getWinRateSegmento(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    res.json(await svc.getWinRateSegmento(ano));
+  } catch (e) { next(e); }
+}
+
+export async function getPipelineAging(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getPipelineAging()); } catch (e) { next(e); }
+}
+
+export async function getRecorrenciaClientes(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getRecorrenciaClientes()); } catch (e) { next(e); }
+}
+
+export async function getCohort(req: Request, res: Response, next: NextFunction) {
+  try {
+    const ano = Number(req.query.ano) || new Date().getFullYear();
+    res.json(await svc.getCohort(ano));
+  } catch (e) { next(e); }
+}
+
 // ── Integração ────────────────────────────────────────────────────────────────
 
 export async function criarOrcamentoDeOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = req.user!;
     const data = await intSvc.criarOrcamentoDeOportunidade(
       req.params.id,
-      user.userId,
+      req.user!.userId,
       req.body,
     );
     res.status(201).json(data);
@@ -268,8 +325,7 @@ export async function vincularOrcamento(req: Request, res: Response, next: NextF
 
 export async function criarObraDeOrcamento(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = req.user!;
-    const data = await intSvc.criarObraDeOrcamento(req.params.id, user.userId, req.body);
+    const data = await intSvc.criarObraDeOrcamento(req.params.id, req.user!.userId, req.body);
     res.status(201).json(data);
   } catch (e) { next(e); }
 }
