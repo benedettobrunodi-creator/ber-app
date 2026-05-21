@@ -37,10 +37,14 @@ const ETAPA_COLORS: Record<string, string> = {
 };
 
 interface FunilData {
-  qualificacao: { count: number; valor: number };
-  propostas:    { count: number; valor: number };
-  conversao:    { count: number; valor: number };
-  perdido:      { count: number; valor: number };
+  qualificacao:             { count: number; valor: number };
+  propostas:                { count: number; valor: number };
+  conversao:                { count: number; valor: number };
+  perdido:                  { count: number; valor: number };
+  taxaConversaoPropostas:   number;  // valorGanho ÷ (propEmitida + ganho + perdidoCompetitivo)
+  valorPropostaEmitida:     number;
+  valorGanho:               number;
+  valorPerdidoCompetitivo:  number;
 }
 
 interface MetaRow { ano: number; mes: number; valorMeta: number }
@@ -125,10 +129,13 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
 
   const openDrill = (title: string, ops: Oportunidade[]) => setDrill({ title, ops });
 
-  // Win rate real = ganho ÷ (ganho + perdido), vindo do endpoint /stats/win-rate
-  // Exclui declinados e cancelados (não são derrotas competitivas)
-  // Fallback 30% se ainda não carregou ou não há deals suficientes
-  const winRateEfetivo = winRateApi && winRateApi.rate > 0.01 ? winRateApi.rate : 0.3;
+  // Taxa de conversão de proposta por valor (para cálculo do pipeline necessário):
+  // valorGanho ÷ (proposta_enviada + negociação + ganho + perdido competitivo)
+  // = do total emitido em proposta, quanto % virou receita
+  // Fallback 30% se funil ainda não carregou
+  const winRateEfetivo = funil && funil.taxaConversaoPropostas > 0.01
+    ? funil.taxaConversaoPropostas
+    : (winRateApi && winRateApi.rate > 0.01 ? winRateApi.rate : 0.3);
 
   // Gráfico 1: Vendas vs Meta — valores mensais + projeção acumulada para bater a meta
   const vendasMesAMesData = MESES.map((m, i) => {
@@ -309,8 +316,8 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         <div className="bg-white border border-ber-border rounded-xl p-5">
           <h3 className="font-bold text-ber-carbon mb-1">Pipeline Ativo vs Necessário — {ano}</h3>
           <p className="text-xs text-ber-gray mb-4">
-            Barras = soma dos deals ativos com fechamento previsto naquele mês ou depois (deal de junho sai do gráfico em julho) ·
-            Linha = pipeline necessário para bater a meta ({Math.round(winRateEfetivo * 100)}% de conversão)
+            Barras = pipeline ativo com fechamento previsto até aquele mês (deal de junho sai em julho) ·
+            Linha = pipeline necessário = meta ÷ taxa de conversão de proposta ({Math.round(winRateEfetivo * 100)}% — valor ganho ÷ total proposto)
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={pipelineNecessarioData}>

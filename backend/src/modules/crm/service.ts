@@ -324,13 +324,36 @@ export async function getFunilMacro() {
     perdido: { count: 0, valor: 0 },
   };
 
+  // Para taxa de conversão de proposta: apenas etapas onde a proposta foi emitida
+  // (proposta_enviada + negociacao + ganho + perdido competitivo)
+  let valorPropostaEmitida = 0; // proposta_enviada + negociacao (em aberto)
+  let valorGanho = 0;
+  let valorPerdidoCompetitivo = 0; // apenas etapa 'perdido' — sem declinado/cancelado
+
   for (const op of all) {
     const bucket = CRM_ETAPA_MACRO[op.etapa as keyof typeof CRM_ETAPA_MACRO] ?? 'qualificacao';
     macro[bucket].count++;
     macro[bucket].valor += Number(op.valor ?? 0);
+
+    const val = Number(op.valor ?? 0);
+    if (op.etapa === 'ganho')            valorGanho += val;
+    if (op.etapa === 'perdido')          valorPerdidoCompetitivo += val;
+    if (['proposta_enviada', 'negociacao'].includes(op.etapa)) valorPropostaEmitida += val;
   }
 
-  return macro;
+  // Taxa de conversão de proposta por valor:
+  // Do total que chegou a proposta emitida, quanto % foi fechado como ganho?
+  // Denominador = em aberto (enviada + negociação) + ganho + perdido competitivo
+  const baseConversao = valorPropostaEmitida + valorGanho + valorPerdidoCompetitivo;
+  const taxaConversaoPropostas = baseConversao > 0 ? valorGanho / baseConversao : 0;
+
+  return {
+    ...macro,
+    taxaConversaoPropostas,
+    valorPropostaEmitida,
+    valorGanho,
+    valorPerdidoCompetitivo,
+  };
 }
 
 export async function getForecast(ano: number) {
