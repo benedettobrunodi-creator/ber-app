@@ -128,6 +128,7 @@ function OportunidadeDrawer({
     dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
     motivoPerda: op?.motivoPerda ?? '',
     observacoes: op?.observacoes ?? '',
+    segmento: op?.empresa?.segmento ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -182,6 +183,12 @@ function OportunidadeDrawer({
         await api.post('/crm/oportunidades', payload);
       } else {
         await api.patch(`/crm/oportunidades/${op!.id}`, payload);
+        // Atualiza segmento da empresa se mudou
+        if (op?.empresa?.id && form.segmento !== (op.empresa.segmento ?? '')) {
+          await api.patch(`/crm/empresas/${op.empresa.id}`, {
+            segmento: form.segmento || null,
+          });
+        }
       }
       onSave();
     } catch (e: any) {
@@ -288,6 +295,23 @@ function OportunidadeDrawer({
               </select>
             </div>
           </div>
+          {/* Segmento — atualiza a empresa vinculada */}
+          {(op?.empresa?.id || !isNew) && op?.empresa && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">
+                Segmento
+                <span className="ml-1 font-normal normal-case text-ber-gray/60">({op.empresa.razaoSocial})</span>
+              </label>
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.segmento}
+                onChange={(e) => setForm((f) => ({ ...f, segmento: e.target.value }))}
+              >
+                <option value="">-- Não definido --</option>
+                {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Probabilidade</label>
@@ -416,6 +440,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       .filter((o) => o.etapa === etapa)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
+  const ganhos     = byTerminal('ganho');
   const perdidos   = byTerminal('perdido');
   const declinados = byTerminal('declinado');
   const cancelados = byTerminal('cancelado');
@@ -547,7 +572,27 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           );
         })}
 
-        {/* ── Separador antes das colunas terminais ── */}
+        {/* Coluna Ganhos */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-90">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#3D9E5F' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#3D9E5F' }}>Ganhos</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{ganhos.length}</span>
+          </div>
+          {ganhos.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(ganhos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-green-50/50 border border-green-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {ganhos.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {ganhos.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Separador antes das colunas de perdas ── */}
         <div className="flex-shrink-0 w-1 self-stretch mx-1 bg-ber-border/40 rounded-full" />
 
         {/* Coluna Perdidos */}
