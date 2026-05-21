@@ -411,9 +411,14 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   }, [oportunidades]);
 
   const byEtapa = grouped();
-  const perdidos = oportunidades
-    .filter((o) => ETAPAS_PERDIDAS.includes(o.etapa))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const byTerminal = (etapa: string) =>
+    oportunidades
+      .filter((o) => o.etapa === etapa)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const perdidos   = byTerminal('perdido');
+  const declinados = byTerminal('declinado');
+  const cancelados = byTerminal('cancelado');
 
   const handleMoveEtapa = async (opId: string, etapa: string) => {
     await api.patch(`/crm/oportunidades/${opId}`, { etapa });
@@ -542,25 +547,65 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           );
         })}
 
-        {/* Coluna Perdidos — separador visual + todos os terminais não-ganho */}
+        {/* ── Separador antes das colunas terminais ── */}
         <div className="flex-shrink-0 w-1 self-stretch mx-1 bg-ber-border/40 rounded-full" />
-        <div className="flex-shrink-0 w-64 flex flex-col opacity-80">
+
+        {/* Coluna Perdidos */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
           <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-ber-red" />
-            <span className="text-xs font-bold text-ber-red uppercase tracking-wide">Perdidos</span>
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#E05555' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#E05555' }}>Perdidos</span>
             <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{perdidos.length}</span>
           </div>
           {perdidos.length > 0 && (
-            <p className="text-[11px] text-ber-gray px-1 mb-2">
-              {fmt(perdidos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}
-            </p>
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(perdidos.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
           )}
-          <div className="flex-1 bg-red-50/50 border border-ber-red/10 rounded-xl p-2 space-y-2 overflow-y-auto">
+          <div className="flex-1 bg-red-50/50 border border-red-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {perdidos.map((op) => (
               <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
             ))}
             {perdidos.length === 0 && (
-              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum perdido</p>
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* Coluna Declinados */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#F97316' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#F97316' }}>Declinados</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{declinados.length}</span>
+          </div>
+          {declinados.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(declinados.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-orange-50/50 border border-orange-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {declinados.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {declinados.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
+            )}
+          </div>
+        </div>
+
+        {/* Coluna Cancelados */}
+        <div className="flex-shrink-0 w-60 flex flex-col opacity-80">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#6B7280' }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#6B7280' }}>Cancelados</span>
+            <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{cancelados.length}</span>
+          </div>
+          {cancelados.length > 0 && (
+            <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(cancelados.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</p>
+          )}
+          <div className="flex-1 bg-gray-50/50 border border-gray-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
+            {cancelados.map((op) => (
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+            ))}
+            {cancelados.length === 0 && (
+              <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
             )}
           </div>
         </div>
