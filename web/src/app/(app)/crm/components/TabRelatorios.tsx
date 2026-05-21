@@ -79,29 +79,26 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   }>>({});
 
   useEffect(() => {
+    // Núcleo — dados mais usados carregam primeiro
     Promise.all([
       api.get('/crm/stats/pipeline'),
       api.get(`/crm/stats/pipeline-mes-a-mes/${ano}`),
       api.get(`/crm/stats/ticket-medio?ano=${ano}`),
       api.get(`/crm/stats/win-rate?ano=${ano}`),
-      api.get(`/crm/stats/motivos-perda?ano=${ano}`),
-      api.get(`/crm/stats/performance-responsavel?ano=${ano}`),
-      api.get(`/crm/stats/ciclo-vendas?ano=${ano}`),
-      api.get(`/crm/stats/win-rate-segmento?ano=${ano}`),
-      api.get('/crm/stats/recorrencia-clientes'),
-      api.get(`/crm/stats/cohort?ano=${ano}`),
-    ]).then(([ps, pm, tm, wr, mp, pr, cv, wrs, rc, co]) => {
+    ]).then(([ps, pm, tm, wr]) => {
       setPipelineStats(ps.data);
       setPipeMes(pm.data);
       setTicketMedio(tm.data);
       setWinRate(wr.data);
-      setMotivosPerda(mp.data);
-      setPerfResponsavel(pr.data);
-      setCicloVendas(cv.data);
-      setWinRateSegmento(wrs.data);
-      setRecorrencia(rc.data);
-      setCohort(co.data);
     });
+
+    // Analytics — cada um independente
+    api.get(`/crm/stats/motivos-perda?ano=${ano}`).then((r) => setMotivosPerda(r.data)).catch(() => {});
+    api.get(`/crm/stats/performance-responsavel?ano=${ano}`).then((r) => setPerfResponsavel(r.data)).catch(() => {});
+    api.get(`/crm/stats/ciclo-vendas?ano=${ano}`).then((r) => setCicloVendas(r.data)).catch(() => {});
+    api.get(`/crm/stats/win-rate-segmento?ano=${ano}`).then((r) => setWinRateSegmento(r.data)).catch(() => {});
+    api.get('/crm/stats/recorrencia-clientes').then((r) => setRecorrencia(r.data)).catch(() => {});
+    api.get(`/crm/stats/cohort?ano=${ano}`).then((r) => setCohort(r.data)).catch(() => {});
   }, [ano]);
 
   const opsAno = oportunidades.filter((o) => {

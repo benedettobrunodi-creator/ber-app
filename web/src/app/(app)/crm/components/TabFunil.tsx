@@ -72,26 +72,25 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   const [pipelineAtivo, setPipelineAtivo] = useState<Record<number, number>>({});
 
   useEffect(() => {
+    // Chamadas críticas — falha de uma não derruba as outras
     Promise.all([
       api.get('/crm/stats/funil'),
       api.get(`/crm/stats/vendas-vs-meta/${ano}`),
       api.get(`/crm/metas/${ano}`),
-      api.get(`/crm/stats/funil-conversao?ano=${ano}`),
-      api.get('/crm/stats/forecast-horizonte'),
-      api.get('/crm/stats/pipeline-aging'),
-      api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`),
-    ]).then(([f, v, m, fc, fh, pa, paa]) => {
+    ]).then(([f, v, m]) => {
       setFunil(f.data);
       setVendas(v.data);
       setMetas(m.data);
       const vals = Array(12).fill(0);
       for (const row of m.data as MetaRow[]) vals[row.mes - 1] = Number(row.valorMeta);
       setMetasEdit(vals);
-      setFunilConversao(fc.data);
-      setForecastH(fh.data);
-      setPipelineAging(pa.data);
-      setPipelineAtivo(paa.data);
     });
+
+    // Chamadas de analytics — tratadas individualmente para não bloquear o resto
+    api.get(`/crm/stats/funil-conversao?ano=${ano}`).then((r) => setFunilConversao(r.data)).catch(() => {});
+    api.get('/crm/stats/forecast-horizonte').then((r) => setForecastH(r.data)).catch(() => {});
+    api.get('/crm/stats/pipeline-aging').then((r) => setPipelineAging(r.data)).catch(() => {});
+    api.get(`/crm/stats/pipeline-ativo-acumulado?ano=${ano}`).then((r) => setPipelineAtivo(r.data)).catch(() => {});
   }, [ano]);
 
   const saveMetas = async () => {
