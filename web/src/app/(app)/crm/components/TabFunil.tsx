@@ -181,10 +181,10 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   const propostasAtivas = oportunidades.filter((o) => ['proposta_enviada', 'negociacao'].includes(o.etapa));
   const propostasPorProb = PROB_CONFIG.map(({ key, label, pct, color }) => {
     const ops = propostasAtivas.filter((o) => o.probabilidade === key);
-    const valor = ops.reduce((s, o) => s + (o.valor ?? 0), 0);
+    const valor = ops.reduce((s, o) => s + Number(o.valor ?? 0), 0);
     return { key, label, pct, color, count: ops.length, valor, ops };
   });
-  const totalPropostas = propostasAtivas.reduce((s, o) => s + (o.valor ?? 0), 0);
+  const totalPropostas = propostasAtivas.reduce((s, o) => s + Number(o.valor ?? 0), 0);
 
   return (
     <div className="space-y-6">
