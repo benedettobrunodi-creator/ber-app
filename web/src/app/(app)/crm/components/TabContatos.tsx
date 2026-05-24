@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, X, Check, Linkedin, Phone, Mail, Building2, Star, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Search, Plus, X, Check, Linkedin, Phone, Mail, Building2, Star, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import api from '@/lib/api';
 import { Contato, Empresa, CLASSIFICACOES } from '../types';
 
@@ -262,6 +262,8 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
     contato: null,
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sortCol, setSortCol] = useState<'nome' | 'empresa' | 'classificacao' | 'cargo' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
 
   const load = useCallback(async (q?: string, empId?: string) => {
@@ -316,6 +318,42 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
 
   const whatsappHref = (w: string) =>
     `https://wa.me/55${w.replace(/\D/g, '')}`;
+
+  function handleSort(col: 'nome' | 'empresa' | 'classificacao' | 'cargo') {
+    if (sortCol === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  }
+
+  function SortIcon({ col }: { col: 'nome' | 'empresa' | 'classificacao' | 'cargo' }) {
+    if (sortCol !== col) return <ArrowUpDown size={11} className="ml-1 opacity-40 inline" />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={11} className="ml-1 inline" />
+      : <ArrowDown size={11} className="ml-1 inline" />;
+  }
+
+  const sortedContatos = useMemo(() => {
+    if (!sortCol) return contatos;
+    return [...contatos].sort((a, b) => {
+      let av = '', bv = '';
+      if (sortCol === 'nome') { av = a.nome; bv = b.nome; }
+      else if (sortCol === 'empresa') { av = a.empresa?.razaoSocial ?? ''; bv = b.empresa?.razaoSocial ?? ''; }
+      else if (sortCol === 'classificacao') { av = a.empresa?.classificacao ?? ''; bv = b.empresa?.classificacao ?? ''; }
+      else if (sortCol === 'cargo') { av = a.cargo ?? ''; bv = b.cargo ?? ''; }
+      return sortDir === 'asc' ? av.localeCompare(bv, 'pt-BR') : bv.localeCompare(av, 'pt-BR');
+    });
+  }, [contatos, sortCol, sortDir]);
+
+  async function handleTogglePrincipal(e: React.MouseEvent, c: Contato) {
+    e.stopPropagation();
+    const next = !c.principal;
+    await api.patch(`/crm/contatos/${c.id}`, { principal: next });
+    setContatos((prev) => prev.map((x) => (x.id === c.id ? { ...x, principal: next } : x)));
+    onRefresh?.();
+  }
 
   return (
     <div className="flex h-full flex-col" onClick={() => setDeletingId(null)}>
@@ -379,17 +417,33 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-gray-800 text-white">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold">Nome</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold">Empresa</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold w-36">Classificação</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold w-36">Cargo</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold">
+                  <button onClick={() => handleSort('nome')} className="flex items-center hover:text-gray-300">
+                    Nome<SortIcon col="nome" />
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold">
+                  <button onClick={() => handleSort('empresa')} className="flex items-center hover:text-gray-300">
+                    Empresa<SortIcon col="empresa" />
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold w-36">
+                  <button onClick={() => handleSort('classificacao')} className="flex items-center hover:text-gray-300">
+                    Classificação<SortIcon col="classificacao" />
+                  </button>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold w-36">
+                  <button onClick={() => handleSort('cargo')} className="flex items-center hover:text-gray-300">
+                    Cargo<SortIcon col="cargo" />
+                  </button>
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold w-48">Contato</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold w-20">Links</th>
                 <th className="px-2 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
-              {contatos.map((c) => (
+              {sortedContatos.map((c) => (
                 <tr
                   key={c.id}
                   className="cursor-pointer border-b border-gray-100 hover:bg-green-50/40"
@@ -397,9 +451,17 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {c.principal && (
-                        <Star size={12} className="shrink-0 text-amber-500" fill="currentColor" />
-                      )}
+                      <button
+                        onClick={(e) => handleTogglePrincipal(e, c)}
+                        title={c.principal ? 'Remover destaque' : 'Marcar como principal'}
+                        className="shrink-0"
+                      >
+                        <Star
+                          size={12}
+                          className={c.principal ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400'}
+                          fill={c.principal ? 'currentColor' : 'none'}
+                        />
+                      </button>
                       <span className="font-medium text-gray-900">{c.nome}</span>
                     </div>
                   </td>
