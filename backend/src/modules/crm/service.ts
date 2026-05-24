@@ -60,6 +60,7 @@ export async function updateEmpresa(id: string, data: UpdateEmpresaInput) {
 }
 
 export async function deleteEmpresa(id: string) {
+  await prisma.crmContato.deleteMany({ where: { empresaId: id } });
   return prisma.crmEmpresa.delete({ where: { id } });
 }
 

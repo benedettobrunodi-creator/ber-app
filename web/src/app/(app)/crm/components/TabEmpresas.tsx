@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
-import { Plus, Search, Building2, X, AlertCircle, UserPlus } from 'lucide-react';
+import { Plus, Search, Building2, X, AlertCircle, UserPlus, Trash2, Check } from 'lucide-react';
 import { SEGMENTOS, CLASSIFICACOES, Empresa, Contato, diasAtras } from '../types';
 
 function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
@@ -192,6 +192,21 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
   const [showNutricao, setShowNutricao] = useState(false);
   const [filterClassificacao, setFilterClassificacao] = useState('');
   const [drawer, setDrawer] = useState<Empresa | null | 'new'>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(e: React.MouseEvent, empresa: Empresa) {
+    e.stopPropagation();
+    if (deletingId === empresa.id) {
+      try {
+        await api.delete(`/crm/empresas/${empresa.id}`);
+        onRefresh();
+      } finally {
+        setDeletingId(null);
+      }
+    } else {
+      setDeletingId(empresa.id);
+    }
+  }
 
   const filtered = empresas.filter((e) => {
     if (showNutricao !== e.nutricao) return false;
@@ -207,7 +222,7 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
   };
 
   return (
-    <div>
+    <div onClick={() => setDeletingId(null)}>
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ber-gray" />
@@ -254,6 +269,7 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
               <th className="px-4 py-3 text-left text-xs font-semibold w-32">Cidade</th>
               <th className="px-4 py-3 text-center text-xs font-semibold w-24">Oport.</th>
               <th className="px-4 py-3 text-right text-xs font-semibold w-36">Último contato</th>
+              <th className="px-2 py-3 w-10" />
             </tr>
           </thead>
           <tbody>
@@ -289,6 +305,19 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
                     ) : (
                       <span className="text-xs text-gray-400">{diasAtras(e.ultimoContato)}</span>
                     )}
+                  </td>
+                  <td className="px-2 py-3 text-center" onClick={(ev) => ev.stopPropagation()}>
+                    <button
+                      onClick={(ev) => handleDelete(ev, e)}
+                      title={deletingId === e.id ? 'Clique novamente para confirmar' : 'Excluir empresa e contatos'}
+                      className={`inline-flex items-center justify-center rounded p-1 transition-colors ${
+                        deletingId === e.id
+                          ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                          : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
+                      }`}
+                    >
+                      {deletingId === e.id ? <Check size={14} /> : <Trash2 size={14} />}
+                    </button>
                   </td>
                 </tr>
               );
