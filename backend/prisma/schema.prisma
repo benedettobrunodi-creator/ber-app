@@ -130,6 +130,7 @@ model Obra {
   dataFimObra       DateTime? @map("data_fim_obra") @db.Date
   orcamentoId       String?   @unique @map("orcamento_id") @db.Uuid
   valorContrato     Decimal?  @map("valor_contrato") @db.Decimal(14, 2)
+  whatsappCliente   String?   @map("whatsapp_cliente") @db.VarChar(20)
 
   // Relations
   coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
@@ -1351,6 +1352,8 @@ model DiarioObra {
   observacoesInternas String?   @map("observacoes_internas")
   observacoesCliente  String?   @map("observacoes_cliente")
   status              String    @default("rascunho") @db.VarChar(20)
+  avancoDia           Decimal?  @map("avanco_dia") @db.Decimal(5, 2)
+  tokenPublico        String?   @unique @map("token_publico") @db.VarChar(36)
   fechadoEm           DateTime? @map("fechado_em")
   fechadoPorId        String?   @map("fechado_por_id") @db.Uuid
   criadoPorId         String    @map("criado_por_id") @db.Uuid
@@ -1381,6 +1384,8 @@ model DiarioEfetivo {
   userId      String?  @map("user_id") @db.Uuid
   nomeExterno String?  @map("nome_externo")
   funcao      String?  @db.VarChar(100)
+  categoria   String?  @db.VarChar(50)
+  quantidade  Int      @default(1)
   origem      String   @default("manual") @db.VarChar(20)
   presente    Boolean  @default(true)
   observacao  String?
@@ -1461,6 +1466,8 @@ model DiarioMaterial {
   diarioId              String   @map("diario_id") @db.Uuid
   recebimentoMaterialId String?  @map("recebimento_material_id") @db.Uuid
   descricao             String
+  quantidade            Decimal? @db.Decimal(10, 2)
+  unidade               String?  @db.VarChar(20)
   origem                String   @default("manual") @db.VarChar(20)
   createdAt             DateTime @default(now()) @map("created_at")
 

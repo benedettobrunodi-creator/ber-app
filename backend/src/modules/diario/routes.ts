@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
@@ -9,6 +10,8 @@ import {
   createVisitaSchema, createMaterialSchema, createEquipamentoSchema,
 } from './types';
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
 // Nested under /obras/:id/diario
 export const obraDiarioRouter = Router({ mergeParams: true });
 obraDiarioRouter.use(authenticate);
@@ -17,6 +20,10 @@ obraDiarioRouter.post('/', validate(createDiarioSchema), controller.create);
 
 // Standalone /diario/:diarioId
 const diarioRouter = Router();
+
+// Public route — no auth
+diarioRouter.get('/publico/:token', controller.getPublico);
+
 diarioRouter.use(authenticate);
 diarioRouter.get('/:diarioId', controller.getById);
 diarioRouter.patch('/:diarioId', validate(updateDiarioSchema), controller.update);
@@ -42,5 +49,9 @@ diarioRouter.delete('/:diarioId/materiais/:matId', controller.removeMaterial);
 
 diarioRouter.post('/:diarioId/equipamentos', validate(createEquipamentoSchema), controller.addEquipamento);
 diarioRouter.delete('/:diarioId/equipamentos/:eqId', controller.removeEquipamento);
+
+// Fotos
+diarioRouter.post('/:diarioId/fotos', upload.single('file'), controller.addFoto);
+diarioRouter.delete('/:diarioId/fotos/:fotoId', controller.removeFoto);
 
 export default diarioRouter;

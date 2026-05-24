@@ -5,6 +5,7 @@ export const CONDICAO_TRABALHO_VALUES = ['normal', 'parcial', 'interrompido'] as
 export const ATIVIDADE_STATUS_VALUES = ['em_andamento', 'concluida', 'nao_realizada', 'parcial'] as const;
 export const OCORRENCIA_TIPO_VALUES = ['incidente', 'imprevisto', 'atraso', 'qualidade', 'seguranca', 'outro'] as const;
 export const VISITA_TIPO_VALUES = ['cliente', 'fiscalizacao', 'fornecedor', 'projetista', 'outro'] as const;
+export const EFETIVO_CATEGORIAS = ['pedreiro', 'servente', 'encarregado', 'eletricista', 'carpinteiro', 'armador', 'pintor', 'gesseiro', 'outro'] as const;
 
 export const createDiarioSchema = z.object({
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data deve ser YYYY-MM-DD'),
@@ -19,12 +20,15 @@ export const updateDiarioSchema = z.object({
   condicaoTrabalho: z.enum(CONDICAO_TRABALHO_VALUES).optional(),
   observacoesInternas: z.string().optional(),
   observacoesCliente: z.string().optional(),
+  avancoDia: z.number().min(0).max(100).optional(),
 });
 
 export const createEfetivoSchema = z.object({
   userId: z.string().uuid().optional(),
   nomeExterno: z.string().min(1).optional(),
   funcao: z.string().optional(),
+  categoria: z.string().optional(),
+  quantidade: z.number().int().min(1).default(1),
   presente: z.boolean().default(true),
   observacao: z.string().optional(),
 });
@@ -51,6 +55,14 @@ export const createVisitaSchema = z.object({
 export const createMaterialSchema = z.object({
   descricao: z.string().min(1),
   recebimentoMaterialId: z.string().uuid().optional(),
+  quantidade: z.number().positive().optional(),
+  unidade: z.string().max(20).optional(),
+});
+
+export const createFotoSchema = z.object({
+  legenda: z.string().optional(),
+  ambienteId: z.string().uuid().optional(),
+  ordem: z.number().int().default(0),
 });
 
 export const createEquipamentoSchema = z.object({
@@ -65,3 +77,4 @@ export type CreateOcorrenciaInput = z.infer<typeof createOcorrenciaSchema>;
 export type CreateVisitaInput = z.infer<typeof createVisitaSchema>;
 export type CreateMaterialInput = z.infer<typeof createMaterialSchema>;
 export type CreateEquipamentoInput = z.infer<typeof createEquipamentoSchema>;
+export type CreateFotoInput = z.infer<typeof createFotoSchema>;
