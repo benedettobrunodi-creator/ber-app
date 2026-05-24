@@ -108,6 +108,13 @@ export default function ComprasPage() {
   const toggleCollapse = (etapaN: string) =>
     setCollapsed(prev => ({ ...prev, [etapaN]: !prev[etapaN] }));
 
+  const etapaKeys = items.filter(i => i.tipo === 'etapa').map(i => i.n || '');
+  const allCollapsed = etapaKeys.length > 0 && etapaKeys.every(k => collapsed[k]);
+  const toggleAll = () => {
+    const next = !allCollapsed;
+    setCollapsed(Object.fromEntries(etapaKeys.map(k => [k, next])));
+  };
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -481,7 +488,15 @@ export default function ComprasPage() {
           <table className="w-full text-sm">
             <thead className="bg-ber-carbon text-xs text-white">
               <tr>
-                <th className="px-3 py-3 text-center w-8">✓</th>
+                <th className="px-3 py-3 text-center w-8">
+                  <button
+                    onClick={toggleAll}
+                    title={allCollapsed ? 'Expandir tudo' : 'Recolher tudo'}
+                    className="inline-flex items-center justify-center rounded hover:bg-white/20 p-0.5 transition-colors"
+                  >
+                    {allCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </th>
                 <th className="px-3 py-3 text-center w-12">Pacote</th>
                 <th className="px-3 py-3 text-left w-8">N</th>
                 <th className="px-3 py-3 text-left min-w-[140px]">Categoria</th>
