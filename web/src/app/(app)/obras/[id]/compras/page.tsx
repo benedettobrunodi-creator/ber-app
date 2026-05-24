@@ -247,8 +247,12 @@ export default function ComprasPage() {
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
   const okVenda = itemsOk.reduce((s, i) => s + baseItem(i), 0);
+  const okMeta = itemsOk.reduce((s, i) => s + metaItem(i), 0);
   const okComprado = itemsOk.reduce((s, i) => s + i.comprado, 0);
   const okSaving = okVenda - okComprado;
+  const okSavingPct = okVenda > 0 ? (okSaving / okVenda) * 100 : 0;
+  const okSavingMeta = okMeta - okComprado;
+  const okSavingMetaPct = okMeta > 0 ? (okSavingMeta / okMeta) * 100 : 0;
 
   const pendVenda = itemsPend.reduce((s, i) => s + baseItem(i), 0);
   const pendMeta = itemsPend.reduce((s, i) => s + metaItem(i), 0);
@@ -393,6 +397,31 @@ export default function ComprasPage() {
               </p>
             </div>
           </div>
+          {/* Linha saving realizado (só itens comprados) */}
+          {itemsOk.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
+                <p className="text-xs text-teal-700 font-medium">✅ Saving Realizado s/ Orçado</p>
+                <p className="text-xs text-teal-600 mt-0.5">{itemsOk.length} itens comprados</p>
+                <p className={`mt-2 text-lg font-bold ${okSaving >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
+              </div>
+              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
+                <p className="text-xs text-teal-700 font-medium">✅ % Saving Realizado s/ Orçado</p>
+                <p className="text-xs text-teal-600 mt-0.5">orçado dos itens comprados</p>
+                <p className={`mt-2 text-3xl font-black ${okSavingPct >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{okSavingPct.toFixed(1)}%</p>
+              </div>
+              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
+                <p className="text-xs text-teal-700 font-medium">✅ Saving Realizado s/ Meta</p>
+                <p className="text-xs text-teal-600 mt-0.5">meta dos itens comprados</p>
+                <p className={`mt-2 text-lg font-bold ${okSavingMeta >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{fmtBRL(okSavingMeta)}</p>
+              </div>
+              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
+                <p className="text-xs text-teal-700 font-medium">✅ % Saving Realizado s/ Meta</p>
+                <p className="text-xs text-teal-600 mt-0.5">meta dos itens comprados</p>
+                <p className={`mt-2 text-3xl font-black ${okSavingMetaPct >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{okSavingMetaPct.toFixed(1)}%</p>
+              </div>
+            </div>
+          )}
           {/* Linha comprados */}
           {itemsOk.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
