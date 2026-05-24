@@ -31,6 +31,7 @@ obraSeqRouter.post('/etapas', requireRole('gestor'), validate(addEtapaSchema), c
 // ─── Obra etapa actions: /obras/:id/etapas/:etapaId/* ────────────────────
 const obraEtapaRouter = Router({ mergeParams: true });
 obraEtapaRouter.use(authenticate);
+obraEtapaRouter.get('/', controller.listEtapas);
 obraEtapaRouter.put('/:etapaId', requireRole('gestor'), validate(updateEtapaSchema), controller.updateEtapa);
 obraEtapaRouter.delete('/:etapaId', requireRole('gestor'), controller.removeEtapa);
 obraEtapaRouter.patch('/:etapaId/start', requireRole('gestor'), validate(startEtapaSchema), controller.startEtapa);

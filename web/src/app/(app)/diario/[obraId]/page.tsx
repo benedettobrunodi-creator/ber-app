@@ -11,7 +11,13 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Obra { id: string; name: string; client: string | null }
+interface Obra {
+  id: string;
+  name: string;
+  client: string | null;
+  dataInicioObra: string | null;
+  expectedEndDate: string | null;
+}
 
 interface DiarioSummary {
   id: string;
@@ -38,7 +44,17 @@ interface Visita { id: string; tipo: string; nome: string | null; observacao: st
 interface Material { id: string; descricao: string; quantidade: number | null; unidade: string | null }
 interface Equipamento { id: string; nome: string }
 interface Foto { id: string; fileUrl: string; legenda: string | null; ordem: number }
-interface ObraEtapa { id: string; nome: string; ordem: number }
+interface ObraEtapa {
+  id: string;
+  name: string;
+  discipline: string;
+  order: number;
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  estimatedEndDate: string | null;
+  estimatedDays: number;
+}
 
 interface DiarioDetalhe {
   id: string;
@@ -166,7 +182,7 @@ function PreviewFecharModal({ diario, obraNome, onConfirm, onCancel, saving }: {
           <p>📍 <span className="font-semibold">{obraNome}</span> — {dataFmt}</p>
           {diario.clima && <p>{CLIMA_ICONS[diario.clima]} {CLIMA_LABELS[diario.clima]} · Trabalho {COND_LABELS[diario.condicaoTrabalho ?? 'normal']?.toLowerCase()}</p>}
           <p>👷 <span className="font-semibold">{totalEfetivos}</span> profissionais presentes</p>
-          {diario.avancoDia != null && <p>📊 Avanço do dia: <span className="font-semibold">{diario.avancoDia}%</span></p>}
+          {diario.avancoDia != null && <p>📊 Avanço acumulado: <span className="font-semibold">{diario.avancoDia}%</span></p>}
           {diario.fotos.length > 0 && <p>📸 {diario.fotos.length} fotos adicionadas</p>}
           {diario.observacoesCliente && <p>📝 {diario.observacoesCliente}</p>}
           {primeiraAtividade && <p>➡️ {primeiraAtividade.descricao}</p>}
@@ -522,6 +538,17 @@ export default function DiarioObraPage() {
     const [status, setStatus] = useState<typeof ATIVIDADE_STATUS[number]>('em_andamento');
     const [etapaId, setEtapaId] = useState('');
 
+    const diarioDate = selected?.data.slice(0, 10) ?? '';
+    const etapasLinkedIds = new Set(selected?.atividades.map(a => a.obraEtapaId).filter(Boolean));
+
+    const etapasAtivas = etapas.filter(e => {
+      if (etapasLinkedIds.has(e.id)) return false;
+      const inicio = e.startDate?.slice(0, 10);
+      const fim = (e.endDate ?? e.estimatedEndDate)?.slice(0, 10);
+      if (!inicio) return false;
+      return diarioDate >= inicio && (!fim || diarioDate <= fim);
+    });
+
     async function add() {
       if (!desc.trim() || !selected) return;
       try {
@@ -533,6 +560,18 @@ export default function DiarioObraPage() {
       } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
     }
 
+    async function importarEtapa(etapa: ObraEtapa) {
+      if (!selected) return;
+      try {
+        await api.post(`/diario/${selected.id}/atividades`, {
+          descricao: etapa.name,
+          status: 'em_andamento',
+          obraEtapaId: etapa.id,
+        });
+        refreshDetail();
+      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+    }
+
     const statusColors: Record<string, string> = {
       em_andamento: 'text-blue-600', concluida: 'text-green-600',
       nao_realizada: 'text-ber-red', parcial: 'text-amber-600',
@@ -540,6 +579,26 @@ export default function DiarioObraPage() {
 
     return (
       <div className="space-y-2">
+        {/* Sugestões do cronograma */}
+        {!fechado && etapasAtivas.length > 0 && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 mb-2">
+              Previstas hoje no cronograma
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {etapasAtivas.map(e => (
+                <button
+                  key={e.id}
+                  onClick={() => importarEtapa(e)}
+                  className="flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  <Plus size={10} /> {e.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {selected?.atividades.map(at => (
           <div key={at.id} className="flex items-start justify-between rounded-lg bg-gray-50 border border-ber-border/50 px-3 py-2 text-sm">
             <div className="flex-1 min-w-0">
@@ -549,7 +608,7 @@ export default function DiarioObraPage() {
               </p>
               {at.obraEtapaId && (() => {
                 const etapa = etapas.find(e => e.id === at.obraEtapaId);
-                return etapa ? <p className="text-[10px] text-ber-gray mt-0.5">Etapa: {etapa.nome}</p> : null;
+                return etapa ? <p className="text-[10px] text-ber-gray mt-0.5">Etapa: {etapa.name}</p> : null;
               })()}
             </div>
             {!fechado && (
@@ -571,7 +630,7 @@ export default function DiarioObraPage() {
               <select value={etapaId} onChange={e => setEtapaId(e.target.value)}
                 className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon outline-none focus:border-ber-olive">
                 <option value="">Etapa do cronograma (opcional)</option>
-                {etapas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                {etapas.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             )}
             <div className="flex gap-2">
@@ -980,21 +1039,68 @@ export default function DiarioObraPage() {
 
             {/* Avanço físico */}
             <div className="mb-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-2">
-                Avanço físico do dia: <span className="text-ber-carbon">{selected.avancoDia ?? 0}%</span>
-              </p>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                disabled={fechado || patchingHeader}
-                value={selected.avancoDia ?? 0}
-                onChange={e => setSelected(s => s ? { ...s, avancoDia: Number(e.target.value) } : s)}
-                onMouseUp={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
-                onTouchEnd={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
-                className="w-full accent-ber-olive disabled:opacity-50"
-              />
+              {(() => {
+                const inicio = obra?.dataInicioObra;
+                const fim = obra?.expectedEndDate;
+                let avancoPrevisto: number | null = null;
+                if (inicio && fim) {
+                  const dInicio = new Date(inicio).getTime();
+                  const dFim = new Date(fim).getTime();
+                  const dDia = new Date(selected.data.slice(0, 10) + 'T12:00:00').getTime();
+                  const total = dFim - dInicio;
+                  if (total > 0) {
+                    avancoPrevisto = Math.min(100, Math.max(0, Math.round(((dDia - dInicio) / total) * 100)));
+                  }
+                }
+                const avancoDia = selected.avancoDia ?? 0;
+                const delta = avancoPrevisto != null ? avancoDia - avancoPrevisto : null;
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">
+                        Avanço físico acumulado
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {avancoPrevisto != null && (
+                          <span className="text-[10px] text-ber-gray">
+                            Previsto: <span className="font-semibold">{avancoPrevisto}%</span>
+                          </span>
+                        )}
+                        <span className="text-sm font-bold text-ber-carbon">{avancoDia}%</span>
+                        {delta != null && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {delta >= 0 ? `+${delta}` : delta}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="relative mb-1">
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        disabled={fechado || patchingHeader}
+                        value={avancoDia}
+                        onChange={e => setSelected(s => s ? { ...s, avancoDia: Number(e.target.value) } : s)}
+                        onMouseUp={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
+                        onTouchEnd={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
+                        className="w-full accent-ber-olive disabled:opacity-50"
+                      />
+                      {avancoPrevisto != null && !fechado && (
+                        <div
+                          className="absolute top-0 w-0.5 h-full bg-gray-400 pointer-events-none opacity-60"
+                          style={{ left: `${avancoPrevisto}%` }}
+                          title={`Previsto: ${avancoPrevisto}%`}
+                        />
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Observações internas */}

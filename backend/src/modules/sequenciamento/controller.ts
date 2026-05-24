@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as service from './service';
 import { sendSuccess, sendCreated } from '../../utils/response';
+import { prisma } from '../../config/database';
 
 export async function listTemplates(_req: Request, res: Response) {
   const templates = await service.listTemplates();
@@ -19,6 +20,25 @@ export async function createSequenciamento(req: Request, res: Response) {
 export async function getSequenciamento(req: Request, res: Response) {
   const seq = await service.getSequenciamento(req.params.id);
   sendSuccess(res, seq);
+}
+
+export async function listEtapas(req: Request, res: Response) {
+  const etapas = await prisma.obraEtapa.findMany({
+    where: { obraId: req.params.id },
+    select: {
+      id: true,
+      name: true,
+      discipline: true,
+      order: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      estimatedEndDate: true,
+      estimatedDays: true,
+    },
+    orderBy: { order: 'asc' },
+  });
+  sendSuccess(res, etapas);
 }
 
 // ─── Edit mode ──────────────────────────────────────────────────────────────
