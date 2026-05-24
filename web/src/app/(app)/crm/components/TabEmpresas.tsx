@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
-import { Plus, Search, Building2, X, AlertCircle, ArrowRight, UserPlus } from 'lucide-react';
+import { Plus, Search, Building2, X, AlertCircle, UserPlus } from 'lucide-react';
 import { SEGMENTOS, CLASSIFICACOES, Empresa, Contato, diasAtras } from '../types';
 
 function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
@@ -244,44 +244,57 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
         </div>
       )}
 
-      <div className="space-y-2">
-        {filtered.map((e) => {
-          const dias = diasSemContato(e);
-          const atrasada = dias !== null && dias > 30;
-          return (
-            <div
-              key={e.id}
-              className="bg-white border border-ber-border rounded-xl p-4 flex items-center gap-4 hover:shadow-sm hover:border-ber-teal/40 cursor-pointer transition-all"
-              onClick={() => setDrawer(e)}
-            >
-              <div className="w-10 h-10 rounded-xl bg-ber-teal/10 flex items-center justify-center shrink-0">
-                <Building2 size={18} className="text-ber-teal" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-ber-carbon truncate">{e.razaoSocial}</p>
-                <div className="flex items-center gap-3 mt-0.5">
-                  {e.classificacao && <span className="text-xs font-medium text-ber-teal bg-ber-teal/10 px-1.5 py-0.5 rounded">{e.classificacao}</span>}
-                  {e.segmento && <span className="text-xs text-ber-gray">{e.segmento}</span>}
-                  {e.cidade && <span className="text-xs text-ber-gray">{e.cidade}</span>}
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                {!showNutricao ? (
-                  <>
-                    <p className="text-xs font-semibold text-ber-carbon">{e._count?.oportunidades ?? 0} oport.</p>
-                    <p className="text-xs text-ber-gray">Último: {diasAtras(e.ultimoContato)}</p>
-                  </>
-                ) : (
-                  <div className={`flex items-center gap-1 ${atrasada ? 'text-ber-red' : 'text-ber-gray'}`}>
-                    {atrasada && <AlertCircle size={12} />}
-                    <span className="text-xs">{dias !== null ? `${dias} dias` : 'sem registro'}</span>
-                  </div>
-                )}
-              </div>
-              <ArrowRight size={14} className="text-ber-gray shrink-0" />
-            </div>
-          );
-        })}
+      <div className="overflow-auto">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-gray-800 text-white">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold">Empresa</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold w-36">Classificação</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold w-36">Segmento</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold w-32">Cidade</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold w-24">Oport.</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold w-36">Último contato</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((e) => {
+              const dias = diasSemContato(e);
+              const atrasada = dias !== null && dias > 30;
+              return (
+                <tr
+                  key={e.id}
+                  className="cursor-pointer border-b border-gray-100 hover:bg-green-50/40"
+                  onClick={() => setDrawer(e)}
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={13} className="shrink-0 text-gray-400" />
+                      <span className="font-medium text-gray-900 truncate">{e.razaoSocial}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {e.classificacao
+                      ? <span className="text-xs font-medium text-ber-teal bg-ber-teal/10 px-1.5 py-0.5 rounded">{e.classificacao}</span>
+                      : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{e.segmento ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{e.cidade ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3 text-center text-xs font-semibold text-gray-700">{e._count?.oportunidades ?? 0}</td>
+                  <td className="px-4 py-3 text-right">
+                    {showNutricao ? (
+                      <span className={`text-xs flex items-center justify-end gap-1 ${atrasada ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                        {atrasada && <AlertCircle size={11} />}
+                        {dias !== null ? `${dias} dias` : 'sem registro'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">{diasAtras(e.ultimoContato)}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         {filtered.length === 0 && (
           <div className="text-center py-12 text-ber-gray">
             <Building2 size={32} className="mx-auto mb-2 opacity-30" />
