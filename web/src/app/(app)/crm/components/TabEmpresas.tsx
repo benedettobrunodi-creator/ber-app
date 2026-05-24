@@ -190,11 +190,13 @@ function EmpresaDrawer({
 export default function TabEmpresas({ empresas, onRefresh }: Props) {
   const [search, setSearch] = useState('');
   const [showNutricao, setShowNutricao] = useState(false);
+  const [filterClassificacao, setFilterClassificacao] = useState('');
   const [drawer, setDrawer] = useState<Empresa | null | 'new'>(null);
 
   const filtered = empresas.filter((e) => {
     if (showNutricao !== e.nutricao) return false;
     if (search && !e.razaoSocial.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterClassificacao && e.classificacao !== filterClassificacao) return false;
     return true;
   });
 
@@ -216,6 +218,14 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <select
+          value={filterClassificacao}
+          onChange={(e) => setFilterClassificacao(e.target.value)}
+          className="border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal bg-white text-ber-carbon"
+        >
+          <option value="">Todas as classificações</option>
+          {CLASSIFICACOES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
         <div className="flex rounded-lg border border-ber-border overflow-hidden text-sm">
           <button onClick={() => setShowNutricao(false)} className={`px-3 py-2 ${!showNutricao ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}>Clientes</button>
           <button onClick={() => setShowNutricao(true)} className={`px-3 py-2 ${showNutricao ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}>Nutrição</button>
