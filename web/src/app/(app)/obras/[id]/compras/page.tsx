@@ -253,9 +253,11 @@ export default function ComprasPage() {
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
-  const okVenda = itemsOk.reduce((s, i) => s + baseItem(i), 0);
-  const okMeta = itemsOk.reduce((s, i) => s + metaItem(i), 0);
-  const okComprado = itemsOk.reduce((s, i) => s + i.comprado, 0);
+  // Itens com valor lançado (comprado > 0) — base para saving realizado
+  const itemsComComprado = onlyItems.filter(i => i.comprado > 0);
+  const okVenda = itemsComComprado.reduce((s, i) => s + baseItem(i), 0);
+  const okMeta = itemsComComprado.reduce((s, i) => s + metaItem(i), 0);
+  const okComprado = itemsComComprado.reduce((s, i) => s + i.comprado, 0);
   const okSaving = okVenda - okComprado;
   const okSavingPct = okVenda > 0 ? (okSaving / okVenda) * 100 : 0;
   const okSavingMeta = okMeta - okComprado;
@@ -404,12 +406,12 @@ export default function ComprasPage() {
               </p>
             </div>
           </div>
-          {/* Linha saving realizado (só itens comprados) */}
-          {itemsOk.length > 0 && (
+          {/* Linha saving realizado (itens com valor lançado) */}
+          {totalComprado > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
                 <p className="text-xs text-teal-700 font-medium">✅ Saving Realizado s/ Orçado</p>
-                <p className="text-xs text-teal-600 mt-0.5">{itemsOk.length} itens comprados</p>
+                <p className="text-xs text-teal-600 mt-0.5">{itemsComComprado.length} itens com valor lançado</p>
                 <p className={`mt-2 text-lg font-bold ${okSaving >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
               </div>
               <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
