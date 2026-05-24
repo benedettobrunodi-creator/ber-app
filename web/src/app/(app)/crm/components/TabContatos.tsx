@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, X, Check, Linkedin, Phone, Mail, Building2, Star, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
-import { Contato, Empresa } from '../types';
+import { Contato, Empresa, CLASSIFICACOES } from '../types';
 
 interface Props {
   empresas: Empresa[];
@@ -381,6 +381,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold">Nome</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold">Empresa</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold w-36">Classificação</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold w-36">Cargo</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold w-48">Contato</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold w-20">Links</th>
@@ -408,6 +409,28 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
                         <Building2 size={12} className="shrink-0 text-gray-400" />
                         <span className="text-gray-700">{c.empresa.razaoSocial}</span>
                       </div>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    {c.empresa ? (
+                      <select
+                        value={c.empresa.classificacao ?? ''}
+                        onChange={async (e) => {
+                          const val = e.target.value || null;
+                          await api.patch(`/crm/empresas/${c.empresa!.id}`, { classificacao: val });
+                          setContatos((prev) => prev.map((x) =>
+                            x.id === c.id && x.empresa
+                              ? { ...x, empresa: { ...x.empresa, classificacao: val } }
+                              : x
+                          ));
+                        }}
+                        className="rounded border border-gray-200 px-2 py-1 text-xs focus:border-green-500 focus:outline-none bg-white"
+                      >
+                        <option value="">—</option>
+                        {CLASSIFICACOES.map((cl) => <option key={cl} value={cl}>{cl}</option>)}
+                      </select>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}

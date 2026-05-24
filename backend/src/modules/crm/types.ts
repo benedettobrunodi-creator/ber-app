@@ -63,6 +63,16 @@ export const CRM_SEGMENTOS = [
   'Outros',
 ] as const;
 
+export const CRM_CLASSIFICACOES = [
+  'Gerenciadora',
+  'Arquitetura',
+  'Broker',
+  'Incorporadora',
+  'End User',
+  'Fundo',
+  'Fornecedor',
+] as const;
+
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const dateOrNull = z
@@ -75,6 +85,7 @@ export const createEmpresaSchema = z.object({
   razaoSocial: z.string().min(1).max(255),
   cnpj: z.string().max(18).optional().nullable(),
   segmento: z.enum(CRM_SEGMENTOS).optional().nullable(),
+  classificacao: z.enum(CRM_CLASSIFICACOES).optional().nullable(),
   cidade: z.string().max(100).optional().nullable(),
   site: z.string().max(255).optional().nullable(),
   nutricao: z.boolean().default(false),

@@ -80,7 +80,7 @@ export async function listContatos(opts?: { empresaId?: string; search?: string 
   return prisma.crmContato.findMany({
     where,
     orderBy: [{ principal: 'desc' }, { nome: 'asc' }],
-    include: { empresa: { select: { id: true, razaoSocial: true, segmento: true } } },
+    include: { empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } } },
   });
 }
 

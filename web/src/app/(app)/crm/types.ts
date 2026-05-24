@@ -37,12 +37,14 @@ export const TIPOS_ATIVIDADE = [
 ] as const;
 
 export const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
+export const CLASSIFICACOES = ['Gerenciadora', 'Arquitetura', 'Broker', 'Incorporadora', 'End User', 'Fundo', 'Fornecedor'] as const;
 
 export interface Empresa {
   id: string;
   razaoSocial: string;
   cnpj: string | null;
   segmento: string | null;
+  classificacao: string | null;
   cidade: string | null;
   nutricao: boolean;
   ultimoContato: string | null;
@@ -61,7 +63,7 @@ export interface Contato {
   aniversario: string | null;
   principal: boolean;
   empresaId: string | null;
-  empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
+  empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null } | null;
 }
 
 export interface Oportunidade {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import api from '@/lib/api';
 import { Plus, Search, Building2, X, AlertCircle, ArrowRight, UserPlus } from 'lucide-react';
-import { SEGMENTOS, Empresa, Contato, diasAtras } from '../types';
+import { SEGMENTOS, CLASSIFICACOES, Empresa, Contato, diasAtras } from '../types';
 
 function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
   const [lista, setLista] = useState<Contato[]>(contatos);
@@ -87,6 +87,7 @@ function EmpresaDrawer({
     razaoSocial: empresa?.razaoSocial ?? '',
     cnpj: empresa?.cnpj ?? '',
     segmento: empresa?.segmento ?? '',
+    classificacao: empresa?.classificacao ?? '',
     cidade: empresa?.cidade ?? '',
     nutricao: empresa?.nutricao ?? false,
     observacoes: '',
@@ -99,7 +100,7 @@ function EmpresaDrawer({
     if (!form.razaoSocial.trim()) { setErr('Razão social obrigatória'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, cnpj: form.cnpj || null, segmento: form.segmento || null, cidade: form.cidade || null };
+      const payload = { ...form, cnpj: form.cnpj || null, segmento: form.segmento || null, classificacao: form.classificacao || null, cidade: form.cidade || null };
       if (isNew) {
         const res = await api.post('/crm/empresas', payload);
         if (newContato.nome.trim()) {
@@ -140,12 +141,21 @@ function EmpresaDrawer({
               <input className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.cidade} onChange={(e) => setForm((f) => ({ ...f, cidade: e.target.value }))} />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Segmento</label>
-            <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.segmento} onChange={(e) => setForm((f) => ({ ...f, segmento: e.target.value }))}>
-              <option value="">--</option>
-              {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Segmento</label>
+              <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.segmento} onChange={(e) => setForm((f) => ({ ...f, segmento: e.target.value }))}>
+                <option value="">--</option>
+                {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Classificação</label>
+              <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.classificacao} onChange={(e) => setForm((f) => ({ ...f, classificacao: e.target.value }))}>
+                <option value="">--</option>
+                {CLASSIFICACOES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="nutricao" checked={form.nutricao} onChange={(e) => setForm((f) => ({ ...f, nutricao: e.target.checked }))} className="w-4 h-4" />
@@ -240,6 +250,7 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-ber-carbon truncate">{e.razaoSocial}</p>
                 <div className="flex items-center gap-3 mt-0.5">
+                  {e.classificacao && <span className="text-xs font-medium text-ber-teal bg-ber-teal/10 px-1.5 py-0.5 rounded">{e.classificacao}</span>}
                   {e.segmento && <span className="text-xs text-ber-gray">{e.segmento}</span>}
                   {e.cidade && <span className="text-xs text-ber-gray">{e.cidade}</span>}
                 </div>
