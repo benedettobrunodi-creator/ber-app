@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, X, Check, Linkedin, Phone, Mail, Building2, Star } from 'lucide-react';
+import { Search, Plus, X, Check, Linkedin, Phone, Mail, Building2, Star, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { Contato, Empresa } from '../types';
 
@@ -261,6 +261,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
     open: false,
     contato: null,
   });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
 
   const load = useCallback(async (q?: string, empId?: string) => {
@@ -298,11 +299,26 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
     onRefresh?.();
   }
 
+  async function handleDelete(e: React.MouseEvent, c: Contato) {
+    e.stopPropagation();
+    if (deletingId === c.id) {
+      try {
+        await api.delete(`/crm/contatos/${c.id}`);
+        setContatos((prev) => prev.filter((x) => x.id !== c.id));
+        onRefresh?.();
+      } finally {
+        setDeletingId(null);
+      }
+    } else {
+      setDeletingId(c.id);
+    }
+  }
+
   const whatsappHref = (w: string) =>
     `https://wa.me/55${w.replace(/\D/g, '')}`;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" onClick={() => setDeletingId(null)}>
       {/* ── Filtros ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -368,6 +384,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
                 <th className="px-4 py-3 text-left text-xs font-semibold w-36">Cargo</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold w-48">Contato</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold w-20">Links</th>
+                <th className="px-2 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -441,6 +458,19 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
                         <Linkedin size={14} />
                       </a>
                     )}
+                  </td>
+                  <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => handleDelete(e, c)}
+                      title={deletingId === c.id ? 'Clique novamente para confirmar' : 'Excluir contato'}
+                      className={`inline-flex items-center justify-center rounded p-1 transition-colors ${
+                        deletingId === c.id
+                          ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                          : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
+                      }`}
+                    >
+                      {deletingId === c.id ? <Check size={14} /> : <Trash2 size={14} />}
+                    </button>
                   </td>
                 </tr>
               ))}
