@@ -351,6 +351,22 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
     });
   }, [contatos, filterClassificacao, sortCol, sortDir]);
 
+  async function handleToggleAllStars() {
+    const allOn = sortedContatos.length > 0 && sortedContatos.every((c) => c.principal);
+    const next = !allOn;
+    await Promise.all(
+      sortedContatos
+        .filter((c) => c.principal !== next)
+        .map((c) => api.patch(`/crm/contatos/${c.id}`, { principal: next }))
+    );
+    setContatos((prev) =>
+      prev.map((c) =>
+        sortedContatos.some((s) => s.id === c.id) ? { ...c, principal: next } : c
+      )
+    );
+    onRefresh?.();
+  }
+
   async function handleTogglePrincipal(e: React.MouseEvent, c: Contato) {
     e.stopPropagation();
     const next = !c.principal;
@@ -404,6 +420,15 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
         </select>
 
         <span className="text-xs text-gray-400">{sortedContatos.length} contato{sortedContatos.length !== 1 ? 's' : ''}</span>
+
+        <button
+          onClick={handleToggleAllStars}
+          title={sortedContatos.every((c) => c.principal) ? 'Remover todas as estrelas' : 'Marcar todas como principal'}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 min-h-[36px] hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600"
+        >
+          <Star size={13} className={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'text-amber-500' : 'text-gray-400'} fill={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'currentColor' : 'none'} />
+          Estrelas
+        </button>
 
         <button
           onClick={openNew}
