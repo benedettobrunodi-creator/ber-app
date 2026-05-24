@@ -172,6 +172,20 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   const funilAtivo = funilConversao.filter((f) => !TERMINAL.includes(f.etapa));
   const funilMax = Math.max(...funilAtivo.map((f) => f.count), 1);
 
+  // Propostas ativas (enviada + negociação) agrupadas por probabilidade
+  const PROB_CONFIG = [
+    { key: 'alta',  label: 'Alta',  pct: 80, color: '#3D9E5F' },
+    { key: 'media', label: 'Média', pct: 50, color: '#F59E0B' },
+    { key: 'baixa', label: 'Baixa', pct: 20, color: '#EF4444' },
+  ] as const;
+  const propostasAtivas = oportunidades.filter((o) => ['proposta_enviada', 'negociacao'].includes(o.etapa));
+  const propostasPorProb = PROB_CONFIG.map(({ key, label, pct, color }) => {
+    const ops = propostasAtivas.filter((o) => o.probabilidade === key);
+    const valor = ops.reduce((s, o) => s + (o.valor ?? 0), 0);
+    return { key, label, pct, color, count: ops.length, valor, ops };
+  });
+  const totalPropostas = propostasAtivas.reduce((s, o) => s + (o.valor ?? 0), 0);
+
   return (
     <div className="space-y-6">
       {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
@@ -213,6 +227,63 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
           sub={funil ? `${funil.countGanho} ganhos de ${funil.countPropostaEmitida + funil.countGanho + funil.countPerdidoCompetitivo} propostas` : 'deals ganhos ÷ total proposto'}
           onClick={() => openDrill('Propostas emitidas', oportunidades.filter((o) => ['proposta_enviada', 'negociacao', 'ganho', 'perdido'].includes(o.etapa)))}
         />
+      </div>
+
+      {/* ── Propostas Enviadas por Probabilidade ─────────────────── */}
+      <div className="bg-white border border-ber-border rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-ber-carbon">Propostas em Andamento</h3>
+            <p className="text-xs text-ber-gray mt-0.5">Proposta enviada + negociação · por probabilidade de fechamento</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-bold text-ber-carbon">{fmt(totalPropostas)}</p>
+            <p className="text-xs text-ber-gray">{propostasAtivas.length} deal{propostasAtivas.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {propostasPorProb.map(({ key, label, pct, color, count, valor, ops }) => {
+            const barPct = totalPropostas > 0 ? (valor / totalPropostas) * 100 : 0;
+            return (
+              <div
+                key={key}
+                className="cursor-pointer group"
+                onClick={() => openDrill(`Propostas ${label} probabilidade`, ops)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-sm font-medium text-ber-carbon">{label} probabilidade</span>
+                    <span className="text-xs text-ber-gray">({pct}%)</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-ber-gray">{count} deal{count !== 1 ? 's' : ''}</span>
+                    <span className="text-sm font-bold text-ber-carbon">{fmt(valor)}</span>
+                    <span className="text-xs text-ber-teal w-24 text-right">pond. {fmt(valor * pct / 100)}</span>
+                  </div>
+                </div>
+                <div className="h-2 bg-ber-surface rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all group-hover:opacity-80"
+                    style={{ width: `${Math.max(barPct, barPct > 0 ? 1 : 0)}%`, backgroundColor: color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {propostasAtivas.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-ber-border flex items-center gap-2">
+            <span className="text-xs text-ber-gray">Valor ponderado total:</span>
+            <span className="text-sm font-bold text-ber-carbon">
+              {fmt(propostasPorProb.reduce((s, p) => s + p.valor * p.pct / 100, 0))}
+            </span>
+            <span className="text-xs text-ber-gray ml-auto">Clique em cada linha para ver os deals</span>
+          </div>
+        )}
+        {propostasAtivas.length === 0 && (
+          <p className="text-sm text-ber-gray/60 text-center py-4">Nenhuma proposta em andamento</p>
+        )}
       </div>
 
       {/* ── Card 1: Vendas Mês a Mês ─────────────────────────────── */}
