@@ -262,6 +262,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
     contato: null,
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [filterClassificacao, setFilterClassificacao] = useState('');
   const [sortCol, setSortCol] = useState<'nome' | 'empresa' | 'classificacao' | 'cargo' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
@@ -336,8 +337,11 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
   }
 
   const sortedContatos = useMemo(() => {
-    if (!sortCol) return contatos;
-    return [...contatos].sort((a, b) => {
+    const base = filterClassificacao
+      ? contatos.filter((c) => c.empresa?.classificacao === filterClassificacao)
+      : contatos;
+    if (!sortCol) return base;
+    return [...base].sort((a, b) => {
       let av = '', bv = '';
       if (sortCol === 'nome') { av = a.nome; bv = b.nome; }
       else if (sortCol === 'empresa') { av = a.empresa?.razaoSocial ?? ''; bv = b.empresa?.razaoSocial ?? ''; }
@@ -345,7 +349,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
       else if (sortCol === 'cargo') { av = a.cargo ?? ''; bv = b.cargo ?? ''; }
       return sortDir === 'asc' ? av.localeCompare(bv, 'pt-BR') : bv.localeCompare(av, 'pt-BR');
     });
-  }, [contatos, sortCol, sortDir]);
+  }, [contatos, filterClassificacao, sortCol, sortDir]);
 
   async function handleTogglePrincipal(e: React.MouseEvent, c: Contato) {
     e.stopPropagation();
@@ -388,7 +392,18 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
           ))}
         </select>
 
-        <span className="text-xs text-gray-400">{contatos.length} contato{contatos.length !== 1 ? 's' : ''}</span>
+        <select
+          value={filterClassificacao}
+          onChange={(e) => setFilterClassificacao(e.target.value)}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
+        >
+          <option value="">Todas as categorias</option>
+          {CLASSIFICACOES.map((cl) => (
+            <option key={cl} value={cl}>{cl}</option>
+          ))}
+        </select>
+
+        <span className="text-xs text-gray-400">{sortedContatos.length} contato{sortedContatos.length !== 1 ? 's' : ''}</span>
 
         <button
           onClick={openNew}
