@@ -422,15 +422,6 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
         <span className="text-xs text-gray-400">{sortedContatos.length} contato{sortedContatos.length !== 1 ? 's' : ''}</span>
 
         <button
-          onClick={handleToggleAllStars}
-          title={sortedContatos.every((c) => c.principal) ? 'Remover todas as estrelas' : 'Marcar todas como principal'}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 min-h-[36px] hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600"
-        >
-          <Star size={13} className={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'text-amber-500' : 'text-gray-400'} fill={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'currentColor' : 'none'} />
-          Estrelas
-        </button>
-
-        <button
           onClick={openNew}
           className="ml-auto flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-2 text-xs font-semibold text-white min-h-[36px] hover:bg-green-800"
         >
@@ -458,9 +449,21 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
             <thead className="sticky top-0 z-10 bg-gray-800 text-white">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold">
-                  <button onClick={() => handleSort('nome')} className="flex items-center hover:text-gray-300">
-                    Nome<SortIcon col="nome" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleToggleAllStars}
+                      title={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'Remover todas as estrelas' : 'Marcar todas como principal'}
+                    >
+                      <Star
+                        size={13}
+                        className={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'text-amber-400' : 'text-gray-400 hover:text-amber-400'}
+                        fill={sortedContatos.length > 0 && sortedContatos.every((c) => c.principal) ? 'currentColor' : 'none'}
+                      />
+                    </button>
+                    <button onClick={() => handleSort('nome')} className="flex items-center hover:text-gray-300">
+                      Nome<SortIcon col="nome" />
+                    </button>
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold">
                   <button onClick={() => handleSort('empresa')} className="flex items-center hover:text-gray-300">
