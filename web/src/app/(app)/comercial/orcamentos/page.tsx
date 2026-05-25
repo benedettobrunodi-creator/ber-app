@@ -211,7 +211,7 @@ interface DrawerProps {
   onDeleted: (id: string) => void;
 }
 
-function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onClose, onSaved, onDeleted }: DrawerProps) {
+function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onSaved, onDeleted }: DrawerProps) {
   const isNew = !orc;
   const [tab, setTab] = useState<'crm' | 'historico'>('crm');
   const [saving, setSaving] = useState(false);
@@ -219,6 +219,13 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
   const [error, setError] = useState('');
   const [numero, setNumero] = useState('');
   const [cliente, setCliente] = useState('');
+  const [valorVenda, setValorVenda] = useState('');
+  const [m2, setM2] = useState('');
+  const [segmento, setSegmento] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [dataEntrega, setDataEntrega] = useState('');
+  const [responsavelId, setResponsavelId] = useState('');
   const [criarNoCrm, setCriarNoCrm] = useState(true);
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
   const [criandoOp, setCriandoOp] = useState(false);
@@ -265,6 +272,13 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
         numero: numero.trim(),
         cliente: cliente.trim(),
         status: 'A_INICIAR',
+        valorVenda: valorVenda ? Number(valorVenda.replace(/\D/g, '')) || undefined : undefined,
+        m2: m2 ? Number(m2) || undefined : undefined,
+        segmento: segmento || undefined,
+        dataInicio: dataInicio || undefined,
+        dataFim: dataFim || undefined,
+        dataEntrega: dataEntrega || undefined,
+        responsavelId: responsavelId || undefined,
       });
       const novoOrc: Orcamento = res.data.data;
 
@@ -369,42 +383,75 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
 
           {/* Novo orçamento */}
           {isNew && (
-            <form id="orc-new-form" onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className={labelCls}>Número *</label>
-                <input
-                  className={inputCls}
-                  value={numero}
-                  onChange={e => setNumero(e.target.value)}
-                  placeholder="ex: 582.26"
-                  required
-                  autoFocus
-                />
+            <form id="orc-new-form" onSubmit={handleCreate} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Número *</label>
+                  <input className={inputCls} value={numero} onChange={e => setNumero(e.target.value)}
+                    placeholder="ex: 582.26" required autoFocus />
+                </div>
+                <div>
+                  <label className={labelCls}>Segmento</label>
+                  <select className={inputCls} value={segmento} onChange={e => setSegmento(e.target.value)}>
+                    <option value="">—</option>
+                    {SEGMENTOS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Cliente *</label>
-                <input
-                  className={inputCls}
-                  value={cliente}
-                  onChange={e => setCliente(e.target.value)}
-                  placeholder="Nome do cliente ou empresa"
-                  required
-                />
+                <input className={inputCls} value={cliente} onChange={e => setCliente(e.target.value)}
+                  placeholder="Nome do cliente ou empresa" required />
               </div>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <div
-                  onClick={() => setCriarNoCrm(v => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors ${criarNoCrm ? 'bg-[#06A99D]' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${criarNoCrm ? 'translate-x-4' : ''}`} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Valor estimado (R$)</label>
+                  <input className={inputCls} value={valorVenda} onChange={e => setValorVenda(e.target.value)}
+                    placeholder="ex: 850000" type="number" min="0" />
                 </div>
-                <span className="text-sm text-gray-700">Criar oportunidade no CRM junto</span>
-              </label>
-              {criarNoCrm && (
-                <p className="text-[11px] text-[#06A99D] bg-[#06A99D]/5 rounded-lg px-3 py-2">
-                  Uma oportunidade CRM será criada e vinculada automaticamente ao orçamento.
-                </p>
-              )}
+                <div>
+                  <label className={labelCls}>Área (m²)</label>
+                  <input className={inputCls} value={m2} onChange={e => setM2(e.target.value)}
+                    placeholder="ex: 320" type="number" min="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Início</label>
+                  <input className={inputCls} type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Fim previsto</label>
+                  <input className={inputCls} type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Entrega</label>
+                  <input className={inputCls} type="date" value={dataEntrega} onChange={e => setDataEntrega(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Responsável</label>
+                <select className={inputCls} value={responsavelId} onChange={e => setResponsavelId(e.target.value)}>
+                  <option value="">Nenhum</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div className="pt-1">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <div
+                    onClick={() => setCriarNoCrm(v => !v)}
+                    className={`relative w-9 h-5 rounded-full transition-colors ${criarNoCrm ? 'bg-[#06A99D]' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${criarNoCrm ? 'translate-x-4' : ''}`} />
+                  </div>
+                  <span className="text-sm text-gray-700">Criar oportunidade no CRM junto</span>
+                </label>
+                {criarNoCrm && (
+                  <p className="mt-1.5 text-[11px] text-[#06A99D] bg-[#06A99D]/5 rounded-lg px-3 py-2">
+                    Uma oportunidade CRM será criada e vinculada automaticamente ao orçamento.
+                  </p>
+                )}
+              </div>
             </form>
           )}
 
