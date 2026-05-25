@@ -352,15 +352,15 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
       const res = await api.patch(`/orcamentos/${orc.id}`, {
         cliente: editCliente.trim(),
         status: editStatus,
-        valorVenda: editValorVenda ? Number(editValorVenda) || undefined : null,
-        m2: editM2 ? Number(editM2) || undefined : null,
-        segmento: editSegmento || null,
+        valorVenda: editValorVenda ? Number(editValorVenda) || undefined : undefined,
+        m2: editM2 ? Number(editM2) || undefined : undefined,
+        segmento: editSegmento || undefined,
         probabilidade: editProbabilidade || null,
         dataInicio: editDataInicio || null,
         dataFim: editDataFim || null,
         dataEntrega: editDataEntrega || null,
         responsavelId: editResponsavelId || null,
-        observacoes: editObservacoes || null,
+        observacoes: editObservacoes || undefined,
       });
       onSaved(res.data.data);
     } catch (err: any) {
