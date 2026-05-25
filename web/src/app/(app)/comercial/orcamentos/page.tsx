@@ -213,11 +213,26 @@ interface DrawerProps {
 
 function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onSaved, onDeleted }: DrawerProps) {
   const isNew = !orc;
-  const [tab, setTab] = useState<'crm' | 'historico'>('crm');
+  const [tab, setTab] = useState<'detalhes' | 'crm' | 'historico'>('detalhes');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  // New orçamento fields
   const [numero, setNumero] = useState('');
+  const [criarNoCrm, setCriarNoCrm] = useState(true);
+  // Edit fields — initialized from existing orc
+  const [editCliente, setEditCliente] = useState(orc?.cliente ?? '');
+  const [editValorVenda, setEditValorVenda] = useState(orc?.valorVenda != null ? String(orc.valorVenda) : '');
+  const [editM2, setEditM2] = useState(orc?.m2 != null ? String(orc.m2) : '');
+  const [editSegmento, setEditSegmento] = useState(orc?.segmento ?? '');
+  const [editStatus, setEditStatus] = useState(orc?.status ?? 'A_INICIAR');
+  const [editProbabilidade, setEditProbabilidade] = useState(orc?.probabilidade ?? '');
+  const [editDataInicio, setEditDataInicio] = useState(orc?.dataInicio?.slice(0, 10) ?? '');
+  const [editDataFim, setEditDataFim] = useState(orc?.dataFim?.slice(0, 10) ?? '');
+  const [editDataEntrega, setEditDataEntrega] = useState(orc?.dataEntrega?.slice(0, 10) ?? '');
+  const [editResponsavelId, setEditResponsavelId] = useState(orc?.responsavel?.id ?? '');
+  const [editObservacoes, setEditObservacoes] = useState(orc?.observacoes ?? '');
+  // New orçamento create-only fields
   const [cliente, setCliente] = useState('');
   const [valorVenda, setValorVenda] = useState('');
   const [m2, setM2] = useState('');
@@ -226,7 +241,6 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
   const [dataFim, setDataFim] = useState('');
   const [dataEntrega, setDataEntrega] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
-  const [criarNoCrm, setCriarNoCrm] = useState(true);
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
   const [criandoOp, setCriandoOp] = useState(false);
   const [showCriarOp, setShowCriarOp] = useState(false);
@@ -329,6 +343,34 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
     }
   }
 
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!orc || !editCliente.trim()) { setError('Cliente obrigatório'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const res = await api.patch(`/orcamentos/${orc.id}`, {
+        cliente: editCliente.trim(),
+        status: editStatus,
+        valorVenda: editValorVenda ? Number(editValorVenda) || undefined : null,
+        m2: editM2 ? Number(editM2) || undefined : null,
+        segmento: editSegmento || null,
+        probabilidade: editProbabilidade || null,
+        dataInicio: editDataInicio || null,
+        dataFim: editDataFim || null,
+        dataEntrega: editDataEntrega || null,
+        responsavelId: editResponsavelId || null,
+        observacoes: editObservacoes || null,
+      });
+      onSaved(res.data.data);
+    } catch (err: any) {
+      const errData = err.response?.data?.error ?? err.response?.data;
+      setError(errData?.message ?? 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const inputCls = 'w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-[#06A99D] focus:ring-1 focus:ring-[#06A99D] focus:outline-none';
   const labelCls = 'mb-1 block text-xs font-semibold text-gray-600 uppercase tracking-wide';
 
@@ -366,12 +408,12 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
         {/* Tabs — só para existentes */}
         {!isNew && (
           <div className="flex border-b border-gray-100 px-5">
-            {(['crm', 'historico'] as const).map(t => (
-              <button key={t} type="button" onClick={() => setTab(t)}
+            {([['detalhes', 'Detalhes'], ['crm', 'CRM'], ['historico', 'Histórico']] as const).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setTab(key)}
                 className={`py-2.5 px-1 mr-5 text-xs font-semibold uppercase tracking-wide border-b-2 transition-colors ${
-                  tab === t ? 'border-[#06A99D] text-[#06A99D]' : 'border-transparent text-gray-400 hover:text-gray-700'
+                  tab === key ? 'border-[#06A99D] text-[#06A99D]' : 'border-transparent text-gray-400 hover:text-gray-700'
                 }`}>
-                {t === 'crm' ? 'CRM' : 'Histórico'}
+                {label}
               </button>
             ))}
           </div>
@@ -451,6 +493,75 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
                     Uma oportunidade CRM será criada e vinculada automaticamente ao orçamento.
                   </p>
                 )}
+              </div>
+            </form>
+          )}
+
+          {/* Detalhes — edição para existentes */}
+          {!isNew && tab === 'detalhes' && (
+            <form id="orc-edit-form" onSubmit={handleUpdate} className="space-y-3">
+              <div>
+                <label className={labelCls}>Cliente *</label>
+                <input className={inputCls} value={editCliente} onChange={e => setEditCliente(e.target.value)} required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Status</label>
+                  <select className={inputCls} value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                    {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Segmento</label>
+                  <select className={inputCls} value={editSegmento} onChange={e => setEditSegmento(e.target.value)}>
+                    <option value="">—</option>
+                    {SEGMENTOS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Valor (R$)</label>
+                  <input className={inputCls} type="number" min="0" value={editValorVenda} onChange={e => setEditValorVenda(e.target.value)} placeholder="ex: 850000" />
+                </div>
+                <div>
+                  <label className={labelCls}>Área (m²)</label>
+                  <input className={inputCls} type="number" min="0" value={editM2} onChange={e => setEditM2(e.target.value)} placeholder="ex: 320" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Início</label>
+                  <input className={inputCls} type="date" value={editDataInicio} onChange={e => setEditDataInicio(e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Fim previsto</label>
+                  <input className={inputCls} type="date" value={editDataFim} onChange={e => setEditDataFim(e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Entrega</label>
+                  <input className={inputCls} type="date" value={editDataEntrega} onChange={e => setEditDataEntrega(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Probabilidade</label>
+                  <select className={inputCls} value={editProbabilidade} onChange={e => setEditProbabilidade(e.target.value)}>
+                    <option value="">—</option>
+                    {PROBABILIDADES.map(p => <option key={p} value={p}>{PROB_LABELS[p]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Responsável</label>
+                  <select className={inputCls} value={editResponsavelId} onChange={e => setEditResponsavelId(e.target.value)}>
+                    <option value="">Nenhum</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Observações</label>
+                <textarea className={inputCls} rows={3} value={editObservacoes} onChange={e => setEditObservacoes(e.target.value)} style={{ resize: 'none' }} />
               </div>
             </form>
           )}
@@ -560,17 +671,20 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
           )}
         </div>
 
-        {/* Footer — só para novo */}
-        {isNew && canWrite && (
+        {/* Footer */}
+        {canWrite && (isNew || tab === 'detalhes') && (
           <div className="border-t border-gray-100 px-5 py-4">
             <div className="flex gap-2">
               <button type="button" onClick={onClose}
                 className="flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 Cancelar
               </button>
-              <button form="orc-new-form" type="submit" disabled={saving}
+              <button
+                form={isNew ? 'orc-new-form' : 'orc-edit-form'}
+                type="submit"
+                disabled={saving}
                 className="flex-1 rounded-lg bg-[#06A99D] px-4 py-2 text-sm font-bold text-white hover:bg-[#058e83] disabled:opacity-50">
-                {saving ? 'Criando…' : 'Criar'}
+                {saving ? 'Salvando…' : isNew ? 'Criar' : 'Salvar'}
               </button>
             </div>
           </div>
