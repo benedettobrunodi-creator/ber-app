@@ -3,10 +3,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import {
   ArrowLeft, Plus, X, Lock, Unlock, Sun, Cloud, CloudSun, CloudRain, Zap,
   Users, ClipboardList, AlertTriangle, UserCheck, Package, Wrench, ChevronDown, ChevronUp,
-  Loader2, Camera, Link2, Eye,
+  Loader2, Camera, Link2, Eye, CalendarDays, Pencil, CheckCircle2, XCircle, Trash2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -16,13 +17,14 @@ interface Obra {
   name: string;
   client: string | null;
   dataInicioObra: string | null;
+  dataFimObra: string | null;
   expectedEndDate: string | null;
 }
 
 interface DiarioSummary {
   id: string;
   data: string;
-  status: 'rascunho' | 'fechado';
+  status: 'rascunho' | 'fechado' | 'aprovado' | 'recusado';
   clima: string | null;
   condicaoTrabalho: string | null;
   _count: { efetivos: number; atividades: number; fotos: number };
@@ -65,7 +67,7 @@ interface DiarioDetalhe {
   observacoesCliente: string | null;
   avancoDia: number | null;
   tokenPublico: string | null;
-  status: 'rascunho' | 'fechado';
+  status: 'rascunho' | 'fechado' | 'aprovado' | 'recusado';
   fechadoEm: string | null;
   criadoPor: { id: string; name: string };
   fechadoPor: { id: string; name: string } | null;
@@ -233,6 +235,11 @@ export default function DiarioObraPage() {
     fotos: true, efetivos: true, atividades: true, ocorrencias: false, visitas: false, materiais: false, equipamentos: false,
   });
 
+  // Datas da obra
+  const [editingDatas, setEditingDatas] = useState(false);
+  const [datasForm, setDatasForm] = useState({ dataInicioObra: '', dataFimObra: '' });
+  const [savingDatas, setSavingDatas] = useState(false);
+
   // Add forms
   const [addingAtividade, setAddingAtividade] = useState(false);
   const [addingOcorrencia, setAddingOcorrencia] = useState(false);
@@ -240,7 +247,9 @@ export default function DiarioObraPage() {
   const [addingMaterial, setAddingMaterial] = useState(false);
   const [addingEquipamento, setAddingEquipamento] = useState(false);
 
-  const fechado = selected?.status === 'fechado';
+  const currentUser = useAuthStore((s) => s.user);
+  const isCoordenacao = ['coordenacao', 'pmo', 'diretoria'].includes(currentUser?.role ?? '');
+  const fechado = selected ? selected.status !== 'rascunho' : false;
 
   useEffect(() => {
     setObsInternas(selected?.observacoesInternas ?? '');
@@ -320,6 +329,49 @@ export default function DiarioObraPage() {
     }
   }
 
+  async function aprovarDiario() {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const res = await api.post(`/diario/${selected.id}/aprovar`);
+      setSelected(res.data?.data);
+      await loadList();
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function recusarDiario() {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const res = await api.post(`/diario/${selected.id}/recusar`);
+      setSelected(res.data?.data);
+      await loadList();
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function excluirDiario() {
+    if (!selected) return;
+    if (!confirm('Excluir este diário permanentemente?')) return;
+    setSaving(true);
+    try {
+      await api.delete(`/diario/${selected.id}`);
+      setSelected(null);
+      await loadList();
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function patchHeader(data: Partial<{ clima: string; condicaoTrabalho: string; observacoesInternas: string; observacoesCliente: string; avancoDia: number }>) {
     if (!selected) return;
     setPatchingHeader(true);
@@ -330,6 +382,22 @@ export default function DiarioObraPage() {
       alert(e?.response?.data?.message ?? 'Erro ao salvar');
     } finally {
       setPatchingHeader(false);
+    }
+  }
+
+  async function saveDatasObra() {
+    setSavingDatas(true);
+    try {
+      const res = await api.patch(`/obras/${obraId}/datas`, {
+        dataInicioObra: datasForm.dataInicioObra || null,
+        dataFimObra: datasForm.dataFimObra || null,
+      });
+      setObra(prev => prev ? { ...prev, dataInicioObra: res.data?.data?.dataInicioObra ?? null, dataFimObra: res.data?.data?.dataFimObra ?? null } : prev);
+      setEditingDatas(false);
+    } catch (e: any) {
+      alert(e?.response?.data?.message ?? 'Erro ao salvar datas');
+    } finally {
+      setSavingDatas(false);
     }
   }
 
@@ -927,7 +995,10 @@ export default function DiarioObraPage() {
                   <span className="text-sm font-semibold text-ber-carbon">{fmtDate(d.data)}</span>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  d.status === 'fechado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  d.status === 'aprovado' ? 'bg-green-100 text-green-700' :
+                  d.status === 'fechado'  ? 'bg-blue-100 text-blue-700' :
+                  d.status === 'recusado' ? 'bg-red-100 text-red-700' :
+                  'bg-amber-100 text-amber-700'
                 }`}>
                   {d.status}
                 </span>
@@ -957,37 +1028,53 @@ export default function DiarioObraPage() {
                 <p className="text-sm font-bold text-ber-carbon">{fmtDate(selected.data)}</p>
                 <p className="text-xs text-ber-gray mt-0.5">por {selected.criadoPor.name}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {fechado && selected.tokenPublico && (
-                  <a
-                    href={`/atualizacao/${selected.tokenPublico}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                    title="Ver página do cliente"
-                  >
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Status badge */}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  selected.status === 'aprovado' ? 'bg-green-100 text-green-700' :
+                  selected.status === 'fechado'  ? 'bg-blue-100 text-blue-700' :
+                  selected.status === 'recusado' ? 'bg-red-100 text-red-700' :
+                  'bg-amber-100 text-amber-700'
+                }`}>{selected.status}</span>
+
+                {/* Ver cliente */}
+                {selected.status !== 'rascunho' && selected.tokenPublico && (
+                  <a href={`/atualizacao/${selected.tokenPublico}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
                     <Eye size={12} /> Ver cliente
                   </a>
                 )}
-                {fechado ? (
-                  <button
-                    onClick={reabrirDiario}
-                    disabled={saving}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-60"
-                  >
-                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Unlock size={12} />}
-                    Reabrir
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowPreview(true)}
-                    disabled={saving}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-green-50 text-green-700 border-green-200 hover:bg-green-100 transition-colors disabled:opacity-60"
-                  >
-                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />}
-                    Fechar
+
+                {/* Ações por status */}
+                {selected.status === 'rascunho' && (
+                  <button onClick={() => setShowPreview(true)} disabled={saving}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 disabled:opacity-60">
+                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />} Fechar
                   </button>
                 )}
+                {(selected.status === 'fechado' || selected.status === 'recusado') && (
+                  <button onClick={reabrirDiario} disabled={saving}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 disabled:opacity-60">
+                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Unlock size={12} />} Reabrir
+                  </button>
+                )}
+                {isCoordenacao && selected.status === 'fechado' && (
+                  <>
+                    <button onClick={aprovarDiario} disabled={saving}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-green-50 text-green-700 border-green-200 hover:bg-green-100 disabled:opacity-60">
+                      <CheckCircle2 size={12} /> Aprovar
+                    </button>
+                    <button onClick={recusarDiario} disabled={saving}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 disabled:opacity-60">
+                      <XCircle size={12} /> Recusar
+                    </button>
+                  </>
+                )}
+                {/* Excluir */}
+                <button onClick={excluirDiario} disabled={saving}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-ber-gray border border-ber-border hover:text-ber-red hover:border-red-200 hover:bg-red-50 disabled:opacity-60">
+                  <Trash2 size={12} />
+                </button>
               </div>
             </div>
 
@@ -1037,11 +1124,78 @@ export default function DiarioObraPage() {
               </div>
             </div>
 
+            {/* Datas da obra */}
+            <div className="mb-3">
+              {editingDatas ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
+                  <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                    <CalendarDays size={13} /> Datas da obra
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Início da obra</label>
+                      <input
+                        type="date"
+                        className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-ber-teal"
+                        value={datasForm.dataInicioObra}
+                        onChange={e => setDatasForm(f => ({ ...f, dataInicioObra: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Previsão de término</label>
+                      <input
+                        type="date"
+                        className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-ber-teal"
+                        value={datasForm.dataFimObra}
+                        onChange={e => setDatasForm(f => ({ ...f, dataFimObra: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingDatas(false)} className="flex-1 py-1.5 border border-ber-border rounded-lg text-xs text-ber-gray hover:bg-ber-surface flex items-center justify-center gap-1">
+                      <XCircle size={12} /> Cancelar
+                    </button>
+                    <button onClick={saveDatasObra} disabled={savingDatas} className="flex-1 py-1.5 bg-ber-teal text-white rounded-lg text-xs font-semibold hover:bg-ber-teal/80 disabled:opacity-50 flex items-center justify-center gap-1">
+                      <CheckCircle2 size={12} /> {savingDatas ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setDatasForm({
+                      dataInicioObra: obra?.dataInicioObra?.slice(0, 10) ?? '',
+                      dataFimObra: obra?.dataFimObra?.slice(0, 10) ?? '',
+                    });
+                    setEditingDatas(true);
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-dashed border-ber-border hover:border-ber-teal hover:bg-ber-teal/5 text-ber-gray transition-colors group"
+                >
+                  <span className="flex items-center gap-2 text-xs">
+                    <CalendarDays size={13} />
+                    {obra?.dataInicioObra ? (
+                      <span>
+                        <span className="font-semibold text-ber-carbon">{new Date(obra.dataInicioObra).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        <span className="mx-1 text-ber-gray">→</span>
+                        {obra.dataFimObra
+                          ? <span className="font-semibold text-ber-carbon">{new Date(obra.dataFimObra).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          : <span className="text-amber-500 font-medium">término não definido</span>
+                        }
+                      </span>
+                    ) : (
+                      <span className="text-amber-500 font-medium">Definir datas da obra para projetar avanço</span>
+                    )}
+                  </span>
+                  <Pencil size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                </button>
+              )}
+            </div>
+
             {/* Avanço físico */}
             <div className="mb-3">
               {(() => {
                 const inicio = obra?.dataInicioObra;
-                const fim = obra?.expectedEndDate;
+                const fim = obra?.dataFimObra ?? obra?.expectedEndDate;
                 let avancoPrevisto: number | null = null;
                 if (inicio && fim) {
                   const dInicio = new Date(inicio).getTime();

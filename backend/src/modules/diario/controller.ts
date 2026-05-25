@@ -144,6 +144,32 @@ export async function reabrir(req: Request, res: Response) {
   sendSuccess(res, updated);
 }
 
+export async function aprovar(req: Request, res: Response) {
+  const diario = await prisma.diarioObra.findUnique({ where: { id: req.params.diarioId } });
+  if (!diario) throw AppError.notFound('Diário');
+  if (!['fechado', 'recusado'].includes(diario.status)) throw AppError.badRequest('Diário precisa estar fechado para aprovar');
+
+  const updated = await prisma.diarioObra.update({
+    where: { id: req.params.diarioId },
+    data: { status: 'aprovado' },
+    include: diarioInclude,
+  });
+  sendSuccess(res, updated);
+}
+
+export async function recusar(req: Request, res: Response) {
+  const diario = await prisma.diarioObra.findUnique({ where: { id: req.params.diarioId } });
+  if (!diario) throw AppError.notFound('Diário');
+  if (!['fechado', 'aprovado'].includes(diario.status)) throw AppError.badRequest('Diário precisa estar fechado para recusar');
+
+  const updated = await prisma.diarioObra.update({
+    where: { id: req.params.diarioId },
+    data: { status: 'recusado' },
+    include: diarioInclude,
+  });
+  sendSuccess(res, updated);
+}
+
 export async function deleteDiario(req: Request, res: Response) {
   const diario = await prisma.diarioObra.findUnique({ where: { id: req.params.diarioId } });
   if (!diario) throw AppError.notFound('Diário');

@@ -17,6 +17,7 @@ router.post("/progresso", controller.updateProgresso);
 router.get('/:id', requireRole('campo'), controller.getObra);
 router.post('/', requireRole('coordenacao'), validate(createObraSchema), controller.createObra);
 router.put('/:id', requireRole('coordenacao'), validate(updateObraSchema), controller.updateObra);
+router.patch('/:id/datas', requireRole('gestor'), controller.updateObraDatas);
 
 router.get('/:id/members', requireRole('campo'), controller.getMembers);
 router.post('/:id/members', requireRole('coordenacao'), validate(addMemberSchema), controller.addMember);

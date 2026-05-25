@@ -27,6 +27,12 @@ export async function updateObra(req: Request, res: Response) {
   sendSuccess(res, obra);
 }
 
+export async function updateObraDatas(req: Request, res: Response) {
+  const { dataInicioObra, dataFimObra } = req.body;
+  const obra = await obraService.updateObra(req.params.id, { dataInicioObra, dataFimObra });
+  sendSuccess(res, obra);
+}
+
 export async function getMembers(req: Request, res: Response) {
   const members = await obraService.getMembers(req.params.id);
   sendSuccess(res, members);
