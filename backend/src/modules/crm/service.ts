@@ -267,7 +267,11 @@ export async function createAtividade(data: CreateAtividadeInput, usuarioId: str
 }
 
 export async function updateAtividade(id: string, data: UpdateAtividadeInput) {
-  return prisma.crmAtividade.update({ where: { id }, data });
+  return prisma.crmAtividade.update({
+    where: { id },
+    data,
+    include: { usuario: { select: { id: true, name: true, avatarUrl: true } } },
+  });
 }
 
 export async function deleteAtividade(id: string) {

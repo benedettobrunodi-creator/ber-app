@@ -10,6 +10,7 @@ import TabAtividades from './components/TabAtividades';
 import TabFunil from './components/TabFunil';
 import TabRelatorios from './components/TabRelatorios';
 import { Oportunidade, Empresa, Atividade, User } from './types';
+import { useAuthStore } from '@/stores/authStore';
 
 type Tab = 'pipeline' | 'funil' | 'empresas' | 'contatos' | 'atividades' | 'relatorios';
 
@@ -23,6 +24,7 @@ const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function CrmPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<Tab>('pipeline');
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -107,7 +109,7 @@ export default function CrmPage() {
               <TabContatos empresas={empresas} onRefresh={fetchAll} />
             )}
             {tab === 'atividades' && (
-              <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} onRefresh={fetchAll} />
+              <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} currentUserId={currentUser?.id} onRefresh={fetchAll} />
             )}
             {tab === 'relatorios' && <TabRelatorios oportunidades={oportunidades} />}
           </>

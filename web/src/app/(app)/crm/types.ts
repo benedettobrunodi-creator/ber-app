@@ -94,6 +94,7 @@ export interface Atividade {
   duracao: number | null;
   notas: string | null;
   concluida: boolean;
+  resultado?: string | null;
   oportunidade?: { id: string; titulo: string; empresa: { razaoSocial: string } | null } | null;
   usuario?: { id: string; name: string; avatarUrl: string | null };
 }

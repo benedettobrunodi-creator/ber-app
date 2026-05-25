@@ -141,8 +141,11 @@ export const createAtividadeSchema = z.object({
   notas: z.string().optional().nullable(),
   googleEventId: z.string().max(255).optional().nullable(),
   concluida: z.boolean().default(false),
+  resultado: z.string().optional().nullable(),
 });
-export const updateAtividadeSchema = createAtividadeSchema.partial();
+export const updateAtividadeSchema = createAtividadeSchema.partial().extend({
+  usuarioId: z.string().uuid().optional(),
+});
 export type CreateAtividadeInput = z.infer<typeof createAtividadeSchema>;
 export type UpdateAtividadeInput = z.infer<typeof updateAtividadeSchema>;
 
