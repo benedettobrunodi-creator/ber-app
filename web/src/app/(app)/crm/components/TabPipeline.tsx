@@ -83,6 +83,13 @@ function CardOportunidade({
           <span className="ml-auto shrink-0">{fmtDate(proximaAtividade.dataHora)}</span>
         </div>
       )}
+      {op.orcamento && (
+        <div className="mt-2 flex items-center gap-1">
+          <span className="text-[10px] font-semibold bg-[#06A99D]/10 text-[#06A99D] px-2 py-0.5 rounded-full">
+            ORC {op.orcamento.numero}
+          </span>
+        </div>
+      )}
       {op.motivoPerda && (
         <p className="mt-2 text-[11px] text-ber-red/80 italic line-clamp-2">"{op.motivoPerda}"</p>
       )}
@@ -135,6 +142,10 @@ function OportunidadeDrawer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [err, setErr] = useState('');
   const [contatos, setContatos] = useState<Contato[]>([]);
+  const [showCriarOrc, setShowCriarOrc] = useState(false);
+  const [novoOrcNumero, setNovoOrcNumero] = useState('');
+  const [criandoOrc, setCriandoOrc] = useState(false);
+  const [orcamentoVinculado, setOrcamentoVinculado] = useState(op?.orcamento ?? null);
 
   useEffect(() => {
     if (op?.empresa?.id) {
@@ -154,6 +165,24 @@ function OportunidadeDrawer({
       setErr('Erro ao excluir');
       setDeleting(false);
       setConfirmDelete(false);
+    }
+  };
+
+  const handleCriarOrcamento = async () => {
+    if (!op?.id || !novoOrcNumero.trim()) return;
+    setCriandoOrc(true);
+    try {
+      const res = await api.post(`/crm/oportunidades/${op.id}/criar-orcamento`, {
+        numero: novoOrcNumero.trim(),
+      });
+      setOrcamentoVinculado(res.data);
+      setShowCriarOrc(false);
+      setNovoOrcNumero('');
+      onSave();
+    } catch (e: any) {
+      setErr(e?.response?.data?.message ?? 'Erro ao criar orçamento');
+    } finally {
+      setCriandoOrc(false);
     }
   };
 
@@ -366,11 +395,55 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
             />
           </div>
-          {op?.orcamento && (
-            <div className="rounded-lg border border-ber-border bg-ber-surface p-3">
-              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Orçamento Vinculado</p>
-              <p className="text-sm font-bold text-ber-carbon">{op.orcamento.numero}</p>
-              <p className="text-xs text-ber-gray">{op.orcamento.status}</p>
+          {!isNew && (
+            <div className="rounded-lg border border-ber-border bg-ber-surface p-3 space-y-2">
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Orçamento</p>
+              {orcamentoVinculado ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-ber-carbon">{orcamentoVinculado.numero}</p>
+                    <p className="text-xs text-ber-gray">{orcamentoVinculado.cliente} · {orcamentoVinculado.status}</p>
+                  </div>
+                  <a
+                    href="/comercial/orcamentos"
+                    className="text-[11px] text-ber-teal hover:underline font-medium"
+                  >
+                    Ver esteira ↗
+                  </a>
+                </div>
+              ) : showCriarOrc ? (
+                <div className="space-y-2">
+                  <input
+                    className="w-full border border-ber-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-ber-teal"
+                    placeholder="Número (ex: 582.26)"
+                    value={novoOrcNumero}
+                    onChange={(e) => setNovoOrcNumero(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCriarOrcamento}
+                      disabled={criandoOrc || !novoOrcNumero.trim()}
+                      className="flex-1 py-1.5 bg-ber-teal text-white rounded-lg text-xs font-semibold hover:bg-ber-teal/80 disabled:opacity-50"
+                    >
+                      {criandoOrc ? 'Criando...' : 'Criar orçamento'}
+                    </button>
+                    <button
+                      onClick={() => { setShowCriarOrc(false); setNovoOrcNumero(''); }}
+                      className="px-3 py-1.5 border border-ber-border rounded-lg text-xs text-ber-gray hover:bg-ber-surface"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowCriarOrc(true)}
+                  className="flex items-center gap-1 text-xs text-ber-teal hover:underline font-medium"
+                >
+                  <Plus size={11} /> Criar orçamento vinculado
+                </button>
+              )}
             </div>
           )}
         </div>

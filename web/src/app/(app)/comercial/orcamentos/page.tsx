@@ -218,6 +218,8 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [numero, setNumero] = useState('');
+  const [cliente, setCliente] = useState('');
+  const [criarNoCrm, setCriarNoCrm] = useState(true);
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
   const [criandoOp, setCriandoOp] = useState(false);
   const [showCriarOp, setShowCriarOp] = useState(false);
@@ -255,17 +257,35 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!numero.trim()) { setError('Número obrigatório'); return; }
+    if (!cliente.trim()) { setError('Cliente obrigatório'); return; }
     setSaving(true);
     setError('');
     try {
       const res = await api.post('/orcamentos', {
         numero: numero.trim(),
-        cliente: numero.trim(),
+        cliente: cliente.trim(),
         status: 'A_INICIAR',
       });
-      onSaved(res.data.data);
+      const novoOrc: Orcamento = res.data.data;
+
+      if (criarNoCrm) {
+        try {
+          const opRes = await api.post('/crm/oportunidades', {
+            titulo: cliente.trim(),
+            etapa: 'proposta_enviada',
+            origem: 'outbound',
+          });
+          await api.patch(`/crm/oportunidades/${opRes.data.id}/vincular-orcamento`, {
+            orcamentoId: novoOrc.id,
+          });
+        } catch {
+          // CRM creation failed silently — orçamento was created successfully
+        }
+      }
+
+      onSaved(novoOrc);
     } catch (err: any) {
-      const errData = err.response?.data?.error;
+      const errData = err.response?.data?.error ?? err.response?.data;
       setError(errData?.message ?? 'Erro ao criar');
     } finally {
       setSaving(false);
@@ -347,7 +367,7 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
         <div className="flex-1 overflow-y-auto p-5">
           {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
 
-          {/* Novo orçamento — só pede o número */}
+          {/* Novo orçamento */}
           {isNew && (
             <form id="orc-new-form" onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -360,10 +380,31 @@ function OrcamentoDrawer({ orc, users: _users, allOrcs: _allOrcs, canWrite, onCl
                   required
                   autoFocus
                 />
-                <p className="mt-1 text-[11px] text-gray-400">
-                  As demais informações são gerenciadas pelo CRM.
-                </p>
               </div>
+              <div>
+                <label className={labelCls}>Cliente *</label>
+                <input
+                  className={inputCls}
+                  value={cliente}
+                  onChange={e => setCliente(e.target.value)}
+                  placeholder="Nome do cliente ou empresa"
+                  required
+                />
+              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <div
+                  onClick={() => setCriarNoCrm(v => !v)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${criarNoCrm ? 'bg-[#06A99D]' : 'bg-gray-200'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${criarNoCrm ? 'translate-x-4' : ''}`} />
+                </div>
+                <span className="text-sm text-gray-700">Criar oportunidade no CRM junto</span>
+              </label>
+              {criarNoCrm && (
+                <p className="text-[11px] text-[#06A99D] bg-[#06A99D]/5 rounded-lg px-3 py-2">
+                  Uma oportunidade CRM será criada e vinculada automaticamente ao orçamento.
+                </p>
+              )}
             </form>
           )}
 
