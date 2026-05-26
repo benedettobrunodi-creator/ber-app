@@ -45,16 +45,20 @@ function fmtProximo(iso: string) {
 function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose: () => void; onSave: () => void }) {
   const [tipo, setTipo] = useState('ligacao');
   const [notas, setNotas] = useState('');
+  const [retornou, setRetornou] = useState(false);
+  const [resultado, setResultado] = useState('');
   const [proximoContato, setProximoContato] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.post(`/crm/contatos/${contato.id}/contatar`, { tipo, notas: notas || null });
-      if (proximoContato) {
-        await api.patch(`/crm/contatos/${contato.id}`, { proximoContato: proximoContato || null });
-      }
+      await api.post(`/crm/contatos/${contato.id}/interacao`, {
+        tipo,
+        notas: notas || null,
+        resultado: retornou ? (resultado || 'Retornou') : null,
+        proximoContato: proximoContato || null,
+      });
       onSave();
     } finally {
       setSaving(false);
@@ -81,6 +85,30 @@ function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Notas</label>
           <textarea className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="O que foi discutido?" />
         </div>
+
+        {/* Retorno */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setRetornou(r => !r)}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${retornou ? 'border-green-400 bg-green-50 text-green-700' : 'border-ber-border text-ber-gray hover:border-ber-teal/50'}`}
+          >
+            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${retornou ? 'border-green-500 bg-green-500' : 'border-ber-border'}`}>
+              {retornou && <Check size={10} className="text-white" />}
+            </span>
+            Houve retorno do contato
+          </button>
+          {retornou && (
+            <textarea
+              className="mt-2 w-full border border-green-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 resize-none bg-green-50/50"
+              rows={2}
+              value={resultado}
+              onChange={e => setResultado(e.target.value)}
+              placeholder="O que ele respondeu / próximos passos..."
+            />
+          )}
+        </div>
+
         <div>
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Próximo contato</label>
           <input type="date" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={proximoContato} onChange={e => setProximoContato(e.target.value)} />
@@ -88,7 +116,7 @@ function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
-            {saving ? '...' : '✓ Contatei'}
+            {saving ? '...' : '✓ Salvar'}
           </button>
         </div>
       </div>
