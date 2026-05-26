@@ -37,6 +37,20 @@ router.post('/atividades', write, ctrl.createAtividade);
 router.patch('/atividades/:id', write, ctrl.updateAtividade);
 router.delete('/atividades/:id', write, ctrl.deleteAtividade);
 
+// ── Nutrição
+router.get('/nutricao', read, ctrl.listNutricao);
+router.post('/contatos/:id/contatar', write, ctrl.contatarAgora);
+
+// ── Campanhas
+router.get('/campanhas', read, ctrl.listCampanhas);
+router.get('/campanhas/:id', read, ctrl.getCampanha);
+router.post('/campanhas', write, ctrl.createCampanha);
+router.patch('/campanhas/:id', write, ctrl.updateCampanha);
+router.delete('/campanhas/:id', write, ctrl.deleteCampanha);
+router.post('/campanhas/:id/contatos', write, ctrl.addContatosCampanha);
+router.patch('/campanhas/:id/contatos/:contatoId', write, ctrl.updateCampanhaContato);
+router.delete('/campanhas/:id/contatos/:contatoId', write, ctrl.removeContatoCampanha);
+
 // ── Metas
 router.get('/metas/:ano', read, ctrl.getMetasAno);
 router.put('/metas', admin, ctrl.upsertMetasAnuais);

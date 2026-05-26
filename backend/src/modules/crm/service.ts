@@ -6,6 +6,7 @@ import {
   CreateAtividadeInput, UpdateAtividadeInput,
   UpsertMetasAnuaisInput,
   CRM_PROBABILIDADE_PCT, CRM_ETAPA_MACRO,
+  CreateCampanhaInput, UpdateCampanhaInput,
 } from './types';
 
 // ── Empresas ─────────────────────────────────────────────────────────────────
@@ -95,6 +96,116 @@ export async function updateContato(id: string, data: UpdateContatoInput) {
 
 export async function deleteContato(id: string) {
   return prisma.crmContato.delete({ where: { id } });
+}
+
+export async function listNutricao() {
+  return prisma.crmContato.findMany({
+    where: { nutricao: true },
+    include: {
+      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } },
+    },
+    orderBy: [{ proximoContato: 'asc' }, { ultimoContato: 'asc' }, { nome: 'asc' }],
+  });
+}
+
+export async function contatarAgora(id: string, usuarioId: string, tipo: string, notas?: string) {
+  const now = new Date();
+  const contato = await prisma.crmContato.findUnique({ where: { id }, select: { empresaId: true } });
+  const [atividade] = await Promise.all([
+    prisma.crmAtividade.create({
+      data: {
+        empresaId: contato?.empresaId ?? undefined,
+        tipo,
+        dataHora: now,
+        notas: notas ?? null,
+        concluida: true,
+        usuarioId,
+        resultado: `Contato registrado via Nutrição`,
+      },
+    }).catch(() => null),
+    prisma.crmContato.update({ where: { id }, data: { ultimoContato: now } }),
+    contato?.empresaId
+      ? prisma.crmEmpresa.update({ where: { id: contato.empresaId }, data: { ultimoContato: now } })
+      : Promise.resolve(null),
+  ]);
+  return atividade;
+}
+
+// ── Campanhas ─────────────────────────────────────────────────────────────────
+
+const campanhaInclude = {
+  responsavel: { select: { id: true, name: true, avatarUrl: true } },
+  _count: { select: { contatos: true } },
+} as const;
+
+export async function listCampanhas() {
+  return prisma.crmCampanha.findMany({
+    include: campanhaInclude,
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function getCampanha(id: string) {
+  return prisma.crmCampanha.findUnique({
+    where: { id },
+    include: {
+      responsavel: { select: { id: true, name: true, avatarUrl: true } },
+      contatos: {
+        include: {
+          contato: {
+            include: { empresa: { select: { id: true, razaoSocial: true, segmento: true } } },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+}
+
+export async function createCampanha(data: CreateCampanhaInput) {
+  return prisma.crmCampanha.create({ data, include: campanhaInclude });
+}
+
+export async function updateCampanha(id: string, data: UpdateCampanhaInput) {
+  return prisma.crmCampanha.update({ where: { id }, data, include: campanhaInclude });
+}
+
+export async function deleteCampanha(id: string) {
+  return prisma.crmCampanha.delete({ where: { id } });
+}
+
+export async function addContatosCampanha(campanhaId: string, contatoIds: string[]) {
+  await prisma.crmCampanhaContato.createMany({
+    data: contatoIds.map((contatoId) => ({ campanhaId, contatoId })),
+    skipDuplicates: true,
+  });
+  return getCampanha(campanhaId);
+}
+
+export async function updateCampanhaContato(
+  campanhaId: string,
+  contatoId: string,
+  data: { status?: string; notas?: string | null; contatadoEm?: string | null },
+) {
+  const contatadoEm = data.contatadoEm ? new Date(data.contatadoEm) : data.contatadoEm === null ? null : undefined;
+  const updated = await prisma.crmCampanhaContato.update({
+    where: { campanhaId_contatoId: { campanhaId, contatoId } },
+    data: {
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.notas !== undefined ? { notas: data.notas } : {}),
+      ...(contatadoEm !== undefined ? { contatadoEm } : {}),
+    },
+  });
+  if (data.status === 'enviado' || data.status === 'respondeu') {
+    await prisma.crmContato.update({ where: { id: contatoId }, data: { ultimoContato: new Date() } });
+  }
+  return updated;
+}
+
+export async function removeContatoCampanha(campanhaId: string, contatoId: string) {
+  return prisma.crmCampanhaContato.delete({
+    where: { campanhaId_contatoId: { campanhaId, contatoId } },
+  });
 }
 
 // ── Oportunidades ─────────────────────────────────────────────────────────────

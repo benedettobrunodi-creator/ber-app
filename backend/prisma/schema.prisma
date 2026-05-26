@@ -87,6 +87,7 @@ model User {
   crmOportunidadesResp  CrmOportunidade[]      @relation("CrmOportResponsavel")
   crmOportunidadesCriadas CrmOportunidade[]    @relation("CrmOportCreator")
   crmAtividades         CrmAtividade[]         @relation("CrmAtividadeUsuario")
+  crmCampanhas          CrmCampanha[]          @relation("CrmCampanhaResponsavel")
   resetTokens           PasswordResetToken[]
 
   @@map("users")
@@ -1531,25 +1532,62 @@ model CrmEmpresa {
 }
 
 model CrmContato {
-  id          String    @id @default(uuid()) @db.Uuid
-  empresaId   String?   @map("empresa_id") @db.Uuid
-  nome        String    @db.VarChar(255)
-  cargo       String?   @db.VarChar(100)
-  email       String?   @db.VarChar(255)
-  telefone    String?   @db.VarChar(20)
-  whatsapp    String?   @db.VarChar(30)
-  linkedin    String?   @db.VarChar(255)
-  aniversario DateTime? @db.Date
-  principal   Boolean   @default(false)
-  agendorId   String?   @unique @map("agendor_id") @db.VarChar(50)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                  String    @id @default(uuid()) @db.Uuid
+  empresaId           String?   @map("empresa_id") @db.Uuid
+  nome                String    @db.VarChar(255)
+  cargo               String?   @db.VarChar(100)
+  email               String?   @db.VarChar(255)
+  telefone            String?   @db.VarChar(20)
+  whatsapp            String?   @db.VarChar(30)
+  linkedin            String?   @db.VarChar(255)
+  aniversario         DateTime? @db.Date
+  principal           Boolean   @default(false)
+  agendorId           String?   @unique @map("agendor_id") @db.VarChar(50)
+  nutricao            Boolean   @default(false)
+  proximoContato      DateTime? @map("proximo_contato")
+  ultimoContato       DateTime? @map("ultimo_contato")
+  notasRelacionamento String?   @map("notas_relacionamento")
+  tags                String[]  @default([])
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  empresa       CrmEmpresa?       @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  empresa       CrmEmpresa?          @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   oportunidades CrmOportunidade[]
+  campanhas     CrmCampanhaContato[]
 
   @@index([empresaId])
+  @@index([nutricao])
   @@map("crm_contatos")
+}
+
+model CrmCampanha {
+  id            String   @id @default(uuid()) @db.Uuid
+  nome          String   @db.VarChar(255)
+  descricao     String?
+  responsavelId String?  @map("responsavel_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  responsavel User?                @relation("CrmCampanhaResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  contatos    CrmCampanhaContato[]
+
+  @@map("crm_campanhas")
+}
+
+model CrmCampanhaContato {
+  id          String    @id @default(uuid()) @db.Uuid
+  campanhaId  String    @map("campanha_id") @db.Uuid
+  contatoId   String    @map("contato_id") @db.Uuid
+  status      String    @default("pendente") @db.VarChar(30)
+  notas       String?
+  contatadoEm DateTime? @map("contatado_em")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  campanha CrmCampanha @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  contato  CrmContato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
+
+  @@unique([campanhaId, contatoId])
+  @@map("crm_campanha_contatos")
 }
 
 model CrmOportunidade {

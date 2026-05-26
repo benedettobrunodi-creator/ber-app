@@ -2,17 +2,18 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
-import { Target, Kanban, Building2, Calendar, BarChart2, TrendingUp } from 'lucide-react';
+import { Target, Kanban, Building2, Calendar, BarChart2, TrendingUp, Thermometer } from 'lucide-react';
 import TabPipeline from './components/TabPipeline';
 import TabEmpresas from './components/TabEmpresas';
 import TabContatos from './components/TabContatos';
 import TabAtividades from './components/TabAtividades';
 import TabFunil from './components/TabFunil';
 import TabRelatorios from './components/TabRelatorios';
-import { Oportunidade, Empresa, Atividade, User } from './types';
+import TabNutricao from './components/TabNutricao';
+import { Oportunidade, Empresa, Atividade, User, Contato, Campanha } from './types';
 import { useAuthStore } from '@/stores/authStore';
 
-type Tab = 'pipeline' | 'funil' | 'empresas' | 'contatos' | 'atividades' | 'relatorios';
+type Tab = 'pipeline' | 'funil' | 'empresas' | 'contatos' | 'atividades' | 'nutricao' | 'relatorios';
 
 const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
   { value: 'pipeline',   label: 'Pipeline',    icon: <Kanban size={15} /> },
@@ -20,6 +21,7 @@ const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
   { value: 'empresas',   label: 'Empresas',     icon: <Building2 size={15} /> },
   { value: 'contatos',   label: 'Contatos',     icon: <Target size={15} /> },
   { value: 'atividades', label: 'Atividades',   icon: <Calendar size={15} /> },
+  { value: 'nutricao',   label: 'Nutrição',     icon: <Thermometer size={15} /> },
   { value: 'relatorios', label: 'Relatórios',   icon: <BarChart2 size={15} /> },
 ];
 
@@ -29,20 +31,26 @@ export default function CrmPage() {
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [atividades, setAtividades] = useState<Atividade[]>([]);
+  const [contatos, setContatos] = useState<Contato[]>([]);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [ops, emps, ativs, usrs] = await Promise.all([
+      const [ops, emps, ativs, ctts, camps, usrs] = await Promise.all([
         api.get('/crm/oportunidades'),
         api.get('/crm/empresas'),
         api.get('/crm/atividades'),
+        api.get('/crm/contatos'),
+        api.get('/crm/campanhas'),
         api.get('/users?limit=100'),
       ]);
       setOportunidades(ops.data);
       setEmpresas(emps.data);
       setAtividades(ativs.data);
+      setContatos(ctts.data);
+      setCampanhas(camps.data);
       setUsers(Array.isArray(usrs.data) ? usrs.data : (usrs.data?.data ?? []));
     } finally {
       setLoading(false);
@@ -110,6 +118,9 @@ export default function CrmPage() {
             )}
             {tab === 'atividades' && (
               <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} currentUserId={currentUser?.id} onRefresh={fetchAll} />
+            )}
+            {tab === 'nutricao' && (
+              <TabNutricao contatos={contatos} campanhas={campanhas} users={users} onRefresh={fetchAll} />
             )}
             {tab === 'relatorios' && <TabRelatorios oportunidades={oportunidades} />}
           </>

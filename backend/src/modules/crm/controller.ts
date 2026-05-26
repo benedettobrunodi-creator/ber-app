@@ -339,3 +339,51 @@ export async function getContextoOrcamento(req: Request, res: Response, next: Ne
     res.json(data);
   } catch (e) { next(e); }
 }
+
+// ── Nutrição ──────────────────────────────────────────────────────────────────
+
+export async function listNutricao(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.listNutricao()); } catch (e) { next(e); }
+}
+
+export async function contatarAgora(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { tipo, notas } = req.body;
+    const data = await svc.contatarAgora(req.params.id, req.user!.userId, tipo ?? 'outro', notas);
+    res.json(data);
+  } catch (e) { next(e); }
+}
+
+// ── Campanhas ─────────────────────────────────────────────────────────────────
+
+export async function listCampanhas(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.listCampanhas()); } catch (e) { next(e); }
+}
+
+export async function getCampanha(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getCampanha(req.params.id)); } catch (e) { next(e); }
+}
+
+export async function createCampanha(req: Request, res: Response, next: NextFunction) {
+  try { res.status(201).json(await svc.createCampanha(req.body)); } catch (e) { next(e); }
+}
+
+export async function updateCampanha(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.updateCampanha(req.params.id, req.body)); } catch (e) { next(e); }
+}
+
+export async function deleteCampanha(req: Request, res: Response, next: NextFunction) {
+  try { await svc.deleteCampanha(req.params.id); res.status(204).end(); } catch (e) { next(e); }
+}
+
+export async function addContatosCampanha(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.addContatosCampanha(req.params.id, req.body.contatoIds)); } catch (e) { next(e); }
+}
+
+export async function updateCampanhaContato(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.updateCampanhaContato(req.params.id, req.params.contatoId, req.body)); } catch (e) { next(e); }
+}
+
+export async function removeContatoCampanha(req: Request, res: Response, next: NextFunction) {
+  try { await svc.removeContatoCampanha(req.params.id, req.params.contatoId); res.status(204).end(); } catch (e) { next(e); }
+}

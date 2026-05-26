@@ -107,10 +107,34 @@ export const createContatoSchema = z.object({
   aniversario: dateOrNull,
   principal: z.boolean().default(false),
   agendorId: z.string().max(50).optional().nullable(),
+  nutricao: z.boolean().optional(),
+  proximoContato: z.string().optional().nullable(),
+  ultimoContato: z.string().optional().nullable(),
+  notasRelacionamento: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
 });
 export const updateContatoSchema = createContatoSchema.partial();
 export type CreateContatoInput = z.infer<typeof createContatoSchema>;
 export type UpdateContatoInput = z.infer<typeof updateContatoSchema>;
+
+export const CAMPANHA_STATUSES = ['pendente', 'enviado', 'respondeu', 'ignorou', 'descadastrar'] as const;
+
+export const createCampanhaSchema = z.object({
+  nome: z.string().min(1).max(255),
+  descricao: z.string().optional().nullable(),
+  responsavelId: z.string().uuid().optional().nullable(),
+});
+export const updateCampanhaSchema = createCampanhaSchema.partial();
+export const addCampanhaContatoSchema = z.object({
+  contatoIds: z.array(z.string().uuid()).min(1),
+});
+export const updateCampanhaContatoSchema = z.object({
+  status: z.enum(CAMPANHA_STATUSES).optional(),
+  notas: z.string().optional().nullable(),
+  contatadoEm: z.string().optional().nullable(),
+});
+export type CreateCampanhaInput = z.infer<typeof createCampanhaSchema>;
+export type UpdateCampanhaInput = z.infer<typeof updateCampanhaSchema>;
 
 export const createOportunidadeSchema = z.object({
   titulo: z.string().min(1).max(500),

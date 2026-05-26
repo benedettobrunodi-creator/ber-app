@@ -64,7 +64,41 @@ export interface Contato {
   principal: boolean;
   empresaId: string | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null } | null;
+  nutricao: boolean;
+  proximoContato: string | null;
+  ultimoContato: string | null;
+  notasRelacionamento: string | null;
+  tags: string[];
 }
+
+export const CAMPANHA_STATUSES = [
+  { value: 'pendente',     label: 'Pendente',     color: 'bg-gray-100 text-gray-600' },
+  { value: 'enviado',      label: 'Enviado',       color: 'bg-blue-100 text-blue-700' },
+  { value: 'respondeu',    label: 'Respondeu',     color: 'bg-green-100 text-green-700' },
+  { value: 'ignorou',      label: 'Ignorou',       color: 'bg-amber-100 text-amber-700' },
+  { value: 'descadastrar', label: 'Descadastrar',  color: 'bg-red-100 text-red-700' },
+] as const;
+
+export interface Campanha {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  responsavel: { id: string; name: string; avatarUrl: string | null } | null;
+  createdAt: string;
+  _count: { contatos: number };
+}
+
+export interface CampanhaDetalhe extends Campanha {
+  contatos: {
+    id: string;
+    status: string;
+    notas: string | null;
+    contatadoEm: string | null;
+    contato: Contato;
+  }[];
+}
+
+export const NUTRICAO_TAGS = ['Decisor', 'Influenciador', 'Ativo', 'Passivo', 'Novo', 'VIP'] as const;
 
 export interface Oportunidade {
   id: string;
