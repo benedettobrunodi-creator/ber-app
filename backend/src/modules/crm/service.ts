@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import {
   CreateEmpresaInput, UpdateEmpresaInput,
@@ -256,18 +257,38 @@ export async function updateCampanhaContato(
   data: { status?: string; notas?: string | null; contatadoEm?: string | null },
 ) {
   const contatadoEm = data.contatadoEm ? new Date(data.contatadoEm) : data.contatadoEm === null ? null : undefined;
+  const updateData: Prisma.CrmCampanhaContatoUpdateInput = {};
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.notas !== undefined) updateData.notas = data.notas;
+  if (contatadoEm !== undefined) updateData.contatadoEm = contatadoEm;
+
   const updated = await prisma.crmCampanhaContato.update({
     where: { campanhaId_contatoId: { campanhaId, contatoId } },
-    data: {
-      ...(data.status !== undefined ? { status: data.status } : {}),
-      ...(data.notas !== undefined ? { notas: data.notas } : {}),
-      ...(contatadoEm !== undefined ? { contatadoEm } : {}),
-    },
+    data: updateData,
   });
   if (data.status === 'enviado' || data.status === 'respondeu') {
-    await prisma.crmContato.update({ where: { id: contatoId }, data: { ultimoContato: new Date() } });
+    await prisma.crmContato.update({ where: { id: contatoId }, data: { ultimoContato: new Date() } })
+      .catch(() => null);
   }
   return updated;
+}
+
+export async function bulkUpdateCampanhaStatus(
+  campanhaId: string,
+  contatoIds: string[],
+  status: string,
+) {
+  const updated = await prisma.crmCampanhaContato.updateMany({
+    where: { campanhaId, contatoId: { in: contatoIds } },
+    data: { status },
+  });
+  if (status === 'enviado' || status === 'respondeu') {
+    await prisma.crmContato.updateMany({
+      where: { id: { in: contatoIds } },
+      data: { ultimoContato: new Date() },
+    }).catch(() => null);
+  }
+  return { updated: updated.count };
 }
 
 export async function removeContatoCampanha(campanhaId: string, contatoId: string) {

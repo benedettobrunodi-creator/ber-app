@@ -396,7 +396,25 @@ export async function addContatosCampanha(req: Request, res: Response, next: Nex
 }
 
 export async function updateCampanhaContato(req: Request, res: Response, next: NextFunction) {
-  try { res.json(await svc.updateCampanhaContato(req.params.id, req.params.contatoId, req.body)); } catch (e) { next(e); }
+  try {
+    const data = await svc.updateCampanhaContato(req.params.id, req.params.contatoId, req.body);
+    res.json(data);
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Contato não encontrado na campanha' });
+    next(e);
+  }
+}
+
+export async function bulkUpdateCampanhaStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { contatoIds, status } = req.body;
+    if (!status || typeof status !== 'string') return res.status(400).json({ error: 'status é obrigatório' });
+    const contatoIdList: string[] = Array.isArray(contatoIds) && contatoIds.length > 0
+      ? contatoIds
+      : (await svc.getCampanha(req.params.id))?.contatos.map((cc: any) => cc.contato.id) ?? [];
+    const result = await svc.bulkUpdateCampanhaStatus(req.params.id, contatoIdList, status);
+    res.json(result);
+  } catch (e) { next(e); }
 }
 
 export async function removeContatoCampanha(req: Request, res: Response, next: NextFunction) {

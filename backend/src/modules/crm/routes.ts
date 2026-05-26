@@ -51,6 +51,7 @@ router.patch('/campanhas/:id', write, ctrl.updateCampanha);
 router.delete('/campanhas/:id', write, ctrl.deleteCampanha);
 router.post('/campanhas/:id/contatos', write, ctrl.addContatosCampanha);
 router.patch('/campanhas/:id/contatos/:contatoId', write, ctrl.updateCampanhaContato);
+router.patch('/campanhas/:id/status-bulk', write, ctrl.bulkUpdateCampanhaStatus);
 router.delete('/campanhas/:id/contatos/:contatoId', write, ctrl.removeContatoCampanha);
 
 // ── Metas
