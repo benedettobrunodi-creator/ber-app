@@ -346,10 +346,25 @@ export async function listNutricao(req: Request, res: Response, next: NextFuncti
   try { res.json(await svc.listNutricao()); } catch (e) { next(e); }
 }
 
+export async function getNutricaoAgenda(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getNutricaoAgenda()); } catch (e) { next(e); }
+}
+
 export async function contatarAgora(req: Request, res: Response, next: NextFunction) {
   try {
     const { tipo, notas } = req.body;
     const data = await svc.contatarAgora(req.params.id, req.user!.userId, tipo ?? 'outro', notas);
+    res.json(data);
+  } catch (e) { next(e); }
+}
+
+export async function registrarInteracao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { tipo, notas, resultado, proximoContato, notasRelacionamento, tags } = req.body;
+    if (!tipo) return res.status(400).json({ error: 'tipo é obrigatório' });
+    const data = await svc.registrarInteracao(req.params.id, req.user!.userId, {
+      tipo, notas, resultado, proximoContato, notasRelacionamento, tags,
+    });
     res.json(data);
   } catch (e) { next(e); }
 }

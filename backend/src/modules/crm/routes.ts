@@ -39,7 +39,9 @@ router.delete('/atividades/:id', write, ctrl.deleteAtividade);
 
 // ── Nutrição
 router.get('/nutricao', read, ctrl.listNutricao);
+router.get('/nutricao/agenda', read, ctrl.getNutricaoAgenda);
 router.post('/contatos/:id/contatar', write, ctrl.contatarAgora);
+router.post('/contatos/:id/interacao', write, ctrl.registrarInteracao);
 
 // ── Campanhas
 router.get('/campanhas', read, ctrl.listCampanhas);

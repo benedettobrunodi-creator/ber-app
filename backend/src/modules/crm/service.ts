@@ -108,6 +108,74 @@ export async function listNutricao() {
   });
 }
 
+export async function getNutricaoAgenda() {
+  const now = new Date();
+  const endOf7Days = new Date(now.getTime() + 7 * 86_400_000);
+
+  const contatos = await prisma.crmContato.findMany({
+    where: { nutricao: true },
+    include: {
+      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } },
+    },
+    orderBy: [{ proximoContato: 'asc' }, { nome: 'asc' }],
+  });
+
+  const isToday = (d: Date) => d.toDateString() === now.toDateString();
+
+  const vencidos   = contatos.filter(c => c.proximoContato && c.proximoContato < now && !isToday(c.proximoContato));
+  const hoje       = contatos.filter(c => c.proximoContato && isToday(c.proximoContato));
+  const proximos7  = contatos.filter(c => c.proximoContato && c.proximoContato > now && c.proximoContato <= endOf7Days);
+  const semData    = contatos.filter(c => !c.proximoContato);
+
+  return { vencidos, hoje, proximos7, semData, total: contatos.length };
+}
+
+export async function registrarInteracao(
+  id: string,
+  usuarioId: string,
+  data: {
+    tipo: string;
+    notas?: string | null;
+    resultado?: string | null;
+    proximoContato?: string | null;
+    notasRelacionamento?: string | null;
+    tags?: string[];
+  },
+) {
+  const now = new Date();
+  const contato = await prisma.crmContato.findUnique({ where: { id }, select: { empresaId: true } });
+
+  const contatoUpdate: Record<string, unknown> = { ultimoContato: now };
+  if (data.proximoContato !== undefined)
+    contatoUpdate.proximoContato = data.proximoContato ? new Date(data.proximoContato) : null;
+  if (data.notasRelacionamento !== undefined) contatoUpdate.notasRelacionamento = data.notasRelacionamento;
+  if (data.tags !== undefined) contatoUpdate.tags = data.tags;
+
+  const [atividade] = await Promise.all([
+    prisma.crmAtividade.create({
+      data: {
+        empresaId: contato?.empresaId ?? undefined,
+        tipo: data.tipo,
+        dataHora: now,
+        notas: data.notas ?? null,
+        resultado: data.resultado ?? null,
+        concluida: true,
+        usuarioId,
+      },
+    }),
+    prisma.crmContato.update({ where: { id }, data: contatoUpdate }),
+    contato?.empresaId
+      ? prisma.crmEmpresa.update({ where: { id: contato.empresaId }, data: { ultimoContato: now } })
+      : Promise.resolve(null),
+  ]);
+
+  return {
+    atividade,
+    proximoContato: data.proximoContato ?? null,
+    ultimoContato: now.toISOString(),
+  };
+}
+
 export async function contatarAgora(id: string, usuarioId: string, tipo: string, notas?: string) {
   const now = new Date();
   const contato = await prisma.crmContato.findUnique({ where: { id }, select: { empresaId: true } });
