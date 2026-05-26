@@ -112,6 +112,7 @@ export const createContatoSchema = z.object({
   ultimoContato: z.string().optional().nullable(),
   notasRelacionamento: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
+  endereco: z.string().optional().nullable(),
 });
 export const updateContatoSchema = createContatoSchema.partial();
 export type CreateContatoInput = z.infer<typeof createContatoSchema>;

@@ -109,6 +109,43 @@ export async function listNutricao() {
   });
 }
 
+export async function getContatoHistorico(contatoId: string) {
+  const contato = await prisma.crmContato.findUnique({
+    where: { id: contatoId },
+    select: { empresaId: true },
+  });
+
+  const [atividades, oportunidades] = await Promise.all([
+    prisma.crmAtividade.findMany({
+      where: { empresaId: contato?.empresaId ?? undefined },
+      orderBy: { dataHora: 'desc' },
+      take: 20,
+      select: {
+        id: true, tipo: true, dataHora: true, notas: true,
+        resultado: true, concluida: true,
+        usuario: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.crmOportunidade.findMany({
+      where: {
+        OR: [
+          { contatoId },
+          ...(contato?.empresaId ? [{ empresaId: contato.empresaId }] : []),
+        ],
+        etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, titulo: true, etapa: true, valor: true,
+        dataFechamentoPrevisto: true, createdAt: true,
+        responsavel: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+
+  return { atividades, oportunidades };
+}
+
 export async function getNutricaoAgenda() {
   const now = new Date();
   const endOf7Days = new Date(now.getTime() + 7 * 86_400_000);

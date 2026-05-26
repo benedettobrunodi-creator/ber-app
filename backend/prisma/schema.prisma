@@ -1548,6 +1548,7 @@ model CrmContato {
   ultimoContato       DateTime? @map("ultimo_contato")
   notasRelacionamento String?   @map("notas_relacionamento")
   tags                String[]  @default([])
+  endereco            String?
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 

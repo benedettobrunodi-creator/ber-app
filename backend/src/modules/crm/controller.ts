@@ -346,6 +346,10 @@ export async function listNutricao(req: Request, res: Response, next: NextFuncti
   try { res.json(await svc.listNutricao()); } catch (e) { next(e); }
 }
 
+export async function getContatoHistorico(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getContatoHistorico(req.params.id)); } catch (e) { next(e); }
+}
+
 export async function getNutricaoAgenda(req: Request, res: Response, next: NextFunction) {
   try { res.json(await svc.getNutricaoAgenda()); } catch (e) { next(e); }
 }

@@ -42,6 +42,7 @@ router.get('/nutricao', read, ctrl.listNutricao);
 router.get('/nutricao/agenda', read, ctrl.getNutricaoAgenda);
 router.post('/contatos/:id/contatar', write, ctrl.contatarAgora);
 router.post('/contatos/:id/interacao', write, ctrl.registrarInteracao);
+router.get('/contatos/:id/historico', read, ctrl.getContatoHistorico);
 
 // ── Campanhas
 router.get('/campanhas', read, ctrl.listCampanhas);

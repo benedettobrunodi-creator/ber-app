@@ -5,9 +5,9 @@ import api from '@/lib/api';
 import {
   Phone, Mail, Linkedin, MessageCircle, Plus, X, Thermometer, ChevronDown,
   Calendar, Clock, Check, Pencil, Trash2, LayoutGrid, List, Users2,
-  ChevronRight, AlertCircle, ChevronUp,
+  ChevronRight, AlertCircle, ChevronUp, TrendingUp, DollarSign, MapPin, Cake,
 } from 'lucide-react';
-import { Contato, Campanha, CampanhaDetalhe, CAMPANHA_STATUSES, NUTRICAO_TAGS, User, TIPOS_ATIVIDADE } from '../types';
+import { Contato, Campanha, CampanhaDetalhe, CAMPANHA_STATUSES, NUTRICAO_TAGS, User, TIPOS_ATIVIDADE, ETAPAS } from '../types';
 
 // ── Temperature ───────────────────────────────────────────────────────────────
 
@@ -131,6 +131,8 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
     proximoContato: contato.proximoContato?.slice(0, 10) ?? '',
     notasRelacionamento: contato.notasRelacionamento ?? '',
     tags: [...contato.tags],
+    aniversario: contato.aniversario?.slice(0, 10) ?? '',
+    endereco: contato.endereco ?? '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -145,6 +147,8 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
         proximoContato: form.proximoContato || null,
         notasRelacionamento: form.notasRelacionamento || null,
         tags: form.tags,
+        aniversario: form.aniversario || null,
+        endereco: form.endereco || null,
       });
       onSave();
     } finally {
@@ -154,14 +158,24 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 px-4">
-      <div className="w-full max-w-sm bg-white rounded-t-2xl md:rounded-xl p-5 space-y-4">
+      <div className="w-full max-w-sm bg-white rounded-t-2xl md:rounded-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-ber-carbon text-sm">{contato.nome}</h2>
           <button onClick={onClose}><X size={16} className="text-ber-gray" /></button>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide flex items-center gap-1"><Calendar size={10} /> Próximo contato</label>
+            <input type="date" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.proximoContato} onChange={e => setForm(f => ({ ...f, proximoContato: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide flex items-center gap-1"><Cake size={10} /> Aniversário</label>
+            <input type="date" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.aniversario} onChange={e => setForm(f => ({ ...f, aniversario: e.target.value }))} />
+          </div>
+        </div>
         <div>
-          <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Próximo contato</label>
-          <input type="date" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.proximoContato} onChange={e => setForm(f => ({ ...f, proximoContato: e.target.value }))} />
+          <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide flex items-center gap-1"><MapPin size={10} /> Endereço</label>
+          <input type="text" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" placeholder="Rua, nº, bairro, cidade" value={form.endereco} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} />
         </div>
         <div>
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Tags</label>
@@ -188,6 +202,183 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
   );
 }
 
+// ── NovaOportunidadeDrawer ────────────────────────────────────────────────────
+
+function NovaOportunidadeDrawer({ contato, onClose, onSave }: { contato: Contato; onClose: () => void; onSave: () => void }) {
+  const [form, setForm] = useState({
+    titulo: '',
+    valor: '',
+    origem: 'networking',
+    etapa: 'qualificacao',
+    observacoes: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!form.titulo.trim()) return;
+    setSaving(true);
+    try {
+      await api.post('/crm/oportunidades', {
+        titulo: form.titulo,
+        contatoId: contato.id,
+        empresaId: contato.empresaId ?? null,
+        valor: form.valor ? Number(form.valor) : null,
+        origem: form.origem || null,
+        etapa: form.etapa,
+        observacoes: form.observacoes || null,
+      });
+      onSave();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 px-4">
+      <div className="w-full max-w-sm bg-white rounded-t-2xl md:rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-ber-carbon text-sm flex items-center gap-1.5"><TrendingUp size={14} className="text-ber-teal" /> Nova oportunidade</h2>
+            <p className="text-xs text-ber-gray mt-0.5">{contato.nome} · {contato.empresa?.razaoSocial ?? '—'}</p>
+          </div>
+          <button onClick={onClose}><X size={16} className="text-ber-gray" /></button>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Título *</label>
+          <input className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" placeholder="Ex: Reforma sede corporativa" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa</label>
+            <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.etapa} onChange={e => setForm(f => ({ ...f, etapa: e.target.value }))}>
+              {ETAPAS.filter(e => !['ganho','perdido','declinado','cancelado'].includes(e.value)).map(e => (
+                <option key={e.value} value={e.value}>{e.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide flex items-center gap-1"><DollarSign size={10} /> Valor (R$)</label>
+            <input type="number" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" placeholder="0" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Observações</label>
+          <textarea className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none" rows={2} placeholder="O que surgiu nessa conversa..." value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray">Cancelar</button>
+          <button onClick={handleSave} disabled={saving || !form.titulo.trim()} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+            {saving ? '...' : 'Criar oportunidade'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── HistoricoPanel ────────────────────────────────────────────────────────────
+
+type HistoricoData = {
+  atividades: { id: string; tipo: string; dataHora: string; notas: string | null; resultado: string | null; concluida: boolean; usuario?: { name: string } | null }[];
+  oportunidades: { id: string; titulo: string; etapa: string; valor: number | null; dataFechamentoPrevisto: string | null; createdAt: string; responsavel?: { name: string } | null }[];
+};
+
+const TIPO_LABEL: Record<string, string> = { reuniao: 'Reunião', ligacao: 'Ligação', email: 'E-mail', visita: 'Visita', outro: 'Outro' };
+const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map(e => [e.value, e.label]));
+const ETAPA_COLOR: Record<string, string> = Object.fromEntries(ETAPAS.map(e => [e.value, e.color]));
+
+function HistoricoPanel({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
+  const [data, setData] = useState<HistoricoData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showNovaOp, setShowNovaOp] = useState(false);
+
+  const load = async () => {
+    if (data) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/crm/contatos/${contato.id}/historico`);
+      setData(res.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load on mount
+  useState(() => { load(); });
+
+  if (loading) return <div className="px-6 py-3 text-xs text-ber-gray">Carregando...</div>;
+  if (!data) return null;
+
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
+  const fmtMoney = (v: number | null) => v ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v) : null;
+
+  return (
+    <>
+      <div className="mx-3 mb-2 rounded-xl border border-ber-border bg-ber-surface/50 overflow-hidden">
+        {/* Info rápida */}
+        {(contato.aniversario || contato.endereco) && (
+          <div className="flex items-center gap-4 px-4 py-2 border-b border-ber-border text-xs text-ber-gray">
+            {contato.aniversario && <span className="flex items-center gap-1"><Cake size={11} /> {new Date(contato.aniversario).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>}
+            {contato.endereco && <span className="flex items-center gap-1 truncate"><MapPin size={11} /> {contato.endereco}</span>}
+          </div>
+        )}
+
+        {/* Oportunidades */}
+        <div className="px-4 py-2.5 border-b border-ber-border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1"><TrendingUp size={11} /> Oportunidades abertas ({data.oportunidades.length})</span>
+            <button onClick={() => setShowNovaOp(true)} className="flex items-center gap-1 text-[11px] text-ber-teal font-semibold hover:underline">
+              <Plus size={11} /> Nova
+            </button>
+          </div>
+          {data.oportunidades.length === 0 ? (
+            <p className="text-xs text-ber-gray italic">Nenhuma oportunidade aberta.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {data.oportunidades.map(op => (
+                <div key={op.id} className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ETAPA_COLOR[op.etapa] ?? '#868686' }} />
+                  <span className="font-medium text-ber-carbon truncate flex-1">{op.titulo}</span>
+                  <span className="text-ber-gray shrink-0">{ETAPA_LABEL[op.etapa] ?? op.etapa}</span>
+                  {op.valor && <span className="text-green-700 font-semibold shrink-0">{fmtMoney(op.valor)}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Histórico de atividades */}
+        <div className="px-4 py-2.5">
+          <span className="text-[11px] font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1 mb-2"><Clock size={11} /> Histórico ({data.atividades.length})</span>
+          {data.atividades.length === 0 ? (
+            <p className="text-xs text-ber-gray italic">Sem atividades registradas.</p>
+          ) : (
+            <div className="space-y-2">
+              {data.atividades.slice(0, 8).map(atv => (
+                <div key={atv.id} className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-ber-gray shrink-0">{fmt(atv.dataHora)}</span>
+                    <span className="bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 font-medium text-ber-carbon shrink-0">{TIPO_LABEL[atv.tipo] ?? atv.tipo}</span>
+                    {atv.notas && <span className="text-ber-gray truncate">{atv.notas}</span>}
+                  </div>
+                  {atv.resultado && (
+                    <div className="mt-0.5 ml-14 flex items-start gap-1">
+                      <Check size={10} className="text-green-600 mt-0.5 shrink-0" />
+                      <span className="text-green-700 font-medium">{atv.resultado}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showNovaOp && <NovaOportunidadeDrawer contato={contato} onClose={() => setShowNovaOp(false)} onSave={() => { setShowNovaOp(false); setData(null); load(); onRefresh(); }} />}
+    </>
+  );
+}
+
 // ── CompactRow ────────────────────────────────────────────────────────────────
 
 function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
@@ -195,6 +386,7 @@ function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () =>
   const cfg = TEMP_CONFIG[temp];
   const [showContatar, setShowContatar] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
@@ -209,70 +401,81 @@ function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () =>
 
   return (
     <>
-      <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-ber-surface/60 rounded-lg group transition-colors border border-transparent hover:border-ber-border">
-        {/* Temp dot */}
-        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} title={cfg.label} />
+      <div className={`${expanded ? 'bg-ber-surface/40' : ''}`}>
+        <div
+          className="flex items-center gap-3 px-3 py-2.5 hover:bg-ber-surface/60 rounded-lg group transition-colors border border-transparent hover:border-ber-border cursor-pointer"
+          onClick={() => setExpanded(e => !e)}
+        >
+          {/* Expand chevron */}
+          <span className="text-ber-gray shrink-0">{expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
 
-        {/* Name + company */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-medium text-ber-carbon truncate">{contato.nome}</span>
-            {contato.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium shrink-0">{tag}</span>
-            ))}
+          {/* Temp dot */}
+          <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} title={cfg.label} />
+
+          {/* Name + company */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-medium text-ber-carbon truncate">{contato.nome}</span>
+              {contato.tags.slice(0, 2).map(tag => (
+                <span key={tag} className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium shrink-0">{tag}</span>
+              ))}
+            </div>
+            <p className="text-xs text-ber-gray truncate">{contato.empresa?.razaoSocial ?? '—'}{contato.cargo ? ` · ${contato.cargo}` : ''}</p>
           </div>
-          <p className="text-xs text-ber-gray truncate">{contato.empresa?.razaoSocial ?? '—'}{contato.cargo ? ` · ${contato.cargo}` : ''}</p>
-        </div>
 
-        {/* Datas */}
-        <div className="hidden md:flex items-center gap-3 text-xs shrink-0">
-          <span className="text-ber-gray flex items-center gap-1">
-            <Clock size={10} />
-            {fmtDias(contato.ultimoContato) ?? 'nunca'}
-          </span>
-          {contato.proximoContato && (
-            <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-red-600' : isToday ? 'text-amber-600' : 'text-ber-carbon'}`}>
-              <Calendar size={10} />
-              {fmtProximo(contato.proximoContato)}
+          {/* Datas */}
+          <div className="hidden md:flex items-center gap-3 text-xs shrink-0">
+            <span className="text-ber-gray flex items-center gap-1">
+              <Clock size={10} />
+              {fmtDias(contato.ultimoContato) ?? 'nunca'}
             </span>
-          )}
+            {contato.proximoContato && (
+              <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-red-600' : isToday ? 'text-amber-600' : 'text-ber-carbon'}`}>
+                <Calendar size={10} />
+                {fmtProximo(contato.proximoContato)}
+              </span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowContatar(true)} className="p-1.5 rounded text-ber-teal hover:bg-ber-teal/10" title="Registrar contato">
+              <Check size={13} />
+            </button>
+            {contato.whatsapp && (
+              <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                className="p-1.5 rounded text-green-600 hover:bg-green-50" title="WhatsApp">
+                <MessageCircle size={13} />
+              </a>
+            )}
+            {contato.email && (
+              <a href={`mailto:${contato.email}`} className="p-1.5 rounded text-blue-600 hover:bg-blue-50" title="E-mail">
+                <Mail size={13} />
+              </a>
+            )}
+            {contato.linkedin && (
+              <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`}
+                target="_blank" rel="noopener noreferrer"
+                className="p-1.5 rounded text-[#0077b5] hover:bg-[#0077b5]/10" title="LinkedIn">
+                <Linkedin size={13} />
+              </a>
+            )}
+            {contato.telefone && (
+              <a href={`tel:${contato.telefone}`} className="p-1.5 rounded text-ber-gray hover:bg-gray-100" title="Ligar">
+                <Phone size={13} />
+              </a>
+            )}
+            <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5" title="Editar">
+              <Pencil size={12} />
+            </button>
+            <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50" title="Remover">
+              <Trash2 size={12} />
+            </button>
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => setShowContatar(true)} className="p-1.5 rounded text-ber-teal hover:bg-ber-teal/10" title="Contatei hoje">
-            <Check size={13} />
-          </button>
-          {contato.whatsapp && (
-            <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-              className="p-1.5 rounded text-green-600 hover:bg-green-50" title="WhatsApp">
-              <MessageCircle size={13} />
-            </a>
-          )}
-          {contato.email && (
-            <a href={`mailto:${contato.email}`} className="p-1.5 rounded text-blue-600 hover:bg-blue-50" title="E-mail">
-              <Mail size={13} />
-            </a>
-          )}
-          {contato.linkedin && (
-            <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`}
-              target="_blank" rel="noopener noreferrer"
-              className="p-1.5 rounded text-[#0077b5] hover:bg-[#0077b5]/10" title="LinkedIn">
-              <Linkedin size={13} />
-            </a>
-          )}
-          {contato.telefone && (
-            <a href={`tel:${contato.telefone}`} className="p-1.5 rounded text-ber-gray hover:bg-gray-100" title="Ligar">
-              <Phone size={13} />
-            </a>
-          )}
-          <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5" title="Editar">
-            <Pencil size={12} />
-          </button>
-          <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50" title="Remover">
-            <Trash2 size={12} />
-          </button>
-        </div>
+        {/* Expanded panel */}
+        {expanded && <HistoricoPanel contato={contato} onRefresh={onRefresh} />}
       </div>
 
       {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); }} />}

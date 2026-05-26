@@ -69,6 +69,7 @@ export interface Contato {
   ultimoContato: string | null;
   notasRelacionamento: string | null;
   tags: string[];
+  endereco: string | null;
 }
 
 export const CAMPANHA_STATUSES = [
