@@ -4,8 +4,8 @@ import { useState, useMemo } from 'react';
 import api from '@/lib/api';
 import {
   Phone, Mail, Linkedin, MessageCircle, Plus, X, Thermometer, ChevronDown,
-  Calendar, Clock, Check, Pencil, Trash2, LayoutGrid, List, Tag, Users2,
-  ChevronRight, AlertCircle,
+  Calendar, Clock, Check, Pencil, Trash2, LayoutGrid, List, Users2,
+  ChevronRight, AlertCircle, ChevronUp,
 } from 'lucide-react';
 import { Contato, Campanha, CampanhaDetalhe, CAMPANHA_STATUSES, NUTRICAO_TAGS, User, TIPOS_ATIVIDADE } from '../types';
 
@@ -21,19 +21,23 @@ function getTemperatura(ultimoContato: string | null): 'quente' | 'morno' | 'fri
 }
 
 const TEMP_CONFIG = {
-  quente: { label: 'Quente', color: 'bg-green-100 text-green-700', dot: 'bg-green-400' },
+  quente: { label: 'Quente', color: 'bg-green-100 text-green-700',  dot: 'bg-green-400' },
   morno:  { label: 'Morno',  color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
   frio:   { label: 'Frio',   color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
-  gelado: { label: 'Gelado', color: 'bg-red-100 text-red-700', dot: 'bg-red-400' },
-  novo:   { label: 'Novo',   color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
+  gelado: { label: 'Gelado', color: 'bg-red-100 text-red-700',      dot: 'bg-red-400' },
+  novo:   { label: 'Novo',   color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-400' },
 };
 
-function diasAtras(iso: string | null) {
+function fmtDias(iso: string | null) {
   if (!iso) return null;
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   if (d === 0) return 'hoje';
-  if (d === 1) return '1 dia';
-  return `${d} dias`;
+  if (d === 1) return '1d';
+  return `${d}d`;
+}
+
+function fmtProximo(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 // ── ContatarModal ─────────────────────────────────────────────────────────────
@@ -156,119 +160,185 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
   );
 }
 
-// ── ContactCard ───────────────────────────────────────────────────────────────
+// ── CompactRow ────────────────────────────────────────────────────────────────
 
-function ContactCard({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
+function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
   const temp = getTemperatura(contato.ultimoContato);
   const cfg = TEMP_CONFIG[temp];
   const [showContatar, setShowContatar] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [removingNutricao, setRemovingNutricao] = useState(false);
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const proximoVencido = contato.proximoContato && contato.proximoContato.slice(0, 10) <= hoje;
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const vencido = contato.proximoContato && contato.proximoContato.slice(0, 10) < todayStr;
+  const isToday = contato.proximoContato && contato.proximoContato.slice(0, 10) === todayStr;
 
   const removeFromNutricao = async () => {
     if (!confirm(`Remover ${contato.nome} da nutrição?`)) return;
-    setRemovingNutricao(true);
-    try {
-      await api.patch(`/crm/contatos/${contato.id}`, { nutricao: false });
-      onRefresh();
-    } finally {
-      setRemovingNutricao(false);
-    }
+    await api.patch(`/crm/contatos/${contato.id}`, { nutricao: false });
+    onRefresh();
   };
 
   return (
     <>
-      <div className={`bg-white border rounded-xl p-3.5 ${proximoVencido ? 'border-amber-200 bg-amber-50/30' : 'border-ber-border'}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-ber-carbon truncate">{contato.nome}</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${cfg.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {cfg.label}
-              </span>
-            </div>
-            <p className="text-xs text-ber-gray mt-0.5 truncate">
-              {contato.cargo ?? '—'} · {contato.empresa?.razaoSocial ?? '—'}
-            </p>
-            {contato.tags.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {contato.tags.map(tag => (
-                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium">{tag}</span>
-                ))}
-              </div>
-            )}
+      <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-ber-surface/60 rounded-lg group transition-colors border border-transparent hover:border-ber-border">
+        {/* Temp dot */}
+        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} title={cfg.label} />
+
+        {/* Name + company */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-medium text-ber-carbon truncate">{contato.nome}</span>
+            {contato.tags.slice(0, 2).map(tag => (
+              <span key={tag} className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium shrink-0">{tag}</span>
+            ))}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => setShowEdit(true)} className="p-1.5 rounded-lg text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5">
-              <Pencil size={12} />
-            </button>
-            <button onClick={removeFromNutricao} disabled={removingNutricao} className="p-1.5 rounded-lg text-ber-gray hover:text-ber-red hover:bg-red-50">
-              <Trash2 size={12} />
-            </button>
-          </div>
+          <p className="text-xs text-ber-gray truncate">{contato.empresa?.razaoSocial ?? '—'}{contato.cargo ? ` · ${contato.cargo}` : ''}</p>
         </div>
 
         {/* Datas */}
-        <div className="mt-2.5 flex items-center gap-4 text-xs text-ber-gray">
-          <span className="flex items-center gap-1">
-            <Clock size={11} />
-            {contato.ultimoContato ? `Último: ${diasAtras(contato.ultimoContato)}` : 'Nunca contactado'}
+        <div className="hidden md:flex items-center gap-3 text-xs shrink-0">
+          <span className="text-ber-gray flex items-center gap-1">
+            <Clock size={10} />
+            {fmtDias(contato.ultimoContato) ?? 'nunca'}
           </span>
           {contato.proximoContato && (
-            <span className={`flex items-center gap-1 font-medium ${proximoVencido ? 'text-amber-600' : 'text-ber-carbon'}`}>
-              <Calendar size={11} />
-              {proximoVencido ? '⚠ ' : ''}Próximo: {new Date(contato.proximoContato).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+            <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-red-600' : isToday ? 'text-amber-600' : 'text-ber-carbon'}`}>
+              <Calendar size={10} />
+              {fmtProximo(contato.proximoContato)}
             </span>
           )}
         </div>
 
-        {contato.notasRelacionamento && (
-          <p className="mt-2 text-xs text-ber-gray italic line-clamp-2 bg-ber-surface rounded-lg px-2 py-1.5">
-            {contato.notasRelacionamento}
-          </p>
-        )}
-
         {/* Actions */}
-        <div className="mt-3 flex items-center gap-1.5">
-          <button onClick={() => setShowContatar(true)}
-            className="flex items-center gap-1.5 bg-ber-teal text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80">
-            <Check size={12} /> Contatei hoje
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => setShowContatar(true)} className="p-1.5 rounded text-ber-teal hover:bg-ber-teal/10" title="Contatei hoje">
+            <Check size={13} />
           </button>
-          <div className="flex items-center gap-1 ml-auto">
-            {contato.whatsapp && (
-              <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100" title="WhatsApp">
-                <MessageCircle size={13} />
-              </a>
-            )}
-            {contato.email && (
-              <a href={`mailto:${contato.email}`} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100" title="E-mail">
-                <Mail size={13} />
-              </a>
-            )}
-            {contato.linkedin && (
-              <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`}
-                target="_blank" rel="noopener noreferrer"
-                className="p-1.5 rounded-lg bg-[#0077b5]/10 text-[#0077b5] hover:bg-[#0077b5]/20" title="LinkedIn">
-                <Linkedin size={13} />
-              </a>
-            )}
-            {contato.telefone && (
-              <a href={`tel:${contato.telefone}`} className="p-1.5 rounded-lg bg-gray-100 text-ber-gray hover:bg-gray-200" title="Ligar">
-                <Phone size={13} />
-              </a>
-            )}
-          </div>
+          {contato.whatsapp && (
+            <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+              className="p-1.5 rounded text-green-600 hover:bg-green-50" title="WhatsApp">
+              <MessageCircle size={13} />
+            </a>
+          )}
+          {contato.email && (
+            <a href={`mailto:${contato.email}`} className="p-1.5 rounded text-blue-600 hover:bg-blue-50" title="E-mail">
+              <Mail size={13} />
+            </a>
+          )}
+          {contato.linkedin && (
+            <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`}
+              target="_blank" rel="noopener noreferrer"
+              className="p-1.5 rounded text-[#0077b5] hover:bg-[#0077b5]/10" title="LinkedIn">
+              <Linkedin size={13} />
+            </a>
+          )}
+          {contato.telefone && (
+            <a href={`tel:${contato.telefone}`} className="p-1.5 rounded text-ber-gray hover:bg-gray-100" title="Ligar">
+              <Phone size={13} />
+            </a>
+          )}
+          <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5" title="Editar">
+            <Pencil size={12} />
+          </button>
+          <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50" title="Remover">
+            <Trash2 size={12} />
+          </button>
         </div>
       </div>
 
       {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); }} />}
       {showEdit && <EditNutricaoDrawer contato={contato} onClose={() => setShowEdit(false)} onSave={() => { setShowEdit(false); onRefresh(); }} />}
     </>
+  );
+}
+
+// ── ContactCard (kanban) ──────────────────────────────────────────────────────
+
+function ContactCard({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
+  const temp = getTemperatura(contato.ultimoContato);
+  const cfg = TEMP_CONFIG[temp];
+  const [showContatar, setShowContatar] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const vencido = contato.proximoContato && contato.proximoContato.slice(0, 10) <= todayStr;
+
+  const removeFromNutricao = async () => {
+    if (!confirm(`Remover ${contato.nome} da nutrição?`)) return;
+    await api.patch(`/crm/contatos/${contato.id}`, { nutricao: false });
+    onRefresh();
+  };
+
+  return (
+    <>
+      <div className={`bg-white border rounded-xl p-3 ${vencido ? 'border-amber-200' : 'border-ber-border'}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-ber-carbon truncate">{contato.nome}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${cfg.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{cfg.label}
+              </span>
+            </div>
+            <p className="text-xs text-ber-gray mt-0.5 truncate">{contato.cargo ?? '—'} · {contato.empresa?.razaoSocial ?? '—'}</p>
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5"><Pencil size={12} /></button>
+            <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50"><Trash2 size={12} /></button>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-3 text-xs text-ber-gray">
+          <span className="flex items-center gap-1"><Clock size={10} />{fmtDias(contato.ultimoContato) ?? 'nunca'}</span>
+          {contato.proximoContato && (
+            <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-amber-600' : 'text-ber-carbon'}`}>
+              <Calendar size={10} />{fmtProximo(contato.proximoContato)}
+            </span>
+          )}
+        </div>
+        {contato.tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {contato.tags.map(tag => <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium">{tag}</span>)}
+          </div>
+        )}
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <button onClick={() => setShowContatar(true)} className="flex items-center gap-1.5 bg-ber-teal text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg hover:bg-ber-teal/80">
+            <Check size={11} /> Contatei
+          </button>
+          <div className="flex items-center gap-0.5 ml-auto">
+            {contato.whatsapp && <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-green-50 text-green-600 hover:bg-green-100"><MessageCircle size={12} /></a>}
+            {contato.email && <a href={`mailto:${contato.email}`} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"><Mail size={12} /></a>}
+            {contato.linkedin && <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-[#0077b5]/10 text-[#0077b5] hover:bg-[#0077b5]/20"><Linkedin size={12} /></a>}
+          </div>
+        </div>
+      </div>
+      {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); }} />}
+      {showEdit && <EditNutricaoDrawer contato={contato} onClose={() => setShowEdit(false)} onSave={() => { setShowEdit(false); onRefresh(); }} />}
+    </>
+  );
+}
+
+// ── CollapsibleSection ────────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  title, count, headerClass, defaultOpen = true, children,
+}: {
+  title: React.ReactNode; count: number; headerClass: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (count === 0) return null;
+  return (
+    <div className="mb-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${headerClass}`}
+      >
+        {title}
+        <span className="ml-1 font-semibold opacity-70">{count}</span>
+        <span className="ml-auto">{open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
+      </button>
+      {open && <div className="mt-0.5">{children}</div>}
+    </div>
   );
 }
 
@@ -428,8 +498,6 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
             <Plus size={14} /> Contatos
           </button>
         </div>
-
-        {/* Breakdown */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {CAMPANHA_STATUSES.map(s => (
             <div key={s.value} className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.color}`}>
@@ -437,8 +505,6 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
             </div>
           ))}
         </div>
-
-        {/* Contact table */}
         <div className="space-y-2">
           {selectedCampanha.contatos.map(cc => {
             const statusCfg = CAMPANHA_STATUSES.find(s => s.value === cc.status) ?? CAMPANHA_STATUSES[0];
@@ -449,13 +515,8 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
                   <p className="text-xs text-ber-gray truncate">{cc.contato.cargo ?? '—'} · {cc.contato.empresa?.razaoSocial ?? '—'}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {cc.contato.whatsapp && (
-                    <a href={`https://wa.me/55${cc.contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100"><MessageCircle size={12} /></a>
-                  )}
-                  {cc.contato.email && (
-                    <a href={`mailto:${cc.contato.email}`} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"><Mail size={12} /></a>
-                  )}
+                  {cc.contato.whatsapp && <a href={`https://wa.me/55${cc.contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-green-50 text-green-600 hover:bg-green-100"><MessageCircle size={12} /></a>}
+                  {cc.contato.email && <a href={`mailto:${cc.contato.email}`} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"><Mail size={12} /></a>}
                   <select
                     className={`text-xs font-semibold px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ber-teal ${statusCfg.color}`}
                     value={cc.status}
@@ -463,9 +524,7 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
                   >
                     {CAMPANHA_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
-                  <button onClick={() => removeContatoCampanha(cc.contato.id)} className="p-1 text-ber-gray hover:text-ber-red">
-                    <X size={12} />
-                  </button>
+                  <button onClick={() => removeContatoCampanha(cc.contato.id)} className="p-1 text-ber-gray hover:text-ber-red"><X size={12} /></button>
                 </div>
               </div>
             );
@@ -474,8 +533,6 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
             <div className="text-center py-10 text-ber-gray text-sm">Nenhum contato. Adicione contatos à campanha.</div>
           )}
         </div>
-
-        {/* Add contatos modal */}
         {showAddContatos && (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 px-4">
             <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-xl p-5 flex flex-col max-h-[80vh]">
@@ -513,7 +570,6 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
           <Plus size={14} /> Nova campanha
         </button>
       </div>
-
       <div className="space-y-3">
         {campanhas.map(c => (
           <div key={c.id} className="bg-white border border-ber-border rounded-xl p-4 flex items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer" onClick={() => openCampanha(c.id)}>
@@ -531,11 +587,8 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
             </div>
           </div>
         ))}
-        {campanhas.length === 0 && (
-          <div className="text-center py-12 text-ber-gray text-sm">Nenhuma campanha criada ainda.</div>
-        )}
+        {campanhas.length === 0 && <div className="text-center py-12 text-ber-gray text-sm">Nenhuma campanha criada ainda.</div>}
       </div>
-
       {showNovaCampanha && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-sm bg-white rounded-t-2xl md:rounded-xl p-5 space-y-4">
@@ -567,6 +620,7 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
           </div>
         </div>
       )}
+      {loadingCampanha && <div className="fixed inset-0 z-40 bg-black/10 flex items-center justify-center"><div className="bg-white rounded-xl px-6 py-4 text-sm text-ber-gray">Carregando...</div></div>}
     </div>
   );
 }
@@ -590,8 +644,23 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
   const nurturing = contatos.filter(c => c.nutricao);
   const outros = contatos.filter(c => !c.nutricao);
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const paraHoje = nurturing.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) <= hoje);
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const endOf7Days = new Date(now.getTime() + 7 * 86_400_000);
+
+  // Urgency groups (pre-filter)
+  const vencidos  = nurturing.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) < todayStr);
+  const hoje      = nurturing.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) === todayStr);
+  const proximos7 = nurturing.filter(c => {
+    if (!c.proximoContato) return false;
+    const d = new Date(c.proximoContato);
+    return d > now && d <= endOf7Days;
+  });
+  const semData   = nurturing.filter(c => !c.proximoContato);
+
+  // Metrics counts by temp
+  const quentes = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'quente').length;
+  const gelados  = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'gelado').length;
 
   const filtered = useMemo(() => {
     return nurturing.filter(c => {
@@ -600,6 +669,15 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
       return true;
     });
   }, [nurturing, filtroTemp, filtroTag]);
+
+  const filteredVencidos  = filtered.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) < todayStr);
+  const filteredHoje      = filtered.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) === todayStr);
+  const filteredProximos7 = filtered.filter(c => {
+    if (!c.proximoContato) return false;
+    const d = new Date(c.proximoContato);
+    return d > now && d <= endOf7Days;
+  });
+  const filteredSemData   = filtered.filter(c => !c.proximoContato);
 
   const byTemp = useMemo(() => ({
     quente: filtered.filter(c => getTemperatura(c.ultimoContato) === 'quente'),
@@ -625,6 +703,30 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
 
       {subTab === 'painel' && (
         <>
+          {/* Metrics bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5">
+            <div className="bg-white border border-ber-border rounded-xl px-3 py-2.5 col-span-2 sm:col-span-1">
+              <p className="text-xs text-ber-gray">Total</p>
+              <p className="text-xl font-bold text-ber-carbon mt-0.5">{nurturing.length}</p>
+            </div>
+            <div className={`border rounded-xl px-3 py-2.5 ${vencidos.length > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-ber-border'}`}>
+              <p className={`text-xs font-medium ${vencidos.length > 0 ? 'text-red-600' : 'text-ber-gray'}`}>⚠ Vencidos</p>
+              <p className={`text-xl font-bold mt-0.5 ${vencidos.length > 0 ? 'text-red-600' : 'text-ber-carbon'}`}>{vencidos.length}</p>
+            </div>
+            <div className={`border rounded-xl px-3 py-2.5 ${hoje.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-ber-border'}`}>
+              <p className={`text-xs font-medium ${hoje.length > 0 ? 'text-amber-700' : 'text-ber-gray'}`}>Hoje</p>
+              <p className={`text-xl font-bold mt-0.5 ${hoje.length > 0 ? 'text-amber-700' : 'text-ber-carbon'}`}>{hoje.length}</p>
+            </div>
+            <div className="bg-white border border-ber-border rounded-xl px-3 py-2.5">
+              <p className="text-xs text-green-700">🔥 Quentes</p>
+              <p className="text-xl font-bold text-green-700 mt-0.5">{quentes}</p>
+            </div>
+            <div className="bg-white border border-ber-border rounded-xl px-3 py-2.5">
+              <p className="text-xs text-red-500">🧊 Gelados</p>
+              <p className="text-xl font-bold text-red-500 mt-0.5">{gelados}</p>
+            </div>
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <select className="border border-ber-border rounded-lg px-2.5 py-1.5 text-sm text-ber-gray focus:outline-none focus:border-ber-teal" value={filtroTemp} onChange={e => setFiltroTemp(e.target.value)}>
@@ -637,8 +739,8 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
             </select>
             <div className="ml-auto flex items-center gap-2">
               <div className="flex rounded-lg border border-ber-border overflow-hidden">
-                <button onClick={() => setViewMode('lista')} className={`p-1.5 ${viewMode === 'lista' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}><List size={14} /></button>
-                <button onClick={() => setViewMode('kanban')} className={`p-1.5 ${viewMode === 'kanban' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}><LayoutGrid size={14} /></button>
+                <button onClick={() => setViewMode('lista')} className={`p-1.5 ${viewMode === 'lista' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`} title="Lista"><List size={14} /></button>
+                <button onClick={() => setViewMode('kanban')} className={`p-1.5 ${viewMode === 'kanban' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`} title="Kanban"><LayoutGrid size={14} /></button>
               </div>
               <button onClick={() => setShowAdicionar(true)} className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80">
                 <Plus size={14} /> Adicionar
@@ -646,31 +748,13 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
             </div>
           </div>
 
-          {/* Hoje */}
-          {paraHoje.length > 0 && (
-            <div className="mb-5 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-2">
-                <AlertCircle size={13} /> {paraHoje.length} contato{paraHoje.length > 1 ? 's' : ''} para hoje
-              </p>
-              <div className="space-y-2">
-                {paraHoje.map(c => <ContactCard key={c.id} contato={c} onRefresh={onRefresh} />)}
-              </div>
-            </div>
-          )}
-
-          {/* Lista ou Kanban */}
           {nurturing.length === 0 ? (
             <div className="text-center py-16 text-ber-gray">
               <Thermometer size={36} className="mx-auto mb-2 opacity-30" />
               <p className="text-sm">Nenhum contato em nutrição ainda.</p>
               <button onClick={() => setShowAdicionar(true)} className="mt-3 text-ber-teal text-sm font-semibold hover:underline">Adicionar contatos →</button>
             </div>
-          ) : viewMode === 'lista' ? (
-            <div className="space-y-2">
-              {filtered.map(c => <ContactCard key={c.id} contato={c} onRefresh={onRefresh} />)}
-              {filtered.length === 0 && <p className="text-center py-8 text-sm text-ber-gray">Nenhum contato com esses filtros.</p>}
-            </div>
-          ) : (
+          ) : viewMode === 'kanban' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 overflow-x-auto">
               {(['quente', 'morno', 'frio', 'gelado'] as const).map(temp => {
                 const cfg = TEMP_CONFIG[temp];
@@ -688,6 +772,38 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            /* Grouped compact list */
+            <div className="bg-white border border-ber-border rounded-xl overflow-hidden">
+              {/* Column headers */}
+              <div className="hidden md:grid grid-cols-[1fr_120px_80px] gap-3 px-3 py-2 border-b border-ber-border bg-ber-surface">
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide">Contato</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide">Último · Próximo</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-right">Ações</span>
+              </div>
+
+              <div className="divide-y divide-ber-border/50">
+                <CollapsibleSection title={<><AlertCircle size={12} /> Vencidos</>} count={filteredVencidos.length} headerClass="bg-red-50 text-red-700 hover:bg-red-100">
+                  {filteredVencidos.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </CollapsibleSection>
+
+                <CollapsibleSection title={<><Calendar size={12} /> Hoje</>} count={filteredHoje.length} headerClass="bg-amber-50 text-amber-700 hover:bg-amber-100">
+                  {filteredHoje.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </CollapsibleSection>
+
+                <CollapsibleSection title={<><Clock size={12} /> Próximos 7 dias</>} count={filteredProximos7.length} headerClass="bg-blue-50 text-blue-700 hover:bg-blue-100">
+                  {filteredProximos7.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </CollapsibleSection>
+
+                <CollapsibleSection title="Sem data agendada" count={filteredSemData.length} headerClass="bg-gray-50 text-ber-gray hover:bg-gray-100" defaultOpen={false}>
+                  {filteredSemData.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </CollapsibleSection>
+
+                {filtered.length === 0 && (
+                  <p className="text-center py-8 text-sm text-ber-gray">Nenhum contato com esses filtros.</p>
+                )}
+              </div>
             </div>
           )}
         </>
