@@ -396,7 +396,17 @@ export async function deleteCampanha(req: Request, res: Response, next: NextFunc
 }
 
 export async function addContatosCampanha(req: Request, res: Response, next: NextFunction) {
-  try { res.json(await svc.addContatosCampanha(req.params.id, req.body.contatoIds)); } catch (e) { next(e); }
+  try {
+    const ids = req.body.contatoIds ?? req.body.contatos ?? req.body.ids;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'contatoIds deve ser um array não-vazio de UUIDs' });
+    }
+    res.json(await svc.addContatosCampanha(req.params.id, ids));
+  } catch (e: any) {
+    if (e?.code === 'P2003') return res.status(400).json({ error: 'Um ou mais contatos não foram encontrados no sistema' });
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Campanha não encontrada' });
+    next(e);
+  }
 }
 
 export async function updateCampanhaContato(req: Request, res: Response, next: NextFunction) {
