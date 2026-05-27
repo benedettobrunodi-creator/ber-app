@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [obras, setObras] = useState<any[]>([]);
   const [fvsData, setFvsData] = useState<Record<string, number>>({});
   const [lastDiario, setLastDiario] = useState<Record<string, string | null>>({});
+  const [atrasadasData, setAtrasadasData] = useState<Record<string, number>>({});
   const [seqData, setSeqData] = useState({ aguardando: 0, atrasadas: 0 });
   const [naoConformes, setNaoConformes] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -77,9 +78,11 @@ export default function DashboardPage() {
         const diarios: any[] = diarioRes?.data ?? [];
         setLastDiario(m => ({ ...m, [o.id]: diarios[0]?.data ?? null }));
         const etapas: any[] = seqRes?.data?.etapas ?? [];
+        const etapasAtrasadas = etapas.filter((e: any) => e.endDate && new Date(e.endDate) < new Date() && !['aprovada', 'concluida'].includes(e.status)).length;
+        setAtrasadasData(m => ({ ...m, [o.id]: etapasAtrasadas }));
         setSeqData(s => ({
           aguardando: s.aguardando + etapas.filter((e: any) => e.status === 'aguardando_aprovacao').length,
-          atrasadas: s.atrasadas + etapas.filter((e: any) => e.endDate && new Date(e.endDate) < new Date() && !['aprovada', 'concluida'].includes(e.status)).length,
+          atrasadas: s.atrasadas + etapasAtrasadas,
         }));
         const cls: any[] = checkRes?.data ?? [];
         setNaoConformes(n => n + cls.reduce((s: number, c: any) => s + (c.items ?? []).filter((i: any) => i.answer === 'nao' && !i.correctiveAction).length, 0));
@@ -182,6 +185,7 @@ export default function DashboardPage() {
               const timePct = calcTimePct(obra);
               const delta = timePct != null ? physicalPct - timePct : null;
               const fvs = fvsData[obra.id] ?? 0;
+              const atrasadas = atrasadasData[obra.id] ?? 0;
               const health = obraHealth(obra);
               const dias = diasRestantes(obra.expectedEndDate);
               const diasDiario = daysSince(lastDiario[obra.id] ?? null);
@@ -243,6 +247,16 @@ export default function DashboardPage() {
                         <div className="h-[3px] w-full rounded-full bg-ber-border overflow-hidden">
                           <div className="h-full rounded-full bg-ber-carbon/70 transition-all" style={{ width: `${physicalPct}%` }} />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Atividades atrasadas */}
+                    {atrasadas > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                        <span className="text-[11px] font-semibold text-red-600">
+                          {atrasadas} atividade{atrasadas > 1 ? 's' : ''} atrasada{atrasadas > 1 ? 's' : ''}
+                        </span>
                       </div>
                     )}
 
