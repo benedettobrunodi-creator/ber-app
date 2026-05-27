@@ -129,11 +129,11 @@ export async function syncToKanban(req: Request, res: Response) {
     const inicio = t.inicio ? new Date(t.inicio) : null;
 
     let status: string;
-    if (t.percentualConcluido >= 100 || (fim && fim < today)) {
+    if (t.percentualConcluido >= 100) {
       status = 'done';
-    } else if (inicio && inicio <= weekEnd && (!fim || fim >= today)) {
-      status = 'in_progress';
     } else if (inicio && inicio <= today) {
+      status = 'in_progress';
+    } else if (inicio && inicio <= weekEnd) {
       status = 'in_progress';
     } else {
       status = 'todo';
