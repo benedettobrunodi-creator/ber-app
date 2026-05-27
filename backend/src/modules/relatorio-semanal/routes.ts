@@ -12,6 +12,7 @@ router.get('/', ctrl.listRelatorios);
 router.post('/', ctrl.createRelatorio);
 router.get('/curva-s', ctrl.getCurvaS);
 router.post('/curva-s', ctrl.upsertCurvaSPlanejado);
+router.get('/dados-periodo', ctrl.getDadosPeriodo);
 router.get('/:relatorioId', ctrl.getRelatorio);
 router.patch('/:relatorioId', ctrl.updateRelatorio);
 router.delete('/:relatorioId', ctrl.deleteRelatorio);

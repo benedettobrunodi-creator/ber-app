@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import api from '@/lib/api';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 
 interface Relatorio {
   id: string;
@@ -54,11 +57,42 @@ export default function RelatorioImpressao() {
   const params = useParams<{ id: string; relatorioId: string }>();
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [obra, setObra] = useState<ObraInfo | null>(null);
+  const [curvaSData, setCurvaSData] = useState<{ semana: string; planejado?: number; realizado?: number }[]>([]);
+  const [histData, setHistData] = useState<{ dia: string; data: string; trabalhadores: number }[]>([]);
+
+  const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   useEffect(() => {
     Promise.all([
-      api.get(`/obras/${params.id}/relatorios/${params.relatorioId}`).then(r => setRelatorio(r.data.data)),
+      api.get(`/obras/${params.id}/relatorios/${params.relatorioId}`).then(r => {
+        const rel: Relatorio = r.data.data;
+        setRelatorio(rel);
+        // Load period data for histograma
+        const inicio = rel.periodoInicio.slice(0, 10);
+        const fim = rel.periodoFim.slice(0, 10);
+        api.get(`/obras/${params.id}/relatorios/dados-periodo`, { params: { inicio, fim } })
+          .then(d => {
+            const ef: { data: string; total: number }[] = d.data.data.efetivos ?? [];
+            setHistData(ef.map(e => ({
+              dia: DIAS_PT[new Date(e.data + 'T12:00:00').getDay()],
+              data: new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+              trabalhadores: e.total,
+            })));
+          }).catch(() => {});
+      }),
       api.get(`/obras/${params.id}`).then(r => setObra(r.data.data)),
+      api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => {
+        const pontos: { semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[] = r.data.data ?? [];
+        const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
+        pontos.forEach(p => {
+          const k = p.semana.slice(0, 10);
+          const entry = map.get(k) ?? { semana: new Date(k + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) };
+          if (p.planejadoPct != null) entry.planejado = +p.planejadoPct;
+          if (p.realizadoPct != null) entry.realizado = +p.realizadoPct;
+          map.set(k, entry);
+        });
+        setCurvaSData(Array.from(map.values()));
+      }),
     ]);
   }, [params.id, params.relatorioId]);
 
@@ -157,6 +191,38 @@ export default function RelatorioImpressao() {
             </p>
           )}
         </Section>
+
+        {/* CURVA S */}
+        {curvaSData.length >= 2 && (
+          <Section title="Curva S — Planejado vs. Realizado">
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={curvaSData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="semana" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
+                <Tooltip formatter={(v: any) => `${v}%`} />
+                <Legend wrapperStyle={{ fontSize: 9 }} />
+                <Line type="monotone" dataKey="planejado" stroke="#374151" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" />
+                <Line type="monotone" dataKey="realizado" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Realizado" />
+              </LineChart>
+            </ResponsiveContainer>
+          </Section>
+        )}
+
+        {/* HISTOGRAMA */}
+        {histData.length > 0 && (
+          <Section title="Histograma de efetivos">
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                <Tooltip formatter={(v: any) => [`${v} trabalhadores`, 'Efetivo']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
+                <Bar dataKey="trabalhadores" fill="#374151" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Section>
+        )}
 
         {/* MARCOS */}
         {(marcosConc.length > 0 || marcosProx.length > 0) && (

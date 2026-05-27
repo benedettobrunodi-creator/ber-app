@@ -197,3 +197,48 @@ export async function upsertCurvaSPlanejado(req: Request, res: Response) {
   });
   return res.json({ data: ponto });
 }
+
+export async function getDadosPeriodo(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const { inicio, fim } = req.query as { inicio: string; fim: string };
+  if (!inicio || !fim) return res.status(400).json({ error: { message: 'inicio e fim obrigatórios' } });
+
+  const inicioDate = new Date(inicio);
+  const fimDate = new Date(fim);
+  const proximoInicio = new Date(fimDate); proximoInicio.setDate(fimDate.getDate() + 1);
+  const proximoFim = new Date(fimDate); proximoFim.setDate(fimDate.getDate() + 14);
+
+  // Efetivos por dia do período (a partir dos diários)
+  const diarios = await prisma.diarioObra.findMany({
+    where: { obraId, data: { gte: inicioDate, lte: fimDate } },
+    select: {
+      data: true,
+      efetivos: { select: { quantidade: true, presente: true } },
+    },
+    orderBy: { data: 'asc' },
+  });
+  const efetivos = diarios.map(d => ({
+    data: d.data,
+    total: d.efetivos.filter(e => e.presente).reduce((s, e) => s + e.quantidade, 0),
+  }));
+
+  // Tarefas do cronograma (de parsedData.tarefas)
+  const cron = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
+  const tarefas: any[] = (cron?.parsedData as any)?.tarefas ?? [];
+  const inicioStr = inicio;
+  const fimStr = fim;
+  const proximoFimStr = proximoFim.toISOString().slice(0, 10);
+
+  const tarefasPeriodo = tarefas.filter(t =>
+    !t.ehResumo && t.percentualConcluido < 100 &&
+    t.inicio && t.fim &&
+    t.inicio <= fimStr && t.fim >= inicioStr,
+  );
+  const tarefasProximo = tarefas.filter(t =>
+    !t.ehResumo && t.percentualConcluido < 100 &&
+    t.inicio &&
+    t.inicio > fimStr && t.inicio <= proximoFimStr,
+  );
+
+  return res.json({ data: { efetivos, tarefasPeriodo, tarefasProximo } });
+}
