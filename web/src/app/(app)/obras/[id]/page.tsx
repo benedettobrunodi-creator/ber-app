@@ -677,6 +677,7 @@ export default function ObraDetailPage() {
     try {
       const r = await api.post(`/obras/${params.id}/cronograma/parse`);
       setCronograma(r.data.data);
+      api.get(`/obras/${params.id}/tasks/burndown`).then(bd => setBurndownData(bd.data)).catch(() => {});
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao processar');
     } finally {
@@ -689,9 +690,14 @@ export default function ObraDetailPage() {
     try {
       const r = await api.post(`/obras/${params.id}/cronograma/sync`);
       setCronogramaSyncResult(r.data.data);
-      // Reload tasks
-      const tasksRes = await api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } });
+      const [tasksRes, obraRes, burndownRes] = await Promise.all([
+        api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } }),
+        api.get(`/obras/${params.id}`),
+        api.get(`/obras/${params.id}/tasks/burndown`).catch(() => null),
+      ]);
       setTasks(tasksRes.data.data);
+      setObra(obraRes.data.data);
+      if (burndownRes) setBurndownData(burndownRes.data);
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao sincronizar');
     } finally {
