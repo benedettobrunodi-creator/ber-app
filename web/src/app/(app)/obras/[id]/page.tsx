@@ -11,6 +11,7 @@ import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arra
 import CockpitBlock from '@/components/obras/CockpitBlock';
 import BurndownChart, { type BurndownData } from '@/components/obras/BurndownChart';
 import DiarioTab from '@/components/obras/DiarioTab';
+import RelatorioTab from '@/components/obras/RelatorioTab';
 import dynamic from 'next/dynamic';
 import { usePdfAsImage } from '@/components/PdfImage';
 
@@ -135,7 +136,7 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
 const CAN_CHANGE_STATUS = ['diretoria', 'coordenacao'];
 
 
-type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma' | 'diario';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
 
 interface TouchpointSummary {
   id: string;
@@ -888,6 +889,7 @@ export default function ObraDetailPage() {
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
     { key: 'cronograma', label: `📅 Cronograma` },
     { key: 'diario', label: `📓 Diário` },
+    { key: 'relatorios', label: `📋 Relatórios` },
   ];
 
 
@@ -3559,6 +3561,11 @@ export default function ObraDetailPage() {
         {/* ─── Diário tab ─── */}
         {activeTab === 'diario' && (
           <DiarioTab obraId={params.id} obraNome={obra.name} />
+        )}
+
+        {/* ─── Relatórios tab ─── */}
+        {activeTab === 'relatorios' && (
+          <RelatorioTab obraId={params.id} obra={obra} />
         )}
 
     </div>

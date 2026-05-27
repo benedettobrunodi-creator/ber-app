@@ -88,6 +88,7 @@ model User {
   crmOportunidadesCriadas CrmOportunidade[]    @relation("CrmOportCreator")
   crmAtividades         CrmAtividade[]         @relation("CrmAtividadeUsuario")
   crmCampanhas          CrmCampanha[]          @relation("CrmCampanhaResponsavel")
+  relatorios            RelatorioSemanal[]     @relation("RelatorioResponsavel")
   resetTokens           PasswordResetToken[]
 
   @@map("users")
@@ -168,6 +169,8 @@ model Obra {
   ambientesDiario Ambiente[]
   diarios         DiarioObra[]
   cronogramas     Cronograma[]
+  relatorios      RelatorioSemanal[]
+  curvaS          RelatorioCurvaS[]
 
   @@map("obras")
 }
@@ -1675,6 +1678,98 @@ model CrmMetaVendas {
 
   @@unique([ano, mes])
   @@map("crm_metas_vendas")
+}
+
+model RelatorioSemanal {
+  id                 String    @id @default(uuid()) @db.Uuid
+  obraId             String    @map("obra_id") @db.Uuid
+  numero             Int
+  periodoInicio      DateTime  @map("periodo_inicio") @db.Date
+  periodoFim         DateTime  @map("periodo_fim") @db.Date
+  status             String    @default("no_prazo") @db.VarChar(20)
+  avancoPct          Decimal   @default(0) @map("avanco_pct") @db.Decimal(5, 2)
+  avancoDelta        Decimal?  @map("avanco_delta") @db.Decimal(5, 2)
+  diasTrabalhados    Int?      @map("dias_trabalhados")
+  diasUteis          Int?      @map("dias_uteis")
+  diasImprodutivos   Int?      @map("dias_improdutivos")
+  motivoImprodutivo  String?   @map("motivo_improdutivo")
+  efetivoMedio       Decimal?  @map("efetivo_medio") @db.Decimal(6, 1)
+  destaques          String?
+  proximosSete       String?   @map("proximos_sete")
+  responsavelId      String?   @map("responsavel_id") @db.Uuid
+  responsavelNome    String?   @map("responsavel_nome") @db.VarChar(255)
+  dataContrato       DateTime? @map("data_contrato") @db.Date
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra         Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel  User?          @relation("RelatorioResponsavel", fields: [responsavelId], references: [id])
+  pendencias   RelatorioPendencia[]
+  fotos        RelatorioFoto[]
+  marcos       RelatorioMarco[]
+
+  @@unique([obraId, numero])
+  @@index([obraId, periodoInicio])
+  @@map("relatorios_semanais")
+}
+
+model RelatorioPendencia {
+  id          String    @id @default(uuid()) @db.Uuid
+  relatorioId String    @map("relatorio_id") @db.Uuid
+  descricao   String
+  responsavel String?   @db.VarChar(255)
+  prazo       DateTime? @db.Date
+  status      String    @default("aberta") @db.VarChar(20)
+  ordem       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+
+  @@index([relatorioId])
+  @@map("relatorio_pendencias")
+}
+
+model RelatorioCurvaS {
+  id           String   @id @default(uuid()) @db.Uuid
+  obraId       String   @map("obra_id") @db.Uuid
+  semana       DateTime @db.Date
+  planejadoPct Decimal? @map("planejado_pct") @db.Decimal(5, 2)
+  realizadoPct Decimal? @map("realizado_pct") @db.Decimal(5, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@unique([obraId, semana])
+  @@index([obraId])
+  @@map("relatorio_curva_s")
+}
+
+model RelatorioFoto {
+  id          String   @id @default(uuid()) @db.Uuid
+  relatorioId String   @map("relatorio_id") @db.Uuid
+  url         String
+  legenda     String?  @db.VarChar(500)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+
+  @@index([relatorioId])
+  @@map("relatorio_fotos")
+}
+
+model RelatorioMarco {
+  id          String   @id @default(uuid()) @db.Uuid
+  relatorioId String   @map("relatorio_id") @db.Uuid
+  nome        String
+  data        DateTime @db.Date
+  tipo        String   @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+
+  @@index([relatorioId])
+  @@map("relatorio_marcos")
 }
 
 model PasswordResetToken {

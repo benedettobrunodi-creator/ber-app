@@ -50,6 +50,7 @@ import clickupRoutes from './modules/clickup/routes';
 import apiKeysRoutes from './modules/api-keys/routes';
 import diarioRouter, { obraDiarioRouter } from './modules/diario/routes';
 import cronogramaRouter from './modules/cronograma/routes';
+import relatorioRouter from './modules/relatorio-semanal/routes';
 import crmRoutes from './modules/crm/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
@@ -209,6 +210,7 @@ app.use('/v1/api-keys', apiKeysRoutes);
 app.use('/v1/obras/:id/diario', obraDiarioRouter);
 app.use('/v1/diario', diarioRouter);
 app.use('/v1/obras/:id/cronograma', cronogramaRouter);
+app.use('/v1/obras/:id/relatorios', relatorioRouter);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';
