@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const [fvsData, setFvsData] = useState<Record<string, number>>({});
   const [lastDiario, setLastDiario] = useState<Record<string, string | null>>({});
   const [atrasadasData, setAtrasadasData] = useState<Record<string, number>>({});
+  const [atrasadasItems, setAtrasadasItems] = useState<{ obraId: string; obraNome: string; nome: string; endDate: string }[]>([]);
   const [seqData, setSeqData] = useState({ aguardando: 0, atrasadas: 0 });
   const [naoConformes, setNaoConformes] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -78,11 +79,15 @@ export default function DashboardPage() {
         const diarios: any[] = diarioRes?.data ?? [];
         setLastDiario(m => ({ ...m, [o.id]: diarios[0]?.data ?? null }));
         const etapas: any[] = seqRes?.data?.etapas ?? [];
-        const etapasAtrasadas = etapas.filter((e: any) => e.endDate && new Date(e.endDate) < new Date() && !['aprovada', 'concluida'].includes(e.status)).length;
-        setAtrasadasData(m => ({ ...m, [o.id]: etapasAtrasadas }));
+        const vencidas = etapas.filter((e: any) => e.endDate && new Date(e.endDate) < new Date() && !['aprovada', 'concluida'].includes(e.status));
+        setAtrasadasData(m => ({ ...m, [o.id]: vencidas.length }));
+        setAtrasadasItems(items => [
+          ...items,
+          ...vencidas.map((e: any) => ({ obraId: o.id, obraNome: o.name, nome: e.name ?? e.nome ?? '—', endDate: e.endDate })),
+        ]);
         setSeqData(s => ({
           aguardando: s.aguardando + etapas.filter((e: any) => e.status === 'aguardando_aprovacao').length,
-          atrasadas: s.atrasadas + etapasAtrasadas,
+          atrasadas: s.atrasadas + vencidas.length,
         }));
         const cls: any[] = checkRes?.data ?? [];
         setNaoConformes(n => n + cls.reduce((s: number, c: any) => s + (c.items ?? []).filter((i: any) => i.answer === 'nao' && !i.correctiveAction).length, 0));
@@ -284,6 +289,55 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
+
+        {/* TABELA ATIVIDADES ATRASADAS */}
+        {atrasadasItems.length > 0 && (
+          <div className="rounded-xl border border-ber-border bg-white overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-ber-border flex items-center justify-between">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-ber-gray">Atividades atrasadas</p>
+              <span className="text-[9px] font-semibold text-red-600">{atrasadasItems.length} item{atrasadasItems.length > 1 ? 's' : ''}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ber-border">
+                    <th className="text-left px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-ber-gray w-1/3">Obra</th>
+                    <th className="text-left px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-ber-gray">Atividade</th>
+                    <th className="text-right px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-ber-gray whitespace-nowrap">Prazo</th>
+                    <th className="text-right px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-ber-gray whitespace-nowrap">Atraso</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ber-border">
+                  {[...atrasadasItems]
+                    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+                    .map((item, i) => {
+                      const diasAtraso = Math.floor((Date.now() - new Date(item.endDate).getTime()) / 86_400_000);
+                      return (
+                        <tr
+                          key={i}
+                          className="hover:bg-ber-border/20 cursor-pointer transition-colors"
+                          onClick={() => router.push(`/obras/${item.obraId}`)}
+                        >
+                          <td className="px-4 py-2.5 text-[11px] text-ber-gray truncate max-w-0 w-1/3">
+                            <span className="block truncate">{item.obraNome}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-[12px] text-ber-carbon font-medium truncate max-w-0">
+                            <span className="block truncate">{item.nome}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-[11px] text-ber-gray text-right whitespace-nowrap">
+                            {new Date(item.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </td>
+                          <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                            <span className="text-[11px] font-semibold text-red-600">{diasAtraso}d</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
