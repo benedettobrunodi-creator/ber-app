@@ -964,8 +964,8 @@ export default function ObraDetailPage() {
       <div className="mt-6">
         {activeTab === 'cockpit' && (() => {
           const now = new Date();
-          const start = obra.startDate ? new Date(obra.startDate) : null;
-          const end = obra.expectedEndDate ? new Date(obra.expectedEndDate) : null;
+          const start = obra.startDate ? new Date(obra.startDate) : (burndownData?.startDate ? new Date(burndownData.startDate) : null);
+          const end = obra.expectedEndDate ? new Date(obra.expectedEndDate) : (burndownData?.endDate ? new Date(burndownData.endDate) : null);
           const totalDays = start && end ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000)) : null;
           const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
           const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
