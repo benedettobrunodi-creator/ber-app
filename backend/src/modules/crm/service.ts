@@ -746,19 +746,21 @@ export async function getTicketMedio(opts: { ano?: number; segmento?: string; or
 }
 
 export async function getWinRate(opts: { ano?: number; responsavelId?: string }) {
-  const where: Record<string, unknown> = {};
-  if (opts.responsavelId) where.responsavelId = opts.responsavelId;
-  if (opts.ano) {
-    where.createdAt = {
-      gte: new Date(`${opts.ano}-01-01T00:00:00.000Z`),
-      lt:  new Date(`${opts.ano + 1}-01-01T00:00:00.000Z`),
-    };
-  }
+  const base: Record<string, unknown> = {};
+  if (opts.responsavelId) base.responsavelId = opts.responsavelId;
+
+  const yearRange = opts.ano ? {
+    gte: new Date(`${opts.ano}-01-01T00:00:00.000Z`),
+    lt:  new Date(`${opts.ano + 1}-01-01T00:00:00.000Z`),
+  } : undefined;
+
   const [ganho, perdido, declinado, cancelado] = await Promise.all([
-    prisma.crmOportunidade.count({ where: { ...where, etapa: 'ganho' } }),
-    prisma.crmOportunidade.count({ where: { ...where, etapa: 'perdido' } }),
-    prisma.crmOportunidade.count({ where: { ...where, etapa: 'declinado' } }),
-    prisma.crmOportunidade.count({ where: { ...where, etapa: 'cancelado' } }),
+    // Ganhos: filtrar por dataGanho — alinha com o cálculo de receita do Funil
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'ganho', ...(yearRange ? { dataGanho: yearRange } : {}) } }),
+    // Perdas: filtrar por createdAt (não há dataPerda)
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'perdido', ...(yearRange ? { createdAt: yearRange } : {}) } }),
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'declinado', ...(yearRange ? { createdAt: yearRange } : {}) } }),
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'cancelado', ...(yearRange ? { createdAt: yearRange } : {}) } }),
   ]);
   // Win rate = ganho ÷ (ganho + perdido) APENAS.
   // Declinados: cliente recusou antes de uma disputa real → não é derrota competitiva.
@@ -906,39 +908,40 @@ export async function getMotivosPerda(ano?: number) {
 
 /** Performance por responsável: win rate, ticket médio, valor ganho */
 export async function getPerformanceResponsavel(ano?: number) {
-  const where: Record<string, unknown> = {
-    etapa: { in: ['ganho', 'perdido', 'declinado', 'cancelado'] },
-    responsavelId: { not: null },
-  };
-  if (ano) {
-    where.createdAt = {
-      gte: new Date(`${ano}-01-01T00:00:00.000Z`),
-      lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
-    };
-  }
+  const yearRange = ano ? {
+    gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+    lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
+  } : undefined;
 
-  const ops = await prisma.crmOportunidade.findMany({
-    where,
-    select: {
-      etapa: true,
-      valor: true,
-      responsavelId: true,
-      responsavel: { select: { id: true, name: true } },
-    },
-  });
+  const [ganhos, perdas] = await Promise.all([
+    prisma.crmOportunidade.findMany({
+      where: { etapa: 'ganho', responsavelId: { not: null }, ...(yearRange ? { dataGanho: yearRange } : {}) },
+      select: { valor: true, responsavelId: true, responsavel: { select: { id: true, name: true } } },
+    }),
+    prisma.crmOportunidade.findMany({
+      where: {
+        etapa: { in: ['perdido', 'declinado', 'cancelado'] },
+        responsavelId: { not: null },
+        ...(yearRange ? { createdAt: yearRange } : {}),
+      },
+      select: { responsavelId: true, responsavel: { select: { id: true, name: true } } },
+    }),
+  ]);
 
   const map: Record<string, { name: string; ganho: number; perdido: number; valorGanho: number }> = {};
 
-  for (const op of ops) {
+  for (const op of ganhos) {
     if (!op.responsavelId || !op.responsavel) continue;
     const id = op.responsavelId;
     map[id] ??= { name: op.responsavel.name, ganho: 0, perdido: 0, valorGanho: 0 };
-    if (op.etapa === 'ganho') {
-      map[id].ganho++;
-      map[id].valorGanho += Number(op.valor ?? 0);
-    } else {
-      map[id].perdido++;
-    }
+    map[id].ganho++;
+    map[id].valorGanho += Number(op.valor ?? 0);
+  }
+  for (const op of perdas) {
+    if (!op.responsavelId || !op.responsavel) continue;
+    const id = op.responsavelId;
+    map[id] ??= { name: op.responsavel.name, ganho: 0, perdido: 0, valorGanho: 0 };
+    map[id].perdido++;
   }
 
   return Object.values(map)
@@ -1060,33 +1063,38 @@ export async function getCicloVendas(ano?: number) {
 
 /** Win Rate por segmento da empresa */
 export async function getWinRateSegmento(ano?: number) {
-  const where: Record<string, unknown> = {
-    etapa: { in: ['ganho', 'perdido', 'declinado', 'cancelado'] },
-    empresa: { isNot: null },
-  };
-  if (ano) {
-    where.createdAt = {
-      gte: new Date(`${ano}-01-01T00:00:00.000Z`),
-      lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
-    };
-  }
+  const yearRange = ano ? {
+    gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+    lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
+  } : undefined;
 
-  const ops = await prisma.crmOportunidade.findMany({
-    where,
-    select: { etapa: true, valor: true, empresa: { select: { segmento: true } } },
-  });
+  // Busca ganhos por dataGanho e perdas por createdAt (sem exigir empresa vinculada)
+  const [ganhos, perdas] = await Promise.all([
+    prisma.crmOportunidade.findMany({
+      where: { etapa: 'ganho', ...(yearRange ? { dataGanho: yearRange } : {}) },
+      select: { valor: true, empresa: { select: { segmento: true } } },
+    }),
+    prisma.crmOportunidade.findMany({
+      where: {
+        etapa: { in: ['perdido', 'declinado', 'cancelado'] },
+        ...(yearRange ? { createdAt: yearRange } : {}),
+      },
+      select: { empresa: { select: { segmento: true } } },
+    }),
+  ]);
 
   const map: Record<string, { ganho: number; perdido: number; valorGanho: number }> = {};
 
-  for (const op of ops) {
+  for (const op of ganhos) {
     const segmento = op.empresa?.segmento ?? 'Outros';
     map[segmento] ??= { ganho: 0, perdido: 0, valorGanho: 0 };
-    if (op.etapa === 'ganho') {
-      map[segmento].ganho++;
-      map[segmento].valorGanho += Number(op.valor ?? 0);
-    } else {
-      map[segmento].perdido++;
-    }
+    map[segmento].ganho++;
+    map[segmento].valorGanho += Number(op.valor ?? 0);
+  }
+  for (const op of perdas) {
+    const segmento = op.empresa?.segmento ?? 'Outros';
+    map[segmento] ??= { ganho: 0, perdido: 0, valorGanho: 0 };
+    map[segmento].perdido++;
   }
 
   return Object.entries(map)
