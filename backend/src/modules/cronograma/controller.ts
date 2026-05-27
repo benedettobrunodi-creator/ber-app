@@ -58,11 +58,25 @@ export async function parseCronograma(req: Request, res: Response) {
     let pdfBuffer: Buffer;
     if (cronograma.fileUrl.startsWith('http')) {
       const response = await fetch(cronograma.fileUrl);
-      if (!response.ok) throw new Error(`Falha ao baixar PDF: ${response.status} ${response.statusText}`);
+      if (!response.ok) throw new Error(`Falha ao baixar PDF do storage: ${response.status} ${response.statusText}`);
+      const contentType = response.headers.get('content-type') ?? '';
       pdfBuffer = Buffer.from(await response.arrayBuffer());
+      console.log(`[CRONOGRAMA] Downloaded ${pdfBuffer.length} bytes, content-type: ${contentType}, header: ${pdfBuffer.slice(0,5).toString('ascii')}`);
     } else {
       const localPath = path.resolve(env.uploadDir, path.basename(cronograma.fileUrl));
       pdfBuffer = fs.readFileSync(localPath);
+    }
+
+    // Validate PDF signature
+    const header = pdfBuffer.slice(0, 5).toString('ascii');
+    if (!header.startsWith('%PDF')) {
+      throw new Error(`O arquivo não é um PDF válido (header: "${header}"). Tamanho: ${pdfBuffer.length} bytes. Verifique se o arquivo foi enviado corretamente.`);
+    }
+
+    // Check file size (Anthropic limit ~32MB)
+    const MB = 1024 * 1024;
+    if (pdfBuffer.length > 30 * MB) {
+      throw new Error(`PDF muito grande (${Math.round(pdfBuffer.length / MB)} MB). Limite: 30 MB. Reduza o tamanho ou exporte com menos páginas.`);
     }
 
     const result = await parseCronogramaPDF(pdfBuffer);
