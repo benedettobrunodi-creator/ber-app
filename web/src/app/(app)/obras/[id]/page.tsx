@@ -6,10 +6,10 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, Check, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, RotateCcw, ChevronRight, Upload, RefreshCw } from 'lucide-react';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable, useDraggable, DragOverlay, pointerWithin } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
-import BurndownChart from '@/components/obras/BurndownChart';
+import BurndownChart, { type BurndownData } from '@/components/obras/BurndownChart';
 import dynamic from 'next/dynamic';
 import { usePdfAsImage } from '@/components/PdfImage';
 
@@ -133,26 +133,6 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
 
 const CAN_CHANGE_STATUS = ['diretoria', 'coordenacao'];
 
-const KANBAN_COLUMNS: { key: TaskStatus; label: string }[] = [
-  { key: 'todo', label: 'A fazer' },
-  { key: 'in_progress', label: 'Em andamento' },
-  { key: 'review', label: 'Revisão' },
-  { key: 'done', label: 'Concluído' },
-];
-
-const PRIORITY_STYLE: Record<TaskPriority, string> = {
-  urgent: 'border-l-red-500',
-  high: 'border-l-red-400',
-  medium: 'border-l-ber-olive',
-  low: 'border-l-ber-gray',
-};
-
-const PRIORITY_LABEL: Record<TaskPriority, { text: string; className: string }> = {
-  urgent: { text: 'Urgente', className: 'text-red-600' },
-  high: { text: 'Alta', className: 'text-red-500' },
-  medium: { text: 'Média', className: 'text-ber-olive' },
-  low: { text: 'Baixa', className: 'text-ber-gray' },
-};
 
 type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma';
 
@@ -319,6 +299,94 @@ function PlantaCanvasWrapper({
   );
 }
 
+// ─── Kanban DnD components ────────────────────────────────────────────────────
+
+const PRIORITY_LABEL: Record<string, { text: string; className: string }> = {
+  low:    { text: 'Baixa',   className: 'text-ber-gray' },
+  medium: { text: 'Média',   className: 'text-ber-teal' },
+  high:   { text: 'Alta',    className: 'text-amber-500' },
+  urgent: { text: 'Urgente', className: 'text-red-600 font-bold' },
+};
+const PRIORITY_STYLE: Record<string, string> = {
+  low:    'border-l-gray-200',
+  medium: 'border-l-ber-teal/50',
+  high:   'border-l-amber-400',
+  urgent: 'border-l-red-500',
+};
+const KANBAN_COLUMNS = [
+  { key: 'todo',        label: 'A fazer' },
+  { key: 'in_progress', label: 'Em andamento' },
+  { key: 'review',      label: 'Revisão' },
+  { key: 'done',        label: 'Concluído' },
+];
+
+function KanbanCard({ task, ghost = false }: { task: Task; ghost?: boolean }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`rounded-md border-l-[3px] bg-white p-3 cursor-grab active:cursor-grabbing select-none transition-shadow ${PRIORITY_STYLE[task.priority]} ${isDragging || ghost ? 'opacity-40 shadow-none' : 'shadow-sm hover:shadow-md'}`}
+    >
+      <p className="text-sm font-medium text-ber-carbon">{task.title}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
+        <span className={`font-semibold ${pCfg.className}`}>{pCfg.text}</span>
+        {task.assignee && (
+          <span className="flex items-center gap-1">
+            <User size={10} />
+            {task.assignee.name.split(' ')[0]}
+          </span>
+        )}
+        {task.dueDate && (
+          <span className="flex items-center gap-1">
+            <Calendar size={10} />
+            {formatDate(task.dueDate)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KanbanCardOverlay({ task }: { task: Task }) {
+  const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
+  return (
+    <div className={`rounded-md border-l-[3px] bg-white p-3 shadow-xl cursor-grabbing select-none ${PRIORITY_STYLE[task.priority]}`}>
+      <p className="text-sm font-medium text-ber-carbon">{task.title}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
+        <span className={`font-semibold ${pCfg.className}`}>{pCfg.text}</span>
+      </div>
+    </div>
+  );
+}
+
+function KanbanColumn({ col, tasks, draggingId }: { col: { key: string; label: string }; tasks: Task[]; draggingId: string | null }) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.key });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg p-3 transition-colors ${isOver ? 'bg-ber-teal/10 ring-2 ring-ber-teal/30' : 'bg-white/60'}`}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">{col.label}</h3>
+        <span className="rounded-full bg-ber-gray/10 px-2 py-0.5 text-xs font-semibold text-ber-gray">{tasks.length}</span>
+      </div>
+      <div className="space-y-2 min-h-[60px]">
+        {tasks.map((task) => (
+          <KanbanCard key={task.id} task={task} ghost={task.id === draggingId} />
+        ))}
+        {tasks.length === 0 && !isOver && (
+          <p className="py-4 text-center text-xs text-ber-gray/40">Sem tarefas</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── End Kanban DnD components ────────────────────────────────────────────────
+
 export default function ObraDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -334,6 +402,8 @@ export default function ObraDetailPage() {
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '', priority: 'medium' as TaskPriority, dueDate: '' });
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [burndownData, setBurndownData] = useState<BurndownData | null>(null);
+  const [kanbanDragId, setKanbanDragId] = useState<string | null>(null);
 
   // Cronograma state
   const [cronograma, setCronograma] = useState<{
@@ -416,10 +486,10 @@ export default function ObraDetailPage() {
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
   // Cockpit drag-and-drop order
-  const COCKPIT_LAYOUT_VERSION = 2;
+  const COCKPIT_LAYOUT_VERSION = 3;
   const COCKPIT_STORAGE_KEY = `cockpit-order-${params.id}`;
   const COCKPIT_VERSION_KEY = `cockpit-version-${params.id}`;
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'burndown', 'timeline', 'tasks', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'periodo', 'burndown', 'timeline', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
 
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
@@ -538,6 +608,7 @@ export default function ObraDetailPage() {
         api.get(`/obras/${params.id}/touchpoints`, { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
+      api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data)).catch(() => {});
       setObra(obraRes.data.data);
       const obraData = obraRes.data.data;
       if (obraData?.orcamentoId) {
@@ -965,11 +1036,60 @@ export default function ObraDetailPage() {
                 {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
               </div>
             ),
+            periodo: (() => {
+              const today = new Date(); today.setHours(0,0,0,0);
+              const tarefas = cronograma?.parsedData?.tarefas ?? [];
+              const ativas = tarefas.filter(t => !t.ehResumo && t.inicio && t.fim && new Date(t.inicio) <= today && new Date(t.fim) >= today);
+              const proximas = tarefas.filter(t => !t.ehResumo && t.inicio && new Date(t.inicio) > today && new Date(t.inicio) <= new Date(today.getTime() + 14 * 86400000));
+              return (
+                <div className="h-full rounded-lg border border-ber-border bg-white p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Atividades do Período</h3>
+                    {cronograma?.parsedData && <span className="text-[10px] text-ber-gray/60">via cronograma</span>}
+                  </div>
+                  {!cronograma?.parsedData ? (
+                    <p className="text-sm text-ber-gray/50 italic mt-4">Importe o cronograma para ver as atividades</p>
+                  ) : ativas.length === 0 && proximas.length === 0 ? (
+                    <p className="text-sm text-ber-gray/50 italic mt-4">Sem atividades nos próximos 14 dias</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {ativas.length > 0 && (
+                        <>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-ber-teal">Em andamento</p>
+                          {ativas.slice(0, 5).map((t, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg bg-ber-teal/5 px-3 py-2">
+                              <p className="text-xs text-ber-carbon truncate flex-1 mr-2">{t.nome}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="h-1.5 w-16 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className="h-full rounded-full bg-ber-teal" style={{ width: `${t.percentualConcluido}%` }} />
+                                </div>
+                                <span className="text-[10px] font-bold text-ber-teal w-8 text-right">{t.percentualConcluido}%</span>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {proximas.length > 0 && (
+                        <>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600 mt-2">Próximas (14 dias)</p>
+                          {proximas.slice(0, 3).map((t, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-lg bg-amber-50/60 px-3 py-2">
+                              <p className="text-xs text-ber-carbon truncate flex-1 mr-2">{t.nome}</p>
+                              <span className="text-[10px] text-amber-600 shrink-0">{t.inicio ? new Date(t.inicio).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : ''}</span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })(),
             burndown: (
               <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Burndown Chart</h3>
                 <div className="mt-3">
-                  <BurndownChart etapas={[]} />
+                  <BurndownChart data={burndownData} />
                 </div>
               </div>
             ),
@@ -1169,59 +1289,43 @@ export default function ObraDetailPage() {
               </form>
             )}
 
-            {/* Kanban board */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              {KANBAN_COLUMNS.map((col) => {
-                const colTasks = tasks.filter((t) => t.status === col.key);
-                return (
-                  <div key={col.key} className="rounded-lg bg-white/60 p-3">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">
-                        {col.label}
-                      </h3>
-                      <span className="rounded-full bg-ber-gray/10 px-2 py-0.5 text-xs font-semibold text-ber-gray">
-                        {colTasks.length}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {colTasks.map((task) => {
-                        const pCfg = PRIORITY_LABEL[task.priority] ?? PRIORITY_LABEL.medium;
-                        return (
-                          <div
-                            key={task.id}
-                            className={`rounded-md border-l-[3px] bg-white p-3 ${PRIORITY_STYLE[task.priority]}`}
-                          >
-                            <p className="text-sm font-medium text-ber-carbon">{task.title}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ber-gray">
-                              <span className={`font-semibold ${pCfg.className}`}>
-                                {pCfg.text}
-                              </span>
-                              {task.assignee && (
-                                <span className="flex items-center gap-1">
-                                  <User size={10} />
-                                  {task.assignee.name.split(' ')[0]}
-                                </span>
-                              )}
-                              {task.dueDate && (
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={10} />
-                                  {formatDate(task.dueDate)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {colTasks.length === 0 && (
-                        <p className="py-4 text-center text-xs text-ber-gray/50">
-                          Sem tarefas
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Kanban board — drag-and-drop */}
+            <DndContext
+              sensors={dndSensors}
+              collisionDetection={pointerWithin}
+              onDragStart={(e) => setKanbanDragId(e.active.id as string)}
+              onDragEnd={async (e) => {
+                setKanbanDragId(null);
+                const { active, over } = e;
+                if (!over) return;
+                const taskId = active.id as string;
+                const newStatus = over.id as string;
+                const task = tasks.find(t => t.id === taskId);
+                if (!task || task.status === newStatus) return;
+                setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t));
+                try {
+                  await api.patch(`/tasks/${taskId}/status`, { status: newStatus });
+                  api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data)).catch(() => {});
+                } catch {
+                  setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: task.status } : t));
+                }
+              }}
+              onDragCancel={() => setKanbanDragId(null)}
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                {KANBAN_COLUMNS.map((col) => (
+                  <KanbanColumn
+                    key={col.key}
+                    col={col}
+                    tasks={tasks.filter(t => t.status === col.key)}
+                    draggingId={kanbanDragId}
+                  />
+                ))}
+              </div>
+              <DragOverlay>
+                {kanbanDragId ? <KanbanCardOverlay task={tasks.find(t => t.id === kanbanDragId)!} /> : null}
+              </DragOverlay>
+            </DndContext>
           </div>
         )}
 
