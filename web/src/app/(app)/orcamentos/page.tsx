@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { TrendingUp, DollarSign, Award, Filter, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -16,15 +16,6 @@ interface Proposal {
   agendorWebUrl: string | null;
   creator: { id: string; name: string } | null;
   updatedAt: string;
-}
-
-interface Stats {
-  pipeline: Record<string, number>;
-  total: number;
-  totalValue: number | null;
-  wonValue: number | null;
-  conversionRate: string;
-  thisMonth: number;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -55,17 +46,6 @@ const STATUS_COLORS: Record<string, string> = {
   perdida:          'bg-red-100 text-red-600',
 };
 
-const FILTER_GROUPS = [
-  { label: 'Todos', value: '' },
-  { label: 'Leads', value: 'leads_info' },
-  { label: 'Contato', value: 'contato' },
-  { label: 'Análise', value: 'analise' },
-  { label: 'Em Dev', value: 'proposta_dev' },
-  { label: 'Enviadas', value: 'enviada_alta' },
-  { label: 'Ganhas', value: 'ganha' },
-  { label: 'Perdidas', value: 'perdida' },
-];
-
 function fmtCurrency(value: number | null | undefined) {
   if (value == null) return '—';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
@@ -78,25 +58,16 @@ function fmtDate(iso: string | null) {
 
 export default function OrcamentosPage() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<Proposal | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    const params = statusFilter ? `?status=${statusFilter}` : '';
-    Promise.all([
-      api.get(`/proposals${params}`),
-      api.get('/proposals/stats'),
-    ]).then(([pRes, sRes]) => {
-      const raw = pRes.data?.data ?? pRes.data?.proposals ?? [];
+    api.get('/proposals').then((res) => {
+      const raw = res.data?.data ?? res.data?.proposals ?? [];
       setProposals(Array.isArray(raw) ? raw : []);
-      setStats(sRes.data?.data ?? null);
     }).finally(() => setLoading(false));
-  }, [statusFilter]);
-
-  const displayed = proposals;
+  }, []);
 
   async function handleDelete() {
     if (!confirmDelete) return;
@@ -124,67 +95,17 @@ export default function OrcamentosPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[var(--ber-carbon)]">Esteira de Orçamentos</h1>
-        <p className="text-sm text-[var(--ber-carbon-light)] mt-1">
-          {stats?.total ?? 0} propostas · taxa de conversão {stats?.conversionRate ?? 0}%
-        </p>
-      </div>
-
-      {/* KPI cards */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-[var(--ber-border)] p-4">
-            <div className="flex items-center gap-2 text-[var(--ber-carbon-light)] text-xs font-semibold uppercase tracking-wide mb-1">
-              <TrendingUp size={14} />
-              Pipeline total
-            </div>
-            <p className="text-xl font-bold text-[var(--ber-carbon)]">{fmtCurrency(stats.totalValue)}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-[var(--ber-border)] p-4">
-            <div className="flex items-center gap-2 text-[var(--ber-carbon-light)] text-xs font-semibold uppercase tracking-wide mb-1">
-              <Award size={14} />
-              Ganho
-            </div>
-            <p className="text-xl font-bold text-emerald-600">{fmtCurrency(stats.wonValue)}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-[var(--ber-border)] p-4 col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 text-[var(--ber-carbon-light)] text-xs font-semibold uppercase tracking-wide mb-1">
-              <DollarSign size={14} />
-              Este mês
-            </div>
-            <p className="text-xl font-bold text-[var(--ber-carbon)]">{stats.thisMonth} propostas</p>
-          </div>
-        </div>
-      )}
-
-      {/* Status filter */}
-      <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
-        <Filter size={14} className="text-[var(--ber-carbon-light)] shrink-0" />
-        {FILTER_GROUPS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setStatusFilter(f.value)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-              statusFilter === f.value
-                ? 'bg-[var(--ber-olive)] text-white'
-                : 'bg-white border border-[var(--ber-border)] text-[var(--ber-carbon-light)] hover:border-[var(--ber-olive)] hover:text-[var(--ber-olive)]'
-            }`}
-          >
-            {f.label}
-            {stats && f.value && stats.pipeline[f.value] != null
-              ? ` (${stats.pipeline[f.value]})`
-              : ''}
-          </button>
-        ))}
+        <p className="text-sm text-[var(--ber-carbon-light)] mt-1">{proposals.length} propostas</p>
       </div>
 
       {/* Proposals list */}
-      {displayed.length === 0 ? (
+      {proposals.length === 0 ? (
         <div className="bg-white rounded-xl border border-[var(--ber-border)] p-10 text-center text-[var(--ber-carbon-light)] text-sm">
           Nenhuma proposta encontrada.
         </div>
       ) : (
         <div className="space-y-2">
-          {displayed.map(p => (
+          {proposals.map(p => (
             <div
               key={p.id}
               className="bg-white rounded-xl border border-[var(--ber-border)] p-4 hover:border-[var(--ber-olive)] hover:shadow-sm transition-all"
