@@ -745,26 +745,37 @@ export async function getTicketMedio(opts: { ano?: number; segmento?: string; or
   };
 }
 
+// Mesma lógica do getVendasVsMeta: dataGanho → dataFechamentoPrevisto → updatedAt
+function refDateAno(op: { dataGanho: Date | null; dataFechamentoPrevisto: Date | null; updatedAt: Date }): number {
+  const ref = op.dataGanho ?? op.dataFechamentoPrevisto ?? op.updatedAt;
+  return new Date(ref).getFullYear();
+}
+
 export async function getWinRate(opts: { ano?: number; responsavelId?: string }) {
   const base: Record<string, unknown> = {};
   if (opts.responsavelId) base.responsavelId = opts.responsavelId;
 
-  const yearRange = opts.ano ? {
+  const createdRange = opts.ano ? {
     gte: new Date(`${opts.ano}-01-01T00:00:00.000Z`),
     lt:  new Date(`${opts.ano + 1}-01-01T00:00:00.000Z`),
   } : undefined;
 
-  const [ganho, perdido, declinado, cancelado] = await Promise.all([
-    // Ganhos: filtrar por dataGanho — alinha com o cálculo de receita do Funil
-    prisma.crmOportunidade.count({ where: { ...base, etapa: 'ganho', ...(yearRange ? { dataGanho: yearRange } : {}) } }),
-    // Perdas: filtrar por createdAt (não há dataPerda)
-    prisma.crmOportunidade.count({ where: { ...base, etapa: 'perdido', ...(yearRange ? { createdAt: yearRange } : {}) } }),
-    prisma.crmOportunidade.count({ where: { ...base, etapa: 'declinado', ...(yearRange ? { createdAt: yearRange } : {}) } }),
-    prisma.crmOportunidade.count({ where: { ...base, etapa: 'cancelado', ...(yearRange ? { createdAt: yearRange } : {}) } }),
+  // Ganhos: busca todos e filtra por refDate (dataGanho ?? dataFechamentoPrevisto ?? updatedAt)
+  const todosGanhos = await prisma.crmOportunidade.findMany({
+    where: { ...base, etapa: 'ganho' },
+    select: { dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true },
+  });
+  const ganho = opts.ano
+    ? todosGanhos.filter(op => refDateAno(op) === opts.ano).length
+    : todosGanhos.length;
+
+  // Perdas: createdAt como proxy (sem campo dedicado de data de perda)
+  const [perdido, declinado, cancelado] = await Promise.all([
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'perdido', ...(createdRange ? { createdAt: createdRange } : {}) } }),
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'declinado', ...(createdRange ? { createdAt: createdRange } : {}) } }),
+    prisma.crmOportunidade.count({ where: { ...base, etapa: 'cancelado', ...(createdRange ? { createdAt: createdRange } : {}) } }),
   ]);
-  // Win rate = ganho ÷ (ganho + perdido) APENAS.
-  // Declinados: cliente recusou antes de uma disputa real → não é derrota competitiva.
-  // Cancelados: projeto inviabilizado por fatores externos → também excluídos.
+
   const total = ganho + perdido;
   return { ganho, perdido, declinado, cancelado, total, rate: total > 0 ? ganho / total : 0 };
 }
@@ -908,25 +919,26 @@ export async function getMotivosPerda(ano?: number) {
 
 /** Performance por responsável: win rate, ticket médio, valor ganho */
 export async function getPerformanceResponsavel(ano?: number) {
-  const yearRange = ano ? {
+  const createdRange = ano ? {
     gte: new Date(`${ano}-01-01T00:00:00.000Z`),
     lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
   } : undefined;
 
-  const [ganhos, perdas] = await Promise.all([
+  const [todosGanhos, perdas] = await Promise.all([
     prisma.crmOportunidade.findMany({
-      where: { etapa: 'ganho', responsavelId: { not: null }, ...(yearRange ? { dataGanho: yearRange } : {}) },
-      select: { valor: true, responsavelId: true, responsavel: { select: { id: true, name: true } } },
+      where: { etapa: 'ganho', responsavelId: { not: null } },
+      select: { valor: true, dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true, responsavelId: true, responsavel: { select: { id: true, name: true } } },
     }),
     prisma.crmOportunidade.findMany({
       where: {
         etapa: { in: ['perdido', 'declinado', 'cancelado'] },
         responsavelId: { not: null },
-        ...(yearRange ? { createdAt: yearRange } : {}),
+        ...(createdRange ? { createdAt: createdRange } : {}),
       },
       select: { responsavelId: true, responsavel: { select: { id: true, name: true } } },
     }),
   ]);
+  const ganhos = ano ? todosGanhos.filter(op => refDateAno(op) === ano) : todosGanhos;
 
   const map: Record<string, { name: string; ganho: number; perdido: number; valorGanho: number }> = {};
 
@@ -1063,25 +1075,25 @@ export async function getCicloVendas(ano?: number) {
 
 /** Win Rate por segmento da empresa */
 export async function getWinRateSegmento(ano?: number) {
-  const yearRange = ano ? {
+  const createdRange = ano ? {
     gte: new Date(`${ano}-01-01T00:00:00.000Z`),
     lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
   } : undefined;
 
-  // Busca ganhos por dataGanho e perdas por createdAt (sem exigir empresa vinculada)
-  const [ganhos, perdas] = await Promise.all([
-    prisma.crmOportunidade.findMany({
-      where: { etapa: 'ganho', ...(yearRange ? { dataGanho: yearRange } : {}) },
-      select: { valor: true, empresa: { select: { segmento: true } } },
-    }),
-    prisma.crmOportunidade.findMany({
-      where: {
-        etapa: { in: ['perdido', 'declinado', 'cancelado'] },
-        ...(yearRange ? { createdAt: yearRange } : {}),
-      },
-      select: { empresa: { select: { segmento: true } } },
-    }),
-  ]);
+  // Ganhos: busca todos e filtra por refDate (dataGanho ?? dataFechamentoPrevisto ?? updatedAt)
+  const todosGanhos = await prisma.crmOportunidade.findMany({
+    where: { etapa: 'ganho' },
+    select: { valor: true, dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true, empresa: { select: { segmento: true } } },
+  });
+  const ganhos = ano ? todosGanhos.filter(op => refDateAno(op) === ano) : todosGanhos;
+
+  const perdas = await prisma.crmOportunidade.findMany({
+    where: {
+      etapa: { in: ['perdido', 'declinado', 'cancelado'] },
+      ...(createdRange ? { createdAt: createdRange } : {}),
+    },
+    select: { empresa: { select: { segmento: true } } },
+  });
 
   const map: Record<string, { ganho: number; perdido: number; valorGanho: number }> = {};
 
