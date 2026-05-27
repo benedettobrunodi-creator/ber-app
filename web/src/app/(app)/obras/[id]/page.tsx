@@ -421,6 +421,7 @@ export default function ObraDetailPage() {
   const [cronogramaParsing, setCronogramaParsing] = useState(false);
   const [cronogramaSyncing, setCronogramaSyncing] = useState(false);
   const [cronogramaSyncResult, setCronogramaSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
+  const [cronogramaCollapsed, setCronogramaCollapsed] = useState<Set<string>>(new Set());
   const cronogramaInputRef = useRef<HTMLInputElement>(null);
 
   // Checklists state
@@ -2557,6 +2558,27 @@ export default function ObraDetailPage() {
                     } catch { /* silent */ }
                   };
 
+                  const toggleCollapse = (wbs: string) => {
+                    setCronogramaCollapsed(prev => {
+                      const next = new Set(prev);
+                      next.has(wbs) ? next.delete(wbs) : next.add(wbs);
+                      return next;
+                    });
+                  };
+
+                  const isHidden = (wbs: string) => {
+                    if (!wbs) return false;
+                    const parts = wbs.split('.');
+                    for (let i = 1; i < parts.length; i++) {
+                      if (cronogramaCollapsed.has(parts.slice(0, i).join('.'))) return true;
+                    }
+                    return false;
+                  };
+
+                  // Check if a summary row has any children
+                  const hasChildren = (wbs: string) =>
+                    cronograma.parsedData!.tarefas.some(t => t.wbs !== wbs && t.wbs.startsWith(wbs + '.'));
+
                   return (
                   <div>
                     <div className="mb-3 flex items-center gap-4 flex-wrap">
@@ -2582,52 +2604,72 @@ export default function ObraDetailPage() {
                             <th className="px-2 py-2 text-center w-16">Fim Plan.</th>
                             <th className="px-2 py-2 text-center w-20 bg-ber-teal/20">Início Real</th>
                             <th className="px-2 py-2 text-center w-20 bg-ber-teal/20">Fim Real</th>
-                            <th className="px-2 py-2 text-center w-14 bg-ber-teal/20">%</th>
+                            <th className="px-2 py-2 text-center w-16 bg-ber-teal/20">%</th>
                             <th className="px-2 py-2 text-left w-28 bg-ber-teal/20">Obs.</th>
                           </tr>
                         </thead>
                         <tbody>
                           {cronograma.parsedData.tarefas.map((t, i) => {
+                            if (isHidden(t.wbs)) return null;
                             const key = t.wbs || t.nome;
                             const ov = overrides[key] ?? {};
                             const pct = ov.pct !== undefined ? ov.pct : t.percentualConcluido;
                             const pctColor = pct >= 100 ? 'text-green-600 font-bold' : pct >= 50 ? 'text-amber-600 font-semibold' : 'text-ber-gray';
                             const bg = t.ehResumo ? 'bg-ber-carbon/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                             const st = !t.ehResumo ? taskStatus(t, pct) : null;
+                            const canCollapse = t.ehResumo && hasChildren(t.wbs);
+                            const isCollapsed = cronogramaCollapsed.has(t.wbs);
                             return (
                               <tr key={i} className={`${bg} group`}>
                                 <td className="px-2 py-1 text-ber-gray/70 tabular-nums text-[10px]">{t.wbs}</td>
-                                <td className="px-3 py-1.5 font-medium" style={{ paddingLeft: t.nivel > 1 ? `${t.nivel * 10 + 4}px` : undefined }}>
-                                  {t.nome}
+                                <td
+                                  className="px-3 py-1.5 font-medium select-none"
+                                  style={{ paddingLeft: t.nivel > 1 ? `${t.nivel * 10 + 4}px` : undefined }}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    {canCollapse && (
+                                      <button
+                                        onClick={() => toggleCollapse(t.wbs)}
+                                        className="shrink-0 w-4 h-4 flex items-center justify-center text-ber-gray/50 hover:text-ber-carbon"
+                                      >
+                                        {isCollapsed ? '▶' : '▼'}
+                                      </button>
+                                    )}
+                                    {!canCollapse && t.ehResumo && <span className="w-4 shrink-0" />}
+                                    <span>{t.nome}</span>
+                                  </div>
                                 </td>
                                 <td className="px-2 py-1 text-center">
                                   {st && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${st.cls}`}>{st.label}</span>}
                                 </td>
                                 <td className="px-2 py-1 text-center text-ber-gray tabular-nums">{fmtDate(t.inicio)}</td>
                                 <td className="px-2 py-1 text-center text-ber-gray tabular-nums">{fmtDate(t.fim)}</td>
-                                {/* Editable columns */}
                                 {t.ehResumo ? (
                                   <><td /><td /><td /><td /></>
                                 ) : (
                                   <>
                                     <td className="px-1 py-0.5">
                                       <input
+                                        key={ov.inicioRealizado ?? ''}
                                         type="date"
                                         defaultValue={ov.inicioRealizado ?? ''}
                                         onBlur={e => patchOverride(key, { inicioRealizado: e.target.value || null })}
-                                        className="w-full bg-transparent text-center text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
+                                        className="w-full bg-transparent text-center text-[10px] hover:ring-1 hover:ring-ber-gray/20 focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
                                       />
                                     </td>
                                     <td className="px-1 py-0.5">
                                       <input
+                                        key={ov.fimRealizado ?? ''}
                                         type="date"
                                         defaultValue={ov.fimRealizado ?? ''}
                                         onBlur={e => patchOverride(key, { fimRealizado: e.target.value || null })}
-                                        className="w-full bg-transparent text-center text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
+                                        className="w-full bg-transparent text-center text-[10px] hover:ring-1 hover:ring-ber-gray/20 focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
                                       />
                                     </td>
-                                    <td className="px-1 py-0.5">
+                                    <td className="px-1 py-0.5 relative">
+                                      <div className="absolute inset-0 rounded" style={{ background: `linear-gradient(90deg, ${pct >= 100 ? '#dcfce7' : pct >= 50 ? '#fef3c7' : '#f3f4f6'} ${pct}%, transparent ${pct}%)` }} />
                                       <input
+                                        key={pct}
                                         type="number"
                                         min={0} max={100}
                                         defaultValue={pct}
@@ -2636,16 +2678,17 @@ export default function ObraDetailPage() {
                                           e.target.value = String(v);
                                           patchOverride(key, { pct: v });
                                         }}
-                                        className={`w-full bg-transparent text-center font-semibold focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums ${pctColor}`}
+                                        className={`relative w-full bg-transparent text-center font-bold hover:ring-1 hover:ring-ber-teal/40 focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums cursor-text ${pctColor}`}
                                       />
                                     </td>
                                     <td className="px-1 py-0.5">
                                       <input
+                                        key={ov.observacao ?? ''}
                                         type="text"
                                         defaultValue={ov.observacao ?? ''}
                                         onBlur={e => patchOverride(key, { observacao: e.target.value })}
                                         placeholder="—"
-                                        className="w-full bg-transparent text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-1 text-ber-gray placeholder:text-ber-gray/30"
+                                        className="w-full bg-transparent text-[10px] hover:ring-1 hover:ring-ber-gray/20 focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-1 text-ber-gray placeholder:text-ber-gray/30"
                                       />
                                     </td>
                                   </>
