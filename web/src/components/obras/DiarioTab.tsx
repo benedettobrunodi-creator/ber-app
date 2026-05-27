@@ -48,6 +48,16 @@ interface ObraEtapa {
   startDate: string | null; endDate: string | null; estimatedEndDate: string | null; estimatedDays: number;
 }
 
+interface CronogramaTarefa {
+  wbs: string; nome: string; inicio: string | null; fim: string | null;
+  duracaoDias: number | null; percentualConcluido: number; ehResumo: boolean; nivel: number;
+}
+interface CronogramaData {
+  id: string;
+  progressPct: number | null;
+  parsedData: { progressoGeral: number; tarefas: CronogramaTarefa[] } | null;
+}
+
 interface DiarioDetalhe {
   id: string; data: string; clima: string | null; condicaoTrabalho: string | null;
   observacoesInternas: string | null; observacoesCliente: string | null;
@@ -183,6 +193,7 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
   const [diarios, setDiarios] = useState<DiarioSummary[]>([]);
   const [selected, setSelected] = useState<DiarioDetalhe | null>(null);
   const [etapas, setEtapas] = useState<ObraEtapa[]>([]);
+  const [cronograma, setCronograma] = useState<CronogramaData | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -214,12 +225,14 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
   const loadList = useCallback(async () => {
     setLoadingList(true);
     try {
-      const [obraRes, diariosRes] = await Promise.all([
+      const [obraRes, diariosRes, cronogramaRes] = await Promise.all([
         api.get(`/obras/${obraId}`),
         api.get(`/obras/${obraId}/diario`),
+        api.get(`/obras/${obraId}/cronograma`).catch(() => ({ data: { data: null } })),
       ]);
       setObra(obraRes.data?.data ?? null);
       setDiarios(diariosRes.data?.data ?? []);
+      setCronograma(cronogramaRes.data?.data ?? null);
     } finally {
       setLoadingList(false);
     }
@@ -551,6 +564,15 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
       if (!inicio) return false;
       return diarioDate >= inicio && (!fim || diarioDate <= fim);
     });
+    // Cronograma tarefas ativas na data do diário
+    const jaImportados = new Set(selected?.atividades.map(a => a.descricao) ?? []);
+    const cronogramaAtivas = (cronograma?.parsedData?.tarefas ?? []).filter(t => {
+      if (t.ehResumo || t.percentualConcluido >= 100) return false;
+      if (!t.inicio) return false;
+      const inicio = t.inicio.slice(0, 10);
+      const fim = t.fim?.slice(0, 10);
+      return diarioDate >= inicio && (!fim || diarioDate <= fim) && !jaImportados.has(t.nome);
+    });
 
     async function add() {
       if (!desc.trim() || !selected) return;
@@ -569,6 +591,14 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
       } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
     }
 
+    async function importarTarefaCronograma(tarefa: CronogramaTarefa) {
+      if (!selected) return;
+      try {
+        await api.post(`/diario/${selected.id}/atividades`, { descricao: tarefa.nome, status: 'em_andamento' });
+        refreshDetail();
+      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+    }
+
     const statusColors: Record<string, string> = {
       em_andamento: 'text-blue-600', concluida: 'text-green-600',
       nao_realizada: 'text-ber-red', parcial: 'text-amber-600',
@@ -576,10 +606,17 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
 
     return (
       <div className="space-y-2">
-        {!fechado && etapasAtivas.length > 0 && (
+        {!fechado && (cronogramaAtivas.length > 0 || etapasAtivas.length > 0) && (
           <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 mb-2">Previstas hoje no cronograma</p>
             <div className="flex flex-wrap gap-1.5">
+              {cronogramaAtivas.map(t => (
+                <button key={t.wbs || t.nome} onClick={() => importarTarefaCronograma(t)}
+                  className="flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+                  <Plus size={10} /> {t.nome}
+                  {t.percentualConcluido > 0 && <span className="text-[9px] text-blue-500 ml-0.5">{t.percentualConcluido}%</span>}
+                </button>
+              ))}
               {etapasAtivas.map(e => (
                 <button key={e.id} onClick={() => importarEtapa(e)}
                   className="flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
@@ -1078,31 +1115,36 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
             {/* Avanço físico */}
             <div className="mb-3">
               {(() => {
-                const inicio = obra?.dataInicioObra;
-                const fim = obra?.dataFimObra ?? obra?.expectedEndDate;
-                let avancoPrevisto: number | null = null;
-                if (inicio && fim) {
-                  const dInicio = new Date(inicio).getTime();
-                  const dFim = new Date(fim).getTime();
-                  const dDia = new Date(selected.data.slice(0, 10) + 'T12:00:00').getTime();
-                  const total = dFim - dInicio;
-                  if (total > 0) avancoPrevisto = Math.min(100, Math.max(0, Math.round(((dDia - dInicio) / total) * 100)));
-                }
+                const progressoCronograma = cronograma?.progressPct ?? null;
                 const avancoDia = selected.avancoDia ?? 0;
-                const delta = avancoPrevisto != null ? avancoDia - avancoPrevisto : null;
+                const delta = progressoCronograma != null ? avancoDia - progressoCronograma : null;
 
                 return (
                   <>
+                    {/* Barra do cronograma */}
+                    {progressoCronograma != null && (
+                      <div className="mb-3 rounded-lg bg-ber-olive/5 border border-ber-olive/20 px-3 py-2.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-olive">Cronograma</p>
+                          <span className="text-sm font-bold text-ber-olive">{progressoCronograma}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-ber-olive/20 overflow-hidden">
+                          <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${progressoCronograma}%` }} />
+                        </div>
+                        <p className="text-[9px] text-ber-gray mt-1">Média ponderada por duração das tarefas do cronograma</p>
+                      </div>
+                    )}
+
+                    {/* Registro diário */}
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Avanço físico acumulado</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">
+                        {progressoCronograma != null ? 'Registro do dia' : 'Avanço físico acumulado'}
+                      </p>
                       <div className="flex items-center gap-2">
-                        {avancoPrevisto != null && (
-                          <span className="text-[10px] text-ber-gray">Previsto: <span className="font-semibold">{avancoPrevisto}%</span></span>
-                        )}
                         <span className="text-sm font-bold text-ber-carbon">{avancoDia}%</span>
                         {delta != null && (
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {delta >= 0 ? `+${delta}` : delta}%
+                            {delta >= 0 ? `+${delta}` : delta}% vs cronograma
                           </span>
                         )}
                       </div>
@@ -1116,9 +1158,9 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
                         onTouchEnd={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
                         className="w-full accent-ber-olive disabled:opacity-50"
                       />
-                      {avancoPrevisto != null && !fechado && (
-                        <div className="absolute top-0 w-0.5 h-full bg-gray-400 pointer-events-none opacity-60"
-                          style={{ left: `${avancoPrevisto}%` }} title={`Previsto: ${avancoPrevisto}%`} />
+                      {progressoCronograma != null && !fechado && (
+                        <div className="absolute top-0 w-0.5 h-full bg-ber-olive pointer-events-none opacity-40"
+                          style={{ left: `${progressoCronograma}%` }} title={`Cronograma: ${progressoCronograma}%`} />
                       )}
                     </div>
                     {!fechado && selected.avancoDia != null && selected.avancoDia > 0 && (
