@@ -95,67 +95,107 @@ export async function updateStatus(id: string, status: string) {
 }
 
 export async function getBurndown(obraId: string) {
-  const obra = await prisma.obra.findUnique({
-    where: { id: obraId },
-    select: { startDate: true, expectedEndDate: true },
-  });
-
-  if (!obra?.startDate || !obra?.expectedEndDate) {
-    return { hasData: false, reason: 'missing_dates' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
-  }
-
-  const tasks = await prisma.obraTask.findMany({
+  const cronograma = await prisma.cronograma.findFirst({
     where: { obraId },
-    select: { status: true, completedAt: true },
+    orderBy: { createdAt: 'desc' },
   });
 
-  const total = tasks.length;
-  if (total === 0) return { hasData: false, reason: 'no_tasks' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
+  if (!cronograma?.parsedData) {
+    return { hasData: false, reason: 'no_cronograma' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
+  }
 
-  const start = obra.startDate;
-  const end = obra.expectedEndDate;
+  const parsed = cronograma.parsedData as {
+    tarefas: { wbs: string; nome: string; inicio: string | null; fim: string | null; duracaoDias: number | null; percentualConcluido: number; ehResumo: boolean }[];
+  };
+
+  // Leaf tasks with dates and duration
+  const leafTasks = parsed.tarefas.filter(
+    (t) => !t.ehResumo && t.inicio && t.fim && (t.duracaoDias ?? 0) > 0
+  );
+
+  if (leafTasks.length === 0) {
+    return { hasData: false, reason: 'no_tasks' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
+  }
+
+  // Fetch kanban tasks synced from cronograma (completedAt = when moved to 'done')
+  const kanbanTasks = await prisma.obraTask.findMany({
+    where: { obraId, cronogramaRef: { not: null } },
+    select: { cronogramaRef: true, completedAt: true, status: true },
+  });
+  const kanbanByRef = new Map(kanbanTasks.map((t) => [t.cronogramaRef!, t]));
+
+  const totalDias = leafTasks.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+
+  const startDates = leafTasks.map((t) => new Date(t.inicio!));
+  const endDates   = leafTasks.map((t) => new Date(t.fim!));
+  const projectStart = new Date(Math.min(...startDates.map((d) => d.getTime())));
+  const projectEnd   = new Date(Math.max(...endDates.map((d) => d.getTime())));
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const totalDays = Math.max(1, (end.getTime() - start.getTime()) / 86400000);
 
-  const completedByDate: Record<string, number> = {};
-  for (const t of tasks) {
-    if (t.status === 'done' && t.completedAt) {
-      const key = t.completedAt.toISOString().split('T')[0];
-      completedByDate[key] = (completedByDate[key] ?? 0) + 1;
+  const chartEnd = today > projectEnd ? today : projectEnd;
+  const totalChartDays = Math.ceil((chartEnd.getTime() - projectStart.getTime()) / 86400000);
+  const step = Math.max(1, Math.floor(totalChartDays / 60));
+
+  const series: { date: string; remaining: number | null; ideal: number }[] = [];
+
+  for (let d = 0; d <= totalChartDays; d += step) {
+    const date = new Date(projectStart.getTime() + d * 86400000);
+    const dateStr = date.toISOString().split('T')[0];
+
+    // Ideal: sum of durations of tasks whose planned fim >= this date (not yet done by plan)
+    const ideal = leafTasks.reduce((s, t) => {
+      const fim = new Date(t.fim!);
+      return s + (fim >= date ? (t.duracaoDias ?? 0) : 0);
+    }, 0);
+
+    // Real (only up to today): sum of durations of tasks not yet completed by this date
+    let remaining: number | null = null;
+    if (date <= today) {
+      remaining = leafTasks.reduce((s, t) => {
+        const ref = t.wbs || t.nome;
+        const kt = kanbanByRef.get(ref);
+        const doneByDate = kt?.completedAt && new Date(kt.completedAt) <= date;
+        return doneByDate ? s : s + (t.duracaoDias ?? 0);
+      }, 0);
     }
+
+    series.push({ date: dateStr, remaining, ideal });
   }
 
-  const series: { date: string; remaining: number; ideal: number }[] = [];
-  let cumDone = 0;
-  const chartEnd = today < end ? today : end;
-  const cur = new Date(start);
-
-  while (cur <= chartEnd) {
-    const key = cur.toISOString().split('T')[0];
-    cumDone += completedByDate[key] ?? 0;
-    const dayNum = (cur.getTime() - start.getTime()) / 86400000;
-    series.push({
-      date: key,
-      remaining: total - cumDone,
-      ideal: Math.max(0, Math.round(total * (1 - dayNum / totalDays))),
-    });
-    cur.setDate(cur.getDate() + 1);
+  // Ensure last point always included
+  const lastDate = new Date(projectStart.getTime() + totalChartDays * 86400000);
+  const lastKey = lastDate.toISOString().split('T')[0];
+  if (!series.length || series[series.length - 1].date < lastKey) {
+    const ideal = leafTasks.reduce((s, t) => s + (new Date(t.fim!) >= lastDate ? (t.duracaoDias ?? 0) : 0), 0);
+    const remaining = lastDate <= today
+      ? leafTasks.reduce((s, t) => {
+          const kt = kanbanByRef.get(t.wbs || t.nome);
+          return kt?.completedAt && new Date(kt.completedAt) <= lastDate ? s : s + (t.duracaoDias ?? 0);
+        }, 0)
+      : null;
+    series.push({ date: lastKey, remaining, ideal });
   }
 
-  const currentRemaining = total - cumDone;
-  const latestIdeal = series[series.length - 1]?.ideal ?? total;
-  const pctComplete = Math.round(((total - currentRemaining) / total) * 100);
-  const pctExpected = Math.round(((total - latestIdeal) / total) * 100);
-  const burnStatus: 'ahead' | 'behind' | 'on_track' = currentRemaining < latestIdeal ? 'ahead' : currentRemaining > latestIdeal ? 'behind' : 'on_track';
+  const completedDias = leafTasks.reduce((s, t) => {
+    const kt = kanbanByRef.get(t.wbs || t.nome);
+    return kt?.completedAt ? s + (t.duracaoDias ?? 0) : s;
+  }, 0);
+  const currentRemaining = totalDias - completedDias;
+  const todayStr = today.toISOString().split('T')[0];
+  const todayIdeal = [...series].reverse().find((p) => p.date <= todayStr)?.ideal ?? totalDias;
+  const pctComplete  = Math.round((completedDias / totalDias) * 100);
+  const pctExpected  = Math.round(((totalDias - todayIdeal) / totalDias) * 100);
+  const burnStatus: 'ahead' | 'behind' | 'on_track' =
+    currentRemaining < todayIdeal ? 'ahead' : currentRemaining > todayIdeal ? 'behind' : 'on_track';
 
   return {
     hasData: true,
-    total,
-    startDate: start.toISOString().split('T')[0],
-    endDate: end.toISOString().split('T')[0],
+    total: totalDias,
+    startDate: projectStart.toISOString().split('T')[0],
+    endDate: projectEnd.toISOString().split('T')[0],
     series,
     currentRemaining,
-    expectedRemaining: latestIdeal,
+    expectedRemaining: todayIdeal,
     pctComplete,
     pctExpected,
     status: burnStatus,

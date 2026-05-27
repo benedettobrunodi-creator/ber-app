@@ -127,7 +127,10 @@ export async function syncToKanban(req: Request, res: Response) {
 
     const existing = await prisma.obraTask.findFirst({
       where: { obraId, cronogramaRef: t.wbs || t.nome },
+      select: { id: true, completedAt: true },
     });
+
+    const completedAt = status === 'done' ? (fim ?? new Date()) : null;
 
     if (existing) {
       await prisma.obraTask.update({
@@ -136,6 +139,8 @@ export async function syncToKanban(req: Request, res: Response) {
           title: t.nome,
           status,
           dueDate: fim,
+          ...(status === 'done' && !existing.completedAt ? { completedAt: completedAt! } : {}),
+          ...(status !== 'done' ? { completedAt: null } : {}),
         },
       });
       updated++;
@@ -153,6 +158,7 @@ export async function syncToKanban(req: Request, res: Response) {
           dueDate: fim,
           cronogramaRef: t.wbs || t.nome,
           position: (maxPos._max.position ?? -1) + 1,
+          completedAt,
         },
       });
       created++;
