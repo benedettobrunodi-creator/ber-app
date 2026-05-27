@@ -3,9 +3,9 @@
 import { useState, useMemo } from 'react';
 import api from '@/lib/api';
 import {
-  Phone, Mail, Linkedin, MessageCircle, Plus, X, Thermometer, ChevronDown,
-  Calendar, Clock, Check, Pencil, Trash2, LayoutGrid, List, Users2,
-  ChevronRight, AlertCircle, ChevronUp, TrendingUp, DollarSign, MapPin, Cake,
+  Phone, Mail, Linkedin, MessageCircle, Plus, X, Thermometer,
+  Calendar, Clock, Check, Pencil, Trash2, Users2,
+  ChevronRight, AlertCircle, TrendingUp, DollarSign, MapPin, Cake,
 } from 'lucide-react';
 import { Contato, Campanha, CampanhaDetalhe, CAMPANHA_STATUSES, NUTRICAO_TAGS, User, TIPOS_ATIVIDADE, ETAPAS } from '../types';
 
@@ -85,8 +85,6 @@ function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Notas</label>
           <textarea className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="O que foi discutido?" />
         </div>
-
-        {/* Retorno */}
         <div>
           <button
             type="button"
@@ -108,7 +106,6 @@ function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose
             />
           )}
         </div>
-
         <div>
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Próximo contato</label>
           <input type="date" className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={proximoContato} onChange={e => setProximoContato(e.target.value)} />
@@ -124,7 +121,7 @@ function ContatarModal({ contato, onClose, onSave }: { contato: Contato; onClose
   );
 }
 
-// ── EditContatoNutricaoDrawer ──────────────────────────────────────────────────
+// ── EditNutricaoDrawer ────────────────────────────────────────────────────────
 
 function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; onClose: () => void; onSave: () => void }) {
   const [form, setForm] = useState({
@@ -205,13 +202,7 @@ function EditNutricaoDrawer({ contato, onClose, onSave }: { contato: Contato; on
 // ── NovaOportunidadeDrawer ────────────────────────────────────────────────────
 
 function NovaOportunidadeDrawer({ contato, onClose, onSave }: { contato: Contato; onClose: () => void; onSave: () => void }) {
-  const [form, setForm] = useState({
-    titulo: '',
-    valor: '',
-    origem: 'networking',
-    etapa: 'qualificacao',
-    observacoes: '',
-  });
+  const [form, setForm] = useState({ titulo: '', valor: '', origem: 'networking', etapa: 'qualificacao', observacoes: '' });
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -276,7 +267,7 @@ function NovaOportunidadeDrawer({ contato, onClose, onSave }: { contato: Contato
   );
 }
 
-// ── HistoricoPanel ────────────────────────────────────────────────────────────
+// ── HistoricoModal ────────────────────────────────────────────────────────────
 
 type HistoricoData = {
   atividades: { id: string; tipo: string; dataHora: string; notas: string | null; resultado: string | null; concluida: boolean; usuario?: { name: string } | null }[];
@@ -287,109 +278,132 @@ const TIPO_LABEL: Record<string, string> = { reuniao: 'Reunião', ligacao: 'Liga
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map(e => [e.value, e.label]));
 const ETAPA_COLOR: Record<string, string> = Object.fromEntries(ETAPAS.map(e => [e.value, e.color]));
 
-function HistoricoPanel({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
+function HistoricoModal({ contato, onClose, onRefresh }: { contato: Contato; onClose: () => void; onRefresh: () => void }) {
   const [data, setData] = useState<HistoricoData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showNovaOp, setShowNovaOp] = useState(false);
+  const [showContatar, setShowContatar] = useState(false);
 
-  const load = async () => {
-    if (data) return;
-    setLoading(true);
-    try {
-      const res = await api.get(`/crm/contatos/${contato.id}/historico`);
-      setData(res.data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load on mount
-  useState(() => { load(); });
-
-  if (loading) return <div className="px-6 py-3 text-xs text-ber-gray">Carregando...</div>;
-  if (!data) return null;
+  useState(() => {
+    api.get(`/crm/contatos/${contato.id}/historico`)
+      .then(res => setData(res.data))
+      .finally(() => setLoading(false));
+  });
 
   const fmt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
   const fmtMoney = (v: number | null) => v ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v) : null;
+  const temp = getTemperatura(contato.ultimoContato);
+  const cfg = TEMP_CONFIG[temp];
 
   return (
     <>
-      <div className="mx-3 mb-2 rounded-xl border border-ber-border bg-ber-surface/50 overflow-hidden">
-        {/* Info rápida */}
-        {(contato.aniversario || contato.endereco) && (
-          <div className="flex items-center gap-4 px-4 py-2 border-b border-ber-border text-xs text-ber-gray">
-            {contato.aniversario && <span className="flex items-center gap-1"><Cake size={11} /> {new Date(contato.aniversario).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>}
-            {contato.endereco && <span className="flex items-center gap-1 truncate"><MapPin size={11} /> {contato.endereco}</span>}
-          </div>
-        )}
-
-        {/* Oportunidades */}
-        <div className="px-4 py-2.5 border-b border-ber-border">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1"><TrendingUp size={11} /> Oportunidades abertas ({data.oportunidades.length})</span>
-            <button onClick={() => setShowNovaOp(true)} className="flex items-center gap-1 text-[11px] text-ber-teal font-semibold hover:underline">
-              <Plus size={11} /> Nova
-            </button>
-          </div>
-          {data.oportunidades.length === 0 ? (
-            <p className="text-xs text-ber-gray italic">Nenhuma oportunidade aberta.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {data.oportunidades.map(op => (
-                <div key={op.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ETAPA_COLOR[op.etapa] ?? '#868686' }} />
-                  <span className="font-medium text-ber-carbon truncate flex-1">{op.titulo}</span>
-                  <span className="text-ber-gray shrink-0">{ETAPA_LABEL[op.etapa] ?? op.etapa}</span>
-                  {op.valor && <span className="text-green-700 font-semibold shrink-0">{fmtMoney(op.valor)}</span>}
+      <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+        <div className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-xl flex flex-col max-h-[85vh]">
+          {/* Header */}
+          <div className="flex items-start justify-between p-5 border-b border-ber-border">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-ber-carbon">{contato.nome}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${cfg.color}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{cfg.label}
+                </span>
+                {contato.tags.map(tag => (
+                  <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium">{tag}</span>
+                ))}
+              </div>
+              <p className="text-xs text-ber-gray mt-0.5">{contato.cargo ?? '—'} · {contato.empresa?.razaoSocial ?? '—'}</p>
+              {(contato.aniversario || contato.endereco) && (
+                <div className="flex items-center gap-3 mt-1 text-xs text-ber-gray">
+                  {contato.aniversario && <span className="flex items-center gap-1"><Cake size={10} /> {new Date(contato.aniversario).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>}
+                  {contato.endereco && <span className="flex items-center gap-1 truncate"><MapPin size={10} /> {contato.endereco}</span>}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
+            <div className="flex items-center gap-1.5 shrink-0 ml-3">
+              <button onClick={() => setShowContatar(true)} className="flex items-center gap-1.5 bg-ber-teal text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80">
+                <Check size={12} /> Contatar
+              </button>
+              <button onClick={onClose}><X size={16} className="text-ber-gray" /></button>
+            </div>
+          </div>
 
-        {/* Histórico de atividades */}
-        <div className="px-4 py-2.5">
-          <span className="text-[11px] font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1 mb-2"><Clock size={11} /> Histórico ({data.atividades.length})</span>
-          {data.atividades.length === 0 ? (
-            <p className="text-xs text-ber-gray italic">Sem atividades registradas.</p>
-          ) : (
-            <div className="space-y-2">
-              {data.atividades.slice(0, 8).map(atv => (
-                <div key={atv.id} className="text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-ber-gray shrink-0">{fmt(atv.dataHora)}</span>
-                    <span className="bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 font-medium text-ber-carbon shrink-0">{TIPO_LABEL[atv.tipo] ?? atv.tipo}</span>
-                    {atv.notas && <span className="text-ber-gray truncate">{atv.notas}</span>}
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {loading ? (
+              <p className="text-sm text-ber-gray text-center py-6">Carregando...</p>
+            ) : !data ? null : (
+              <>
+                {/* Oportunidades */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1.5"><TrendingUp size={12} /> Oportunidades abertas ({data.oportunidades.length})</h3>
+                    <button onClick={() => setShowNovaOp(true)} className="flex items-center gap-1 text-xs text-ber-teal font-semibold hover:underline">
+                      <Plus size={11} /> Nova
+                    </button>
                   </div>
-                  {atv.resultado && (
-                    <div className="mt-0.5 ml-14 flex items-start gap-1">
-                      <Check size={10} className="text-green-600 mt-0.5 shrink-0" />
-                      <span className="text-green-700 font-medium">{atv.resultado}</span>
+                  {data.oportunidades.length === 0 ? (
+                    <p className="text-xs text-ber-gray italic">Nenhuma oportunidade aberta.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.oportunidades.map(op => (
+                        <div key={op.id} className="flex items-center gap-2 text-sm bg-ber-surface rounded-lg px-3 py-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ETAPA_COLOR[op.etapa] ?? '#868686' }} />
+                          <span className="font-medium text-ber-carbon truncate flex-1">{op.titulo}</span>
+                          <span className="text-ber-gray text-xs shrink-0">{ETAPA_LABEL[op.etapa] ?? op.etapa}</span>
+                          {op.valor && <span className="text-green-700 text-xs font-semibold shrink-0">{fmtMoney(op.valor)}</span>}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* Histórico */}
+                <div>
+                  <h3 className="text-xs font-bold text-ber-carbon uppercase tracking-wide flex items-center gap-1.5 mb-3"><Clock size={12} /> Histórico ({data.atividades.length})</h3>
+                  {data.atividades.length === 0 ? (
+                    <p className="text-xs text-ber-gray italic">Sem atividades registradas.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.atividades.slice(0, 10).map(atv => (
+                        <div key={atv.id} className="text-xs border-l-2 border-ber-border pl-3 py-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-ber-gray shrink-0">{fmt(atv.dataHora)}</span>
+                            <span className="bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 font-medium text-ber-carbon shrink-0">{TIPO_LABEL[atv.tipo] ?? atv.tipo}</span>
+                            {atv.notas && <span className="text-ber-gray truncate">{atv.notas}</span>}
+                          </div>
+                          {atv.resultado && (
+                            <div className="mt-1 flex items-start gap-1">
+                              <Check size={10} className="text-green-600 mt-0.5 shrink-0" />
+                              <span className="text-green-700 font-medium">{atv.resultado}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {showNovaOp && <NovaOportunidadeDrawer contato={contato} onClose={() => setShowNovaOp(false)} onSave={() => { setShowNovaOp(false); setData(null); load(); onRefresh(); }} />}
+      {showNovaOp && <NovaOportunidadeDrawer contato={contato} onClose={() => setShowNovaOp(false)} onSave={() => { setShowNovaOp(false); setData(null); onRefresh(); }} />}
+      {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); onClose(); }} />}
     </>
   );
 }
 
-// ── CompactRow ────────────────────────────────────────────────────────────────
+// ── TableRow ──────────────────────────────────────────────────────────────────
 
-function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
+function TableRow({ contato, rowBg, onRefresh }: { contato: Contato; rowBg?: string; onRefresh: () => void }) {
   const temp = getTemperatura(contato.ultimoContato);
   const cfg = TEMP_CONFIG[temp];
   const [showContatar, setShowContatar] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [showHistorico, setShowHistorico] = useState(false);
 
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
   const vencido = contato.proximoContato && contato.proximoContato.slice(0, 10) < todayStr;
   const isToday = contato.proximoContato && contato.proximoContato.slice(0, 10) === todayStr;
 
@@ -401,50 +415,68 @@ function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () =>
 
   return (
     <>
-      <div className={`${expanded ? 'bg-ber-surface/40' : ''}`}>
-        <div
-          className="flex items-center gap-3 px-3 py-2.5 hover:bg-ber-surface/60 rounded-lg group transition-colors border border-transparent hover:border-ber-border cursor-pointer"
-          onClick={() => setExpanded(e => !e)}
-        >
-          {/* Expand chevron */}
-          <span className="text-ber-gray shrink-0">{expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
+      <div className={`group flex items-center gap-3 px-4 py-2.5 border-b border-ber-border/50 hover:bg-ber-surface/60 transition-colors ${rowBg ?? ''}`}>
+        {/* Temp dot */}
+        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} title={cfg.label} />
 
-          {/* Temp dot */}
-          <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} title={cfg.label} />
+        {/* Contato */}
+        <div className="flex-1 min-w-0">
+          <button
+            onClick={() => setShowHistorico(true)}
+            className="text-sm font-medium text-ber-carbon hover:text-ber-teal hover:underline truncate block text-left"
+          >
+            {contato.nome}
+          </button>
+          <p className="text-xs text-ber-gray truncate">
+            {contato.empresa?.razaoSocial ?? '—'}{contato.cargo ? ` · ${contato.cargo}` : ''}
+          </p>
+        </div>
 
-          {/* Name + company */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-medium text-ber-carbon truncate">{contato.nome}</span>
-              {contato.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium shrink-0">{tag}</span>
-              ))}
-            </div>
-            <p className="text-xs text-ber-gray truncate">{contato.empresa?.razaoSocial ?? '—'}{contato.cargo ? ` · ${contato.cargo}` : ''}</p>
-          </div>
-
-          {/* Datas */}
-          <div className="hidden md:flex items-center gap-3 text-xs shrink-0">
-            <span className="text-ber-gray flex items-center gap-1">
-              <Clock size={10} />
-              {fmtDias(contato.ultimoContato) ?? 'nunca'}
+        {/* Tag */}
+        <div className="hidden md:block w-24 shrink-0">
+          {contato.tags[0] && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium truncate block text-center">
+              {contato.tags[0]}
             </span>
-            {contato.proximoContato && (
-              <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-red-600' : isToday ? 'text-amber-600' : 'text-ber-carbon'}`}>
-                <Calendar size={10} />
-                {fmtProximo(contato.proximoContato)}
-              </span>
-            )}
-          </div>
+          )}
+          {contato.empresa?.classificacao && !contato.tags[0] && (
+            <span className="text-[10px] text-ber-gray truncate block text-center">{contato.empresa.classificacao}</span>
+          )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowContatar(true)} className="p-1.5 rounded text-ber-teal hover:bg-ber-teal/10" title="Registrar contato">
-              <Check size={13} />
-            </button>
+        {/* Último */}
+        <div className="hidden md:block w-14 shrink-0 text-right">
+          <span className="text-xs text-ber-gray flex items-center justify-end gap-1">
+            <Clock size={10} />
+            {fmtDias(contato.ultimoContato) ?? 'nunca'}
+          </span>
+        </div>
+
+        {/* Próximo */}
+        <div className="hidden md:block w-20 shrink-0 text-right">
+          {contato.proximoContato ? (
+            <span className={`text-xs font-medium flex items-center justify-end gap-1 ${vencido ? 'text-red-600' : isToday ? 'text-amber-600' : 'text-ber-carbon'}`}>
+              <Calendar size={10} />
+              {fmtProximo(contato.proximoContato)}
+            </span>
+          ) : (
+            <span className="text-xs text-ber-gray/50">—</span>
+          )}
+        </div>
+
+        {/* Ações */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {/* Contatar — sempre visível */}
+          <button
+            onClick={() => setShowContatar(true)}
+            className="flex items-center gap-1 text-[11px] font-semibold text-ber-teal bg-ber-teal/10 hover:bg-ber-teal hover:text-white px-2 py-1 rounded-md transition-colors"
+          >
+            <Check size={11} /> Contatar
+          </button>
+          {/* Canais — visíveis no hover */}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
             {contato.whatsapp && (
-              <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-                className="p-1.5 rounded text-green-600 hover:bg-green-50" title="WhatsApp">
+              <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded text-green-600 hover:bg-green-50" title="WhatsApp">
                 <MessageCircle size={13} />
               </a>
             )}
@@ -468,112 +500,33 @@ function CompactRow({ contato, onRefresh }: { contato: Contato; onRefresh: () =>
             <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5" title="Editar">
               <Pencil size={12} />
             </button>
-            <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50" title="Remover">
+            <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-red-500 hover:bg-red-50" title="Remover">
               <Trash2 size={12} />
             </button>
           </div>
         </div>
-
-        {/* Expanded panel */}
-        {expanded && <HistoricoPanel contato={contato} onRefresh={onRefresh} />}
       </div>
 
       {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); }} />}
       {showEdit && <EditNutricaoDrawer contato={contato} onClose={() => setShowEdit(false)} onSave={() => { setShowEdit(false); onRefresh(); }} />}
+      {showHistorico && <HistoricoModal contato={contato} onClose={() => setShowHistorico(false)} onRefresh={onRefresh} />}
     </>
   );
 }
 
-// ── ContactCard (kanban) ──────────────────────────────────────────────────────
+// ── GroupDivider ──────────────────────────────────────────────────────────────
 
-function ContactCard({ contato, onRefresh }: { contato: Contato; onRefresh: () => void }) {
-  const temp = getTemperatura(contato.ultimoContato);
-  const cfg = TEMP_CONFIG[temp];
-  const [showContatar, setShowContatar] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const vencido = contato.proximoContato && contato.proximoContato.slice(0, 10) <= todayStr;
-
-  const removeFromNutricao = async () => {
-    if (!confirm(`Remover ${contato.nome} da nutrição?`)) return;
-    await api.patch(`/crm/contatos/${contato.id}`, { nutricao: false });
-    onRefresh();
-  };
-
+function GroupDivider({ icon, label, count, colorClass }: { icon: React.ReactNode; label: string; count: number; colorClass: string }) {
   return (
-    <>
-      <div className={`bg-white border rounded-xl p-3 ${vencido ? 'border-amber-200' : 'border-ber-border'}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-ber-carbon truncate">{contato.nome}</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 ${cfg.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{cfg.label}
-              </span>
-            </div>
-            <p className="text-xs text-ber-gray mt-0.5 truncate">{contato.cargo ?? '—'} · {contato.empresa?.razaoSocial ?? '—'}</p>
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button onClick={() => setShowEdit(true)} className="p-1.5 rounded text-ber-gray hover:text-ber-teal hover:bg-ber-teal/5"><Pencil size={12} /></button>
-            <button onClick={removeFromNutricao} className="p-1.5 rounded text-ber-gray hover:text-ber-red hover:bg-red-50"><Trash2 size={12} /></button>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-3 text-xs text-ber-gray">
-          <span className="flex items-center gap-1"><Clock size={10} />{fmtDias(contato.ultimoContato) ?? 'nunca'}</span>
-          {contato.proximoContato && (
-            <span className={`flex items-center gap-1 font-medium ${vencido ? 'text-amber-600' : 'text-ber-carbon'}`}>
-              <Calendar size={10} />{fmtProximo(contato.proximoContato)}
-            </span>
-          )}
-        </div>
-        {contato.tags.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {contato.tags.map(tag => <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal font-medium">{tag}</span>)}
-          </div>
-        )}
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <button onClick={() => setShowContatar(true)} className="flex items-center gap-1.5 bg-ber-teal text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg hover:bg-ber-teal/80">
-            <Check size={11} /> Contatei
-          </button>
-          <div className="flex items-center gap-0.5 ml-auto">
-            {contato.whatsapp && <a href={`https://wa.me/55${contato.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-green-50 text-green-600 hover:bg-green-100"><MessageCircle size={12} /></a>}
-            {contato.email && <a href={`mailto:${contato.email}`} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"><Mail size={12} /></a>}
-            {contato.linkedin && <a href={contato.linkedin.startsWith('http') ? contato.linkedin : `https://linkedin.com/in/${contato.linkedin}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded bg-[#0077b5]/10 text-[#0077b5] hover:bg-[#0077b5]/20"><Linkedin size={12} /></a>}
-          </div>
-        </div>
-      </div>
-      {showContatar && <ContatarModal contato={contato} onClose={() => setShowContatar(false)} onSave={() => { setShowContatar(false); onRefresh(); }} />}
-      {showEdit && <EditNutricaoDrawer contato={contato} onClose={() => setShowEdit(false)} onSave={() => { setShowEdit(false); onRefresh(); }} />}
-    </>
-  );
-}
-
-// ── CollapsibleSection ────────────────────────────────────────────────────────
-
-function CollapsibleSection({
-  title, count, headerClass, defaultOpen = true, children,
-}: {
-  title: React.ReactNode; count: number; headerClass: string; defaultOpen?: boolean; children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  if (count === 0) return null;
-  return (
-    <div className="mb-1">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${headerClass}`}
-      >
-        {title}
-        <span className="ml-1 font-semibold opacity-70">{count}</span>
-        <span className="ml-auto">{open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
-      </button>
-      {open && <div className="mt-0.5">{children}</div>}
+    <div className={`flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide ${colorClass}`}>
+      {icon}
+      <span>{label}</span>
+      <span className="font-semibold opacity-70">({count})</span>
     </div>
   );
 }
 
-// ── AdicionarContatoDrawer ─────────────────────────────────────────────────────
+// ── AdicionarContatoDrawer ────────────────────────────────────────────────────
 
 function AdicionarContatoDrawer({ todos, jaNaNutricao, onClose, onSave }: {
   todos: Contato[];
@@ -755,7 +708,7 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
                   >
                     {CAMPANHA_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
-                  <button onClick={() => removeContatoCampanha(cc.contato.id)} className="p-1 text-ber-gray hover:text-ber-red"><X size={12} /></button>
+                  <button onClick={() => removeContatoCampanha(cc.contato.id)} className="p-1 text-ber-gray hover:text-red-500"><X size={12} /></button>
                 </div>
               </div>
             );
@@ -813,7 +766,7 @@ function CampanhaView({ campanhas, contatos, users, onRefresh }: {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={e => { e.stopPropagation(); handleDeleteCampanha(c.id); }} className="p-1.5 text-ber-gray hover:text-ber-red"><Trash2 size={13} /></button>
+              <button onClick={e => { e.stopPropagation(); handleDeleteCampanha(c.id); }} className="p-1.5 text-ber-gray hover:text-red-500"><Trash2 size={13} /></button>
               <ChevronRight size={16} className="text-ber-gray" />
             </div>
           </div>
@@ -867,7 +820,6 @@ interface Props {
 
 export default function TabNutricao({ contatos, campanhas, users, onRefresh }: Props) {
   const [subTab, setSubTab] = useState<'painel' | 'campanhas'>('painel');
-  const [viewMode, setViewMode] = useState<'lista' | 'kanban'>('lista');
   const [filtroTemp, setFiltroTemp] = useState('');
   const [filtroTag, setFiltroTag] = useState('');
   const [showAdicionar, setShowAdicionar] = useState(false);
@@ -879,19 +831,10 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
   const todayStr = now.toISOString().slice(0, 10);
   const endOf7Days = new Date(now.getTime() + 7 * 86_400_000);
 
-  // Urgency groups (pre-filter)
   const vencidos  = nurturing.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) < todayStr);
   const hoje      = nurturing.filter(c => c.proximoContato && c.proximoContato.slice(0, 10) === todayStr);
-  const proximos7 = nurturing.filter(c => {
-    if (!c.proximoContato) return false;
-    const d = new Date(c.proximoContato);
-    return d > now && d <= endOf7Days;
-  });
-  const semData   = nurturing.filter(c => !c.proximoContato);
-
-  // Metrics counts by temp
-  const quentes = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'quente').length;
-  const gelados  = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'gelado').length;
+  const quentes   = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'quente').length;
+  const gelados   = nurturing.filter(c => getTemperatura(c.ultimoContato) === 'gelado').length;
 
   const filtered = useMemo(() => {
     return nurturing.filter(c => {
@@ -909,14 +852,6 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
     return d > now && d <= endOf7Days;
   });
   const filteredSemData   = filtered.filter(c => !c.proximoContato);
-
-  const byTemp = useMemo(() => ({
-    quente: filtered.filter(c => getTemperatura(c.ultimoContato) === 'quente'),
-    morno:  filtered.filter(c => getTemperatura(c.ultimoContato) === 'morno'),
-    frio:   filtered.filter(c => getTemperatura(c.ultimoContato) === 'frio'),
-    gelado: filtered.filter(c => getTemperatura(c.ultimoContato) === 'gelado'),
-    novo:   filtered.filter(c => getTemperatura(c.ultimoContato) === 'novo'),
-  }), [filtered]);
 
   return (
     <div>
@@ -959,7 +894,7 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <select className="border border-ber-border rounded-lg px-2.5 py-1.5 text-sm text-ber-gray focus:outline-none focus:border-ber-teal" value={filtroTemp} onChange={e => setFiltroTemp(e.target.value)}>
               <option value="">Todas temperaturas</option>
               {Object.entries(TEMP_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -968,15 +903,9 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
               <option value="">Todas as tags</option>
               {NUTRICAO_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <div className="ml-auto flex items-center gap-2">
-              <div className="flex rounded-lg border border-ber-border overflow-hidden">
-                <button onClick={() => setViewMode('lista')} className={`p-1.5 ${viewMode === 'lista' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`} title="Lista"><List size={14} /></button>
-                <button onClick={() => setViewMode('kanban')} className={`p-1.5 ${viewMode === 'kanban' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`} title="Kanban"><LayoutGrid size={14} /></button>
-              </div>
-              <button onClick={() => setShowAdicionar(true)} className="flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80">
-                <Plus size={14} /> Adicionar
-              </button>
-            </div>
+            <button onClick={() => setShowAdicionar(true)} className="ml-auto flex items-center gap-1.5 bg-ber-teal text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-ber-teal/80">
+              <Plus size={14} /> Adicionar
+            </button>
           </div>
 
           {nurturing.length === 0 ? (
@@ -985,56 +914,51 @@ export default function TabNutricao({ contatos, campanhas, users, onRefresh }: P
               <p className="text-sm">Nenhum contato em nutrição ainda.</p>
               <button onClick={() => setShowAdicionar(true)} className="mt-3 text-ber-teal text-sm font-semibold hover:underline">Adicionar contatos →</button>
             </div>
-          ) : viewMode === 'kanban' ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 overflow-x-auto">
-              {(['quente', 'morno', 'frio', 'gelado'] as const).map(temp => {
-                const cfg = TEMP_CONFIG[temp];
-                const group = byTemp[temp];
-                return (
-                  <div key={temp} className="min-w-[220px]">
-                    <div className={`flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg ${cfg.color}`}>
-                      <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                      <span className="text-xs font-bold">{cfg.label}</span>
-                      <span className="ml-auto text-xs font-semibold">{group.length}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {group.map(c => <ContactCard key={c.id} contato={c} onRefresh={onRefresh} />)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            /* Grouped compact list */
             <div className="bg-white border border-ber-border rounded-xl overflow-hidden">
-              {/* Column headers */}
-              <div className="hidden md:grid grid-cols-[1fr_120px_80px] gap-3 px-3 py-2 border-b border-ber-border bg-ber-surface">
+              {/* Table header */}
+              <div className="hidden md:grid px-4 py-2 border-b border-ber-border bg-ber-surface"
+                style={{ gridTemplateColumns: '12px 1fr 96px 56px 80px auto' }}>
+                <span />
                 <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide">Contato</span>
-                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide">Último · Próximo</span>
-                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-right">Ações</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-center">Tag</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-right">Último</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-right">Próximo</span>
+                <span className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide text-right pr-1">Ações</span>
               </div>
 
-              <div className="divide-y divide-ber-border/50">
-                <CollapsibleSection title={<><AlertCircle size={12} /> Vencidos</>} count={filteredVencidos.length} headerClass="bg-red-50 text-red-700 hover:bg-red-100">
-                  {filteredVencidos.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
-                </CollapsibleSection>
+              {/* Groups */}
+              {filteredVencidos.length > 0 && (
+                <>
+                  <GroupDivider icon={<AlertCircle size={11} />} label="Vencidos" count={filteredVencidos.length} colorClass="bg-red-50 text-red-700 border-b border-red-100" />
+                  {filteredVencidos.map(c => <TableRow key={c.id} contato={c} rowBg="bg-red-50/30" onRefresh={onRefresh} />)}
+                </>
+              )}
 
-                <CollapsibleSection title={<><Calendar size={12} /> Hoje</>} count={filteredHoje.length} headerClass="bg-amber-50 text-amber-700 hover:bg-amber-100">
-                  {filteredHoje.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
-                </CollapsibleSection>
+              {filteredHoje.length > 0 && (
+                <>
+                  <GroupDivider icon={<Calendar size={11} />} label="Hoje" count={filteredHoje.length} colorClass="bg-amber-50 text-amber-700 border-b border-amber-100" />
+                  {filteredHoje.map(c => <TableRow key={c.id} contato={c} rowBg="bg-amber-50/30" onRefresh={onRefresh} />)}
+                </>
+              )}
 
-                <CollapsibleSection title={<><Clock size={12} /> Próximos 7 dias</>} count={filteredProximos7.length} headerClass="bg-blue-50 text-blue-700 hover:bg-blue-100">
-                  {filteredProximos7.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
-                </CollapsibleSection>
+              {filteredProximos7.length > 0 && (
+                <>
+                  <GroupDivider icon={<Clock size={11} />} label="Próximos 7 dias" count={filteredProximos7.length} colorClass="bg-blue-50 text-blue-700 border-b border-blue-100" />
+                  {filteredProximos7.map(c => <TableRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </>
+              )}
 
-                <CollapsibleSection title="Sem data agendada" count={filteredSemData.length} headerClass="bg-gray-50 text-ber-gray hover:bg-gray-100" defaultOpen={false}>
-                  {filteredSemData.map(c => <CompactRow key={c.id} contato={c} onRefresh={onRefresh} />)}
-                </CollapsibleSection>
+              {filteredSemData.length > 0 && (
+                <>
+                  <GroupDivider icon={<Clock size={11} />} label="Sem data agendada" count={filteredSemData.length} colorClass="bg-gray-50 text-ber-gray border-b border-gray-100" />
+                  {filteredSemData.map(c => <TableRow key={c.id} contato={c} onRefresh={onRefresh} />)}
+                </>
+              )}
 
-                {filtered.length === 0 && (
-                  <p className="text-center py-8 text-sm text-ber-gray">Nenhum contato com esses filtros.</p>
-                )}
-              </div>
+              {filtered.length === 0 && (
+                <p className="text-center py-8 text-sm text-ber-gray">Nenhum contato com esses filtros.</p>
+              )}
             </div>
           )}
         </>
