@@ -89,7 +89,7 @@ export default function BurndownChart({ data }: Props) {
             height={28}
             formatter={(value: string) => (
               <span style={{ fontSize: 11, color: '#6B7280' }}>
-                {value === 'ideal' ? 'Planejado (cronograma)' : 'Real (kanban)'}
+                {value === 'ideal' ? 'Planejado (cronograma)' : 'Real (cronograma)'}
               </span>
             )}
           />

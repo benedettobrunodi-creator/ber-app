@@ -117,14 +117,13 @@ export async function getBurndown(obraId: string) {
     return { hasData: false, reason: 'no_tasks' as const, total: 0, series: [], currentRemaining: 0, expectedRemaining: 0, pctComplete: 0, pctExpected: 0, status: 'on_track' as const, startDate: null, endDate: null };
   }
 
-  // Fetch kanban tasks synced from cronograma (completedAt = when moved to 'done')
-  const kanbanTasks = await prisma.obraTask.findMany({
-    where: { obraId, cronogramaRef: { not: null } },
-    select: { cronogramaRef: true, completedAt: true, status: true },
-  });
-  const kanbanByRef = new Map(kanbanTasks.map((t) => [t.cronogramaRef!, t]));
-
   const totalDias = leafTasks.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+
+  // Real remaining based on PDF percentualConcluido weighted by duration
+  const pdfCurrentRemaining = Math.round(
+    leafTasks.reduce((s, t) => s + (t.duracaoDias ?? 0) * (1 - t.percentualConcluido / 100), 0)
+  );
+  const completedDias = totalDias - pdfCurrentRemaining;
 
   const startDates = leafTasks.map((t) => new Date(t.inicio!));
   const endDates   = leafTasks.map((t) => new Date(t.fim!));
@@ -136,27 +135,30 @@ export async function getBurndown(obraId: string) {
   const totalChartDays = Math.ceil((chartEnd.getTime() - projectStart.getTime()) / 86400000);
   const step = Math.max(1, Math.floor(totalChartDays / 60));
 
+  // Total elapsed ms from project start to today (for interpolation)
+  const elapsedMs = Math.max(0, today.getTime() - projectStart.getTime());
+
   const series: { date: string; remaining: number | null; ideal: number }[] = [];
 
   for (let d = 0; d <= totalChartDays; d += step) {
     const date = new Date(projectStart.getTime() + d * 86400000);
     const dateStr = date.toISOString().split('T')[0];
 
-    // Ideal: sum of durations of tasks whose planned fim >= this date (not yet done by plan)
+    // Ideal: sum of durations of tasks whose planned fim >= this date
     const ideal = leafTasks.reduce((s, t) => {
       const fim = new Date(t.fim!);
       return s + (fim >= date ? (t.duracaoDias ?? 0) : 0);
     }, 0);
 
-    // Real (only up to today): sum of durations of tasks not yet completed by this date
+    // Real: linear interpolation from (projectStart, totalDias) to (today, pdfCurrentRemaining)
     let remaining: number | null = null;
     if (date <= today) {
-      remaining = leafTasks.reduce((s, t) => {
-        const ref = t.wbs || t.nome;
-        const kt = kanbanByRef.get(ref);
-        const doneByDate = kt?.completedAt && new Date(kt.completedAt) <= date;
-        return doneByDate ? s : s + (t.duracaoDias ?? 0);
-      }, 0);
+      if (elapsedMs <= 0) {
+        remaining = pdfCurrentRemaining;
+      } else {
+        const fraction = (date.getTime() - projectStart.getTime()) / elapsedMs;
+        remaining = Math.round(totalDias - (totalDias - pdfCurrentRemaining) * fraction);
+      }
     }
 
     series.push({ date: dateStr, remaining, ideal });
@@ -167,20 +169,11 @@ export async function getBurndown(obraId: string) {
   const lastKey = lastDate.toISOString().split('T')[0];
   if (!series.length || series[series.length - 1].date < lastKey) {
     const ideal = leafTasks.reduce((s, t) => s + (new Date(t.fim!) >= lastDate ? (t.duracaoDias ?? 0) : 0), 0);
-    const remaining = lastDate <= today
-      ? leafTasks.reduce((s, t) => {
-          const kt = kanbanByRef.get(t.wbs || t.nome);
-          return kt?.completedAt && new Date(kt.completedAt) <= lastDate ? s : s + (t.duracaoDias ?? 0);
-        }, 0)
-      : null;
+    const remaining = lastDate <= today ? pdfCurrentRemaining : null;
     series.push({ date: lastKey, remaining, ideal });
   }
 
-  const completedDias = leafTasks.reduce((s, t) => {
-    const kt = kanbanByRef.get(t.wbs || t.nome);
-    return kt?.completedAt ? s + (t.duracaoDias ?? 0) : s;
-  }, 0);
-  const currentRemaining = totalDias - completedDias;
+  const currentRemaining = pdfCurrentRemaining;
   const todayStr = today.toISOString().split('T')[0];
   const todayIdeal = [...series].reverse().find((p) => p.date <= todayStr)?.ideal ?? totalDias;
   const pctComplete  = Math.round((completedDias / totalDias) * 100);
