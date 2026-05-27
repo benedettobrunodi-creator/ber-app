@@ -749,9 +749,9 @@ export async function getWinRate(opts: { ano?: number; responsavelId?: string })
   const where: Record<string, unknown> = {};
   if (opts.responsavelId) where.responsavelId = opts.responsavelId;
   if (opts.ano) {
-    where.updatedAt = {
-      gte: new Date(`${opts.ano}-01-01`),
-      lte: new Date(`${opts.ano}-12-31`),
+    where.createdAt = {
+      gte: new Date(`${opts.ano}-01-01T00:00:00.000Z`),
+      lt:  new Date(`${opts.ano + 1}-01-01T00:00:00.000Z`),
     };
   }
   const [ganho, perdido, declinado, cancelado] = await Promise.all([
@@ -880,9 +880,9 @@ export async function getFunilConversao(ano?: number) {
 export async function getMotivosPerda(ano?: number) {
   const where: Record<string, unknown> = { etapa: 'perdido' };
   if (ano) {
-    where.updatedAt = {
-      gte: new Date(`${ano}-01-01`),
-      lte: new Date(`${ano}-12-31`),
+    where.createdAt = {
+      gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+      lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
     };
   }
 
@@ -911,9 +911,9 @@ export async function getPerformanceResponsavel(ano?: number) {
     responsavelId: { not: null },
   };
   if (ano) {
-    where.updatedAt = {
-      gte: new Date(`${ano}-01-01`),
-      lte: new Date(`${ano}-12-31`),
+    where.createdAt = {
+      gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+      lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
     };
   }
 
@@ -1065,9 +1065,9 @@ export async function getWinRateSegmento(ano?: number) {
     empresa: { isNot: null },
   };
   if (ano) {
-    where.updatedAt = {
-      gte: new Date(`${ano}-01-01`),
-      lte: new Date(`${ano}-12-31`),
+    where.createdAt = {
+      gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+      lt:  new Date(`${ano + 1}-01-01T00:00:00.000Z`),
     };
   }
 
