@@ -608,7 +608,7 @@ export default function ObraDetailPage() {
         api.get(`/obras/${params.id}/touchpoints`, { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
-      api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data)).catch(() => {});
+      api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data.data)).catch(() => {});
       setObra(obraRes.data.data);
       const obraData = obraRes.data.data;
       if (obraData?.orcamentoId) {
@@ -677,7 +677,7 @@ export default function ObraDetailPage() {
     try {
       const r = await api.post(`/obras/${params.id}/cronograma/parse`);
       setCronograma(r.data.data);
-      api.get(`/obras/${params.id}/tasks/burndown`).then(bd => setBurndownData(bd.data)).catch(() => {});
+      api.get(`/obras/${params.id}/tasks/burndown`).then(bd => setBurndownData(bd.data.data)).catch(() => {});
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao processar');
     } finally {
@@ -697,7 +697,7 @@ export default function ObraDetailPage() {
       ]);
       setTasks(tasksRes.data.data);
       setObra(obraRes.data.data);
-      if (burndownRes) setBurndownData(burndownRes.data);
+      if (burndownRes) setBurndownData(burndownRes.data.data);
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao sincronizar');
     } finally {
@@ -1311,7 +1311,7 @@ export default function ObraDetailPage() {
                 setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as TaskStatus } : t));
                 try {
                   await api.patch(`/tasks/${taskId}/status`, { status: newStatus });
-                  api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data)).catch(() => {});
+                  api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data.data)).catch(() => {});
                 } catch {
                   setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: task.status } : t));
                 }
