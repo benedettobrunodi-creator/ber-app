@@ -10,6 +10,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import CockpitBlock from '@/components/obras/CockpitBlock';
 import BurndownChart, { type BurndownData } from '@/components/obras/BurndownChart';
+import DiarioTab from '@/components/obras/DiarioTab';
 import dynamic from 'next/dynamic';
 import { usePdfAsImage } from '@/components/PdfImage';
 
@@ -134,7 +135,7 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
 const CAN_CHANGE_STATUS = ['diretoria', 'coordenacao'];
 
 
-type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma';
+type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma' | 'diario';
 
 interface TouchpointSummary {
   id: string;
@@ -886,6 +887,7 @@ export default function ObraDetailPage() {
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
     { key: 'cronograma', label: `📅 Cronograma` },
+    { key: 'diario', label: `📓 Diário` },
   ];
 
 
@@ -3553,6 +3555,11 @@ export default function ObraDetailPage() {
           </div>
         </div>
       )}
+
+        {/* ─── Diário tab ─── */}
+        {activeTab === 'diario' && (
+          <DiarioTab obraId={params.id} obraNome={obra.name} />
+        )}
 
     </div>
   );
