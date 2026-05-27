@@ -51,8 +51,8 @@ export async function parseCronogramaPDF(
   const client = new Anthropic({ apiKey });
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 8192,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 16000,
     messages: [
       {
         role: 'user',
@@ -78,10 +78,11 @@ export async function parseCronogramaPDF(
 
   console.log('[CRONOGRAMA PARSE] resposta bruta:', text.slice(0, 500));
 
-  // Extrai o primeiro objeto JSON completo da resposta
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  const clean = start !== -1 && end !== -1 ? text.slice(start, end + 1) : text.trim();
+  // Strip markdown fences if present
+  const stripped = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+  const start = stripped.indexOf('{');
+  const end = stripped.lastIndexOf('}');
+  const clean = start !== -1 && end !== -1 ? stripped.slice(start, end + 1) : stripped;
 
   let raw: {
     progresso_geral: number;
