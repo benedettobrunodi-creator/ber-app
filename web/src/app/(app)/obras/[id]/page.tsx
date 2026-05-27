@@ -1072,96 +1072,78 @@ export default function ObraDetailPage() {
                   </div>
                   {!cronograma?.parsedData ? (
                     <p className="text-sm text-ber-gray/50 italic mt-4">Importe o cronograma para ver as atividades</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {atrasadas.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-red-500 mb-1">Atrasadas</p>
-                          {atrasadas.slice(0, 4).map((t, i) => {
-                            const atraso = Math.abs(getDaysLeft(t.fim!));
-                            const pct = getPct(t);
-                            return (
-                              <div key={i} className="flex items-center justify-between rounded-lg bg-red-50 border border-red-100 px-3 py-2 mb-1">
-                                <div className="flex-1 mr-2 min-w-0">
-                                  <p className="text-xs font-medium text-red-800 truncate">{t.nome}</p>
-                                  <p className="text-[10px] text-red-500">venceu {fmtD(t.fim!)} · {atraso}d de atraso</p>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <div className="h-1.5 w-12 rounded-full bg-red-100 overflow-hidden">
-                                    <div className="h-full rounded-full bg-red-400" style={{ width: `${pct}%` }} />
+                  ) : (() => {
+                    type TRow = { t: typeof tarefas[0]; pct: number; meta?: string; color: 'red'|'amber'|'teal'|'gray' };
+                    const rows: { label: string; accent: string; items: TRow[] }[] = [];
+
+                    if (atrasadas.length > 0) rows.push({
+                      label: `Atrasadas (${atrasadas.length})`,
+                      accent: 'text-red-500',
+                      items: atrasadas.slice(0, 4).map(t => ({
+                        t, pct: getPct(t), color: 'red' as const,
+                        meta: `venceu ${fmtD(t.fim!)} · ${Math.abs(getDaysLeft(t.fim!))}d atraso`,
+                      })),
+                    });
+                    if (emRisco.length > 0) rows.push({
+                      label: 'Em risco',
+                      accent: 'text-amber-500',
+                      items: emRisco.slice(0, 3).map(t => ({
+                        t, pct: getPct(t), color: 'amber' as const,
+                        meta: `até ${fmtD(t.fim!)} · ${getDaysLeft(t.fim!)}d restante${getDaysLeft(t.fim!) !== 1 ? 's' : ''}`,
+                      })),
+                    });
+                    if (ativas.length > 0) rows.push({
+                      label: 'Em andamento',
+                      accent: 'text-ber-teal',
+                      items: ativas.slice(0, 5).map(t => ({
+                        t, pct: getPct(t), color: 'teal' as const,
+                        meta: t.fim ? `até ${fmtD(t.fim)} · ${getDaysLeft(t.fim)}d` : undefined,
+                      })),
+                    });
+                    if (proximas.length > 0) rows.push({
+                      label: 'Próximas',
+                      accent: 'text-ber-gray/60',
+                      items: proximas.slice(0, 3).map(t => ({
+                        t, pct: 0, color: 'gray' as const,
+                        meta: `${t.inicio ? fmtD(t.inicio) : ''}${t.fim ? ` → ${fmtD(t.fim)}` : ''}`,
+                      })),
+                    });
+
+                    if (rows.length === 0) return <p className="text-sm text-ber-gray/50 italic mt-4">Sem atividades nos próximos 14 dias</p>;
+
+                    const barColor = { red: 'bg-red-400', amber: 'bg-amber-400', teal: 'bg-ber-teal', gray: 'bg-gray-300' };
+                    const dotColor = { red: 'bg-red-400', amber: 'bg-amber-400', teal: 'bg-ber-teal', gray: 'bg-gray-300' };
+                    const metaColor = { red: 'text-red-400', amber: 'text-amber-500', teal: 'text-ber-gray/60', gray: 'text-ber-gray/50' };
+
+                    return (
+                      <div className="divide-y divide-ber-border/50">
+                        {rows.map((section, si) => (
+                          <div key={si} className="py-2 first:pt-0">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${section.accent}`}>{section.label}</p>
+                            <div className="space-y-1.5">
+                              {section.items.map(({ t, pct, meta, color }, i) => (
+                                <div key={i} className="flex items-center gap-2.5 group">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-0.5 ${dotColor[color]}`} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-ber-carbon leading-tight truncate">{t.nome}</p>
+                                    {meta && <p className={`text-[10px] leading-tight mt-0.5 ${metaColor[color]}`}>{meta}</p>}
                                   </div>
-                                  <span className="text-[10px] font-bold text-red-600 w-7 text-right">{pct}%</span>
+                                  {color !== 'gray' && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <div className="h-1 w-14 rounded-full bg-gray-100 overflow-hidden">
+                                        <div className={`h-full rounded-full ${barColor[color]}`} style={{ width: `${pct}%` }} />
+                                      </div>
+                                      <span className={`text-[10px] font-bold w-6 text-right ${pct >= 100 ? 'text-green-600' : pct >= 70 ? 'text-ber-teal' : 'text-ber-gray/70'}`}>{pct}%</span>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {emRisco.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-500 mb-1">Em risco (vence em ≤7 dias)</p>
-                          {emRisco.slice(0, 3).map((t, i) => {
-                            const dias = getDaysLeft(t.fim!);
-                            const pct = getPct(t);
-                            return (
-                              <div key={i} className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 mb-1">
-                                <div className="flex-1 mr-2 min-w-0">
-                                  <p className="text-xs font-medium text-amber-800 truncate">{t.nome}</p>
-                                  <p className="text-[10px] text-amber-600">até {fmtD(t.fim!)} · {dias}d restante{dias !== 1 ? 's' : ''}</p>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <div className="h-1.5 w-12 rounded-full bg-amber-100 overflow-hidden">
-                                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <span className="text-[10px] font-bold text-amber-600 w-7 text-right">{pct}%</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {ativas.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-ber-teal mb-1">Em andamento</p>
-                          {ativas.slice(0, 5).map((t, i) => {
-                            const pct = getPct(t);
-                            const daysLeft = t.fim ? getDaysLeft(t.fim) : null;
-                            return (
-                              <div key={i} className="flex items-center justify-between rounded-lg bg-ber-teal/5 px-3 py-2 mb-1">
-                                <div className="flex-1 mr-2 min-w-0">
-                                  <p className="text-xs text-ber-carbon truncate">{t.nome}</p>
-                                  {t.fim && <p className="text-[10px] text-ber-gray/70">até {fmtD(t.fim)}{daysLeft !== null ? ` · ${daysLeft}d` : ''}</p>}
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <div className="h-1.5 w-12 rounded-full bg-gray-100 overflow-hidden">
-                                    <div className="h-full rounded-full bg-ber-teal" style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <span className="text-[10px] font-bold text-ber-teal w-7 text-right">{pct}%</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {proximas.length > 0 && (
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray mt-1 mb-1">Próximas (14 dias)</p>
-                          {proximas.slice(0, 3).map((t, i) => (
-                            <div key={i} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 mb-1">
-                              <p className="text-xs text-ber-carbon truncate flex-1 mr-2">{t.nome}</p>
-                              <div className="text-right shrink-0">
-                                <p className="text-[10px] text-ber-gray">inicia {t.inicio ? fmtD(t.inicio) : ''}</p>
-                                {t.fim && <p className="text-[10px] text-ber-gray/60">até {fmtD(t.fim)}</p>}
-                              </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      {atrasadas.length === 0 && emRisco.length === 0 && ativas.length === 0 && proximas.length === 0 && (
-                        <p className="text-sm text-ber-gray/50 italic mt-4">Sem atividades nos próximos 14 dias</p>
-                      )}
-                    </div>
-                  )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })(),
