@@ -6,16 +6,13 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   Plus, X, Lock, Unlock, Sun, Cloud, CloudSun, CloudRain, Zap,
   Users, ClipboardList, AlertTriangle, UserCheck, Package, Wrench, ChevronDown, ChevronUp,
-  Loader2, Camera, Link2, Eye, CalendarDays, Pencil, CheckCircle2, XCircle, Trash2,
+  Loader2, Camera, Link2, Eye, CheckCircle2, XCircle, Trash2,
 } from 'lucide-react';
 
 interface Obra {
   id: string;
   name: string;
   client: string | null;
-  dataInicioObra: string | null;
-  dataFimObra: string | null;
-  expectedEndDate: string | null;
 }
 
 interface DiarioSummary {
@@ -204,9 +201,6 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     fotos: true, efetivos: true, atividades: true, ocorrencias: false, visitas: false, materiais: false, equipamentos: false,
   });
-  const [editingDatas, setEditingDatas] = useState(false);
-  const [datasForm, setDatasForm] = useState({ dataInicioObra: '', dataFimObra: '' });
-  const [savingDatas, setSavingDatas] = useState(false);
   const [addingAtividade, setAddingAtividade] = useState(false);
   const [addingOcorrencia, setAddingOcorrencia] = useState(false);
   const [addingVisita, setAddingVisita] = useState(false);
@@ -350,22 +344,6 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
       alert(e?.response?.data?.message ?? 'Erro ao salvar');
     } finally {
       setPatchingHeader(false);
-    }
-  }
-
-  async function saveDatasObra() {
-    setSavingDatas(true);
-    try {
-      const res = await api.patch(`/obras/${obraId}/datas`, {
-        dataInicioObra: datasForm.dataInicioObra || null,
-        dataFimObra: datasForm.dataFimObra || null,
-      });
-      setObra(prev => prev ? { ...prev, dataInicioObra: res.data?.data?.dataInicioObra ?? null, dataFimObra: res.data?.data?.dataFimObra ?? null } : prev);
-      setEditingDatas(false);
-    } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro ao salvar datas');
-    } finally {
-      setSavingDatas(false);
     }
   }
 
@@ -564,15 +542,14 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
       if (!inicio) return false;
       return diarioDate >= inicio && (!fim || diarioDate <= fim);
     });
-    // Cronograma tarefas ativas na data do diário
+    // Cronograma tarefas em andamento (iniciadas e não concluídas)
     const jaImportados = new Set(selected?.atividades.map(a => a.descricao) ?? []);
     const cronogramaAtivas = (cronograma?.parsedData?.tarefas ?? []).filter(t => {
       if (t.ehResumo || t.percentualConcluido >= 100) return false;
       if (!t.inicio) return false;
-      const inicio = t.inicio.slice(0, 10);
-      const fim = t.fim?.slice(0, 10);
-      return diarioDate >= inicio && (!fim || diarioDate <= fim) && !jaImportados.has(t.nome);
-    });
+      // Mostrar se já iniciou (independente de fim — inclui atrasadas)
+      return diarioDate >= t.inicio.slice(0, 10) && !jaImportados.has(t.nome);
+    }).slice(0, 10); // limitar para não poluir
 
     async function add() {
       if (!desc.trim() || !selected) return;
@@ -1052,70 +1029,11 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
               </div>
             </div>
 
-            {/* Datas da obra */}
-            <div className="mb-3">
-              {editingDatas ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-3">
-                  <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
-                    <CalendarDays size={13} /> Datas da obra
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Início da obra</label>
-                      <input type="date"
-                        className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-ber-teal"
-                        value={datasForm.dataInicioObra}
-                        onChange={e => setDatasForm(f => ({ ...f, dataInicioObra: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Previsão de término</label>
-                      <input type="date"
-                        className="mt-1 w-full border border-ber-border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-ber-teal"
-                        value={datasForm.dataFimObra}
-                        onChange={e => setDatasForm(f => ({ ...f, dataFimObra: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setEditingDatas(false)} className="flex-1 py-1.5 border border-ber-border rounded-lg text-xs text-ber-gray hover:bg-ber-surface flex items-center justify-center gap-1">
-                      <XCircle size={12} /> Cancelar
-                    </button>
-                    <button onClick={saveDatasObra} disabled={savingDatas} className="flex-1 py-1.5 bg-ber-teal text-white rounded-lg text-xs font-semibold hover:bg-ber-teal/80 disabled:opacity-50 flex items-center justify-center gap-1">
-                      <CheckCircle2 size={12} /> {savingDatas ? 'Salvando...' : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    setDatasForm({ dataInicioObra: obra?.dataInicioObra?.slice(0, 10) ?? '', dataFimObra: obra?.dataFimObra?.slice(0, 10) ?? '' });
-                    setEditingDatas(true);
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-dashed border-ber-border hover:border-ber-teal hover:bg-ber-teal/5 text-ber-gray transition-colors group"
-                >
-                  <span className="flex items-center gap-2 text-xs">
-                    <CalendarDays size={13} />
-                    {obra?.dataInicioObra ? (
-                      <span>
-                        <span className="font-semibold text-ber-carbon">{new Date(obra.dataInicioObra).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                        <span className="mx-1 text-ber-gray">→</span>
-                        {obra.dataFimObra
-                          ? <span className="font-semibold text-ber-carbon">{new Date(obra.dataFimObra).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                          : <span className="text-amber-500 font-medium">término não definido</span>
-                        }
-                      </span>
-                    ) : (
-                      <span className="text-amber-500 font-medium">Definir datas da obra para projetar avanço</span>
-                    )}
-                  </span>
-                  <Pencil size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" />
-                </button>
-              )}
-            </div>
-
             {/* Avanço físico */}
             <div className="mb-3">
               {(() => {
-                const progressoCronograma = cronograma?.progressPct ?? null;
+                const progressoCronograma = cronograma?.progressPct
+                  ?? (cronograma?.parsedData?.progressoGeral != null ? cronograma.parsedData.progressoGeral : null);
                 const avancoDia = selected.avancoDia ?? 0;
                 const delta = progressoCronograma != null ? avancoDia - progressoCronograma : null;
 
