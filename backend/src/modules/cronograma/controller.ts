@@ -79,7 +79,22 @@ export async function parseCronograma(req: Request, res: Response) {
       throw new Error(`PDF muito grande (${Math.round(pdfBuffer.length / MB)} MB). Limite: 30 MB. Reduza o tamanho ou exporte com menos páginas.`);
     }
 
-    const result = await parseCronogramaPDF(pdfBuffer);
+    // Detect password-protected PDFs (search for /Encrypt dict in first 4KB)
+    const pdfSample = pdfBuffer.slice(0, 4096).toString('latin1');
+    if (pdfSample.includes('/Encrypt')) {
+      throw new Error('O PDF está protegido por senha. Abra no MS Project ou Adobe, remova a senha (Arquivo → Salvar como PDF sem restrições) e envie novamente.');
+    }
+
+    let result;
+    try {
+      result = await parseCronogramaPDF(pdfBuffer);
+    } catch (apiErr: unknown) {
+      const apiMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+      if (apiMsg.includes('not valid') || apiMsg.includes('invalid') || apiMsg.includes('pdf.source')) {
+        throw new Error('O Claude não conseguiu ler o PDF. Possíveis causas: PDF com senha, arquivo corrompido ou formato não suportado. Tente exportar novamente como PDF padrão sem restrições.');
+      }
+      throw apiErr;
+    }
 
     const updated = await prisma.cronograma.update({
       where: { id: cronograma.id },
