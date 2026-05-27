@@ -1497,6 +1497,7 @@ model Cronograma {
   fileName    String    @map("file_name") @db.VarChar(255)
   parsedAt    DateTime? @map("parsed_at")
   parsedData  Json?     @map("parsed_data")
+  overrides   Json?     @map("overrides")
   progressPct Int?      @map("progress_pct")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")

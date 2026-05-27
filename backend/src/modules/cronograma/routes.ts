@@ -12,6 +12,7 @@ router.get('/', ctrl.getCronograma);
 router.post('/upload', upload.single('file'), ctrl.uploadCronograma);
 router.post('/parse', ctrl.parseCronograma);
 router.post('/sync', ctrl.syncToKanban);
+router.patch('/tasks/:ref', ctrl.updateTaskOverride);
 router.delete('/', ctrl.deleteCronograma);
 
 export default router;

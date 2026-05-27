@@ -406,12 +406,14 @@ export default function ObraDetailPage() {
   const [kanbanDragId, setKanbanDragId] = useState<string | null>(null);
 
   // Cronograma state
+  type CronogramaOverride = { pct?: number; inicioRealizado?: string | null; fimRealizado?: string | null; observacao?: string };
   const [cronograma, setCronograma] = useState<{
     id: string; fileUrl: string; fileName: string;
     parsedAt: string | null; parsedData: {
       progressoGeral: number;
-      tarefas: { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; ehResumo: boolean; nivel: number }[];
+      tarefas: { wbs: string; nome: string; inicio: string | null; fim: string | null; duracaoDias: number | null; percentualConcluido: number; ehResumo: boolean; nivel: number }[];
     } | null;
+    overrides: Record<string, CronogramaOverride> | null;
     progressPct: number | null;
   } | null>(null);
   const [cronogramaLoading, setCronogramaLoading] = useState(false);
@@ -1037,9 +1039,11 @@ export default function ObraDetailPage() {
             progresso: (
               <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Progresso Geral</h3>{faseLabel && <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${faseBadge}`}>{faseLabel}</span>}</div>
-                <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{obra.progressPercent}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
-                <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${obra.progressPercent}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
-                {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${obra.progressPercent < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{obra.progressPercent >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
+                {(() => { const pct = cronograma?.progressPct ?? obra.progressPercent; return (<>
+                <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{pct}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
+                <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
+                {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${pct < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{pct >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
+                </>);})()}
               </div>
             ),
             periodo: (() => {
@@ -1108,7 +1112,7 @@ export default function ObraDetailPage() {
                   <div><p className="text-xs text-ber-gray">Dias Decorridos</p><p className="mt-0.5 text-2xl font-black text-ber-carbon">{elapsed ?? '--'}</p></div>
                   <div><p className="text-xs text-ber-gray">Dias Restantes</p><p className={`mt-0.5 text-2xl font-black ${remaining !== null && remaining < 0 ? 'text-red-500' : remaining !== null && remaining < 14 ? 'text-amber-500' : 'text-ber-carbon'}`}>{remaining !== null ? (remaining < 0 ? `${Math.abs(remaining)}d atraso` : remaining) : '--'}</p></div>
                 </div>
-                {timelinePct !== null && <div className="mt-4"><div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-carbon/20" style={{width:`${timelinePct}%`}}/><div className="absolute top-0 h-full rounded-full" style={{width:`${obra.progressPercent}%`,background:'linear-gradient(90deg,#B5B820,#8a8c10)',opacity:0.85}}/></div><div className="mt-1 flex justify-between text-[10px] text-ber-gray"><span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span></div></div>}
+                {timelinePct !== null && (() => { const pct = cronograma?.progressPct ?? obra.progressPercent; return (<div className="mt-4"><div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-carbon/20" style={{width:`${timelinePct}%`}}/><div className="absolute top-0 h-full rounded-full" style={{width:`${pct}%`,background:'linear-gradient(90deg,#B5B820,#8a8c10)',opacity:0.85}}/></div><div className="mt-1 flex justify-between text-[10px] text-ber-gray"><span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span></div></div>); })()}
               </div>
             ),
             tasks: (
@@ -2520,55 +2524,132 @@ export default function ObraDetailPage() {
                 </div>
 
                 {/* Parsed tasks */}
-                {cronograma.parsedData ? (
+                {cronograma.parsedData ? (() => {
+                  const overrides = cronograma.overrides ?? {};
+                  const tarefasLeaf = cronograma.parsedData.tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0);
+                  const totalDias = tarefasLeaf.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+                  const completedDias = tarefasLeaf.reduce((s, t) => {
+                    const key = t.wbs || t.nome;
+                    const ov = overrides[key];
+                    const pct = ov?.pct !== undefined ? ov.pct : t.percentualConcluido;
+                    return s + (t.duracaoDias ?? 0) * pct / 100;
+                  }, 0);
+                  const progressGeral = totalDias > 0 ? Math.round(completedDias / totalDias * 100) : (cronograma.progressPct ?? 0);
+
+                  const fmtDate = (iso: string | null) =>
+                    iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
+
+                  const today2 = new Date(); today2.setHours(0,0,0,0);
+
+                  const taskStatus = (t: typeof cronograma.parsedData.tarefas[0], pct: number) => {
+                    if (pct >= 100) return { label: 'Concluído', cls: 'bg-green-100 text-green-700' };
+                    const fim = t.fim ? new Date(t.fim) : null;
+                    const ini = t.inicio ? new Date(t.inicio) : null;
+                    if (fim && fim < today2) return { label: 'Atrasado', cls: 'bg-red-100 text-red-700' };
+                    if (ini && ini <= today2) return { label: 'Em andamento', cls: 'bg-blue-100 text-blue-700' };
+                    return { label: 'Previsto', cls: 'bg-gray-100 text-gray-500' };
+                  };
+
+                  const patchOverride = async (ref: string, patch: Record<string, unknown>) => {
+                    try {
+                      const r = await api.patch(`/obras/${params.id}/cronograma/tasks/${encodeURIComponent(ref)}`, patch);
+                      setCronograma(prev => prev ? { ...prev, overrides: r.data.data.overrides ?? {}, progressPct: r.data.data.progressPct } : prev);
+                    } catch { /* silent */ }
+                  };
+
+                  return (
                   <div>
-                    <div className="mb-3 flex items-center gap-4">
+                    <div className="mb-3 flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 w-32 rounded-full bg-gray-200 overflow-hidden">
-                          <div
-                            className="h-2 rounded-full bg-ber-olive transition-all"
-                            style={{ width: `${cronograma.progressPct ?? 0}%` }}
-                          />
+                        <div className="h-2 w-32 rounded-full bg-gray-200 overflow-hidden">
+                          <div className="h-2 rounded-full bg-ber-olive transition-all" style={{ width: `${progressGeral}%` }} />
                         </div>
-                        <span className="text-sm font-bold text-ber-carbon">{cronograma.progressPct ?? 0}%</span>
+                        <span className="text-sm font-bold text-ber-carbon">{progressGeral}% concluído</span>
                       </div>
                       <span className="text-xs text-ber-gray">
                         {cronograma.parsedData.tarefas.filter(t => !t.ehResumo).length} tarefas · processado {new Date(cronograma.parsedAt!).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
 
-                    <div className="rounded-lg border border-ber-border overflow-hidden">
-                      <table className="w-full text-xs">
+                    <div className="rounded-lg border border-ber-border overflow-x-auto">
+                      <table className="w-full text-xs min-w-[900px]">
                         <thead className="bg-ber-carbon text-white">
                           <tr>
-                            <th className="px-3 py-2 text-left w-16">WBS</th>
+                            <th className="px-2 py-2 text-left w-12">WBS</th>
                             <th className="px-3 py-2 text-left">Tarefa</th>
-                            <th className="px-3 py-2 text-center w-20">Início</th>
-                            <th className="px-3 py-2 text-center w-20">Fim</th>
-                            <th className="px-3 py-2 text-center w-16">%</th>
+                            <th className="px-2 py-2 text-center w-20">Status</th>
+                            <th className="px-2 py-2 text-center w-16">Início Plan.</th>
+                            <th className="px-2 py-2 text-center w-16">Fim Plan.</th>
+                            <th className="px-2 py-2 text-center w-20 bg-ber-teal/20">Início Real</th>
+                            <th className="px-2 py-2 text-center w-20 bg-ber-teal/20">Fim Real</th>
+                            <th className="px-2 py-2 text-center w-14 bg-ber-teal/20">%</th>
+                            <th className="px-2 py-2 text-left w-28 bg-ber-teal/20">Obs.</th>
                           </tr>
                         </thead>
                         <tbody>
                           {cronograma.parsedData.tarefas.map((t, i) => {
-                            const bg = t.ehResumo ? 'bg-ber-carbon/5 font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                            const indent = t.nivel > 1 ? `pl-${Math.min(t.nivel * 3, 12)}` : '';
-                            const pct = t.percentualConcluido;
-                            const pctColor = pct >= 100 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-ber-gray';
+                            const key = t.wbs || t.nome;
+                            const ov = overrides[key] ?? {};
+                            const pct = ov.pct !== undefined ? ov.pct : t.percentualConcluido;
+                            const pctColor = pct >= 100 ? 'text-green-600 font-bold' : pct >= 50 ? 'text-amber-600 font-semibold' : 'text-ber-gray';
+                            const bg = t.ehResumo ? 'bg-ber-carbon/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                            const st = !t.ehResumo ? taskStatus(t, pct) : null;
                             return (
-                              <tr key={i} className={bg}>
-                                <td className="px-3 py-1.5 text-ber-gray tabular-nums">{t.wbs}</td>
-                                <td className={`px-3 py-1.5 ${indent}`} style={{ paddingLeft: t.nivel > 1 ? `${t.nivel * 12}px` : undefined }}>
+                              <tr key={i} className={`${bg} group`}>
+                                <td className="px-2 py-1 text-ber-gray/70 tabular-nums text-[10px]">{t.wbs}</td>
+                                <td className="px-3 py-1.5 font-medium" style={{ paddingLeft: t.nivel > 1 ? `${t.nivel * 10 + 4}px` : undefined }}>
                                   {t.nome}
                                 </td>
-                                <td className="px-3 py-1.5 text-center text-ber-gray tabular-nums">
-                                  {t.inicio ? new Date(t.inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}
+                                <td className="px-2 py-1 text-center">
+                                  {st && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${st.cls}`}>{st.label}</span>}
                                 </td>
-                                <td className="px-3 py-1.5 text-center text-ber-gray tabular-nums">
-                                  {t.fim ? new Date(t.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}
-                                </td>
-                                <td className={`px-3 py-1.5 text-center font-bold tabular-nums ${pctColor}`}>
-                                  {t.ehResumo ? '' : `${pct}%`}
-                                </td>
+                                <td className="px-2 py-1 text-center text-ber-gray tabular-nums">{fmtDate(t.inicio)}</td>
+                                <td className="px-2 py-1 text-center text-ber-gray tabular-nums">{fmtDate(t.fim)}</td>
+                                {/* Editable columns */}
+                                {t.ehResumo ? (
+                                  <><td /><td /><td /><td /></>
+                                ) : (
+                                  <>
+                                    <td className="px-1 py-0.5">
+                                      <input
+                                        type="date"
+                                        defaultValue={ov.inicioRealizado ?? ''}
+                                        onBlur={e => patchOverride(key, { inicioRealizado: e.target.value || null })}
+                                        className="w-full bg-transparent text-center text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
+                                      />
+                                    </td>
+                                    <td className="px-1 py-0.5">
+                                      <input
+                                        type="date"
+                                        defaultValue={ov.fimRealizado ?? ''}
+                                        onBlur={e => patchOverride(key, { fimRealizado: e.target.value || null })}
+                                        className="w-full bg-transparent text-center text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums"
+                                      />
+                                    </td>
+                                    <td className="px-1 py-0.5">
+                                      <input
+                                        type="number"
+                                        min={0} max={100}
+                                        defaultValue={pct}
+                                        onBlur={e => {
+                                          const v = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                          e.target.value = String(v);
+                                          patchOverride(key, { pct: v });
+                                        }}
+                                        className={`w-full bg-transparent text-center font-semibold focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-0.5 tabular-nums ${pctColor}`}
+                                      />
+                                    </td>
+                                    <td className="px-1 py-0.5">
+                                      <input
+                                        type="text"
+                                        defaultValue={ov.observacao ?? ''}
+                                        onBlur={e => patchOverride(key, { observacao: e.target.value })}
+                                        placeholder="—"
+                                        className="w-full bg-transparent text-[10px] focus:bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal rounded px-1 text-ber-gray placeholder:text-ber-gray/30"
+                                      />
+                                    </td>
+                                  </>
+                                )}
                               </tr>
                             );
                           })}
@@ -2576,7 +2657,8 @@ export default function ObraDetailPage() {
                       </table>
                     </div>
                   </div>
-                ) : (
+                  );
+                })() : (
                   <div className="rounded-lg border border-dashed border-ber-gray/20 py-8 text-center">
                     <p className="text-sm text-ber-gray">PDF enviado. Clique em <strong>Processar com IA</strong> para extrair as tarefas.</p>
                   </div>

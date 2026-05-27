@@ -188,6 +188,49 @@ export async function syncToKanban(req: Request, res: Response) {
   return res.json({ data: { created, updated, progressoGeral: parsed.progressoGeral } });
 }
 
+export async function updateTaskOverride(req: Request, res: Response) {
+  const { id: obraId, ref } = req.params;
+  const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
+  if (!cronograma) return res.status(404).json({ error: { message: 'Cronograma não encontrado' } });
+
+  const { pct, inicioRealizado, fimRealizado, observacao } = req.body as {
+    pct?: number; inicioRealizado?: string | null; fimRealizado?: string | null; observacao?: string;
+  };
+
+  const overrides = ((cronograma.overrides ?? {}) as Record<string, Record<string, unknown>>);
+  overrides[ref] = { ...(overrides[ref] ?? {}) };
+  if (pct !== undefined) overrides[ref].pct = Math.min(100, Math.max(0, pct));
+  if ('inicioRealizado' in req.body) overrides[ref].inicioRealizado = inicioRealizado ?? null;
+  if ('fimRealizado' in req.body) overrides[ref].fimRealizado = fimRealizado ?? null;
+  if ('observacao' in req.body) overrides[ref].observacao = observacao ?? '';
+
+  // Recalculate progressPct from parsedData + overrides
+  const parsed = cronograma.parsedData as {
+    tarefas: { wbs: string; nome: string; duracaoDias: number | null; percentualConcluido: number; ehResumo: boolean }[];
+  } | null;
+  let progressPct = cronograma.progressPct;
+  if (parsed?.tarefas) {
+    const leaf = parsed.tarefas.filter((t) => !t.ehResumo && (t.duracaoDias ?? 0) > 0);
+    const total = leaf.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+    if (total > 0) {
+      const completed = leaf.reduce((s, t) => {
+        const key = t.wbs || t.nome;
+        const ov = overrides[key] as { pct?: number } | undefined;
+        const taskPct = ov?.pct !== undefined ? ov.pct : t.percentualConcluido;
+        return s + (t.duracaoDias ?? 0) * taskPct / 100;
+      }, 0);
+      progressPct = Math.round(completed / total * 100);
+    }
+  }
+
+  const updated = await prisma.cronograma.update({
+    where: { id: cronograma.id },
+    data: { overrides: overrides as import('@prisma/client').Prisma.InputJsonValue, progressPct },
+  });
+
+  return res.json({ data: updated });
+}
+
 export async function deleteCronograma(req: Request, res: Response) {
   const { id: obraId } = req.params;
   await prisma.cronograma.deleteMany({ where: { obraId } });
