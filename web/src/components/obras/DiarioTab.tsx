@@ -1029,75 +1029,24 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
               </div>
             </div>
 
-            {/* Avanço físico */}
-            <div className="mb-3">
-              {(() => {
-                const progressoCronograma = cronograma?.progressPct
-                  ?? (cronograma?.parsedData?.progressoGeral != null ? cronograma.parsedData.progressoGeral : null);
-                const avancoDia = selected.avancoDia ?? 0;
-                const delta = progressoCronograma != null ? avancoDia - progressoCronograma : null;
-
-                return (
-                  <>
-                    {/* Barra do cronograma */}
-                    {progressoCronograma != null && (
-                      <div className="mb-3 rounded-lg bg-ber-olive/5 border border-ber-olive/20 px-3 py-2.5">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-olive">Cronograma</p>
-                          <span className="text-sm font-bold text-ber-olive">{progressoCronograma}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-ber-olive/20 overflow-hidden">
-                          <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${progressoCronograma}%` }} />
-                        </div>
-                        <p className="text-[9px] text-ber-gray mt-1">Média ponderada por duração das tarefas do cronograma</p>
-                      </div>
-                    )}
-
-                    {/* Registro diário */}
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">
-                        {progressoCronograma != null ? 'Registro do dia' : 'Avanço físico acumulado'}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-ber-carbon">{avancoDia}%</span>
-                        {delta != null && (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {delta >= 0 ? `+${delta}` : delta}% vs cronograma
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="relative mb-1">
-                      <input type="range" min={0} max={100} step={1}
-                        disabled={fechado || patchingHeader}
-                        value={avancoDia}
-                        onChange={e => setSelected(s => s ? { ...s, avancoDia: Number(e.target.value) } : s)}
-                        onMouseUp={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
-                        onTouchEnd={e => patchHeader({ avancoDia: Number((e.target as HTMLInputElement).value) })}
-                        className="w-full accent-ber-olive disabled:opacity-50"
-                      />
-                      {progressoCronograma != null && !fechado && (
-                        <div className="absolute top-0 w-0.5 h-full bg-ber-olive pointer-events-none opacity-40"
-                          style={{ left: `${progressoCronograma}%` }} title={`Cronograma: ${progressoCronograma}%`} />
-                      )}
-                    </div>
-                    {!fechado && selected.avancoDia != null && selected.avancoDia > 0 && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await api.patch(`/obras/${obraId}`, { progressPercent: selected.avancoDia });
-                            alert(`✅ Progresso da obra atualizado para ${selected.avancoDia}%`);
-                          } catch { alert('Erro ao atualizar progresso'); }
-                        }}
-                        className="mt-1 text-[10px] text-ber-teal hover:underline flex items-center gap-1"
-                      >
-                        → Atualizar progresso da obra para {selected.avancoDia}%
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+            {/* Avanço físico — cronograma */}
+            {(() => {
+              const progressoCronograma = cronograma?.progressPct
+                ?? (cronograma?.parsedData?.progressoGeral != null ? cronograma.parsedData.progressoGeral : null);
+              if (progressoCronograma == null) return null;
+              return (
+                <div className="mb-3 rounded-lg bg-ber-olive/5 border border-ber-olive/20 px-3 py-2.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-olive">Progresso da obra</p>
+                    <span className="text-sm font-bold text-ber-olive">{progressoCronograma}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-ber-olive/20 overflow-hidden">
+                    <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${progressoCronograma}%` }} />
+                  </div>
+                  <p className="text-[9px] text-ber-gray mt-1">Média ponderada por duração — cronograma</p>
+                </div>
+              );
+            })()}
 
             {/* Observações ao cliente */}
             <div className="mb-3">
