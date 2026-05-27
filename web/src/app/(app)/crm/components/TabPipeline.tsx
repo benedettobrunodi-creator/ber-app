@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, Component } from 'react';
+import { useState, useCallback, useEffect, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
@@ -477,25 +477,70 @@ function OportunidadeDrawer({
   );
 }
 
-type SortMode = 'etapa' | 'az' | 'recente';
+type SortCol = 'titulo' | 'etapa' | 'empresa' | 'responsavel' | 'probabilidade' | 'valor';
+type SortDir = 'asc' | 'desc';
 
-function sortOportunidades(ops: Oportunidade[], mode: SortMode): Oportunidade[] {
-  const sorted = [...ops];
-  if (mode === 'az') {
-    sorted.sort((a, b) => (a.titulo ?? '').localeCompare(b.titulo ?? '', 'pt-BR'));
-  } else if (mode === 'recente') {
-    sorted.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
-  } else {
-    const order: string[] = ETAPAS.map((e) => e.value);
-    sorted.sort((a, b) => order.indexOf(a.etapa) - order.indexOf(b.etapa));
-  }
-  return sorted;
+const PROB_ORDER: Record<string, number> = { alta: 3, media: 2, baixa: 1 };
+const ETAPA_ORDER = Object.fromEntries(ETAPAS.map((e, i) => [e.value, i]));
+
+function sortOportunidades(ops: Oportunidade[], col: SortCol, dir: SortDir): Oportunidade[] {
+  const d = dir === 'asc' ? 1 : -1;
+  return [...ops].sort((a, b) => {
+    switch (col) {
+      case 'titulo':
+        return d * (a.titulo ?? '').localeCompare(b.titulo ?? '', 'pt-BR');
+      case 'etapa':
+        return d * ((ETAPA_ORDER[a.etapa] ?? 99) - (ETAPA_ORDER[b.etapa] ?? 99));
+      case 'empresa':
+        return d * (a.empresa?.razaoSocial ?? '').localeCompare(b.empresa?.razaoSocial ?? '', 'pt-BR');
+      case 'responsavel':
+        return d * (a.responsavel?.name ?? '').localeCompare(b.responsavel?.name ?? '', 'pt-BR');
+      case 'probabilidade':
+        return d * ((PROB_ORDER[a.probabilidade ?? ''] ?? 0) - (PROB_ORDER[b.probabilidade ?? ''] ?? 0));
+      case 'valor':
+        return d * ((a.valor ?? 0) - (b.valor ?? 0));
+      default:
+        return 0;
+    }
+  });
+}
+
+interface Filters {
+  search: string;
+  etapa: string;
+  responsavelId: string;
+  probabilidade: string;
 }
 
 export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
-  const [sortMode, setSortMode] = useState<SortMode>('etapa');
+  const [sortCol, setSortCol] = useState<SortCol>('etapa');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [filters, setFilters] = useState<Filters>({ search: '', etapa: '', responsavelId: '', probabilidade: '' });
+  const [showFilters, setShowFilters] = useState(false);
+
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  const filteredOps = useMemo(() => {
+    let ops = oportunidades;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      ops = ops.filter(o =>
+        o.titulo.toLowerCase().includes(q) ||
+        (o.empresa?.razaoSocial ?? '').toLowerCase().includes(q)
+      );
+    }
+    if (filters.etapa) ops = ops.filter(o => o.etapa === filters.etapa);
+    if (filters.responsavelId) ops = ops.filter(o => o.responsavel?.id === filters.responsavelId);
+    if (filters.probabilidade) ops = ops.filter(o => o.probabilidade === filters.probabilidade);
+    return ops;
+  }, [oportunidades, filters]);
+
+  const activeFilterCount = [filters.etapa, filters.responsavelId, filters.probabilidade].filter(Boolean).length;
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -534,17 +579,16 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
         </div>
         <div className="flex items-center gap-2">
           {viewMode === 'lista' && (
-            <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
-              {([['etapa', 'Etapa'], ['az', 'A–Z'], ['recente', 'Recente']] as [SortMode, string][]).map(([mode, label]) => (
-                <button
-                  key={mode}
-                  onClick={() => setSortMode(mode)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${sortMode === mode ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:text-ber-carbon'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${showFilters || activeFilterCount > 0 ? 'border-ber-teal bg-ber-teal/10 text-ber-teal' : 'border-ber-border bg-white text-ber-gray hover:text-ber-carbon'}`}
+            >
+              <SlidersHorizontal size={13} />
+              Filtros
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-ber-teal text-white text-[10px] w-4 h-4 flex items-center justify-center">{activeFilterCount}</span>
+              )}
+            </button>
           )}
           <div className="flex items-center rounded-lg border border-ber-border bg-white p-0.5">
             <button
@@ -572,19 +616,88 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       </div>
 
       {viewMode === 'lista' && (
-        <div className="rounded-xl border border-ber-border bg-white overflow-hidden mb-4">
-          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 bg-ber-surface border-b border-ber-border text-[10px] font-bold uppercase tracking-wide text-ber-gray">
-            <span>Oportunidade</span>
-            <span>Etapa</span>
-            <span>Empresa</span>
-            <span>Responsável</span>
-            <span>Probabilidade</span>
-            <span className="text-right">Valor</span>
-          </div>
-          {oportunidades.length === 0 && (
-            <p className="text-center text-xs text-ber-gray py-10">Nenhuma oportunidade.</p>
+        <>
+          {/* Filter bar */}
+          {showFilters && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-ber-border bg-white px-4 py-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/50 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar título ou empresa…"
+                  value={filters.search}
+                  onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+                  className="w-full rounded-lg border border-ber-border pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
+                />
+              </div>
+              <select
+                value={filters.etapa}
+                onChange={e => setFilters(f => ({ ...f, etapa: e.target.value }))}
+                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon min-w-[130px]"
+              >
+                <option value="">Todas as etapas</option>
+                {ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+              </select>
+              <select
+                value={filters.responsavelId}
+                onChange={e => setFilters(f => ({ ...f, responsavelId: e.target.value }))}
+                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon min-w-[130px]"
+              >
+                <option value="">Todos responsáveis</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+              <select
+                value={filters.probabilidade}
+                onChange={e => setFilters(f => ({ ...f, probabilidade: e.target.value }))}
+                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon"
+              >
+                <option value="">Todas probabilidades</option>
+                {PROBABILIDADES.map(p => <option key={p.value} value={p.value}>{p.label} ({p.pct}%)</option>)}
+              </select>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => setFilters({ search: '', etapa: '', responsavelId: '', probabilidade: '' })}
+                  className="text-xs text-ber-gray hover:text-red-500 whitespace-nowrap"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
           )}
-          {sortOportunidades(oportunidades, sortMode).map((op, idx) => {
+
+          <div className="rounded-xl border border-ber-border bg-white overflow-hidden mb-4">
+            {/* Sortable header */}
+            <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 bg-ber-surface border-b border-ber-border">
+              {([
+                ['titulo',       'Oportunidade',  'text-left'],
+                ['etapa',        'Etapa',         'text-left'],
+                ['empresa',      'Empresa',       'text-left'],
+                ['responsavel',  'Responsável',   'text-left'],
+                ['probabilidade','Probabilidade', 'text-left'],
+                ['valor',        'Valor',         'text-right'],
+              ] as [SortCol, string, string][]).map(([col, label, align]) => (
+                <button
+                  key={col}
+                  onClick={() => toggleSort(col)}
+                  className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-ber-gray hover:text-ber-carbon transition-colors ${align === 'text-right' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {align === 'text-right' && (sortCol === col
+                    ? (sortDir === 'asc' ? <ChevronUp size={11} className="text-ber-teal" /> : <ChevronDown size={11} className="text-ber-teal" />)
+                    : <ChevronsUpDown size={11} className="opacity-30" />
+                  )}
+                  <span className={sortCol === col ? 'text-ber-carbon' : ''}>{label}</span>
+                  {align !== 'text-right' && (sortCol === col
+                    ? (sortDir === 'asc' ? <ChevronUp size={11} className="text-ber-teal" /> : <ChevronDown size={11} className="text-ber-teal" />)
+                    : <ChevronsUpDown size={11} className="opacity-30" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {filteredOps.length === 0 && (
+              <p className="text-center text-xs text-ber-gray py-10">Nenhuma oportunidade.</p>
+            )}
+            {sortOportunidades(filteredOps, sortCol, sortDir).map((op) => {
               const etapaCfg = ETAPA_MAP[op.etapa];
               const probCfg = PROBABILIDADES.find((p) => p.value === op.probabilidade);
               return (
@@ -611,12 +724,13 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
                 </div>
               );
             })}
-          <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 border-t border-ber-border bg-ber-surface text-xs font-bold text-ber-carbon">
-            <span>{oportunidades.length} itens</span>
-            <span /><span /><span /><span />
-            <span className="text-right">{fmt(oportunidades.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</span>
+            <div className="grid grid-cols-[1fr_130px_110px_90px_90px_80px] gap-3 px-4 py-2.5 border-t border-ber-border bg-ber-surface text-xs font-bold text-ber-carbon">
+              <span>{filteredOps.length}{filteredOps.length !== oportunidades.length ? ` de ${oportunidades.length}` : ''} itens</span>
+              <span /><span /><span /><span />
+              <span className="text-right">{fmt(filteredOps.reduce((s, o) => s + Number(o.valor ?? 0), 0))}</span>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       <div className={`flex gap-3 overflow-x-auto pb-4 ${viewMode === 'lista' ? 'hidden' : ''}`} style={{ minHeight: '70vh' }}>
