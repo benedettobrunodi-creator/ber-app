@@ -37,7 +37,7 @@ export async function parseCronogramaPDF(
 
   const client = new Anthropic({ apiKey });
 
-  const message = await client.messages.create({
+  const message = await client.messages.stream({
     model: 'claude-sonnet-4-6',
     max_tokens: 32000,
     messages: [
@@ -56,7 +56,7 @@ export async function parseCronogramaPDF(
         ],
       },
     ],
-  });
+  }).finalMessage();
 
   const text = message.content
     .filter((b) => b.type === 'text')
