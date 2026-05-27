@@ -35,7 +35,14 @@ const diarioInclude = {
 export async function listByObra(req: Request, res: Response) {
   const diarios = await prisma.diarioObra.findMany({
     where: { obraId: req.params.id },
-    include: {
+    select: {
+      id: true,
+      data: true,
+      status: true,
+      clima: true,
+      condicaoTrabalho: true,
+      avancoDia: true,
+      observacoesCliente: true,
       criadoPor: { select: { id: true, name: true } },
       _count: { select: { efetivos: true, atividades: true, fotos: true } },
     },

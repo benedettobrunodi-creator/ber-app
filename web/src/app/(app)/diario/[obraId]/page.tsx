@@ -1252,13 +1252,43 @@ export default function DiarioObraPage() {
                         />
                       )}
                     </div>
+                    {!fechado && selected.avancoDia != null && selected.avancoDia > 0 && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.patch(`/obras/${obraId}`, { progressPercent: selected.avancoDia });
+                            alert(`✅ Progresso da obra atualizado para ${selected.avancoDia}%`);
+                          } catch { alert('Erro ao atualizar progresso'); }
+                        }}
+                        className="mt-1 text-[10px] text-ber-teal hover:underline flex items-center gap-1"
+                      >
+                        → Atualizar progresso da obra para {selected.avancoDia}%
+                      </button>
+                    )}
                   </>
                 );
               })()}
             </div>
 
-            {/* Observações internas */}
+            {/* Observações ao cliente */}
             <div className="mb-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">Observações ao cliente</p>
+                <span className="text-[10px] text-ber-gray/50 flex items-center gap-0.5">👁️ Visível ao cliente</span>
+              </div>
+              <textarea
+                value={obsCliente}
+                onChange={e => setObsCliente(e.target.value)}
+                onBlur={() => { if (obsCliente !== (selected.observacoesCliente ?? '')) patchHeader({ observacoesCliente: obsCliente }); }}
+                disabled={fechado || patchingHeader}
+                rows={2}
+                placeholder="Notas para o cliente..."
+                className="w-full rounded-lg border border-ber-border bg-gray-50 px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/50 outline-none focus:border-ber-olive focus:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+              />
+            </div>
+
+            {/* Observações internas */}
+            <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1">Observações internas</p>
               <textarea
                 value={obsInternas}
@@ -1267,20 +1297,6 @@ export default function DiarioObraPage() {
                 disabled={fechado || patchingHeader}
                 rows={2}
                 placeholder="Anotações internas..."
-                className="w-full rounded-lg border border-ber-border bg-gray-50 px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/50 outline-none focus:border-ber-olive focus:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed resize-none"
-              />
-            </div>
-
-            {/* Observações ao cliente */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray mb-1">Observações ao cliente</p>
-              <textarea
-                value={obsCliente}
-                onChange={e => setObsCliente(e.target.value)}
-                onBlur={() => { if (obsCliente !== (selected.observacoesCliente ?? '')) patchHeader({ observacoesCliente: obsCliente }); }}
-                disabled={fechado || patchingHeader}
-                rows={2}
-                placeholder="Notas para o cliente..."
                 className="w-full rounded-lg border border-ber-border bg-gray-50 px-3 py-2 text-sm text-ber-carbon placeholder-ber-gray/50 outline-none focus:border-ber-olive focus:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed resize-none"
               />
             </div>
@@ -1306,15 +1322,21 @@ export default function DiarioObraPage() {
             <FotosSection />
           </Section>
 
+          <Section title="Atividades" icon={<ClipboardList size={14} className="text-blue-500" />}
+            count={selected.atividades.length} open={openSections.atividades} onToggle={() => toggleSection('atividades')}>
+            <AtividadesSection />
+          </Section>
+
           <Section title="Efetivos" icon={<Users size={14} className="text-ber-olive" />}
             count={selected.efetivos.length} open={openSections.efetivos} onToggle={() => toggleSection('efetivos')}>
             <EfetivosSection />
           </Section>
 
-          <Section title="Atividades" icon={<ClipboardList size={14} className="text-blue-500" />}
-            count={selected.atividades.length} open={openSections.atividades} onToggle={() => toggleSection('atividades')}>
-            <AtividadesSection />
-          </Section>
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-ber-border" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-ber-gray/50 px-2">Interno</span>
+            <div className="flex-1 h-px bg-ber-border" />
+          </div>
 
           <Section title="Ocorrências" icon={<AlertTriangle size={14} className="text-amber-500" />}
             count={selected.ocorrencias.length} open={openSections.ocorrencias} onToggle={() => toggleSection('ocorrencias')}>

@@ -488,11 +488,17 @@ export default function ObraDetailPage() {
   const [touchpoints, setTouchpoints] = useState<TouchpointSummary[]>([]);
   const [recentPhotos, setRecentPhotos] = useState<Photo[]>([]);
   const [punchLists, setPunchLists] = useState<PunchList[]>([]);
+  const [lastDiario, setLastDiario] = useState<{
+    id: string; data: string; status: string; clima: string | null;
+    condicaoTrabalho: string | null;
+    avancoDia: number | null; observacoesCliente: string | null;
+    _count: { efetivos: number; atividades: number; fotos: number };
+  } | null>(null);
   // Cockpit drag-and-drop order
-  const COCKPIT_LAYOUT_VERSION = 3;
+  const COCKPIT_LAYOUT_VERSION = 4;
   const COCKPIT_STORAGE_KEY = `cockpit-order-${params.id}`;
   const COCKPIT_VERSION_KEY = `cockpit-version-${params.id}`;
-  const DEFAULT_BLOCK_ORDER = ['progresso', 'periodo', 'burndown', 'timeline', 'touchpoint', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
+  const DEFAULT_BLOCK_ORDER = ['progresso', 'periodo', 'burndown', 'timeline', 'touchpoint', 'diario', 'checklists', 'equipe', 'punchlist', 'fotos', 'medicoes'];
 
   const [blockOrder, setBlockOrder] = useState<string[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_BLOCK_ORDER;
@@ -644,6 +650,10 @@ export default function ObraDetailPage() {
       setBerChecklists(berClRes.data.data ?? []);
       const berClTmplRes = await api.get('/ber-checklist-templates').catch(() => ({ data: { data: [] } }));
       setBerClTemplates(berClTmplRes.data.data ?? []);
+      api.get(`/obras/${params.id}/diario`).then(r => {
+        const list = r.data?.data ?? [];
+        if (list.length > 0) setLastDiario(list[0]);
+      }).catch(() => {});
     } catch {
       /* handled by interceptor */
     } finally {
@@ -1202,6 +1212,79 @@ export default function ObraDetailPage() {
                 )}
               </div>
             ),
+            diario: (() => {
+              const CLIMA_ICON: Record<string, string> = { sol: '☀️', parcialmente_nublado: '⛅', nublado: '☁️', chuva: '🌧️', tempestade: '⚡' };
+              const COND_LABEL: Record<string, string> = { normal: 'Normal', parcial: 'Parcial', interrompido: 'Interrompido' };
+              const STATUS_CLS: Record<string, string> = {
+                aprovado: 'bg-green-100 text-green-700',
+                fechado: 'bg-blue-100 text-blue-700',
+                recusado: 'bg-red-100 text-red-700',
+                rascunho: 'bg-amber-100 text-amber-700',
+              };
+              return (
+                <div className="h-full rounded-lg border border-ber-border bg-white p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Último Diário</h3>
+                    <a href={`/diario/${params.id}`} className="text-[10px] text-ber-teal hover:underline">Ver todos →</a>
+                  </div>
+                  {!lastDiario ? (
+                    <div className="flex flex-col items-center justify-center py-6 gap-2">
+                      <p className="text-sm text-ber-gray/50 italic">Nenhum diário registrado</p>
+                      <a href={`/diario/${params.id}`} className="text-xs text-ber-teal hover:underline">Criar primeiro diário →</a>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-ber-carbon">
+                            {new Date(lastDiario.data.slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {lastDiario.clima && <span className="text-base">{CLIMA_ICON[lastDiario.clima] ?? '🌤️'}</span>}
+                            {lastDiario.condicaoTrabalho && <span className="text-xs text-ber-gray">{COND_LABEL[lastDiario.condicaoTrabalho]}</span>}
+                          </div>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_CLS[lastDiario.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {lastDiario.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-lg bg-gray-50 py-2">
+                          <p className="text-lg font-black text-ber-carbon">{lastDiario._count.efetivos}</p>
+                          <p className="text-[10px] text-ber-gray">efetivos</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 py-2">
+                          <p className="text-lg font-black text-ber-carbon">{lastDiario._count.atividades}</p>
+                          <p className="text-[10px] text-ber-gray">atividades</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 py-2">
+                          <p className="text-lg font-black text-ber-carbon">{lastDiario._count.fotos}</p>
+                          <p className="text-[10px] text-ber-gray">fotos</p>
+                        </div>
+                      </div>
+                      {lastDiario.avancoDia != null && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-ber-gray">Avanço físico</span>
+                            <span className="text-sm font-bold text-ber-carbon">{lastDiario.avancoDia}%</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-ber-olive" style={{ width: `${lastDiario.avancoDia}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {lastDiario.observacoesCliente && (
+                        <p className="text-xs text-ber-gray/80 italic line-clamp-2">"{lastDiario.observacoesCliente}"</p>
+                      )}
+                      <a href={`/diario/${params.id}`}
+                        className="block w-full text-center text-xs font-semibold text-ber-teal border border-ber-teal/30 rounded-lg py-2 hover:bg-ber-teal/5">
+                        Abrir diário
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })(),
             checklists: (
               <div className="h-full rounded-lg border border-ber-border bg-white p-5">
                 <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-widest text-ber-gray">Checklists Críticos</h3><button onClick={() => setActiveTab('checklists')} className="text-xs font-medium text-ber-teal hover:underline">Ver todos →</button></div>
