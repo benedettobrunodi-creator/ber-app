@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Plus, Trash2, Download, X, Upload, ChevronDown, ChevronUp } from 'lucide-react';
@@ -423,290 +423,359 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       {/* FORM */}
       {showForm && (
         <div className="rounded-xl border border-ber-border bg-white overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-ber-border">
-            <p className="text-sm font-semibold text-ber-carbon">
-              {editing ? `Editar RT-${String(editing.numero).padStart(3, '0')}` : 'Novo relatório semanal'}
-            </p>
-            <button onClick={() => setShowForm(false)} className="text-ber-gray hover:text-ber-carbon"><X size={16} /></button>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-ber-border">
+            <div>
+              <p className="text-base font-bold text-ber-carbon">
+                {editing ? `Editar RT-${String(editing.numero).padStart(3, '0')}` : 'Novo relatório semanal'}
+              </p>
+              <p className="text-xs text-ber-gray mt-0.5">Preencha as informações do período. Os campos em cinza são opcionais.</p>
+            </div>
+            <button onClick={() => setShowForm(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
           </div>
 
-          <div className="px-4 py-4 space-y-6">
+          <div className="divide-y divide-ber-border">
 
-            {/* Período + Status */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="form-label">Período início</label>
-                <input type="date" value={form.periodoInicio}
-                  onChange={e => { setForm(f => ({ ...f, periodoInicio: e.target.value })); loadDadosPeriodo(e.target.value, form.periodoFim); }}
-                  className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">Período fim</label>
-                <input type="date" value={form.periodoFim}
-                  onChange={e => { setForm(f => ({ ...f, periodoFim: e.target.value })); loadDadosPeriodo(form.periodoInicio, e.target.value); }}
-                  className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="form-input">
-                  {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Avanço */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="form-label">Avanço acumulado %</label>
-                <input type="number" min={0} max={100} step={0.1} value={form.avancoPct}
-                  onChange={e => setForm(f => ({ ...f, avancoPct: +e.target.value }))} className="form-input" />
-                <p className="text-[9px] text-ber-gray/60 mt-0.5">Cronograma atual: {obra.progressPercent}%</p>
-              </div>
-              <div>
-                <label className="form-label">Avanço na semana %</label>
-                <input type="number" min={0} max={100} step={0.1} value={form.avancoDelta ?? ''}
-                  onChange={e => setForm(f => ({ ...f, avancoDelta: e.target.value ? +e.target.value : null }))} className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">Data contrato</label>
-                <input type="date" value={form.dataContrato ?? ''}
-                  onChange={e => setForm(f => ({ ...f, dataContrato: e.target.value || null }))} className="form-input" />
-              </div>
-            </div>
-
-            {/* Dias + Efetivo */}
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                { key: 'diasTrabalhados', label: 'Dias trabalhados' },
-                { key: 'diasUteis', label: 'Dias úteis' },
-                { key: 'diasImprodutivos', label: 'Dias improdutivos' },
-                { key: 'efetivoMedio', label: 'Efetivo médio' },
-              ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="form-label">{label}</label>
-                  <input type="number" min={0} value={(form as any)[key] ?? ''}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value ? +e.target.value : null }))} className="form-input" />
+            {/* 1. PERÍODO E STATUS */}
+            <FormSection title="1. Período e situação da obra" desc="Defina a semana do relatório e como está o andamento geral.">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Início da semana">
+                    <input type="date" value={form.periodoInicio}
+                      onChange={e => { setForm(f => ({ ...f, periodoInicio: e.target.value })); loadDadosPeriodo(e.target.value, form.periodoFim); }}
+                      className="fi" />
+                  </Field>
+                  <Field label="Fim da semana">
+                    <input type="date" value={form.periodoFim}
+                      onChange={e => { setForm(f => ({ ...f, periodoFim: e.target.value })); loadDadosPeriodo(form.periodoInicio, e.target.value); }}
+                      className="fi" />
+                  </Field>
                 </div>
-              ))}
-            </div>
-
-            {(form.diasImprodutivos ?? 0) > 0 && (
-              <div>
-                <label className="form-label">Motivo dias improdutivos</label>
-                <input type="text" value={form.motivoImprodutivo ?? ''}
-                  onChange={e => setForm(f => ({ ...f, motivoImprodutivo: e.target.value }))}
-                  placeholder="Ex: chuva, feriado, falta de material..." className="form-input" />
+                <Field label="Situação da obra">
+                  <div className="grid grid-cols-3 gap-2">
+                    {STATUS_OPTS.map(o => (
+                      <button key={o.value} onClick={() => setForm(f => ({ ...f, status: o.value }))}
+                        className={`py-2.5 rounded-lg border-2 text-xs font-bold transition-all ${form.status === o.value ? `${o.color} border-current` : 'border-ber-border text-ber-gray hover:border-ber-carbon/30'}`}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
               </div>
-            )}
+              <div className="mt-4">
+                <Field label="Data prevista no contrato (opcional)" hint="Usada para calcular variação de prazo no relatório">
+                  <input type="date" value={form.dataContrato ?? ''}
+                    onChange={e => setForm(f => ({ ...f, dataContrato: e.target.value || null }))} className="fi w-48" />
+                </Field>
+              </div>
+            </FormSection>
 
-            {/* Histograma de efetivos — puxado do diário */}
-            {histogramaData.length > 0 && (
-              <div>
-                <label className="form-label">Histograma de efetivos — diário do período</label>
-                <div className="rounded-lg border border-ber-border bg-[#F7F7F5] px-3 py-3">
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={histogramaData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            {/* 2. AVANÇO FÍSICO */}
+            <FormSection title="2. Avanço físico" desc="Quanto a obra avançou — o cronograma atual está pré-preenchido.">
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Avanço acumulado da obra (%)" hint={`Cronograma atual: ${obra.progressPercent}%`}>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={100} step={1} value={form.avancoPct}
+                      onChange={e => setForm(f => ({ ...f, avancoPct: +e.target.value }))}
+                      className="fi w-24 text-center text-lg font-bold" />
+                    <div className="flex-1">
+                      <div className="h-2 rounded-full bg-ber-border overflow-hidden">
+                        <div className="h-full rounded-full bg-ber-carbon/70 transition-all" style={{ width: `${form.avancoPct}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-ber-carbon w-10 text-right">{form.avancoPct}%</span>
+                  </div>
+                </Field>
+                <Field label="Avanço nesta semana (%)" hint="Quanto avançou só neste período">
+                  <input type="number" min={0} max={100} step={0.1} value={form.avancoDelta ?? ''}
+                    onChange={e => setForm(f => ({ ...f, avancoDelta: e.target.value ? +e.target.value : null }))}
+                    placeholder="Ex: 3.5" className="fi w-32" />
+                </Field>
+              </div>
+            </FormSection>
+
+            {/* 3. EQUIPE E DIAS */}
+            <FormSection title="3. Equipe e dias trabalhados" desc="Quantas pessoas trabalharam e quantos dias foram produtivos.">
+              <div className="grid grid-cols-4 gap-3">
+                <Field label="Dias trabalhados">
+                  <input type="number" min={0} max={7} value={form.diasTrabalhados ?? ''}
+                    onChange={e => setForm(f => ({ ...f, diasTrabalhados: e.target.value ? +e.target.value : null }))}
+                    placeholder="Ex: 4" className="fi text-center" />
+                </Field>
+                <Field label="Dias úteis na semana">
+                  <input type="number" min={0} max={7} value={form.diasUteis ?? ''}
+                    onChange={e => setForm(f => ({ ...f, diasUteis: e.target.value ? +e.target.value : null }))}
+                    placeholder="Ex: 5" className="fi text-center" />
+                </Field>
+                <Field label="Dias improdutivos">
+                  <input type="number" min={0} max={7} value={form.diasImprodutivos ?? ''}
+                    onChange={e => setForm(f => ({ ...f, diasImprodutivos: e.target.value ? +e.target.value : null }))}
+                    placeholder="Ex: 1" className="fi text-center" />
+                </Field>
+                <Field label="Média de pessoas/dia">
+                  <input type="number" min={0} step={0.5} value={form.efetivoMedio ?? ''}
+                    onChange={e => setForm(f => ({ ...f, efetivoMedio: e.target.value ? +e.target.value : null }))}
+                    placeholder="Ex: 12" className="fi text-center" />
+                </Field>
+              </div>
+              {(form.diasImprodutivos ?? 0) > 0 && (
+                <div className="mt-3">
+                  <Field label="Por que os dias foram improdutivos?">
+                    <input type="text" value={form.motivoImprodutivo ?? ''}
+                      onChange={e => setForm(f => ({ ...f, motivoImprodutivo: e.target.value }))}
+                      placeholder="Ex: chuva forte, falta de material, feriado..." className="fi" />
+                  </Field>
+                </div>
+              )}
+              {histogramaData.length > 0 && (
+                <div className="mt-4 rounded-lg border border-ber-border bg-[#F7F7F5] px-3 pt-2 pb-1">
+                  <p className="text-[10px] text-ber-gray mb-2">Trabalhadores por dia — puxado do diário da semana</p>
+                  <ResponsiveContainer width="100%" height={100}>
+                    <BarChart data={histogramaData} margin={{ top: 2, right: 8, bottom: 0, left: -28 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
                       <XAxis dataKey="dia" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip formatter={(v: any) => [`${v} trab.`, 'Efetivo']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
+                      <Tooltip formatter={(v: any) => [`${v} pessoas`, '']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
                       <Bar dataKey="trabalhadores" fill="#1a1a1a" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
-            )}
+              )}
+            </FormSection>
 
-            {/* Responsável */}
-            <div>
-              <label className="form-label">Responsável técnico</label>
-              <input type="text" value={form.responsavelNome ?? ''}
-                onChange={e => setForm(f => ({ ...f, responsavelNome: e.target.value }))}
-                placeholder="Nome do engenheiro responsável" className="form-input" />
-            </div>
-
-            {/* Destaques */}
-            <div>
-              <label className="form-label">Destaques da semana</label>
-              <textarea rows={4} value={form.destaques ?? ''}
+            {/* 4. DESTAQUES */}
+            <FormSection title="4. Destaques da semana" desc="O que aconteceu de mais importante. Será o texto principal do relatório para o cliente.">
+              <textarea rows={5} value={form.destaques ?? ''}
                 onChange={e => setForm(f => ({ ...f, destaques: e.target.value }))}
-                placeholder="Descreva os principais avanços, eventos relevantes e observações do período..."
-                className="form-input resize-none" />
-            </div>
+                placeholder="Descreva os principais avanços, visitas, entregas, ocorrências e observações relevantes do período..."
+                className="fi resize-none w-full" />
+            </FormSection>
 
-            {/* Atividades do cronograma — período atual */}
-            {tarefasPeriodo.length > 0 && (
-              <div>
-                <label className="form-label">Atividades do cronograma — período atual</label>
-                <div className="rounded-lg border border-ber-border divide-y divide-ber-border overflow-hidden">
-                  {tarefasPeriodo.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-white">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-ber-carbon truncate">{t.nome}</p>
-                        <p className="text-[10px] text-ber-gray">{fmt(t.inicio)} → {fmt(t.fim)} · {t.percentualConcluido}%</p>
+            {/* 5. MARCOS */}
+            <FormSection title="5. Marcos da semana" desc="O que foi concluído neste período e quais são os próximos marcos importantes.">
+              {(tarefasPeriodo.length > 0 || tarefasProximo.length > 0) && (
+                <div className="mb-4 rounded-lg border border-ber-border overflow-hidden">
+                  {tarefasPeriodo.length > 0 && (
+                    <div>
+                      <div className="bg-emerald-50 px-3 py-2 border-b border-ber-border">
+                        <p className="text-xs font-semibold text-emerald-700">Atividades do cronograma — em andamento nesta semana</p>
                       </div>
-                      <button onClick={() => addMarcoFromTarefa(t, 'concluido')}
-                        className="ml-3 shrink-0 text-[10px] text-ber-gray hover:text-ber-carbon px-2 py-1 rounded border border-ber-border transition-colors">
-                        + Marco concluído
-                      </button>
+                      {tarefasPeriodo.map((t, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-white border-b border-ber-border last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-ber-carbon truncate">{t.nome}</p>
+                            <p className="text-xs text-ber-gray">{fmt(t.inicio)} → {fmt(t.fim)} · {t.percentualConcluido}% concluído</p>
+                          </div>
+                          <button onClick={() => addMarcoFromTarefa(t, 'concluido')}
+                            className="ml-3 shrink-0 text-xs text-emerald-700 hover:text-emerald-900 font-medium px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                            + Adicionar como concluído
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Atividades do cronograma — próximo período */}
-            {tarefasProximo.length > 0 && (
-              <div>
-                <label className="form-label">Atividades do cronograma — próximas 2 semanas</label>
-                <div className="rounded-lg border border-ber-border divide-y divide-ber-border overflow-hidden">
-                  {tarefasProximo.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-white">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-ber-carbon truncate">{t.nome}</p>
-                        <p className="text-[10px] text-ber-gray">{fmt(t.inicio)} → {t.fim ? fmt(t.fim) : '—'}</p>
+                  )}
+                  {tarefasProximo.length > 0 && (
+                    <div>
+                      <div className="bg-amber-50 px-3 py-2 border-b border-ber-border">
+                        <p className="text-xs font-semibold text-amber-700">Próximas atividades do cronograma — 2 semanas à frente</p>
                       </div>
-                      <button onClick={() => addMarcoFromTarefa(t, 'proximo')}
-                        className="ml-3 shrink-0 text-[10px] text-ber-gray hover:text-ber-carbon px-2 py-1 rounded border border-ber-border transition-colors">
-                        + Marco próximo
-                      </button>
+                      {tarefasProximo.map((t, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-white border-b border-ber-border last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-ber-carbon truncate">{t.nome}</p>
+                            <p className="text-xs text-ber-gray">{fmt(t.inicio)} → {t.fim ? fmt(t.fim) : '—'}</p>
+                          </div>
+                          <button onClick={() => addMarcoFromTarefa(t, 'proximo')}
+                            className="ml-3 shrink-0 text-xs text-amber-700 hover:text-amber-900 font-medium px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 transition-colors">
+                            + Adicionar como próximo
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* MARCOS */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="form-label mb-0">Marcos</label>
-                <div className="flex gap-2">
-                  <button onClick={() => addMarco('concluido')} className="text-[10px] text-ber-gray hover:text-ber-carbon flex items-center gap-1"><Plus size={11} /> Concluído</button>
-                  <button onClick={() => addMarco('proximo')} className="text-[10px] text-ber-gray hover:text-ber-carbon flex items-center gap-1"><Plus size={11} /> Próximo</button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {form.marcos.map((m, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.tipo === 'concluido' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {m.tipo === 'concluido' ? 'CONCL.' : 'PRÓX.'}
-                    </span>
-                    <input value={m.nome} onChange={e => updateMarco(i, 'nome', e.target.value)}
-                      placeholder="Nome do marco" className="flex-1 form-input py-1.5" />
-                    <input type="date" value={m.data} onChange={e => updateMarco(i, 'data', e.target.value)}
-                      className="form-input py-1.5 w-36" />
-                    <button onClick={() => removeMarco(i)} className="text-ber-gray/40 hover:text-red-500"><X size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* PENDÊNCIAS */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="form-label mb-0">Pendências do cliente</label>
-                <button onClick={addPendencia} className="text-[10px] text-ber-gray hover:text-ber-carbon flex items-center gap-1"><Plus size={11} /> Adicionar</button>
-              </div>
-              <div className="space-y-2">
-                {form.pendencias.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input value={p.descricao} onChange={e => updatePendencia(i, 'descricao', e.target.value)}
-                      placeholder="Descreva a pendência..." className="flex-1 form-input py-1.5" />
-                    <input value={p.responsavel ?? ''} onChange={e => updatePendencia(i, 'responsavel', e.target.value)}
-                      placeholder="Responsável" className="w-32 form-input py-1.5" />
-                    <button onClick={() => removePendencia(i)} className="text-ber-gray/40 hover:text-red-500"><X size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Próximos 7 dias */}
-            <div>
-              <label className="form-label">Próximos 7 dias</label>
-              <textarea rows={3} value={form.proximosSete ?? ''}
-                onChange={e => setForm(f => ({ ...f, proximosSete: e.target.value }))}
-                placeholder="Atividades e marcos previstos para a próxima semana..."
-                className="form-input resize-none" />
-            </div>
-
-            {/* CURVA S PLANEJADO */}
-            <div>
-              <button onClick={() => setCurvaSExpanded(e => !e)}
-                className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-ber-gray hover:text-ber-carbon transition-colors w-full text-left mb-2">
-                {curvaSExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                Curva S — pontos planejados
-              </button>
-              {curvaSExpanded && (
-                <div className="space-y-2">
-                  {curvaSLocal.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input type="date" value={p.semana} onChange={e => updateCurvaSPonto(i, 'semana', e.target.value)}
-                        className="form-input py-1.5 w-40" />
-                      <div className="flex items-center gap-1 flex-1">
-                        <input type="number" min={0} max={100} step={1} value={p.planejadoPct ?? ''}
-                          onChange={e => updateCurvaSPonto(i, 'planejadoPct', e.target.value)}
-                          placeholder="% planejado" className="form-input py-1.5 flex-1" />
-                        <span className="text-xs text-ber-gray shrink-0">% plan.</span>
-                      </div>
-                      {p.realizadoPct != null && (
-                        <span className="text-[10px] text-ber-gray shrink-0">{p.realizadoPct}% real.</span>
-                      )}
-                      <button onClick={() => removeCurvaSPonto(i)} className="text-ber-gray/40 hover:text-red-500"><X size={14} /></button>
-                    </div>
-                  ))}
-                  <button onClick={addCurvaSponto}
-                    className="text-[10px] text-ber-gray hover:text-ber-carbon flex items-center gap-1">
-                    <Plus size={11} /> Adicionar ponto
-                  </button>
+                  )}
                 </div>
               )}
-            </div>
+              <div className="space-y-2">
+                {form.marcos.map((m, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-ber-border bg-[#F7F7F5]">
+                    <select value={m.tipo} onChange={e => updateMarco(i, 'tipo', e.target.value)}
+                      className={`shrink-0 text-xs font-bold rounded-lg px-2 py-1.5 border-0 cursor-pointer ${m.tipo === 'concluido' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      <option value="concluido">✓ Concluído</option>
+                      <option value="proximo">→ Próximo</option>
+                    </select>
+                    <input value={m.nome} onChange={e => updateMarco(i, 'nome', e.target.value)}
+                      placeholder="Nome do marco ou etapa" className="fi flex-1 py-1.5 bg-white" />
+                    <input type="date" value={m.data} onChange={e => updateMarco(i, 'data', e.target.value)}
+                      className="fi w-36 py-1.5 bg-white" />
+                    <button onClick={() => removeMarco(i)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => addMarco('concluido')}
+                  className="flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-medium px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                  <Plus size={13} /> Concluído
+                </button>
+                <button onClick={() => addMarco('proximo')}
+                  className="flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-900 font-medium px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 transition-colors">
+                  <Plus size={13} /> Próximo marco
+                </button>
+              </div>
+            </FormSection>
 
-            {/* FOTOS */}
-            {editing && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="form-label mb-0">Fotos do período</label>
-                  <button onClick={() => fotoRef.current?.click()} disabled={uploadingFoto}
-                    className="text-[10px] text-ber-gray hover:text-ber-carbon flex items-center gap-1">
-                    <Upload size={11} /> {uploadingFoto ? 'Enviando...' : 'Adicionar foto'}
-                  </button>
+            {/* 6. PENDÊNCIAS */}
+            <FormSection title="6. Pendências do cliente" desc="O que precisa de resposta ou decisão do cliente para a obra avançar.">
+              <div className="space-y-2">
+                {form.pendencias.map((p, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-ber-border bg-[#F7F7F5]">
+                    <input value={p.descricao} onChange={e => updatePendencia(i, 'descricao', e.target.value)}
+                      placeholder="Descreva a pendência ou decisão necessária..." className="fi flex-1 py-1.5 bg-white" />
+                    <input value={p.responsavel ?? ''} onChange={e => updatePendencia(i, 'responsavel', e.target.value)}
+                      placeholder="Responsável" className="fi w-36 py-1.5 bg-white" />
+                    <button onClick={() => removePendencia(i)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={addPendencia}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar pendência
+              </button>
+            </FormSection>
+
+            {/* 7. PRÓXIMOS 7 DIAS */}
+            <FormSection title="7. Próximos 7 dias" desc="O que está previsto para acontecer na semana que vem.">
+              <textarea rows={3} value={form.proximosSete ?? ''}
+                onChange={e => setForm(f => ({ ...f, proximosSete: e.target.value }))}
+                placeholder="Ex: Conclusão da estrutura do 3º pavimento, início das instalações elétricas, visita do cliente na quinta..."
+                className="fi resize-none w-full" />
+            </FormSection>
+
+            {/* 8. CURVA S */}
+            <FormSection title="8. Curva S — cronograma planejado" desc="Registre o % de avanço que estava previsto para cada semana. O realizado é preenchido automaticamente ao salvar.">
+              <div className="overflow-hidden rounded-lg border border-ber-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#F7F7F5] border-b border-ber-border">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Semana (data de referência)</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Previsto (%)</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Realizado (%)</th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ber-border">
+                    {curvaSLocal.map((p, i) => (
+                      <tr key={i} className="bg-white">
+                        <td className="px-3 py-2">
+                          <input type="date" value={p.semana} onChange={e => updateCurvaSPonto(i, 'semana', e.target.value)}
+                            className="fi py-1.5 w-40" />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <input type="number" min={0} max={100} step={1} value={p.planejadoPct ?? ''}
+                            onChange={e => updateCurvaSPonto(i, 'planejadoPct', e.target.value)}
+                            placeholder="0" className="fi py-1.5 w-20 text-center" />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`text-sm font-semibold ${p.realizadoPct != null ? 'text-ber-carbon' : 'text-ber-gray/30'}`}>
+                            {p.realizadoPct != null ? `${p.realizadoPct}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <button onClick={() => removeCurvaSPonto(i)} className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {curvaSLocal.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-4 text-center text-sm text-ber-gray/50">
+                          Nenhum ponto cadastrado. Adicione as datas e percentuais previstos no cronograma original.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <button onClick={addCurvaSponto}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar linha
+              </button>
+            </FormSection>
+
+            {/* 9. FOTOS */}
+            <FormSection title="9. Fotos do período" desc={editing ? 'Adicione fotos representativas da semana.' : 'Salve o relatório primeiro para adicionar fotos.'}>
+              {editing ? (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    {form.fotos.map(ft => (
+                      <div key={ft.id} className="relative group rounded-lg overflow-hidden border border-ber-border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-32 object-cover" />
+                        <button onClick={() => deleteFoto(editing.id, ft.id)}
+                          className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button onClick={() => fotoRef.current?.click()} disabled={uploadingFoto}
+                      className="h-32 rounded-lg border-2 border-dashed border-ber-border hover:border-ber-carbon/40 flex flex-col items-center justify-center gap-2 text-ber-gray hover:text-ber-carbon transition-colors">
+                      <Upload size={20} />
+                      <span className="text-xs">{uploadingFoto ? 'Enviando...' : 'Adicionar foto'}</span>
+                    </button>
+                  </div>
                   <input ref={fotoRef} type="file" accept="image/*" className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f); e.target.value = ''; }} />
-                </div>
-                {form.fotos.length === 0 && <p className="text-[11px] text-ber-gray/40">Nenhuma foto adicionada.</p>}
-                <div className="grid grid-cols-3 gap-2">
-                  {form.fotos.map(ft => (
-                    <div key={ft.id} className="relative group rounded-lg overflow-hidden border border-ber-border">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-24 object-cover" />
-                      <button onClick={() => deleteFoto(editing.id, ft.id)}
-                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <p className="text-sm text-ber-gray/50 italic">Salve o relatório para habilitar o upload de fotos.</p>
+              )}
+            </FormSection>
+
+            {/* 10. RESPONSÁVEL */}
+            <FormSection title="10. Responsável técnico" desc="Nome de quem está assinando este relatório.">
+              <input type="text" value={form.responsavelNome ?? ''}
+                onChange={e => setForm(f => ({ ...f, responsavelNome: e.target.value }))}
+                placeholder="Nome completo do engenheiro responsável" className="fi w-full max-w-sm" />
+            </FormSection>
 
           </div>
 
-          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-ber-border bg-[#F7F7F5]">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-ber-gray hover:text-ber-carbon transition-colors">Cancelar</button>
-            <button onClick={save} disabled={saving}
-              className="px-4 py-2 rounded-lg bg-ber-carbon text-white text-sm font-semibold hover:bg-ber-carbon/80 disabled:opacity-50 transition-colors">
-              {saving ? 'Salvando...' : 'Salvar relatório'}
+          <div className="flex items-center justify-between px-5 py-4 border-t border-ber-border bg-[#F7F7F5]">
+            <p className="text-xs text-ber-gray">Campos opcionais podem ser deixados em branco.</p>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-ber-gray hover:text-ber-carbon transition-colors">Cancelar</button>
+              <button onClick={save} disabled={saving}
+                className="px-5 py-2 rounded-lg bg-ber-carbon text-white text-sm font-semibold hover:bg-ber-carbon/80 disabled:opacity-50 transition-colors">
+                {saving ? 'Salvando...' : 'Salvar relatório'}
             </button>
           </div>
+        </div>
         </div>
       )}
 
       <style>{`
-        .form-label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 4px; }
-        .form-input { width: 100%; border-radius: 8px; border: 1px solid #E8E8E4; padding: 8px 12px; font-size: 14px; outline: none; background: white; }
-        .form-input:focus { border-color: #1a1a1a; }
+        .fi { width: 100%; border-radius: 8px; border: 1px solid #E8E8E4; padding: 8px 12px; font-size: 14px; outline: none; background: white; }
+        .fi:focus { border-color: #1a1a1a; }
       `}</style>
+    </div>
+  );
+}
+
+function FormSection({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
+  return (
+    <div className="px-5 py-5">
+      <div className="mb-4">
+        <p className="text-sm font-bold text-ber-carbon">{title}</p>
+        <p className="text-xs text-ber-gray mt-0.5">{desc}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-ber-carbon mb-1">{label}</label>
+      {hint && <p className="text-xs text-ber-gray/70 mb-1">{hint}</p>}
+      {children}
     </div>
   );
 }
