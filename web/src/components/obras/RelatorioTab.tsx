@@ -310,7 +310,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     setCurvaSLocal(prev => prev.filter((_, idx) => idx !== i));
   }
 
-  // Chart data: merge curva S planejado + realizado from saved relatorios
+  // Chart data: merge curva S planejado + realizado, add trend line + week labels
   const curvaSChartData = (() => {
     const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
     curvaS.forEach(p => {
@@ -320,8 +320,37 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       if (p.realizadoPct != null) entry.realizado = +p.realizadoPct;
       map.set(k, entry);
     });
-    return Array.from(map.values()).sort((a, b) => a.semana.localeCompare(b.semana))
-      .map(p => ({ ...p, semana: fmt(p.semana) }));
+
+    const startIso = obra.startDate?.slice(0, 10) ?? null;
+    const endIso = obra.expectedEndDate?.slice(0, 10) ?? null;
+    if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
+    if (endIso && !map.has(endIso)) map.set(endIso, { semana: endIso });
+
+    const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
+    const endMs = endIso ? new Date(endIso + 'T12:00:00').getTime() : null;
+    const durationMs = startMs && endMs && endMs > startMs ? endMs - startMs : null;
+
+    return Array.from(map.values())
+      .sort((a, b) => a.semana.localeCompare(b.semana))
+      .map(p => {
+        const pointMs = new Date(p.semana + 'T12:00:00').getTime();
+
+        let label: string;
+        if (startMs && pointMs >= startMs) {
+          const wk = Math.round((pointMs - startMs) / (7 * 86400000)) + 1;
+          label = `Sem. ${wk}`;
+        } else {
+          label = fmt(p.semana);
+        }
+
+        let tendencia: number | undefined;
+        if (startMs != null && durationMs) {
+          const pct = (pointMs - startMs) / durationMs * 100;
+          tendencia = +Math.min(100, Math.max(0, pct)).toFixed(1);
+        }
+
+        return { ...p, label, tendencia };
+      });
   })();
 
   const histogramaData = efetivos.map(e => ({
@@ -349,19 +378,26 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         </button>
       </div>
 
-      {/* Curva S chart — sempre visível se tiver dados */}
-      {curvaSChartData.length >= 2 && !showForm && (
+      {/* Curva S chart — visível se tiver dados ou se a obra tiver datas definidas */}
+      {curvaS.length >= 1 && !showForm && (
         <div className="rounded-xl border border-ber-border bg-white px-4 py-3">
           <p className="text-[9px] font-bold uppercase tracking-widest text-ber-gray mb-3">Curva S — Planejado vs. Realizado</p>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={220}>
             <LineChart data={curvaSChartData} margin={{ top: 4, right: 12, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-              <XAxis dataKey="semana" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-              <Tooltip formatter={(v: any) => `${v}%`} />
+              <Tooltip
+                formatter={(v: any) => `${v}%`}
+                labelFormatter={(label: any, payload: any) => {
+                  const semana = payload?.[0]?.payload?.semana;
+                  return semana ? `${label} (${fmtFull(semana)})` : label;
+                }}
+              />
               <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Line type="monotone" dataKey="planejado" stroke="#1a1a1a" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" />
-              <Line type="monotone" dataKey="realizado" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Realizado" />
+              <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
+              <Line type="monotone" dataKey="planejado" stroke="#1a1a1a" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
+              <Line type="monotone" dataKey="realizado" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>

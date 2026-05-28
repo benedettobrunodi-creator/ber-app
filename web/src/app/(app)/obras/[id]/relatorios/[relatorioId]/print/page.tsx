@@ -57,7 +57,7 @@ export default function RelatorioImpressao() {
   const params = useParams<{ id: string; relatorioId: string }>();
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [obra, setObra] = useState<ObraInfo | null>(null);
-  const [curvaSData, setCurvaSData] = useState<{ semana: string; planejado?: number; realizado?: number }[]>([]);
+  const [rawCurvaS, setRawCurvaS] = useState<{ semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[]>([]);
   const [histData, setHistData] = useState<{ dia: string; data: string; trabalhadores: number }[]>([]);
 
   const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -82,16 +82,7 @@ export default function RelatorioImpressao() {
       }),
       api.get(`/obras/${params.id}`).then(r => setObra(r.data.data)),
       api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => {
-        const pontos: { semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[] = r.data.data ?? [];
-        const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
-        pontos.forEach(p => {
-          const k = p.semana.slice(0, 10);
-          const entry = map.get(k) ?? { semana: new Date(k + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) };
-          if (p.planejadoPct != null) entry.planejado = +p.planejadoPct;
-          if (p.realizadoPct != null) entry.realizado = +p.realizadoPct;
-          map.set(k, entry);
-        });
-        setCurvaSData(Array.from(map.values()));
+        setRawCurvaS(r.data.data ?? []);
       }),
     ]);
   }, [params.id, params.relatorioId]);
@@ -104,6 +95,42 @@ export default function RelatorioImpressao() {
   const dias = diasRestantes(obra.expectedEndDate);
   const marcosConc = relatorio.marcos.filter(m => m.tipo === 'concluido');
   const marcosProx = relatorio.marcos.filter(m => m.tipo === 'proximo');
+
+  const curvaSChartData = (() => {
+    const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
+    rawCurvaS.forEach(p => {
+      const k = p.semana.slice(0, 10);
+      const entry = map.get(k) ?? { semana: k };
+      if (p.planejadoPct != null) entry.planejado = +p.planejadoPct;
+      if (p.realizadoPct != null) entry.realizado = +p.realizadoPct;
+      map.set(k, entry);
+    });
+    const startIso = obra.startDate?.slice(0, 10) ?? null;
+    const endIso = obra.expectedEndDate?.slice(0, 10) ?? null;
+    if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
+    if (endIso && !map.has(endIso)) map.set(endIso, { semana: endIso });
+    const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
+    const endMs = endIso ? new Date(endIso + 'T12:00:00').getTime() : null;
+    const durationMs = startMs && endMs && endMs > startMs ? endMs - startMs : null;
+    return Array.from(map.values())
+      .sort((a, b) => a.semana.localeCompare(b.semana))
+      .map(p => {
+        const pointMs = new Date(p.semana + 'T12:00:00').getTime();
+        let label: string;
+        if (startMs && pointMs >= startMs) {
+          const wk = Math.round((pointMs - startMs) / (7 * 86400000)) + 1;
+          label = `Sem. ${wk}`;
+        } else {
+          label = new Date(p.semana + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        }
+        let tendencia: number | undefined;
+        if (startMs != null && durationMs) {
+          const pct = (pointMs - startMs) / durationMs * 100;
+          tendencia = +Math.min(100, Math.max(0, pct)).toFixed(1);
+        }
+        return { ...p, label, tendencia };
+      });
+  })();
 
   return (
     <>
@@ -193,17 +220,24 @@ export default function RelatorioImpressao() {
         </Section>
 
         {/* CURVA S */}
-        {curvaSData.length >= 2 && (
+        {rawCurvaS.length >= 1 && (
           <Section title="Curva S — Planejado vs. Realizado">
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={curvaSData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <LineChart data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="semana" tick={{ fontSize: 9 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 9 }} />
                 <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                <Tooltip formatter={(v: any) => `${v}%`} />
+                <Tooltip
+                  formatter={(v: any) => `${v}%`}
+                  labelFormatter={(label: any, payload: any) => {
+                    const semana = payload?.[0]?.payload?.semana;
+                    return semana ? `${label} (${fmt(semana + 'T12:00:00')})` : label;
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 9 }} />
-                <Line type="monotone" dataKey="planejado" stroke="#374151" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" />
-                <Line type="monotone" dataKey="realizado" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Realizado" />
+                <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
+                <Line type="monotone" dataKey="planejado" stroke="#374151" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
+                <Line type="monotone" dataKey="realizado" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
               </LineChart>
             </ResponsiveContainer>
           </Section>
