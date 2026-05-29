@@ -99,7 +99,11 @@ const CATEGORIA_OPTS = [
   { value: 'outro',       label: 'Outro',       color: 'bg-gray-100   text-gray-600'   },
 ];
 
-const DISCIPLINA_OPTS = ['Civil', 'Pintura', 'Elétrica', 'Hidráulica', 'Drywall'];
+const DISCIPLINA_OPTS = [
+  'Civil', 'Pintura', 'Elétrica', 'Hidráulica', 'Drywall',
+  'Ar Condicionado', 'Marcenaria', 'Pedras', 'Serralheria', 'Impermeabilização',
+  'Gesso', 'Piso', 'Vidro', 'Paisagismo',
+];
 
 const AMBIENT_COLORS = [
   '#6B7280','#3B82F6','#10B981','#F59E0B','#EF4444',
