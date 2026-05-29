@@ -176,6 +176,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   const [curvaSLocal, setCurvaSLocal] = useState<CurvaSPonto[]>([]);
   const [showAngulosConfig, setShowAngulosConfig] = useState(false);
   const [novoAngulo, setNovoAngulo] = useState('');
+  const [selDisciplina, setSelDisciplina] = useState<string>(DISCIPLINA_OPTS[0]);
   const [customDisciplina, setCustomDisciplina] = useState('');
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -878,30 +879,38 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   </div>
                 )}
                 {/* Add discipline row */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input type="text" list="disciplina-sugestoes" value={customDisciplina}
-                    onChange={e => setCustomDisciplina(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <select value={selDisciplina} onChange={e => setSelDisciplina(e.target.value)}
+                      className="fi py-1.5 text-sm">
+                      {DISCIPLINA_OPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <button onClick={() => {
+                      if ((form.efetivoPorDisciplina ?? []).some(d => d.disciplina === selDisciplina)) return;
+                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: selDisciplina, quantidade: 0 }] }));
+                    }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                      <Plus size={13} /> Adicionar
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={customDisciplina} onChange={e => setCustomDisciplina(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter') return;
                         const nome = customDisciplina.trim();
                         if (!nome || (form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
                         setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
                         setCustomDisciplina('');
-                      }
-                    }}
-                    placeholder="Disciplina" className="fi py-1.5 text-sm w-44" />
-                  <datalist id="disciplina-sugestoes">
-                    {DISCIPLINA_OPTS.map(d => <option key={d} value={d} />)}
-                  </datalist>
-                  <button onClick={() => {
-                    const nome = customDisciplina.trim();
-                    if (!nome) return;
-                    if ((form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
-                    setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
-                    setCustomDisciplina('');
-                  }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
-                    <Plus size={13} /> Adicionar disciplina
-                  </button>
+                      }}
+                      placeholder="Nova disciplina..." className="fi py-1.5 text-sm w-48" />
+                    <button onClick={() => {
+                      const nome = customDisciplina.trim();
+                      if (!nome || (form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
+                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
+                      setCustomDisciplina('');
+                    }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                      <Plus size={13} /> Adicionar nova
+                    </button>
+                  </div>
                 </div>
               </div>
               {/* Daily histogram */}
