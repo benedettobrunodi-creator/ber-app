@@ -40,7 +40,7 @@ export async function createRelatorio(req: Request, res: Response) {
   const {
     periodoInicio, periodoFim, status, avancoPct, avancoDelta,
     diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-    efetivoMedio, destaques, proximosSete,
+    efetivoMedio, efetivoPorDisciplina, destaques, proximosSete,
     responsavelId, responsavelNome, dataContrato,
     pendencias = [], marcos = [],
   } = req.body;
@@ -65,6 +65,7 @@ export async function createRelatorio(req: Request, res: Response) {
       diasImprodutivos: diasImprodutivos ?? null,
       motivoImprodutivo: motivoImprodutivo ?? null,
       efetivoMedio: efetivoMedio ?? null,
+      efetivoPorDisciplina: efetivoPorDisciplina ?? null,
       destaques: destaques ?? null,
       proximosSete: proximosSete ?? null,
       responsavelId: responsavelId ?? null,
@@ -94,7 +95,7 @@ export async function updateRelatorio(req: Request, res: Response) {
   const {
     periodoInicio, periodoFim, status, avancoPct, avancoDelta,
     diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-    efetivoMedio, destaques, proximosSete,
+    efetivoMedio, efetivoPorDisciplina, destaques, proximosSete,
     responsavelId, responsavelNome, dataContrato,
     pendencias, marcos,
   } = req.body;
@@ -110,6 +111,7 @@ export async function updateRelatorio(req: Request, res: Response) {
   if (diasImprodutivos !== undefined) data.diasImprodutivos = diasImprodutivos;
   if (motivoImprodutivo !== undefined) data.motivoImprodutivo = motivoImprodutivo;
   if (efetivoMedio !== undefined) data.efetivoMedio = efetivoMedio;
+  if (efetivoPorDisciplina !== undefined) data.efetivoPorDisciplina = efetivoPorDisciplina;
   if (destaques !== undefined) data.destaques = destaques;
   if (proximosSete !== undefined) data.proximosSete = proximosSete;
   if (responsavelId !== undefined) data.responsavelId = responsavelId;

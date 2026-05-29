@@ -57,6 +57,8 @@ interface CurvaSPonto {
   realizadoPct?: number | null;
 }
 
+interface EfetivoDisciplina { disciplina: string; quantidade: number; }
+
 interface Relatorio {
   id: string;
   numero: number;
@@ -74,6 +76,7 @@ interface Relatorio {
   proximosSete?: string | null;
   responsavelNome?: string | null;
   dataContrato?: string | null;
+  efetivoPorDisciplina?: EfetivoDisciplina[] | null;
   pendencias: RelatorioPendencia[];
   marcos: RelatorioMarco[];
   fotos: RelatorioFoto[];
@@ -95,6 +98,8 @@ const CATEGORIA_OPTS = [
   { value: 'fornecedor',  label: 'Fornecedor',  color: 'bg-orange-100 text-orange-800' },
   { value: 'outro',       label: 'Outro',       color: 'bg-gray-100   text-gray-600'   },
 ];
+
+const DISCIPLINA_OPTS = ['Civil', 'Pintura', 'Elétrica', 'Hidráulica', 'Drywall'];
 
 const AMBIENT_COLORS = [
   '#6B7280','#3B82F6','#10B981','#F59E0B','#EF4444',
@@ -146,6 +151,7 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     proximosSete: '',
     responsavelNome: '',
     dataContrato: null,
+    efetivoPorDisciplina: [],
     pendencias: [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
     marcos: [],
     fotos: [],
@@ -170,6 +176,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   const [curvaSLocal, setCurvaSLocal] = useState<CurvaSPonto[]>([]);
   const [showAngulosConfig, setShowAngulosConfig] = useState(false);
   const [novoAngulo, setNovoAngulo] = useState('');
+  const [selDisciplina, setSelDisciplina] = useState<string>(DISCIPLINA_OPTS[0]);
+  const [customDisciplina, setCustomDisciplina] = useState('');
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Chart data
@@ -287,6 +295,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       proximosSete:   r.proximosSete ?? '',
       responsavelNome: r.responsavelNome ?? '',
       dataContrato:   r.dataContrato ? r.dataContrato.slice(0, 10) : null,
+      efetivoPorDisciplina: Array.isArray(r.efetivoPorDisciplina) ? r.efetivoPorDisciplina : [],
       pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
       fotos:          r.fotos,
@@ -838,8 +847,61 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
             </FormSection>
 
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
-            {histogramaData.length > 0 && (
-              <FormSection title="Histograma de efetivos" desc="Trabalhadores por dia — puxado do diário de obra.">
+            <FormSection title="Histograma de efetivos" desc="Efetivos por disciplina e histograma diário do período.">
+              {/* Disciplines table */}
+              <div className="space-y-2 mb-4">
+                {(form.efetivoPorDisciplina ?? []).length > 0 && (
+                  <div className="overflow-hidden rounded-lg border border-ber-border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[#F7F7F5] border-b border-ber-border">
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Disciplina</th>
+                          <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray w-32">Qtd. pessoas</th>
+                          <th className="w-8" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-ber-border">
+                        {(form.efetivoPorDisciplina ?? []).map((d, i) => (
+                          <tr key={i} className="bg-white">
+                            <td className="px-3 py-2 font-medium text-ber-carbon">{d.disciplina}</td>
+                            <td className="px-3 py-2 text-center">
+                              <input type="number" min={0} step={1} value={d.quantidade}
+                                onChange={e => setForm(f => ({ ...f, efetivoPorDisciplina: (f.efetivoPorDisciplina ?? []).map((x, xi) => xi === i ? { ...x, quantidade: e.target.value ? +e.target.value : 0 } : x) }))}
+                                className="fi py-1.5 w-20 text-center" />
+                            </td>
+                            <td className="px-2 py-2">
+                              <button onClick={() => setForm(f => ({ ...f, efetivoPorDisciplina: (f.efetivoPorDisciplina ?? []).filter((_, xi) => xi !== i) }))} className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {/* Add discipline row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select value={selDisciplina} onChange={e => setSelDisciplina(e.target.value)}
+                    className="fi py-1.5 text-sm">
+                    {DISCIPLINA_OPTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    <option value="__outra__">Outra...</option>
+                  </select>
+                  {selDisciplina === '__outra__' && (
+                    <input type="text" value={customDisciplina} onChange={e => setCustomDisciplina(e.target.value)}
+                      placeholder="Nome da disciplina" className="fi py-1.5 text-sm w-44" />
+                  )}
+                  <button onClick={() => {
+                    const nome = selDisciplina === '__outra__' ? customDisciplina.trim() : selDisciplina;
+                    if (!nome) return;
+                    if ((form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
+                    setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
+                    if (selDisciplina === '__outra__') setCustomDisciplina('');
+                  }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                    <Plus size={13} /> Adicionar disciplina
+                  </button>
+                </div>
+              </div>
+              {/* Daily histogram */}
+              {histogramaData.length > 0 && (
                 <div className="rounded-lg border border-ber-border bg-[#F7F7F5] px-3 pt-2 pb-1">
                   <ResponsiveContainer width="100%" height={110}>
                     <BarChart data={histogramaData} margin={{ top: 2, right: 8, bottom: 0, left: -28 }}>
@@ -851,8 +913,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </FormSection>
-            )}
+              )}
+            </FormSection>
 
             {/* ── 9. RESPONSÁVEL ───────────────────────────────────────────────── */}
             <FormSection title="Responsável técnico" desc="Nome de quem assina este relatório.">
