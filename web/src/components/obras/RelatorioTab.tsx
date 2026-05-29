@@ -319,10 +319,12 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     setCurvaSLocal(prev => [...prev, { semana: next, planejadoPct: null }]);
   }
 
-  function updateCurvaSPonto(i: number, field: 'planejadoPct' | 'realizadoPct', value: string) {
-    setCurvaSLocal(prev => prev.map((p, idx) =>
-      idx === i ? { ...p, [field]: value ? +value : null } : p
-    ));
+  function updateCurvaSPonto(i: number, field: 'planejadoPct' | 'realizadoPct' | 'semana', value: string) {
+    setCurvaSLocal(prev => prev.map((p, idx) => {
+      if (idx !== i) return p;
+      if (field === 'semana') return { ...p, semana: value };
+      return { ...p, [field]: value ? +value : null };
+    }));
   }
 
   function removeCurvaSPonto(i: number) {
@@ -696,8 +698,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                         <td className="px-3 py-2 text-sm font-medium text-ber-carbon">
                           {semanaLabel(p.semana, obra.startDate?.slice(0, 10) ?? null)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-ber-gray">
-                          {fmtFull(p.semana)}
+                        <td className="px-3 py-2">
+                          <input type="date" value={p.semana}
+                            onChange={e => updateCurvaSPonto(i, 'semana', e.target.value)}
+                            className="fi py-1 text-xs text-ber-gray w-36" />
                         </td>
                         <td className="px-3 py-2 text-center">
                           <input type="number" min={0} max={100} step={1} value={p.planejadoPct ?? ''}
