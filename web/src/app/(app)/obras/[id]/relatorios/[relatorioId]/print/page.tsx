@@ -26,7 +26,7 @@ interface Relatorio {
   dataContrato?: string | null;
   pendencias: { descricao: string; responsavel?: string | null; status: string }[];
   marcos: { nome: string; data: string; tipo: string }[];
-  fotos: { id: string; url: string; legenda?: string | null }[];
+  fotos: { id: string; url: string; legenda?: string | null; anguloId?: string | null; angulo?: { id: string; nome: string } | null }[];
 }
 
 interface ObraInfo {
@@ -56,6 +56,7 @@ function diasRestantes(iso: string | null): number | null {
 export default function RelatorioImpressao() {
   const params = useParams<{ id: string; relatorioId: string }>();
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
+  const [prevRelatorio, setPrevRelatorio] = useState<Relatorio | null>(null);
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [rawCurvaS, setRawCurvaS] = useState<{ semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[]>([]);
   const [histData, setHistData] = useState<{ dia: string; data: string; trabalhadores: number }[]>([]);
@@ -83,6 +84,14 @@ export default function RelatorioImpressao() {
       api.get(`/obras/${params.id}`).then(r => setObra(r.data.data)),
       api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => {
         setRawCurvaS(r.data.data ?? []);
+      }),
+      api.get(`/obras/${params.id}/relatorios`).then(r => {
+        const all: Relatorio[] = r.data.data ?? [];
+        const curr = all.find(r => r.id === params.relatorioId);
+        if (curr) {
+          const prev = all.find(r => r.numero === curr.numero - 1) ?? null;
+          setPrevRelatorio(prev);
+        }
       }),
     ]);
   }, [params.id, params.relatorioId]);
@@ -302,19 +311,69 @@ export default function RelatorioImpressao() {
         )}
 
         {/* FOTOS */}
-        {relatorio.fotos.length > 0 && (
-          <Section title="Registro fotográfico">
-            <div className="grid grid-cols-3 gap-3">
-              {relatorio.fotos.map(ft => (
-                <div key={ft.id} className="rounded-lg overflow-hidden border border-gray-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-36 object-cover" />
-                  {ft.legenda && <p className="text-[10px] text-gray-500 px-2 py-1">{ft.legenda}</p>}
+        {relatorio.fotos.length > 0 && (() => {
+          // Group by ângulo
+          const angulosMap = new Map<string, { nome: string; fotos: typeof relatorio.fotos }>();
+          const semAngulo: typeof relatorio.fotos = [];
+          relatorio.fotos.forEach(ft => {
+            if (ft.anguloId && ft.angulo) {
+              const entry = angulosMap.get(ft.anguloId) ?? { nome: ft.angulo.nome, fotos: [] };
+              entry.fotos.push(ft);
+              angulosMap.set(ft.anguloId, entry);
+            } else {
+              semAngulo.push(ft);
+            }
+          });
+          return (
+            <Section title="Registro fotográfico">
+              {Array.from(angulosMap.entries()).map(([anguloId, { nome, fotos }]) => {
+                const prevFoto = prevRelatorio?.fotos.find(f => f.anguloId === anguloId) ?? null;
+                const mainFoto = fotos[fotos.length - 1];
+                return (
+                  <div key={anguloId} className="mb-5">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">{nome}</p>
+                    <div className={`grid gap-2 ${prevFoto ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                      <div className={prevFoto ? 'col-span-2' : ''}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={mainFoto.url} alt="" className="w-full rounded-lg object-cover" style={{ maxHeight: prevFoto ? '220px' : '300px' }} />
+                        {mainFoto.legenda && <p className="text-[9px] text-gray-400 mt-1">{mainFoto.legenda}</p>}
+                      </div>
+                      {prevFoto && (
+                        <div className="opacity-70">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={prevFoto.url} alt="" className="w-full rounded-lg object-cover" style={{ maxHeight: '220px' }} />
+                          <p className="text-[9px] text-gray-400 mt-1">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
+                        </div>
+                      )}
+                    </div>
+                    {fotos.length > 1 && (
+                      <div className="grid grid-cols-4 gap-1.5 mt-1.5">
+                        {fotos.slice(0, -1).map(ft => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={ft.id} src={ft.url} alt="" className="w-full h-16 object-cover rounded border border-gray-100" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {semAngulo.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Fotos gerais</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {semAngulo.map(ft => (
+                      <div key={ft.id} className="rounded-lg overflow-hidden border border-gray-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-32 object-cover" />
+                        {ft.legenda && <p className="text-[9px] text-gray-400 px-1.5 py-1">{ft.legenda}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </Section>
-        )}
+              )}
+            </Section>
+          );
+        })()}
 
         {/* PENDÊNCIAS */}
         {relatorio.pendencias.length > 0 && (

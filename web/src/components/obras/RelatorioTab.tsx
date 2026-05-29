@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Plus, Trash2, Download, X, Upload, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { Plus, Trash2, Download, X, Upload, ChevronDown, ChevronUp, Settings, Camera } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
@@ -359,18 +359,41 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
   // ─── Fotos ──────────────────────────────────────────────────────────────────
 
+  async function ensureSaved(): Promise<string | null> {
+    if (editing) return editing.id;
+    try {
+      const payload = {
+        ...form,
+        avancoPct:    +form.avancoPct,
+        avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
+        efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
+        pendencias:   form.pendencias.filter(p => p.descricao.trim()),
+        marcos:       form.marcos.filter(m => m.nome.trim()),
+      };
+      const res = await api.post(`/obras/${obraId}/relatorios`, payload);
+      const novo = res.data.data as Relatorio;
+      setRelatorios(prev => [novo, ...prev]);
+      setEditing(novo);
+      return novo.id;
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar relatório');
+      return null;
+    }
+  }
+
   async function uploadFoto(file: File, anguloId: string | null) {
-    if (!editing) return;
     const key = anguloId ?? 'geral';
     setUploadingFoto(key);
     try {
+      const relId = await ensureSaved();
+      if (!relId) { setUploadingFoto(null); return; }
       const fd = new FormData();
       fd.append('file', file);
       if (anguloId) fd.append('anguloId', anguloId);
-      const res = await api.post(`/obras/${obraId}/relatorios/${editing.id}/fotos`, fd);
+      const res = await api.post(`/obras/${obraId}/relatorios/${relId}/fotos`, fd);
       const foto = res.data.data as RelatorioFoto;
       setForm(f => ({ ...f, fotos: [...f.fotos, foto] }));
-      setRelatorios(prev => prev.map(r => r.id === editing.id ? { ...r, fotos: [...r.fotos, foto] } : r));
+      setRelatorios(prev => prev.map(r => r.id === relId ? { ...r, fotos: [...r.fotos, foto] } : r));
     } catch { alert('Erro ao enviar foto'); }
     setUploadingFoto(null);
   }
@@ -576,7 +599,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 2. FOTOS POR AMBIENTE ────────────────────────────────────────── */}
             <FormSection title="Fotos por ambiente"
-              desc={editing ? 'Fotografe os mesmos ângulos toda semana para acompanhar a evolução.' : 'Salve o relatório para habilitar o upload de fotos.'}>
+              desc="Fotografe os mesmos ângulos toda semana para acompanhar a evolução.">
 
               {/* Manage ângulos */}
               <div className="mb-4">
@@ -586,7 +609,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   {ambientes.length === 0 ? 'Configurar ângulos da obra' : `${ambientes.length} ângulo(s) configurado(s)`}
                   {showAngulosConfig ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
-
                 {showAngulosConfig && (
                   <div className="rounded-lg border border-ber-border bg-[#F7F7F5] p-3 mb-3 space-y-2">
                     {ambientes.map(a => (
@@ -608,74 +630,141 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                 )}
               </div>
 
-              {editing ? (
-                <div className="space-y-4">
-                  {/* Photos per ambiente */}
-                  {ambientes.map(angulo => {
-                    const fotosAngulo = form.fotos.filter(ft => ft.anguloId === angulo.id);
-                    const isUploading = uploadingFoto === angulo.id;
-                    return (
-                      <div key={angulo.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: angulo.cor }} />
-                          <p className="text-xs font-semibold text-ber-carbon">{angulo.nome}</p>
-                          <span className="text-[10px] text-ber-gray/50">{fotosAngulo.length} foto(s)</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {fotosAngulo.map(ft => (
-                            <div key={ft.id} className="relative group rounded-lg overflow-hidden border border-ber-border aspect-square">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-full object-cover" />
-                              <button onClick={() => deleteFoto(editing.id, ft.id)}
-                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <X size={11} />
-                              </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card per ângulo */}
+                {ambientes.map(angulo => {
+                  const fotosAngulo = form.fotos.filter(ft => ft.anguloId === angulo.id);
+                  const mainFoto = fotosAngulo[fotosAngulo.length - 1];
+                  const isUploading = uploadingFoto === angulo.id;
+                  const prevFotos = relatorios
+                    .filter(r => r.id !== editing?.id)
+                    .sort((a, b) => b.numero - a.numero)
+                    .flatMap(r => r.fotos.filter(f => f.anguloId === angulo.id).slice(0, 1))
+                    .slice(0, 3);
+                  return (
+                    <div key={angulo.id} className="rounded-xl border border-ber-border overflow-hidden bg-white">
+                      {/* Main photo */}
+                      <div className="relative aspect-video bg-[#F0F0ED] cursor-pointer group"
+                        onClick={() => fotoRefs.current[angulo.id]?.click()}>
+                        {mainFoto ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={mainFoto.url} alt="" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-end justify-end p-2">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white rounded-full px-2 py-1 flex items-center gap-1 text-xs font-medium">
+                                <Camera size={12} /> Nova foto
+                              </div>
                             </div>
-                          ))}
-                          <button onClick={() => fotoRefs.current[angulo.id]?.click()} disabled={isUploading}
-                            className="aspect-square rounded-lg border-2 border-dashed border-ber-border hover:border-ber-carbon/40 flex flex-col items-center justify-center gap-1 text-ber-gray hover:text-ber-carbon transition-colors">
-                            <Upload size={16} />
-                            <span className="text-[10px]">{isUploading ? '...' : 'Foto'}</span>
-                          </button>
-                          <input ref={el => { fotoRefs.current[angulo.id] = el; }} type="file" accept="image/*" className="hidden"
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, angulo.id); e.target.value = ''; }} />
-                        </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-ber-gray/30">
+                            <Camera size={32} />
+                            <span className="text-xs">Clique para fotografar</span>
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                            <span className="text-sm text-ber-gray">Enviando...</span>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
+                      {/* Footer */}
+                      <div className="px-3 py-2 border-t border-ber-border">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: angulo.cor }} />
+                          <span className="text-xs font-semibold text-ber-carbon flex-1">{angulo.nome}</span>
+                          {fotosAngulo.length > 0 && <span className="text-[10px] text-ber-gray/50">{fotosAngulo.length} esta semana</span>}
+                        </div>
+                        {(fotosAngulo.length > 0 || prevFotos.length > 0) && (
+                          <div className="flex gap-1.5 flex-wrap items-center">
+                            {fotosAngulo.map(ft => (
+                              <div key={ft.id} className="relative group/th shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={ft.url} alt="" className="w-9 h-9 rounded object-cover border border-ber-border" />
+                                {editing && (
+                                  <button onClick={e => { e.stopPropagation(); deleteFoto(editing.id, ft.id); }}
+                                    className="absolute -top-1 -right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover/th:opacity-100 transition-opacity">
+                                    <X size={8} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {prevFotos.length > 0 && (
+                              <>
+                                <div className="w-px h-7 bg-ber-border mx-0.5" />
+                                {prevFotos.map((ft, i) => (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img key={ft.id} src={ft.url} alt="" className="w-9 h-9 rounded object-cover border border-ber-border opacity-35 shrink-0" title={`Sem. anterior ${i + 1}`} />
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <input ref={el => { fotoRefs.current[angulo.id] = el; }} type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, angulo.id); e.target.value = ''; }} />
+                    </div>
+                  );
+                })}
 
-                  {/* Photos without ambiente */}
-                  {(() => {
-                    const semAngulo = form.fotos.filter(ft => !ft.anguloId);
-                    return (
-                      <div>
-                        <p className="text-xs font-semibold text-ber-gray mb-2">Fotos gerais</p>
-                        <div className="grid grid-cols-4 gap-2">
-                          {semAngulo.map(ft => (
-                            <div key={ft.id} className="relative group rounded-lg overflow-hidden border border-ber-border aspect-square">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-full object-cover" />
-                              <button onClick={() => deleteFoto(editing.id, ft.id)}
-                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <X size={11} />
-                              </button>
+                {/* Fotos gerais */}
+                {(() => {
+                  const semAngulo = form.fotos.filter(ft => !ft.anguloId);
+                  const isUploading = uploadingFoto === 'geral';
+                  return (
+                    <div className="rounded-xl border border-ber-border overflow-hidden bg-white">
+                      <div className="relative aspect-video bg-[#F0F0ED] cursor-pointer group"
+                        onClick={() => fotoRefs.current['geral']?.click()}>
+                        {semAngulo.length > 0 ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={semAngulo[semAngulo.length - 1].url} alt="" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-end justify-end p-2">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white rounded-full px-2 py-1 flex items-center gap-1 text-xs font-medium">
+                                <Camera size={12} /> Nova foto
+                              </div>
                             </div>
-                          ))}
-                          <button onClick={() => fotoRefs.current['geral']?.click()} disabled={uploadingFoto === 'geral'}
-                            className="aspect-square rounded-lg border-2 border-dashed border-ber-border hover:border-ber-carbon/40 flex flex-col items-center justify-center gap-1 text-ber-gray hover:text-ber-carbon transition-colors">
-                            <Upload size={16} />
-                            <span className="text-[10px]">{uploadingFoto === 'geral' ? '...' : 'Foto'}</span>
-                          </button>
-                          <input ref={el => { fotoRefs.current['geral'] = el; }} type="file" accept="image/*" className="hidden"
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, null); e.target.value = ''; }} />
-                        </div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-ber-gray/30">
+                            <Camera size={32} />
+                            <span className="text-xs">Fotos gerais</span>
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                            <span className="text-sm text-ber-gray">Enviando...</span>
+                          </div>
+                        )}
                       </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <p className="text-sm text-ber-gray/50 italic">Salve o relatório para habilitar o upload de fotos.</p>
-              )}
+                      <div className="px-3 py-2 border-t border-ber-border">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-semibold text-ber-gray flex-1">Fotos gerais</span>
+                          {semAngulo.length > 0 && <span className="text-[10px] text-ber-gray/50">{semAngulo.length} foto(s)</span>}
+                        </div>
+                        {semAngulo.length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {semAngulo.map(ft => (
+                              <div key={ft.id} className="relative group/th shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={ft.url} alt="" className="w-9 h-9 rounded object-cover border border-ber-border" />
+                                {editing && (
+                                  <button onClick={e => { e.stopPropagation(); deleteFoto(editing.id, ft.id); }}
+                                    className="absolute -top-1 -right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover/th:opacity-100 transition-opacity">
+                                    <X size={8} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <input ref={el => { fotoRefs.current['geral'] = el; }} type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, null); e.target.value = ''; }} />
+                    </div>
+                  );
+                })()}
+              </div>
             </FormSection>
 
             {/* ── 3. CURVA S ───────────────────────────────────────────────────── */}
