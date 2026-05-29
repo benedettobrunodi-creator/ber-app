@@ -9,7 +9,10 @@ const include = {
   responsavel: { select: { id: true, name: true, email: true } },
   pendencias: { orderBy: { ordem: 'asc' as const } },
   marcos: { orderBy: { data: 'asc' as const } },
-  fotos: { orderBy: { ordem: 'asc' as const } },
+  fotos: {
+    orderBy: { ordem: 'asc' as const },
+    include: { angulo: { select: { id: true, nome: true } } },
+  },
 };
 
 export async function listRelatorios(req: Request, res: Response) {
@@ -166,8 +169,10 @@ export async function uploadFoto(req: Request, res: Response) {
   }
 
   const count = await prisma.relatorioFoto.count({ where: { relatorioId } });
+  const anguloId = req.body.anguloId ?? null;
   const foto = await prisma.relatorioFoto.create({
-    data: { relatorioId, url, legenda: req.body.legenda ?? null, ordem: count },
+    data: { relatorioId, url, legenda: req.body.legenda ?? null, ordem: count, anguloId },
+    include: { angulo: { select: { id: true, nome: true } } },
   });
   return res.status(201).json({ data: foto });
 }

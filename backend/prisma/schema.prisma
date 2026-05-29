@@ -1128,9 +1128,10 @@ model ObraAmbiente {
   posY      Float      @default(0) @map("pos_y")
   cor       String     @default("#6B7280") @db.VarChar(20)
   createdAt DateTime   @default(now()) @map("created_at")
-  obra      Obra       @relation("ObraAmbientes", fields: [obraId], references: [id], onDelete: Cascade)
-  planta    ObraPlanta? @relation(fields: [plantaId], references: [id], onDelete: SetNull)
-  fotos     ObraFoto[]
+  obra           Obra           @relation("ObraAmbientes", fields: [obraId], references: [id], onDelete: Cascade)
+  planta         ObraPlanta?    @relation(fields: [plantaId], references: [id], onDelete: SetNull)
+  fotos          ObraFoto[]
+  relatorioFotos RelatorioFoto[]
   @@map("obra_ambientes")
 }
 
@@ -1720,6 +1721,7 @@ model RelatorioPendencia {
   responsavel String?   @db.VarChar(255)
   prazo       DateTime? @db.Date
   status      String    @default("aberta") @db.VarChar(20)
+  categoria   String    @default("cliente") @db.VarChar(30)
   ordem       Int       @default(0)
   createdAt   DateTime  @default(now()) @map("created_at")
 
@@ -1747,14 +1749,17 @@ model RelatorioCurvaS {
 model RelatorioFoto {
   id          String   @id @default(uuid()) @db.Uuid
   relatorioId String   @map("relatorio_id") @db.Uuid
+  anguloId    String?  @map("angulo_id") @db.Uuid
   url         String
   legenda     String?  @db.VarChar(500)
   ordem       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  relatorio RelatorioSemanal  @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  angulo    ObraAmbiente?     @relation(fields: [anguloId], references: [id], onDelete: SetNull)
 
   @@index([relatorioId])
+  @@index([anguloId])
   @@map("relatorio_fotos")
 }
 
