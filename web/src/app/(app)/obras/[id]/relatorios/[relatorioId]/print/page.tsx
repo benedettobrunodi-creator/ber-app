@@ -40,7 +40,7 @@ interface ObraInfo {
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   no_prazo: { label: 'NO PRAZO', color: '#059669' },
-  em_risco: { label: 'EM RISCO', color: '#D97706' },
+  em_risco: { label: 'ATENÇÃO', color: '#D97706' },
   atrasado: { label: 'ATRASADO', color: '#DC2626' },
 };
 

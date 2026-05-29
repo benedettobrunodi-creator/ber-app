@@ -194,11 +194,14 @@ export async function getCurvaS(req: Request, res: Response) {
 
 export async function upsertCurvaSPlanejado(req: Request, res: Response) {
   const { id: obraId } = req.params;
-  const { semana, planejadoPct } = req.body;
+  const { semana, planejadoPct, realizadoPct } = req.body;
+  const update: any = {};
+  if (planejadoPct !== undefined) update.planejadoPct = planejadoPct;
+  if (realizadoPct !== undefined) update.realizadoPct = realizadoPct;
   const ponto = await prisma.relatorioCurvaS.upsert({
     where: { obraId_semana: { obraId, semana: new Date(semana) } },
-    update: { planejadoPct },
-    create: { obraId, semana: new Date(semana), planejadoPct },
+    update,
+    create: { obraId, semana: new Date(semana), planejadoPct: planejadoPct ?? null, realizadoPct: realizadoPct ?? null },
   });
   return res.json({ data: ponto });
 }

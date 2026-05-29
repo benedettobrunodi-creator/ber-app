@@ -84,7 +84,7 @@ interface EfetivosDia { data: string; total: number; }
 
 const STATUS_OPTS = [
   { value: 'no_prazo',  label: 'NO PRAZO',  color: 'bg-emerald-100 text-emerald-800' },
-  { value: 'em_risco',  label: 'EM RISCO',  color: 'bg-amber-100  text-amber-800'   },
+  { value: 'em_risco',  label: 'ATENÇÃO',   color: 'bg-amber-100  text-amber-800'   },
   { value: 'atrasado',  label: 'ATRASADO',  color: 'bg-red-100    text-red-800'     },
 ];
 
@@ -306,7 +306,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     setCurvaSLocal(prev => [...prev, { semana: next, planejadoPct: null }]);
   }
 
-  function updateCurvaSPonto(i: number, field: 'planejadoPct', value: string) {
+  function updateCurvaSPonto(i: number, field: 'planejadoPct' | 'realizadoPct', value: string) {
     setCurvaSLocal(prev => prev.map((p, idx) =>
       idx === i ? { ...p, [field]: value ? +value : null } : p
     ));
@@ -318,8 +318,12 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
   async function saveCurvaS() {
     for (const p of curvaSLocal) {
-      if (p.semana && p.planejadoPct != null) {
-        await api.post(`/obras/${obraId}/relatorios/curva-s`, { semana: p.semana, planejadoPct: p.planejadoPct });
+      if (p.semana && (p.planejadoPct != null || p.realizadoPct != null)) {
+        await api.post(`/obras/${obraId}/relatorios/curva-s`, {
+          semana: p.semana,
+          ...(p.planejadoPct != null ? { planejadoPct: p.planejadoPct } : {}),
+          ...(p.realizadoPct != null ? { realizadoPct: p.realizadoPct } : {}),
+        });
       }
     }
     const cRes = await api.get(`/obras/${obraId}/relatorios/curva-s`);
@@ -661,7 +665,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 3. CURVA S ───────────────────────────────────────────────────── */}
             <FormSection title="Curva S — planejado"
-              desc="Digite o % de avanço previsto por semana. O realizado é preenchido automaticamente ao salvar.">
+              desc="Digite o % de avanço previsto e realizado por semana.">
               <div className="overflow-hidden rounded-lg border border-ber-border">
                 <table className="w-full text-sm">
                   <thead>
@@ -688,9 +692,9 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                             placeholder="0" className="fi py-1.5 w-20 text-center" />
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <span className={`text-sm font-semibold ${p.realizadoPct != null ? 'text-emerald-600' : 'text-ber-gray/30'}`}>
-                            {p.realizadoPct != null ? `${p.realizadoPct}%` : '—'}
-                          </span>
+                          <input type="number" min={0} max={100} step={1} value={p.realizadoPct ?? ''}
+                            onChange={e => updateCurvaSPonto(i, 'realizadoPct', e.target.value)}
+                            placeholder="—" className="fi py-1.5 w-20 text-center text-emerald-700" />
                         </td>
                         <td className="px-2 py-2">
                           <button onClick={() => removeCurvaSPonto(i)} className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
