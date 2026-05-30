@@ -40,7 +40,7 @@ export async function createRelatorio(req: Request, res: Response) {
   const {
     periodoInicio, periodoFim, status, avancoPct, avancoDelta,
     diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-    efetivoMedio, efetivoPorDisciplina, destaques, proximosSete,
+    efetivoMedio, efetivoPorDisciplina, atividadesSemana, destaques, proximosSete,
     responsavelId, responsavelNome, dataContrato,
     pendencias = [], marcos = [],
   } = req.body;
@@ -66,6 +66,7 @@ export async function createRelatorio(req: Request, res: Response) {
       motivoImprodutivo: motivoImprodutivo ?? null,
       efetivoMedio: efetivoMedio ?? null,
       efetivoPorDisciplina: efetivoPorDisciplina ?? null,
+      atividadesSemana: atividadesSemana ?? null,
       destaques: destaques ?? null,
       proximosSete: proximosSete ?? null,
       responsavelId: responsavelId ?? null,
@@ -95,7 +96,7 @@ export async function updateRelatorio(req: Request, res: Response) {
   const {
     periodoInicio, periodoFim, status, avancoPct, avancoDelta,
     diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-    efetivoMedio, efetivoPorDisciplina, destaques, proximosSete,
+    efetivoMedio, efetivoPorDisciplina, atividadesSemana, destaques, proximosSete,
     responsavelId, responsavelNome, dataContrato,
     pendencias, marcos,
   } = req.body;
@@ -112,6 +113,7 @@ export async function updateRelatorio(req: Request, res: Response) {
   if (motivoImprodutivo !== undefined) data.motivoImprodutivo = motivoImprodutivo;
   if (efetivoMedio !== undefined) data.efetivoMedio = efetivoMedio;
   if (efetivoPorDisciplina !== undefined) data.efetivoPorDisciplina = efetivoPorDisciplina;
+  if (atividadesSemana !== undefined) data.atividadesSemana = atividadesSemana;
   if (destaques !== undefined) data.destaques = destaques;
   if (proximosSete !== undefined) data.proximosSete = proximosSete;
   if (responsavelId !== undefined) data.responsavelId = responsavelId;
@@ -206,6 +208,22 @@ export async function upsertCurvaSPlanejado(req: Request, res: Response) {
     create: { obraId, semana: new Date(semana), planejadoPct: planejadoPct ?? null, realizadoPct: realizadoPct ?? null },
   });
   return res.json({ data: ponto });
+}
+
+export async function getAllTarefas(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const cron = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
+  const tarefas: any[] = (cron?.parsedData as any)?.tarefas ?? [];
+  const result = tarefas
+    .filter(t => !t.ehResumo)
+    .map(t => ({
+      wbs: t.wbs ?? '',
+      nome: t.nome ?? '',
+      inicio: t.inicio ?? null,
+      fim: t.fim ?? null,
+      percentualConcluido: t.percentualConcluido ?? 0,
+    }));
+  return res.json({ data: result });
 }
 
 export async function getDadosPeriodo(req: Request, res: Response) {

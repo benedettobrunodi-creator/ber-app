@@ -79,10 +79,12 @@ interface Relatorio {
   efetivoPorDisciplina?: EfetivoDisciplina[] | null;
   pendencias: RelatorioPendencia[];
   marcos: RelatorioMarco[];
+  atividadesSemana?: AtividadeSemana[] | null;
   fotos: RelatorioFoto[];
 }
 
-interface TarefaCron { wbs: string; nome: string; inicio: string; fim: string; percentualConcluido: number; }
+interface TarefaCron { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; }
+interface AtividadeSemana { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; tipo: 'andamento' | 'proximo'; }
 interface EfetivosDia { data: string; total: number; }
 
 const STATUS_OPTS = [
@@ -156,6 +158,7 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     responsavelNome: '',
     dataContrato: null,
     efetivoPorDisciplina: [],
+    atividadesSemana: [],
     pendencias: [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
     marcos: [],
     fotos: [],
@@ -182,6 +185,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   const [novoAngulo, setNovoAngulo] = useState('');
   const [selDisciplina, setSelDisciplina] = useState<string>(DISCIPLINA_OPTS[0]);
   const [customDisciplina, setCustomDisciplina] = useState('');
+  const [todasTarefas, setTodasTarefas] = useState<TarefaCron[]>([]);
+  const [showTarefasPicker, setShowTarefasPicker] = useState(false);
   const fotoRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Chart data
@@ -225,14 +230,16 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   async function load() {
     setLoading(true);
     try {
-      const [rRes, cRes, aRes] = await Promise.all([
+      const [rRes, cRes, aRes, tRes] = await Promise.all([
         api.get(`/obras/${obraId}/relatorios`),
         api.get(`/obras/${obraId}/relatorios/curva-s`),
         api.get(`/obras/${obraId}/ambientes`),
+        api.get(`/obras/${obraId}/relatorios/tarefas`),
       ]);
       setRelatorios(rRes.data.data ?? []);
       setCurvaS(cRes.data.data ?? []);
       setAmbientes((aRes.data.data ?? []).map((a: any) => ({ id: a.id, nome: a.nome, cor: a.cor ?? '#6B7280' })));
+      setTodasTarefas(tRes.data.data ?? []);
     } catch { /* empty */ }
     setLoading(false);
   }
@@ -300,6 +307,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       responsavelNome: r.responsavelNome ?? '',
       dataContrato:   r.dataContrato ? r.dataContrato.slice(0, 10) : null,
       efetivoPorDisciplina: Array.isArray(r.efetivoPorDisciplina) ? r.efetivoPorDisciplina : [],
+      atividadesSemana: Array.isArray(r.atividadesSemana) ? r.atividadesSemana : [],
       pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
       fotos:          r.fotos,
@@ -825,45 +833,124 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 4. ATIVIDADES ────────────────────────────────────────────────── */}
             <FormSection title="Atividades da semana"
-              desc="Atividades em andamento segundo o cronograma, e as previstas para o próximo período.">
-              {tarefasPeriodo.length === 0 && tarefasProximo.length === 0 ? (
-                <p className="text-sm text-ber-gray/50 italic">Nenhuma atividade encontrada no cronograma para este período.</p>
-              ) : (
-                <div className="space-y-3">
-                  {tarefasPeriodo.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Em andamento nesta semana</p>
-                      <div className="space-y-2">
-                        {tarefasPeriodo.map((t, i) => (
-                          <div key={i} className="rounded-lg border border-ber-border bg-white px-3 py-2.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm text-ber-carbon leading-tight">{t.nome}</p>
-                              <span className="text-xs font-bold text-emerald-700 shrink-0">{t.percentualConcluido}%</span>
+              desc="Selecione as atividades do cronograma para esta semana e para o próximo período.">
+              {(() => {
+                const atividades = form.atividadesSemana ?? [];
+                const andamento = atividades.filter(a => a.tipo === 'andamento');
+                const proximo   = atividades.filter(a => a.tipo === 'proximo');
+                const selecionadas = new Set(atividades.map(a => a.wbs));
+
+                function addAtividade(t: TarefaCron, tipo: 'andamento' | 'proximo') {
+                  if (selecionadas.has(t.wbs)) return;
+                  setForm(f => ({ ...f, atividadesSemana: [...(f.atividadesSemana ?? []), { ...t, tipo }] }));
+                }
+                function removeAtividade(wbs: string) {
+                  setForm(f => ({ ...f, atividadesSemana: (f.atividadesSemana ?? []).filter(a => a.wbs !== wbs) }));
+                }
+                function changeTipo(wbs: string, tipo: 'andamento' | 'proximo') {
+                  setForm(f => ({ ...f, atividadesSemana: (f.atividadesSemana ?? []).map(a => a.wbs === wbs ? { ...a, tipo } : a) }));
+                }
+
+                const sugeridoAndamento = new Set(tarefasPeriodo.map(t => t.wbs));
+                const sugeridoProximo   = new Set(tarefasProximo.map(t => t.wbs));
+
+                return (
+                  <div className="space-y-3">
+                    {/* Em andamento */}
+                    {andamento.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Em andamento nesta semana</p>
+                        <div className="space-y-2">
+                          {andamento.map(t => (
+                            <div key={t.wbs} className="rounded-lg border border-ber-border bg-white px-3 py-2.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-sm text-ber-carbon leading-tight flex-1">{t.nome}</p>
+                                <span className="text-xs font-bold text-emerald-700 shrink-0">{t.percentualConcluido}%</span>
+                                <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/30 hover:text-red-500 shrink-0"><X size={13} /></button>
+                              </div>
+                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-ber-border overflow-hidden">
+                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${t.percentualConcluido}%` }} />
+                              </div>
+                              {t.inicio && t.fim && <p className="text-[10px] text-ber-gray mt-1">{fmt(t.inicio)} → {fmt(t.fim)}</p>}
+                              <button onClick={() => changeTipo(t.wbs, 'proximo')} className="text-[10px] text-ber-gray/50 hover:text-amber-600 mt-1">mover para próximo período</button>
                             </div>
-                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-ber-border overflow-hidden">
-                              <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${t.percentualConcluido}%` }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Próximo período */}
+                    {proximo.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">Próximo período</p>
+                        <div className="space-y-1.5">
+                          {proximo.map(t => (
+                            <div key={t.wbs} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-ber-border bg-amber-50/50">
+                              <p className="text-sm text-ber-carbon flex-1">{t.nome}</p>
+                              {t.inicio && <p className="text-xs text-ber-gray shrink-0">início {fmt(t.inicio)}</p>}
+                              <button onClick={() => changeTipo(t.wbs, 'andamento')} className="text-[10px] text-ber-gray/50 hover:text-emerald-600 shrink-0">em andamento</button>
+                              <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/30 hover:text-red-500 shrink-0"><X size={13} /></button>
                             </div>
-                            <p className="text-[10px] text-ber-gray mt-1">{fmt(t.inicio)} → {fmt(t.fim)}</p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {tarefasProximo.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">Próximo período (14 dias)</p>
-                      <div className="space-y-1.5">
-                        {tarefasProximo.map((t, i) => (
-                          <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-ber-border bg-amber-50/50">
-                            <p className="text-sm text-ber-carbon">{t.nome}</p>
-                            <p className="text-xs text-ber-gray shrink-0 ml-3">início {fmt(t.inicio)}</p>
-                          </div>
-                        ))}
+                    )}
+
+                    {atividades.length === 0 && (
+                      <p className="text-sm text-ber-gray/40 italic">Nenhuma atividade selecionada. Use o botão abaixo para adicionar do cronograma.</p>
+                    )}
+
+                    {/* Picker */}
+                    <button onClick={() => setShowTarefasPicker(v => !v)}
+                      className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                      <Plus size={13} /> {showTarefasPicker ? 'Fechar cronograma' : 'Adicionar do cronograma'}
+                      {showTarefasPicker ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+
+                    {showTarefasPicker && todasTarefas.length > 0 && (
+                      <div className="rounded-lg border border-ber-border overflow-hidden">
+                        <div className="bg-[#F7F7F5] px-3 py-2 border-b border-ber-border">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-ber-gray">Tarefas do cronograma</p>
+                          <p className="text-[10px] text-ber-gray/60 mt-0.5">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />em andamento no período ·
+                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mx-1" />próximo período
+                          </p>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto divide-y divide-ber-border bg-white">
+                          {todasTarefas.map(t => {
+                            const jaSelecionada = selecionadas.has(t.wbs);
+                            const isAndamento = sugeridoAndamento.has(t.wbs);
+                            const isProximo   = sugeridoProximo.has(t.wbs);
+                            return (
+                              <div key={t.wbs} className={`flex items-center gap-2 px-3 py-2 ${jaSelecionada ? 'opacity-30' : 'hover:bg-[#F7F7F5]'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAndamento ? 'bg-emerald-400' : isProximo ? 'bg-amber-400' : 'bg-transparent'}`} />
+                                <p className="text-xs text-ber-carbon flex-1 leading-tight">{t.nome}</p>
+                                <span className="text-[10px] text-ber-gray/50 shrink-0">{t.percentualConcluido}%</span>
+                                {!jaSelecionada && (
+                                  <div className="flex gap-1 shrink-0">
+                                    <button onClick={() => addAtividade(t, 'andamento')}
+                                      className="text-[10px] px-2 py-0.5 rounded border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium">
+                                      Andamento
+                                    </button>
+                                    <button onClick={() => addAtividade(t, 'proximo')}
+                                      className="text-[10px] px-2 py-0.5 rounded border border-amber-200 text-amber-700 hover:bg-amber-50 font-medium">
+                                      Próximo
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+
+                    {showTarefasPicker && todasTarefas.length === 0 && (
+                      <p className="text-xs text-ber-gray/50 italic">Nenhum cronograma encontrado para esta obra.</p>
+                    )}
+                  </div>
+                );
+              })()}
             </FormSection>
 
             {/* ── 5. DEFINIÇÕES PENDENTES ──────────────────────────────────────── */}
