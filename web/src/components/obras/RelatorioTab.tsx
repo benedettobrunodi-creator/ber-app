@@ -801,15 +801,16 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                         <td className="px-3 py-2">
                           {startMs ? (
                             <div className="flex items-center gap-0.5">
-                              <span className="text-xs text-ber-gray">Sem.</span>
-                              <input type="number" min={1} step={1} value={weekNum ?? ''}
+                              <span className="text-xs text-ber-gray shrink-0">Sem.</span>
+                              <input type="text" inputMode="numeric" value={weekNum ?? ''}
                                 onChange={e => {
-                                  const n = +e.target.value;
-                                  if (!n || !startMs) return;
-                                  const d = new Date(startMs + (n - 1) * 7 * 86400000);
-                                  updateCurvaSPonto(i, 'semana', d.toISOString().slice(0, 10));
+                                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                                  if (!n || n < 1 || !startIso) return;
+                                  const base = new Date(startIso + 'T12:00:00');
+                                  base.setDate(base.getDate() + (n - 1) * 7);
+                                  updateCurvaSPonto(i, 'semana', base.toISOString().slice(0, 10));
                                 }}
-                                className="fi py-1 w-14 text-center text-sm font-medium" />
+                                className="fi py-1 w-12 text-center text-sm font-medium" />
                             </div>
                           ) : (
                             <span className="text-sm text-ber-gray">—</span>
