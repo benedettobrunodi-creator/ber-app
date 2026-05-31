@@ -790,10 +790,30 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ber-border">
-                    {curvaSLocal.map((p, i) => (
+                    {curvaSLocal.map((p, i) => {
+                      const startIso = obra.startDate?.slice(0, 10) ?? null;
+                      const startMs  = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
+                      const weekNum  = startMs && p.semana
+                        ? Math.round((new Date(p.semana + 'T12:00:00').getTime() - startMs) / (7 * 86400000)) + 1
+                        : null;
+                      return (
                       <tr key={i} className="bg-white">
-                        <td className="px-3 py-2 text-sm font-medium text-ber-carbon">
-                          {semanaLabel(p.semana, obra.startDate?.slice(0, 10) ?? null)}
+                        <td className="px-3 py-2">
+                          {startMs ? (
+                            <div className="flex items-center gap-0.5">
+                              <span className="text-xs text-ber-gray">Sem.</span>
+                              <input type="number" min={1} step={1} value={weekNum ?? ''}
+                                onChange={e => {
+                                  const n = +e.target.value;
+                                  if (!n || !startMs) return;
+                                  const d = new Date(startMs + (n - 1) * 7 * 86400000);
+                                  updateCurvaSPonto(i, 'semana', d.toISOString().slice(0, 10));
+                                }}
+                                className="fi py-1 w-14 text-center text-sm font-medium" />
+                            </div>
+                          ) : (
+                            <span className="text-sm text-ber-gray">—</span>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <input type="date" value={p.semana}
@@ -814,7 +834,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                           <button onClick={() => removeCurvaSPonto(i)} className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {curvaSLocal.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-3 py-4 text-center text-sm text-ber-gray/50">
