@@ -977,24 +977,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               </button>
             </FormSection>
 
-            {/* ── 6. DESTAQUES + PRÓXIMOS ──────────────────────────────────────── */}
-            <FormSection title="Destaques e próximos 7 dias" desc="Texto narrativo para o cliente.">
-              <div className="space-y-3">
-                <Field label="Destaques da semana">
-                  <textarea rows={4} value={form.destaques ?? ''}
-                    onChange={e => setForm(f => ({ ...f, destaques: e.target.value }))}
-                    placeholder="Principais avanços, visitas, entregas e observações do período..."
-                    className="fi resize-none w-full" />
-                </Field>
-                <Field label="Próximos 7 dias">
-                  <textarea rows={3} value={form.proximosSete ?? ''}
-                    onChange={e => setForm(f => ({ ...f, proximosSete: e.target.value }))}
-                    placeholder="O que está previsto para acontecer na semana que vem..."
-                    className="fi resize-none w-full" />
-                </Field>
-              </div>
-            </FormSection>
-
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
             <FormSection title="Equipe e dias" desc="Dados de produtividade da semana.">
               <div className="grid grid-cols-4 gap-3">
