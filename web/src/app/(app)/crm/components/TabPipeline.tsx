@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
 import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal } from 'lucide-react';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, Oportunidade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
   state = { err: null };
@@ -146,6 +146,10 @@ function OportunidadeDrawer({
   const [novoOrcNumero, setNovoOrcNumero] = useState('');
   const [criandoOrc, setCriandoOrc] = useState(false);
   const [orcamentoVinculado, setOrcamentoVinculado] = useState(op?.orcamento ?? null);
+  const [historico, setHistorico] = useState<Atividade[]>([]);
+  const [loadingHist, setLoadingHist] = useState(false);
+  const [novaAtiv, setNovaAtiv] = useState({ tipo: 'ligacao', notas: '', dataHora: new Date().toISOString().slice(0, 16) });
+  const [savingAtiv, setSavingAtiv] = useState(false);
 
   useEffect(() => {
     if (op?.empresa?.id) {
@@ -154,6 +158,32 @@ function OportunidadeDrawer({
         .catch(() => {});
     }
   }, [op?.empresa?.id]);
+
+  useEffect(() => {
+    if (!op?.id) return;
+    setLoadingHist(true);
+    api.get(`/crm/atividades?oportunidadeId=${op.id}`)
+      .then(r => setHistorico(r.data.data ?? r.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingHist(false));
+  }, [op?.id]);
+
+  async function registrarAtividade() {
+    if (!op?.id || !novaAtiv.notas.trim()) return;
+    setSavingAtiv(true);
+    try {
+      const res = await api.post('/crm/atividades', {
+        oportunidadeId: op.id,
+        tipo: novaAtiv.tipo,
+        dataHora: new Date(novaAtiv.dataHora).toISOString(),
+        notas: novaAtiv.notas.trim(),
+        concluida: true,
+      });
+      setHistorico(prev => [res.data.data ?? res.data, ...prev]);
+      setNovaAtiv(f => ({ ...f, notas: '', dataHora: new Date().toISOString().slice(0, 16) }));
+    } catch { setErr('Erro ao registrar atividade'); }
+    setSavingAtiv(false);
+  }
 
   const handleDelete = async () => {
     if (!op?.id) return;
@@ -443,6 +473,57 @@ function OportunidadeDrawer({
                 >
                   <Plus size={11} /> Criar orçamento vinculado
                 </button>
+              )}
+            </div>
+          )}
+          {/* ── Histórico de atividades ───────────────────────────────────── */}
+          {!isNew && (
+            <div className="border-t border-ber-border pt-4 mt-2">
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-3">Histórico de atividades</p>
+
+              {/* Formulário para nova atividade */}
+              <div className="rounded-lg border border-ber-border bg-[#F7F7F5] p-3 mb-3 space-y-2">
+                <div className="flex gap-2">
+                  <select value={novaAtiv.tipo} onChange={e => setNovaAtiv(f => ({ ...f, tipo: e.target.value }))}
+                    className="border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal bg-white">
+                    {TIPOS_ATIVIDADE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <input type="datetime-local" value={novaAtiv.dataHora}
+                    onChange={e => setNovaAtiv(f => ({ ...f, dataHora: e.target.value }))}
+                    className="border border-ber-border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-ber-teal bg-white flex-1" />
+                </div>
+                <textarea rows={2} value={novaAtiv.notas}
+                  onChange={e => setNovaAtiv(f => ({ ...f, notas: e.target.value }))}
+                  placeholder="Descreva o que foi feito..."
+                  className="w-full border border-ber-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-ber-teal bg-white resize-none" />
+                <button onClick={registrarAtividade} disabled={savingAtiv || !novaAtiv.notas.trim()}
+                  className="w-full py-1.5 bg-ber-teal text-white rounded-lg text-xs font-semibold hover:bg-ber-teal/80 disabled:opacity-40">
+                  {savingAtiv ? 'Registrando...' : 'Registrar atividade'}
+                </button>
+              </div>
+
+              {/* Lista do histórico */}
+              {loadingHist ? (
+                <p className="text-xs text-ber-gray/50 text-center py-2">Carregando...</p>
+              ) : historico.length === 0 ? (
+                <p className="text-xs text-ber-gray/40 italic text-center py-2">Nenhuma atividade registrada ainda.</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {historico.map(a => {
+                    const tipo = TIPOS_ATIVIDADE.find(t => t.value === a.tipo);
+                    return (
+                      <div key={a.id} className="rounded-lg border border-ber-border bg-white px-3 py-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-ber-teal">{tipo?.label ?? a.tipo}</span>
+                          <span className="text-[10px] text-ber-gray/60 ml-auto">{fmtDate(a.dataHora)}</span>
+                          {a.usuario && <span className="text-[10px] text-ber-gray/50">{a.usuario.name.split(' ')[0]}</span>}
+                        </div>
+                        {a.notas && <p className="text-xs text-ber-carbon leading-relaxed">{a.notas}</p>}
+                        {a.resultado && <p className="text-[10px] text-ber-gray mt-1 italic">Resultado: {a.resultado}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
