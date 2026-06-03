@@ -657,6 +657,9 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           <span className="text-xs text-ber-gray bg-ber-surface px-2 py-0.5 rounded-full">
             {oportunidades.filter((o) => !TERMINAL_ETAPAS.includes(o.etapa)).length} ativos
           </span>
+          <span className="text-sm font-semibold text-ber-teal">
+            {fmt(oportunidades.filter((o) => !TERMINAL_ETAPAS.includes(o.etapa)).reduce((s, o) => s + Number(o.valor ?? 0), 0))}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {viewMode === 'lista' && (
