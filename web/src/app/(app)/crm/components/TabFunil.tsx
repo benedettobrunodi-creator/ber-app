@@ -186,6 +186,19 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   });
   const totalPropostas = propostasAtivas.reduce((s, o) => s + Number(o.valor ?? 0), 0);
 
+  // Pipeline completo (todas as etapas ativas) agrupado por probabilidade — com filtro multi-etapa
+  const ETAPAS_ATIVAS = ['lead', 'qualificacao', 'proposta_producao', 'proposta_enviada', 'negociacao'];
+  const [etapasFiltro, setEtapasFiltro] = useState<string[]>(ETAPAS_ATIVAS);
+  const toggleEtapa = (e: string) =>
+    setEtapasFiltro((prev) => prev.includes(e) ? (prev.length > 1 ? prev.filter((x) => x !== e) : prev) : [...prev, e]);
+  const pipelineAtivos = oportunidades.filter((o) => etapasFiltro.includes(o.etapa));
+  const pipelineTodoPorProb = PROB_CONFIG.map(({ key, label, pct, color }) => {
+    const ops = pipelineAtivos.filter((o) => o.probabilidade === key);
+    const valor = ops.reduce((s, o) => s + Number(o.valor ?? 0), 0);
+    return { key, label, pct, color, count: ops.length, valor, ops };
+  });
+  const totalPipelineTodo = pipelineAtivos.reduce((s, o) => s + Number(o.valor ?? 0), 0);
+
   return (
     <div className="space-y-6">
       {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
@@ -518,6 +531,79 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         )}
         {propostasAtivas.length === 0 && (
           <p className="text-sm text-ber-gray/60 text-center py-4">Nenhuma proposta em andamento</p>
+        )}
+      </div>
+
+      {/* ── Pipeline Completo por Probabilidade ──────────────────── */}
+      <div className="bg-white border border-ber-border rounded-xl p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="font-bold text-ber-carbon">Pipeline Completo por Probabilidade</h3>
+            <p className="text-xs text-ber-gray mt-0.5">Todas as etapas selecionadas · por probabilidade de fechamento</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xl font-bold text-ber-carbon">{fmt(totalPipelineTodo)}</p>
+            <p className="text-xs text-ber-gray">{pipelineAtivos.length} deal{pipelineAtivos.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        {/* Filtro de etapas */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {ETAPAS_ATIVAS.map((e) => (
+            <button
+              key={e}
+              onClick={() => toggleEtapa(e)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                etapasFiltro.includes(e)
+                  ? 'bg-ber-teal/10 border-ber-teal text-ber-teal font-medium'
+                  : 'bg-ber-surface border-ber-border text-ber-gray'
+              }`}
+            >
+              {ETAPA_LABELS[e]}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-3">
+          {pipelineTodoPorProb.map(({ key, label, pct, color, count, valor, ops }) => {
+            const barPct = totalPipelineTodo > 0 ? (valor / totalPipelineTodo) * 100 : 0;
+            return (
+              <div
+                key={key}
+                className="cursor-pointer group"
+                onClick={() => openDrill(`Pipeline ${label} probabilidade`, ops)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-sm font-medium text-ber-carbon">{label} probabilidade</span>
+                    <span className="text-xs text-ber-gray">({pct}%)</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-ber-gray">{count} deal{count !== 1 ? 's' : ''}</span>
+                    <span className="text-sm font-bold text-ber-carbon">{fmt(valor)}</span>
+                    <span className="text-xs text-ber-teal w-24 text-right">pond. {fmt(valor * pct / 100)}</span>
+                  </div>
+                </div>
+                <div className="h-2 bg-ber-surface rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all group-hover:opacity-80"
+                    style={{ width: `${Math.max(barPct, barPct > 0 ? 1 : 0)}%`, backgroundColor: color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {pipelineAtivos.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-ber-border flex items-center gap-2">
+            <span className="text-xs text-ber-gray">Valor ponderado total:</span>
+            <span className="text-sm font-bold text-ber-carbon">
+              {fmt(pipelineTodoPorProb.reduce((s, p) => s + p.valor * p.pct / 100, 0))}
+            </span>
+            <span className="text-xs text-ber-gray ml-auto">Clique em cada linha para ver os deals</span>
+          </div>
+        )}
+        {pipelineAtivos.length === 0 && (
+          <p className="text-sm text-ber-gray/60 text-center py-4">Nenhum deal nas etapas selecionadas</p>
         )}
       </div>
 
