@@ -820,7 +820,7 @@ export async function getPipelineAtivoAcumulado(ano: number) {
     where: {
       etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] },
     },
-    select: { valor: true, dataFechamentoPrevisto: true },
+    select: { valor: true, dataFechamentoPrevisto: true, createdAt: true },
   });
 
   const porMes: Record<number, number> = {};
@@ -831,6 +831,14 @@ export async function getPipelineAtivoAcumulado(ano: number) {
     const val = Number(op.valor ?? 0);
     if (val === 0) continue;
 
+    // A deal only enters the pipeline from the month it was created.
+    // This prevents newly-added deals from retroactively changing past months.
+    const criacao = new Date(op.createdAt);
+    const anoCriacao = criacao.getFullYear();
+    // First month this deal is visible: if created before this year, month 1; else its actual creation month.
+    const mesPrimeiro = anoCriacao < ano ? 1 : anoCriacao === ano ? criacao.getMonth() + 1 : null;
+    if (mesPrimeiro === null) continue; // created in a future year, shouldn't exist but guard anyway
+
     if (!op.dataFechamentoPrevisto) {
       semData += val;
       continue;
@@ -840,20 +848,19 @@ export async function getPipelineAtivoAcumulado(ano: number) {
     const anoFechamento = fechamento.getFullYear();
 
     if (anoFechamento < ano) {
-      // Data já passou (ano anterior) e deal ainda está aberto — não posiciona
+      // Previsto para ano anterior e deal ainda aberto — não posiciona
       continue;
     }
 
     if (anoFechamento > ano) {
-      // Fecha em ano futuro: está no pipeline de todos os meses do ano atual
-      for (let m = 1; m <= 12; m++) porMes[m] += val;
+      // Fecha em ano futuro: aparece do mês de criação até dezembro
+      for (let m = mesPrimeiro; m <= 12; m++) porMes[m] += val;
       continue;
     }
 
-    // Mesmo ano: aparece nos meses 1 até o mês de fechamento (inclusive)
-    // → deal de junho está em pipeline em jan, fev, mar, abr, mai, jun; NÃO em jul+
+    // Mesmo ano: aparece do mês de criação até o mês de fechamento (inclusive)
     const mesFechamento = fechamento.getMonth() + 1;
-    for (let m = 1; m <= mesFechamento; m++) {
+    for (let m = mesPrimeiro; m <= mesFechamento; m++) {
       porMes[m] += val;
     }
   }
