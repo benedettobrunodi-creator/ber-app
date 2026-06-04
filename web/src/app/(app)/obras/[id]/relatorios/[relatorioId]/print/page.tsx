@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import api from '@/lib/api';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
+
+interface EfetivoDisciplina { disciplina: string; quantidade: number; }
+interface AtividadeSemana { wbs: string; nome: string; tipo: 'andamento' | 'proximo'; }
 
 interface Relatorio {
   id: string;
@@ -24,6 +27,8 @@ interface Relatorio {
   proximosSete?: string | null;
   responsavelNome?: string | null;
   dataContrato?: string | null;
+  efetivoPorDisciplina?: EfetivoDisciplina[] | null;
+  atividadesSemana?: AtividadeSemana[] | null;
   pendencias: { descricao: string; responsavel?: string | null; status: string; prazo?: string | null }[];
   marcos: { nome: string; data: string; tipo: string }[];
   fotos: { id: string; url: string; legenda?: string | null; anguloId?: string | null; angulo?: { id: string; nome: string } | null }[];
@@ -217,53 +222,100 @@ export default function RelatorioImpressao() {
             } />
             <Kpi label="Efetivo médio/dia" value={relatorio.efetivoMedio != null ? String(+relatorio.efetivoMedio) : '—'} />
           </div>
-          <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full rounded-full bg-gray-900" style={{ width: `${+relatorio.avancoPct}%` }} />
+          <div className="mt-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Avanço físico acumulado</span>
+              <span className="text-xs font-black text-gray-900">{+relatorio.avancoPct}%</span>
+            </div>
+            <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-full rounded-full bg-gray-900" style={{ width: `${+relatorio.avancoPct}%` }} />
+            </div>
           </div>
-          {relatorio.diasImprodutivos != null && relatorio.diasImprodutivos > 0 && (
-            <p className="text-xs text-gray-500 mt-1.5">
-              {relatorio.diasImprodutivos} dia{relatorio.diasImprodutivos > 1 ? 's' : ''} improdutivo{relatorio.diasImprodutivos > 1 ? 's' : ''}
-              {relatorio.motivoImprodutivo ? ` — ${relatorio.motivoImprodutivo}` : ''}
-            </p>
-          )}
         </Section>
 
         {/* CURVA S */}
         {rawCurvaS.length >= 1 && (
-          <Section title="Curva S — Planejado vs. Realizado">
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="label" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                <Tooltip
-                  formatter={(v: any) => `${v}%`}
-                  labelFormatter={(label: any, payload: any) => {
-                    const semana = payload?.[0]?.payload?.semana;
-                    return semana ? `${label} (${fmt(semana + 'T12:00:00')})` : label;
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: 9 }} />
-                <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
-                <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
-                <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
+          <Section title="Curva S — Planejado vs. Realizado (acumulado)">
+            <LineChart width={720} height={180} data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
+              <Tooltip
+                formatter={(v: any) => `${v}%`}
+                labelFormatter={(label: any, payload: any) => {
+                  const semana = payload?.[0]?.payload?.semana;
+                  return semana ? `${label} (${fmt(semana + 'T12:00:00')})` : label;
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
+              <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado acumulado" connectNulls />
+              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado acumulado" connectNulls />
+            </LineChart>
           </Section>
         )}
 
         {/* HISTOGRAMA */}
         {histData.length > 0 && (
           <Section title="Histograma de efetivos">
-            <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
-                <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-                <Tooltip formatter={(v: any) => [`${v} trabalhadores`, 'Efetivo']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
-                <Bar dataKey="trabalhadores" fill="#374151" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart width={720} height={140} data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+              <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+              <Tooltip formatter={(v: any) => [`${v} trabalhadores`, 'Efetivo']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
+              <Bar dataKey="trabalhadores" fill="#374151" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </Section>
+        )}
+
+        {/* EFETIVO POR DISCIPLINA */}
+        {(relatorio.efetivoPorDisciplina ?? []).length > 0 && (
+          <Section title="Efetivo por disciplina">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Disciplina</th>
+                  <th className="text-right py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Pessoas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(relatorio.efetivoPorDisciplina ?? []).map((d, i) => (
+                  <tr key={i}>
+                    <td className="py-1.5 text-gray-800">{d.disciplina}</td>
+                    <td className="py-1.5 text-right font-medium text-gray-900">{d.quantidade}</td>
+                  </tr>
+                ))}
+                <tr className="border-t border-gray-300">
+                  <td className="py-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Total</td>
+                  <td className="py-1.5 text-right font-black text-gray-900">
+                    {(relatorio.efetivoPorDisciplina ?? []).reduce((s, d) => s + d.quantidade, 0)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </Section>
+        )}
+
+        {/* ATIVIDADES DA SEMANA */}
+        {(relatorio.atividadesSemana ?? []).length > 0 && (
+          <Section title="Atividades da semana">
+            {['andamento', 'proximo'].map(tipo => {
+              const items = (relatorio.atividadesSemana ?? []).filter(a => a.tipo === tipo);
+              if (!items.length) return null;
+              return (
+                <div key={tipo} className="mb-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+                    {tipo === 'andamento' ? 'Em andamento' : 'Próximos'}
+                  </p>
+                  {items.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-1">
+                      <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${tipo === 'andamento' ? 'bg-blue-500' : 'bg-amber-400'}`} />
+                      <p className="text-xs text-gray-700">{a.wbs ? `[${a.wbs}] ` : ''}{a.nome}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </Section>
         )}
 
