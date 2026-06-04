@@ -387,7 +387,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
-        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()),
+        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
       };
       const res = await api.post(`/obras/${obraId}/relatorios`, payload);
       const novo = res.data.data as Relatorio;
@@ -439,7 +439,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
-        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()),
+        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
       };
       if (editing) {
         const res = await api.patch(`/obras/${obraId}/relatorios/${editing.id}`, payload);
