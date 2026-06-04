@@ -388,7 +388,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()),
+        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(p => ({ ...p, prazo: p.prazo || null })),
         marcos:       form.marcos.filter(m => m.nome.trim()),
       };
       const res = await api.post(`/obras/${obraId}/relatorios`, payload);
@@ -436,7 +436,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()),
+        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(p => ({ ...p, prazo: p.prazo || null })),
         marcos:       form.marcos.filter(m => m.nome.trim()),
       };
       if (editing) {
