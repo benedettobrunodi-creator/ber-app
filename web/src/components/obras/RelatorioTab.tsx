@@ -328,11 +328,26 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   }
 
   function updateCurvaSPonto(i: number, field: 'planejadoPct' | 'realizadoPct' | 'semana', value: string) {
-    setCurvaSLocal(prev => prev.map((p, idx) => {
-      if (idx !== i) return p;
-      if (field === 'semana') return { ...p, semana: value };
-      return { ...p, [field]: value ? +value : null };
-    }));
+    setCurvaSLocal(prev => {
+      const updated = prev.map((p, idx) => {
+        if (idx !== i) return p;
+        if (field === 'semana') return { ...p, semana: value };
+        return { ...p, [field]: value ? +value : null };
+      });
+      // When the first row's date changes, cascade 7-day intervals to all subsequent rows
+      if (field === 'semana' && i === 0 && value) {
+        const base = new Date(value + 'T12:00:00');
+        if (!isNaN(base.getTime())) {
+          return updated.map((p, idx) => {
+            if (idx === 0) return p;
+            const d = new Date(base);
+            d.setDate(d.getDate() + idx * 7);
+            return { ...p, semana: d.toISOString().slice(0, 10) };
+          });
+        }
+      }
+      return updated;
+    });
   }
 
   function removeCurvaSPonto(i: number) {
