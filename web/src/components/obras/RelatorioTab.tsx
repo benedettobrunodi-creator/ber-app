@@ -1018,7 +1018,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
             <FormSection title="Equipe e dias" desc="Dados de produtividade da semana.">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Field label="Dias trabalhados">
                   <input type="number" min={0} max={7} value={form.diasTrabalhados ?? ''}
                     onChange={e => setForm(f => ({ ...f, diasTrabalhados: e.target.value ? +e.target.value : null }))}
@@ -1029,26 +1029,12 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     onChange={e => setForm(f => ({ ...f, diasUteis: e.target.value ? +e.target.value : null }))}
                     placeholder="5" className="fi text-center" />
                 </Field>
-                <Field label="Dias improdutivos">
-                  <input type="number" min={0} max={7} value={form.diasImprodutivos ?? ''}
-                    onChange={e => setForm(f => ({ ...f, diasImprodutivos: e.target.value ? +e.target.value : null }))}
-                    placeholder="0" className="fi text-center" />
-                </Field>
                 <Field label="Média pessoas/dia">
                   <input type="number" min={0} step={0.5} value={form.efetivoMedio ?? ''}
                     onChange={e => setForm(f => ({ ...f, efetivoMedio: e.target.value ? +e.target.value : null }))}
                     placeholder="12" className="fi text-center" />
                 </Field>
               </div>
-              {(form.diasImprodutivos ?? 0) > 0 && (
-                <div className="mt-3">
-                  <Field label="Motivo dos dias improdutivos">
-                    <input type="text" value={form.motivoImprodutivo ?? ''}
-                      onChange={e => setForm(f => ({ ...f, motivoImprodutivo: e.target.value }))}
-                      placeholder="Ex: chuva forte, falta de material, feriado..." className="fi" />
-                  </Field>
-                </div>
-              )}
             </FormSection>
 
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
