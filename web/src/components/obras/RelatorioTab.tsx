@@ -481,8 +481,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência" connectNulls />
-              <Line type="monotone" dataKey="planejado" stroke="#1a1a1a" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
-              <Line type="monotone" dataKey="realizado" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
+              <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
+              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>

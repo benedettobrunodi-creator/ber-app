@@ -245,8 +245,8 @@ export default function RelatorioImpressao() {
                 />
                 <Legend wrapperStyle={{ fontSize: 9 }} />
                 <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
-                <Line type="monotone" dataKey="planejado" stroke="#374151" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
-                <Line type="monotone" dataKey="realizado" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
+                <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
+                <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
               </LineChart>
             </ResponsiveContainer>
           </Section>
