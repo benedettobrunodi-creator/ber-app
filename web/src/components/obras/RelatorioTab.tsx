@@ -790,44 +790,40 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 3. CURVA S ───────────────────────────────────────────────────── */}
             <FormSection title="Curva S — planejado"
-              desc="Digite o % de avanço previsto e realizado por semana.">
+              desc="Digite o % de avanço acumulado (previsto e realizado) por semana.">
               <div className="overflow-hidden rounded-lg border border-ber-border">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#F7F7F5] border-b border-ber-border">
                       <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-24">Semana</th>
                       <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-24">Data</th>
-                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Previsto (%)</th>
-                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Realizado (%)</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Previsto acumulado (%)</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray">Realizado acumulado (%)</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ber-border">
                     {curvaSLocal.map((p, i) => {
-                      const startIso = obra.startDate?.slice(0, 10) ?? null;
-                      const startMs  = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
-                      const weekNum  = startMs && p.semana
-                        ? Math.round((new Date(p.semana + 'T12:00:00').getTime() - startMs) / (7 * 86400000)) + 1
+                      // Use obra startDate if available, otherwise fall back to first row's date
+                      const startIso = obra.startDate?.slice(0, 10) ?? curvaSLocal[0]?.semana ?? null;
+                      const weekNum  = startIso && p.semana
+                        ? Math.round((new Date(p.semana + 'T12:00:00').getTime() - new Date(startIso + 'T12:00:00').getTime()) / (7 * 86400000)) + 1
                         : null;
                       return (
                       <tr key={i} className="bg-white">
                         <td className="px-3 py-2">
-                          {startMs ? (
-                            <div className="flex items-center gap-0.5">
-                              <span className="text-xs text-ber-gray shrink-0">Sem.</span>
-                              <input type="text" inputMode="numeric" value={weekNum ?? ''}
-                                onChange={e => {
-                                  const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
-                                  if (!n || n < 1 || !startIso) return;
-                                  const base = new Date(startIso + 'T12:00:00');
-                                  base.setDate(base.getDate() + (n - 1) * 7);
-                                  updateCurvaSPonto(i, 'semana', base.toISOString().slice(0, 10));
-                                }}
-                                className="fi py-1 w-12 text-center text-sm font-medium" />
-                            </div>
-                          ) : (
-                            <span className="text-sm text-ber-gray">—</span>
-                          )}
+                          <div className="flex items-center gap-0.5">
+                            <span className="text-xs text-ber-gray shrink-0">Sem.</span>
+                            <input type="text" inputMode="numeric" value={weekNum ?? ''}
+                              onChange={e => {
+                                const n = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                                if (!n || n < 1 || !startIso) return;
+                                const base = new Date(startIso + 'T12:00:00');
+                                base.setDate(base.getDate() + (n - 1) * 7);
+                                updateCurvaSPonto(i, 'semana', base.toISOString().slice(0, 10));
+                              }}
+                              className="fi py-1 w-12 text-center text-sm font-medium" />
+                          </div>
                         </td>
                         <td className="px-3 py-2">
                           <input type="date" value={p.semana}
