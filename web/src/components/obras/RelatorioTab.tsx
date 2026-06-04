@@ -1067,6 +1067,21 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                         ))}
                       </tbody>
                     </table>
+                    {/* Summary row */}
+                    <div className="flex items-center gap-6 px-3 py-2 bg-[#F7F7F5] border-t border-ber-border">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-ber-gray">Efetivo total:</span>
+                        <span className="text-sm font-bold text-ber-carbon">
+                          {(form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0)} pessoas
+                        </span>
+                      </div>
+                      {form.efetivoMedio != null && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-ber-gray">Média/dia:</span>
+                          <span className="text-sm font-bold text-ber-carbon">{form.efetivoMedio} pessoas</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {/* Add discipline row */}
