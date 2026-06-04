@@ -386,8 +386,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
-        marcos:       form.marcos.filter(m => m.nome.trim()),
+        pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
+        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()),
       };
       const res = await api.post(`/obras/${obraId}/relatorios`, payload);
       const novo = res.data.data as Relatorio;
@@ -395,7 +395,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       setEditing(novo);
       return novo.id;
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar relatório');
+      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Erro ao salvar relatório');
       return null;
     }
   }
@@ -428,14 +428,18 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   async function save() {
     setSaving(true);
     try {
-      await saveCurvaS();
+      try {
+        await saveCurvaS();
+      } catch (ce: any) {
+        console.warn('saveCurvaS falhou (ignorando):', ce?.message);
+      }
       const payload = {
         ...form,
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
-        marcos:       form.marcos.filter(m => m.nome.trim()),
+        pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
+        marcos:       form.marcos.filter(m => (m.nome ?? '').trim()),
       };
       if (editing) {
         const res = await api.patch(`/obras/${obraId}/relatorios/${editing.id}`, payload);
@@ -446,7 +450,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       }
       setShowForm(false);
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar');
+      alert(e?.response?.data?.error?.message ?? e?.message ?? 'Erro ao salvar');
     }
     setSaving(false);
   }
