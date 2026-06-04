@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/', ctrl.listRelatorios);
 router.post('/', ctrl.createRelatorio);
 router.get('/curva-s', ctrl.getCurvaS);
+router.put('/curva-s', ctrl.replaceCurvaS);
 router.post('/curva-s', ctrl.upsertCurvaSPlanejado);
 router.get('/tarefas', ctrl.getAllTarefas);
 router.get('/dados-periodo', ctrl.getDadosPeriodo);

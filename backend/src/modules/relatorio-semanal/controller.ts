@@ -78,13 +78,6 @@ export async function createRelatorio(req: Request, res: Response) {
     include,
   });
 
-  // Record curva S realizado point
-  await prisma.relatorioCurvaS.upsert({
-    where: { obraId_semana: { obraId, semana: new Date(periodoFim) } },
-    update: { realizadoPct: avancoPct ?? 0 },
-    create: { obraId, semana: new Date(periodoFim), realizadoPct: avancoPct ?? 0 },
-  });
-
   return res.status(201).json({ data: relatorio });
 }
 
@@ -134,15 +127,6 @@ export async function updateRelatorio(req: Request, res: Response) {
     data,
     include,
   });
-
-  if (avancoPct !== undefined) {
-    const semana = relatorio.periodoFim;
-    await prisma.relatorioCurvaS.upsert({
-      where: { obraId_semana: { obraId, semana } },
-      update: { realizadoPct: avancoPct },
-      create: { obraId, semana, realizadoPct: avancoPct },
-    });
-  }
 
   return res.json({ data: relatorio });
 }
@@ -194,6 +178,25 @@ export async function getCurvaS(req: Request, res: Response) {
     orderBy: { semana: 'asc' },
   });
   return res.json({ data: pontos });
+}
+
+export async function replaceCurvaS(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const { pontos } = req.body as { pontos: { semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[] };
+  if (!Array.isArray(pontos)) return res.status(400).json({ error: { message: 'pontos deve ser um array' } });
+  await prisma.relatorioCurvaS.deleteMany({ where: { obraId } });
+  if (pontos.length > 0) {
+    await prisma.relatorioCurvaS.createMany({
+      data: pontos.map(p => ({
+        obraId,
+        semana: new Date(p.semana),
+        planejadoPct: p.planejadoPct ?? null,
+        realizadoPct: p.realizadoPct ?? null,
+      })),
+    });
+  }
+  const result = await prisma.relatorioCurvaS.findMany({ where: { obraId }, orderBy: { semana: 'asc' } });
+  return res.json({ data: result });
 }
 
 export async function upsertCurvaSPlanejado(req: Request, res: Response) {

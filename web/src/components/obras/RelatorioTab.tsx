@@ -353,16 +353,14 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   }
 
   async function saveCurvaS() {
-    for (const p of curvaSLocal) {
-      if (p.semana && (p.planejadoPct != null || p.realizadoPct != null)) {
-        await api.post(`/obras/${obraId}/relatorios/curva-s`, {
-          semana: p.semana,
-          ...(p.planejadoPct != null ? { planejadoPct: p.planejadoPct } : {}),
-          ...(p.realizadoPct != null ? { realizadoPct: p.realizadoPct } : {}),
-        });
-      }
-    }
-    const cRes = await api.get(`/obras/${obraId}/relatorios/curva-s`);
+    const pontos = curvaSLocal
+      .filter(p => p.semana && (p.planejadoPct != null || p.realizadoPct != null))
+      .map(p => ({
+        semana: p.semana,
+        planejadoPct: p.planejadoPct ?? null,
+        realizadoPct: p.realizadoPct ?? null,
+      }));
+    const cRes = await api.put(`/obras/${obraId}/relatorios/curva-s`, { pontos });
     setCurvaS(cRes.data.data ?? []);
   }
 
@@ -388,7 +386,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(p => ({ ...p, prazo: p.prazo || null })),
+        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => m.nome.trim()),
       };
       const res = await api.post(`/obras/${obraId}/relatorios`, payload);
@@ -436,7 +434,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
-        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(p => ({ ...p, prazo: p.prazo || null })),
+        pendencias:   form.pendencias.filter(p => p.descricao.trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => m.nome.trim()),
       };
       if (editing) {
@@ -885,6 +883,17 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                 const sugeridoAndamento = new Set(tarefasPeriodo.map(t => t.wbs));
                 const sugeridoProximo   = new Set(tarefasProximo.map(t => t.wbs));
 
+                // Show only tasks that overlap current period + next 2 weeks
+                const limiteMs = new Date(form.periodoFim + 'T12:00:00').getTime() + 14 * 86_400_000;
+                const inicioMs = new Date(form.periodoInicio + 'T12:00:00').getTime();
+                const tarefasFiltradas = todasTarefas.filter(t => {
+                  if (sugeridoAndamento.has(t.wbs) || sugeridoProximo.has(t.wbs)) return true;
+                  if (!t.inicio && !t.fim) return false;
+                  const fimMs  = t.fim   ? new Date(t.fim   + 'T12:00:00').getTime() : Infinity;
+                  const iniMs  = t.inicio ? new Date(t.inicio + 'T12:00:00').getTime() : -Infinity;
+                  return fimMs >= inicioMs && iniMs <= limiteMs;
+                });
+
                 return (
                   <div className="space-y-3">
                     {/* Em andamento */}
@@ -944,11 +953,11 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                           <p className="text-[10px] font-bold uppercase tracking-widest text-ber-gray">Tarefas do cronograma</p>
                           <p className="text-[10px] text-ber-gray/60 mt-0.5">
                             <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />em andamento no período ·
-                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mx-1" />próximo período
+                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mx-1" />próximo período · período atual + 2 semanas
                           </p>
                         </div>
                         <div className="max-h-72 overflow-y-auto divide-y divide-ber-border bg-white">
-                          {todasTarefas.map(t => {
+                          {tarefasFiltradas.map(t => {
                             const jaSelecionada = selecionadas.has(t.wbs);
                             const isAndamento = sugeridoAndamento.has(t.wbs);
                             const isProximo   = sugeridoProximo.has(t.wbs);
@@ -976,8 +985,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                       </div>
                     )}
 
-                    {showTarefasPicker && todasTarefas.length === 0 && (
-                      <p className="text-xs text-ber-gray/50 italic">Nenhum cronograma encontrado para esta obra.</p>
+                    {showTarefasPicker && tarefasFiltradas.length === 0 && (
+                      <p className="text-xs text-ber-gray/50 italic">{todasTarefas.length === 0 ? 'Nenhum cronograma encontrado.' : 'Nenhuma tarefa nos próximos 14 dias.'}</p>
                     )}
                   </div>
                 );
