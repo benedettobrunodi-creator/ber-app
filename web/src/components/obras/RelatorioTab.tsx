@@ -381,8 +381,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   async function ensureSaved(): Promise<string | null> {
     if (editing) return editing.id;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { fotos: _fotos, ...formWithoutFotos } = form;
       const payload = {
-        ...form,
+        ...formWithoutFotos,
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
@@ -433,8 +435,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       } catch (ce: any) {
         console.warn('saveCurvaS falhou (ignorando):', ce?.message);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { fotos: _fotos, ...formWithoutFotos } = form;
       const payload = {
-        ...form,
+        ...formWithoutFotos,
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
