@@ -93,12 +93,10 @@ const STATUS_OPTS = [
   { value: 'atrasado',  label: 'ATRASADO',  color: 'bg-red-100    text-red-800'     },
 ];
 
-const CATEGORIA_OPTS = [
-  { value: 'arquitetura', label: 'Arquitetura', color: 'bg-purple-100 text-purple-800' },
-  { value: 'cliente',     label: 'Cliente',     color: 'bg-blue-100   text-blue-800'   },
-  { value: 'ber',         label: 'BÈR',         color: 'bg-gray-100   text-gray-800'   },
-  { value: 'fornecedor',  label: 'Fornecedor',  color: 'bg-orange-100 text-orange-800' },
-  { value: 'outro',       label: 'Outro',       color: 'bg-gray-100   text-gray-600'   },
+const STATUS_TEMA_OPTS = [
+  { value: 'sob_controle', label: 'Sob controle', color: 'bg-green-100 text-green-800'  },
+  { value: 'atencao',      label: 'Atenção',      color: 'bg-amber-100 text-amber-800'  },
+  { value: 'critico',      label: 'Crítico',      color: 'bg-red-100   text-red-800'    },
 ];
 
 const DISCIPLINA_OPTS = [
@@ -113,7 +111,7 @@ const AMBIENT_COLORS = [
 ];
 
 function statusLabel(s: string) { return STATUS_OPTS.find(o => o.value === s) ?? STATUS_OPTS[0]; }
-function catLabel(c: string)    { return CATEGORIA_OPTS.find(o => o.value === c) ?? CATEGORIA_OPTS[0]; }
+function statusTemaLabel(s: string) { return STATUS_TEMA_OPTS.find(o => o.value === s) ?? STATUS_TEMA_OPTS[0]; }
 function fmt(iso: string) { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); }
 function fmtFull(iso: string) { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
@@ -159,7 +157,7 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     dataContrato: null,
     efetivoPorDisciplina: [],
     atividadesSemana: [],
-    pendencias: [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
+    pendencias: [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
     marcos: [],
     fotos: [],
   };
@@ -308,7 +306,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       dataContrato:   r.dataContrato ? r.dataContrato.slice(0, 10) : null,
       efetivoPorDisciplina: Array.isArray(r.efetivoPorDisciplina) ? r.efetivoPorDisciplina : [],
       atividadesSemana: Array.isArray(r.atividadesSemana) ? r.atividadesSemana : [],
-      pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'aberta', categoria: 'cliente', ordem: 0 }],
+      pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
       fotos:          r.fotos,
     });
@@ -371,7 +369,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   // ─── Pendências ─────────────────────────────────────────────────────────────
 
   function addPendencia() {
-    setForm(f => ({ ...f, pendencias: [...f.pendencias, { descricao: '', status: 'aberta', categoria: 'cliente', ordem: f.pendencias.length }] }));
+    setForm(f => ({ ...f, pendencias: [...f.pendencias, { descricao: '', status: 'sob_controle', categoria: 'outro', ordem: f.pendencias.length }] }));
   }
   function updatePendencia(i: number, field: string, value: string) {
     setForm(f => ({ ...f, pendencias: f.pendencias.map((p, idx) => idx === i ? { ...p, [field]: value } : p) }));
@@ -990,27 +988,31 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               })()}
             </FormSection>
 
-            {/* ── 5. DEFINIÇÕES PENDENTES ──────────────────────────────────────── */}
-            <FormSection title="Definições pendentes"
-              desc="Itens que precisam de decisão ou resposta para a obra avançar.">
+            {/* ── 5. TEMAS EM ABERTO ───────────────────────────────────────────── */}
+            <FormSection title="Temas em aberto"
+              desc="Itens que precisam de atenção ou decisão para a obra avançar.">
               <div className="space-y-2">
                 {form.pendencias.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-ber-border bg-[#F7F7F5]">
-                    <select value={p.categoria} onChange={e => updatePendencia(i, 'categoria', e.target.value)}
-                      className={`shrink-0 text-[11px] font-bold rounded-md px-2 py-1 border-0 cursor-pointer ${catLabel(p.categoria).color}`}>
-                      {CATEGORIA_OPTS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
+                  <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 p-2.5 rounded-lg border border-ber-border bg-[#F7F7F5] items-center">
                     <input value={p.descricao} onChange={e => updatePendencia(i, 'descricao', e.target.value)}
-                      placeholder="Descreva o item pendente..." className="fi flex-1 py-1.5 bg-white text-sm" />
+                      placeholder="Descreva o tema..." className="fi py-1.5 bg-white text-sm" />
                     <input value={p.responsavel ?? ''} onChange={e => updatePendencia(i, 'responsavel', e.target.value)}
                       placeholder="Responsável" className="fi w-32 py-1.5 bg-white text-sm" />
-                    <button onClick={() => removePendencia(i)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
+                    <select value={p.status} onChange={e => updatePendencia(i, 'status', e.target.value)}
+                      className={`shrink-0 text-[11px] font-bold rounded-md px-2 py-1.5 border-0 cursor-pointer ${statusTemaLabel(p.status).color}`}>
+                      {STATUS_TEMA_OPTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <input type="date" value={p.prazo ?? ''} onChange={e => updatePendencia(i, 'prazo', e.target.value)}
+                        className="fi py-1.5 bg-white text-sm w-36" title="Data limite" />
+                      <button onClick={() => removePendencia(i)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
+                    </div>
                   </div>
                 ))}
               </div>
               <button onClick={addPendencia}
                 className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
-                <Plus size={13} /> Adicionar item
+                <Plus size={13} /> Adicionar tema
               </button>
             </FormSection>
 

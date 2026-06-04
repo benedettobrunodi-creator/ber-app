@@ -24,7 +24,7 @@ interface Relatorio {
   proximosSete?: string | null;
   responsavelNome?: string | null;
   dataContrato?: string | null;
-  pendencias: { descricao: string; responsavel?: string | null; status: string }[];
+  pendencias: { descricao: string; responsavel?: string | null; status: string; prazo?: string | null }[];
   marcos: { nome: string; data: string; tipo: string }[];
   fotos: { id: string; url: string; legenda?: string | null; anguloId?: string | null; angulo?: { id: string; nome: string } | null }[];
 }
@@ -377,13 +377,14 @@ export default function RelatorioImpressao() {
 
         {/* PENDÊNCIAS */}
         {relatorio.pendencias.length > 0 && (
-          <Section title="Pendências do cliente">
+          <Section title="Temas em aberto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Descrição</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Item</th>
                   <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-32">Responsável</th>
-                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-20">Status</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Status</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Data limite</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -393,10 +394,15 @@ export default function RelatorioImpressao() {
                     <td className="py-2 text-gray-500">{p.responsavel ?? '—'}</td>
                     <td className="py-2">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                        p.status === 'resolvida' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        p.status === 'critico'      ? 'bg-red-100 text-red-700' :
+                        p.status === 'atencao'      ? 'bg-amber-100 text-amber-700' :
+                                                      'bg-green-100 text-green-700'
                       }`}>
-                        {p.status === 'resolvida' ? 'RESOLVIDA' : 'ABERTA'}
+                        {p.status === 'critico' ? 'CRÍTICO' : p.status === 'atencao' ? 'ATENÇÃO' : 'SOB CONTROLE'}
                       </span>
+                    </td>
+                    <td className="py-2 text-gray-500">
+                      {(p as any).prazo ? new Date((p as any).prazo).toLocaleDateString('pt-BR') : '—'}
                     </td>
                   </tr>
                 ))}
