@@ -72,7 +72,7 @@ export async function createRelatorio(req: Request, res: Response) {
       responsavelId: responsavelId ?? null,
       responsavelNome: responsavelNome ?? null,
       dataContrato: dataContrato ? new Date(dataContrato) : null,
-      pendencias: { create: pendencias.map((p: any, i: number) => ({ ...p, ordem: i })) },
+      pendencias: { create: pendencias.map((p: any, i: number) => ({ ...p, prazo: p.prazo || null, ordem: i })) },
       marcos: { create: marcos },
     },
     include,
@@ -115,7 +115,7 @@ export async function updateRelatorio(req: Request, res: Response) {
 
   if (pendencias !== undefined) {
     await prisma.relatorioPendencia.deleteMany({ where: { relatorioId } });
-    data.pendencias = { create: pendencias.map((p: any, i: number) => ({ ...p, ordem: i })) };
+    data.pendencias = { create: pendencias.map((p: any, i: number) => ({ ...p, prazo: p.prazo || null, ordem: i })) };
   }
   if (marcos !== undefined) {
     await prisma.relatorioMarco.deleteMany({ where: { relatorioId } });
