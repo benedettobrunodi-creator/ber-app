@@ -183,7 +183,7 @@ export async function uploadFoto(req: Request, res: Response) {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const fname = `${Date.now()}-${req.file.originalname}`;
       fs.writeFileSync(path.join(dir, fname), req.file.buffer);
-      url = `/uploads/${fname}`;
+      url = `${env.backendUrl}/uploads/${fname}`;
     }
 
     const count = await prisma.relatorioFoto.count({ where: { relatorioId } });
