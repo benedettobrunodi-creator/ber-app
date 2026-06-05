@@ -16,8 +16,12 @@ const include = {
 };
 
 const err500 = (res: Response, e: any) => {
-  console.error('[relatorio-semanal]', e?.message ?? e);
-  return res.status(500).json({ error: { message: e?.message ?? 'Erro interno do servidor' } });
+  const full: string = e?.message ?? String(e);
+  console.error('[relatorio-semanal] ERROR:', full);
+  // Prisma validation errors embed the full data dump; extract just the description at the end
+  const parts = full.split(/\n}\n|\n\}\n/);
+  const short = parts[parts.length - 1]?.trim() || full;
+  return res.status(500).json({ error: { message: short || full } });
 };
 
 export async function listRelatorios(req: Request, res: Response) {
