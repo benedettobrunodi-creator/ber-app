@@ -101,6 +101,14 @@ export default function RelatorioImpressao() {
     ]);
   }, [params.id, params.relatorioId]);
 
+  useEffect(() => {
+    if (!relatorio || !obra) return;
+    const d1 = new Date(relatorio.periodoInicio + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
+    const d2 = new Date(relatorio.periodoFim + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
+    const nomeObra = obra.name.replace(/[/\\:*?"<>|]/g, '-');
+    document.title = `RT-${String(relatorio.numero).padStart(3, '0')}_${nomeObra}_${d1}-${d2}`;
+  }, [relatorio, obra]);
+
   if (!relatorio || !obra) return (
     <div className="flex h-screen items-center justify-center text-sm text-gray-500">Carregando...</div>
   );
