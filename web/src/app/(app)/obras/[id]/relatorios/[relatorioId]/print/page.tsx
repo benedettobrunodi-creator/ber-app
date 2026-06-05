@@ -162,19 +162,33 @@ export default function RelatorioImpressao() {
           .no-print { display: none !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
+        @media screen {
+          header { display: none !important; }
+          body > div > nav { display: none !important; }
+          main.flex-1 { overflow: visible !important; padding-bottom: 0 !important; }
+        }
         body { font-family: 'Inter', -apple-system, sans-serif; }
       `}</style>
 
-      {/* Print button — hidden on print */}
-      <div className="no-print fixed top-4 right-4 z-50 flex gap-2">
-        <button onClick={() => window.print()}
-          className="rounded-lg bg-gray-900 text-white text-sm font-semibold px-4 py-2 shadow hover:bg-gray-700 transition-colors">
-          Imprimir / Salvar PDF
-        </button>
-        <button onClick={() => window.close()}
-          className="rounded-lg border border-gray-200 text-sm px-4 py-2 shadow hover:bg-gray-50 transition-colors">
-          Fechar
-        </button>
+      {/* Toolbar — screen only, hidden on print */}
+      <div className="no-print sticky top-0 z-50 flex items-center justify-between bg-gray-900 px-6 py-3 shadow">
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-gray-400">Relatório Gerencial</p>
+          <p className="text-sm font-black text-white">{obra.name} · RT-{String(relatorio.numero).padStart(3, '0')}</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => window.close()}
+            className="rounded-lg border border-white/20 text-sm px-4 py-2 text-gray-300 hover:bg-white/10 transition-colors">
+            Fechar
+          </button>
+          <button onClick={() => {
+            const imgs = Array.from(document.querySelectorAll('img'));
+            Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }))).then(() => window.print());
+          }}
+            className="rounded-lg bg-white text-gray-900 text-sm font-semibold px-4 py-2 hover:bg-gray-100 transition-colors">
+            Imprimir / Salvar PDF
+          </button>
+        </div>
       </div>
 
       <div className="max-w-[800px] mx-auto px-8 py-8 text-gray-900 text-sm print:px-0 print:py-0">
