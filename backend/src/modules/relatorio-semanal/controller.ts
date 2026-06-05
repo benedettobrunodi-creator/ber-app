@@ -66,9 +66,11 @@ export async function createRelatorio(req: Request, res: Response) {
     });
     const numero = (last?.numero ?? 0) + 1;
 
-    const normPrazo = (v: any) => (v && typeof v === 'string' && v.trim()) ? v.trim() : null;
-    const normData  = (v: any) => (v && typeof v === 'string' && v.trim()) ? v.trim() : null;
-    console.log('[createRelatorio] pendencias raw:', JSON.stringify(pendencias));
+    const toDate = (v: any): Date | null => {
+      if (!v || typeof v !== 'string' || !v.trim()) return null;
+      const d = new Date(v.trim());
+      return isNaN(d.getTime()) ? null : d;
+    };
     const relatorio = await prisma.relatorioSemanal.create({
       data: {
         obraId, numero,
@@ -88,9 +90,9 @@ export async function createRelatorio(req: Request, res: Response) {
         proximosSete: proximosSete ?? null,
         responsavelId: responsavelId ?? null,
         responsavelNome: responsavelNome ?? null,
-        dataContrato: dataContrato ? new Date(dataContrato) : null,
-        pendencias: { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: normPrazo(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) },
-        marcos: { create: marcos.filter((m: any) => normData(m.data)).map((m: any) => ({ nome: m.nome, data: m.data, tipo: m.tipo })) },
+        dataContrato: toDate(dataContrato),
+        pendencias: { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: toDate(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) },
+        marcos: { create: marcos.map((m: any) => ({ nome: m.nome, data: toDate(m.data), tipo: m.tipo })).filter((m: any) => m.data !== null) },
       },
       include,
     });
@@ -132,16 +134,18 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (responsavelNome !== undefined) data.responsavelNome = responsavelNome;
     if (dataContrato !== undefined) data.dataContrato = dataContrato ? new Date(dataContrato) : null;
 
-    const normPrazo = (v: any) => (v && typeof v === 'string' && v.trim()) ? v.trim() : null;
-    const normData  = (v: any) => (v && typeof v === 'string' && v.trim()) ? v.trim() : null;
+    const toDate = (v: any): Date | null => {
+      if (!v || typeof v !== 'string' || !v.trim()) return null;
+      const d = new Date(v.trim());
+      return isNaN(d.getTime()) ? null : d;
+    };
     if (pendencias !== undefined) {
-      console.log('[updateRelatorio] pendencias raw:', JSON.stringify(pendencias));
       await prisma.relatorioPendencia.deleteMany({ where: { relatorioId } });
-      data.pendencias = { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: normPrazo(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) };
+      data.pendencias = { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: toDate(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) };
     }
     if (marcos !== undefined) {
       await prisma.relatorioMarco.deleteMany({ where: { relatorioId } });
-      data.marcos = { create: marcos.filter((m: any) => normData(m.data)).map((m: any) => ({ nome: m.nome, data: m.data, tipo: m.tipo })) };
+      data.marcos = { create: marcos.map((m: any) => ({ nome: m.nome, data: toDate(m.data), tipo: m.tipo })).filter((m: any) => m.data !== null) };
     }
 
     const relatorio = await prisma.relatorioSemanal.update({
