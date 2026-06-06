@@ -158,7 +158,7 @@ export default function RelatorioImpressao() {
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 22mm 20mm; }
+          @page { size: A4; margin: 20mm; }
           .no-print { display: none !important; }
           header, aside, nav { display: none !important; }
           [class~="fixed"], [class~="sticky"] { position: static !important; }
@@ -195,7 +195,7 @@ export default function RelatorioImpressao() {
         </div>
       </div>
 
-      <div className="max-w-[800px] mx-auto px-8 py-8 text-gray-900 text-sm print:px-0 print:py-0 print:max-w-none">
+      <div className="max-w-[800px] mx-auto px-8 py-8 text-gray-900 text-sm print:px-6 print:py-4 print:max-w-none">
 
         {/* CABEÇALHO */}
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-gray-900">
