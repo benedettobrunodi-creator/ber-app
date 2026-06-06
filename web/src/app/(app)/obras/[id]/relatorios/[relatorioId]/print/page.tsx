@@ -103,8 +103,8 @@ export default function RelatorioImpressao() {
 
   useEffect(() => {
     if (!relatorio || !obra) return;
-    const d1 = new Date(relatorio.periodoInicio + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
-    const d2 = new Date(relatorio.periodoFim + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
+    const d1 = new Date(relatorio.periodoInicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
+    const d2 = new Date(relatorio.periodoFim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }).replace('/', '.');
     const nomeObra = obra.name.replace(/[/\\:*?"<>|]/g, '-');
     document.title = `RT-${String(relatorio.numero).padStart(3, '0')}_${nomeObra}_${d1}-${d2}`;
   }, [relatorio, obra]);
@@ -158,7 +158,7 @@ export default function RelatorioImpressao() {
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 18mm 15mm; }
+          @page { size: A4; margin: 22mm 20mm; }
           .no-print { display: none !important; }
           header { display: none !important; }
           nav { display: none !important; }
@@ -194,7 +194,7 @@ export default function RelatorioImpressao() {
         </div>
       </div>
 
-      <div className="max-w-[800px] mx-auto px-8 py-8 text-gray-900 text-sm print:px-0 print:py-0">
+      <div className="max-w-[800px] mx-auto px-8 py-8 text-gray-900 text-sm print:px-0 print:py-0 print:max-w-none">
 
         {/* CABEÇALHO */}
         <div className="flex items-start justify-between mb-6 pb-4 border-b-2 border-gray-900">
@@ -211,10 +211,10 @@ export default function RelatorioImpressao() {
 
         {/* STATUS + PRAZO */}
         <div className="flex items-stretch gap-4 mb-6">
-          <div className="flex-1 rounded-xl border-2 flex items-center justify-center py-4" style={{ borderColor: st.color }}>
-            <span className="text-lg font-black tracking-wider" style={{ color: st.color }}>{st.label}</span>
+          <div className="w-40 shrink-0 rounded-lg border flex items-center justify-center py-3" style={{ borderColor: st.color }}>
+            <span className="text-sm font-black tracking-wider" style={{ color: st.color }}>{st.label}</span>
           </div>
-          <div className="flex-1 rounded-xl border border-gray-200 px-4 py-3">
+          <div className="flex-1 rounded-lg border border-gray-200 px-4 py-3">
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Previsão de conclusão</p>
             <p className="text-base font-black text-gray-900">
               {obra.expectedEndDate ? fmt(obra.expectedEndDate) : '—'}
@@ -261,7 +261,7 @@ export default function RelatorioImpressao() {
         {/* CURVA S */}
         {rawCurvaS.length >= 1 && (
           <Section title="Curva S — Planejado vs. Realizado (acumulado)">
-            <LineChart width={720} height={180} data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            <LineChart width={660} height={160} data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="label" tick={{ fontSize: 9 }} />
               <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
@@ -283,7 +283,7 @@ export default function RelatorioImpressao() {
         {/* HISTOGRAMA */}
         {histData.length > 0 && (
           <Section title="Histograma de efetivos">
-            <BarChart width={720} height={140} data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            <BarChart width={660} height={130} data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
               <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
               <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
@@ -405,44 +405,37 @@ export default function RelatorioImpressao() {
             <Section title="Registro fotográfico">
               {Array.from(angulosMap.entries()).map(([anguloId, { nome, fotos }]) => {
                 const prevFoto = prevRelatorio?.fotos.find(f => f.anguloId === anguloId) ?? null;
-                const mainFoto = fotos[fotos.length - 1];
                 return (
-                  <div key={anguloId} className="mb-5">
+                  <div key={anguloId} className="mb-5 break-inside-avoid">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">{nome}</p>
-                    <div className={`grid gap-2 ${prevFoto ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                      <div className={prevFoto ? 'col-span-2' : ''}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={mainFoto.url} alt="" className="w-full rounded-lg object-cover" style={{ maxHeight: prevFoto ? '220px' : '300px' }} />
-                        {mainFoto.legenda && <p className="text-[9px] text-gray-400 mt-1">{mainFoto.legenda}</p>}
-                      </div>
-                      {prevFoto && (
-                        <div className="opacity-70">
+                    <div className="grid grid-cols-2 gap-2">
+                      {fotos.map((ft) => (
+                        <div key={ft.id}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={prevFoto.url} alt="" className="w-full rounded-lg object-cover" style={{ maxHeight: '220px' }} />
-                          <p className="text-[9px] text-gray-400 mt-1">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
+                          <img src={ft.url} alt="" className="w-full rounded object-cover" style={{ height: '180px' }} />
+                          {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
+                        </div>
+                      ))}
+                      {prevFoto && (
+                        <div className="opacity-60">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={prevFoto.url} alt="" className="w-full rounded object-cover" style={{ height: '180px' }} />
+                          <p className="text-[9px] text-gray-400 mt-0.5">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
                         </div>
                       )}
                     </div>
-                    {fotos.length > 1 && (
-                      <div className="grid grid-cols-4 gap-1.5 mt-1.5">
-                        {fotos.slice(0, -1).map(ft => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img key={ft.id} src={ft.url} alt="" className="w-full h-16 object-cover rounded border border-gray-100" />
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })}
               {semAngulo.length > 0 && (
-                <div>
+                <div className="break-inside-avoid">
                   <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">Fotos gerais</p>
                   <div className="grid grid-cols-3 gap-2">
                     {semAngulo.map(ft => (
-                      <div key={ft.id} className="rounded-lg overflow-hidden border border-gray-100">
+                      <div key={ft.id} className="rounded overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full h-32 object-cover" />
-                        {ft.legenda && <p className="text-[9px] text-gray-400 px-1.5 py-1">{ft.legenda}</p>}
+                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full object-cover" style={{ height: '120px' }} />
+                        {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
                       </div>
                     ))}
                   </div>
@@ -454,7 +447,7 @@ export default function RelatorioImpressao() {
 
         {/* PENDÊNCIAS */}
         {relatorio.pendencias.length > 0 && (
-          <Section title="Temas em aberto">
+          <Section title="Itens em aberto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -516,7 +509,7 @@ export default function RelatorioImpressao() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-5">
+    <div className="mb-5 break-inside-avoid">
       <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 mb-2 pb-1 border-b border-gray-100">{title}</p>
       {children}
     </div>
