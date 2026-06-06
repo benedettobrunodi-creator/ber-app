@@ -160,10 +160,11 @@ export default function RelatorioImpressao() {
         @media print {
           @page { size: A4; margin: 22mm 20mm; }
           .no-print { display: none !important; }
-          header { display: none !important; }
-          nav { display: none !important; }
+          header, aside, nav { display: none !important; }
+          [class~="fixed"], [class~="sticky"] { position: static !important; }
           main { overflow: visible !important; height: auto !important; max-height: none !important; padding-bottom: 0 !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Inter', -apple-system, sans-serif; }
+          .recharts-wrapper, .recharts-surface { max-width: 100% !important; overflow: hidden !important; }
         }
         @media screen {
           header { display: none !important; }
@@ -408,22 +409,29 @@ export default function RelatorioImpressao() {
                 return (
                   <div key={anguloId} className="mb-5 break-inside-avoid">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">{nome}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {fotos.map((ft) => (
-                        <div key={ft.id}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={ft.url} alt="" className="w-full rounded object-cover" style={{ height: '180px' }} />
-                          {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
+                    {(() => {
+                      const totalSlots = fotos.length + (prevFoto ? 1 : 0);
+                      const cols = totalSlots === 1 ? 'grid-cols-1' : 'grid-cols-2';
+                      const imgH = totalSlots === 1 ? '240px' : '180px';
+                      return (
+                        <div className={`grid ${cols} gap-2`}>
+                          {fotos.map((ft) => (
+                            <div key={ft.id}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={ft.url} alt="" className="w-full rounded object-cover" style={{ height: imgH }} />
+                              {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
+                            </div>
+                          ))}
+                          {prevFoto && (
+                            <div className="opacity-60">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={prevFoto.url} alt="" className="w-full rounded object-cover" style={{ height: imgH }} />
+                              <p className="text-[9px] text-gray-400 mt-0.5">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                      {prevFoto && (
-                        <div className="opacity-60">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={prevFoto.url} alt="" className="w-full rounded object-cover" style={{ height: '180px' }} />
-                          <p className="text-[9px] text-gray-400 mt-0.5">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
