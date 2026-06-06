@@ -160,7 +160,10 @@ export default function RelatorioImpressao() {
         @media print {
           @page { size: A4; margin: 18mm 15mm; }
           .no-print { display: none !important; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          header { display: none !important; }
+          nav { display: none !important; }
+          main { overflow: visible !important; height: auto !important; max-height: none !important; padding-bottom: 0 !important; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Inter', -apple-system, sans-serif; }
         }
         @media screen {
           header { display: none !important; }
