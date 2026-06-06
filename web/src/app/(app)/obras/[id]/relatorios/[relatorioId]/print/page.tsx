@@ -185,13 +185,7 @@ export default function RelatorioImpressao() {
             className="rounded-lg border border-white/20 text-sm px-4 py-2 text-gray-300 hover:bg-white/10 transition-colors">
             Fechar
           </button>
-          <button onClick={() => {
-            const imgs = Array.from(document.querySelectorAll('img'));
-            Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }))).then(() => window.print());
-          }}
-            className="rounded-lg bg-white text-gray-900 text-sm font-semibold px-4 py-2 hover:bg-gray-100 transition-colors">
-            Imprimir / Salvar PDF
-          </button>
+          <PdfDownloadButton obraId={params.id} relatorioId={params.relatorioId} />
         </div>
       </div>
 
@@ -512,6 +506,51 @@ export default function RelatorioImpressao() {
 
       </div>
     </>
+  );
+}
+
+function PdfDownloadButton({ obraId, relatorioId }: { obraId: string; relatorioId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDownload() {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const base = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/v1').replace(/\/v1$/, '');
+      const res = await fetch(`${base}/v1/obras/${obraId}/relatorios/${relatorioId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') ?? '';
+      const match = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
+      const filename = match ? decodeURIComponent(match[1]) : 'relatorio.pdf';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao gerar PDF');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={handleDownload}
+        disabled={loading}
+        className="rounded-lg bg-white text-gray-900 text-sm font-semibold px-4 py-2 hover:bg-gray-100 transition-colors disabled:opacity-50"
+      >
+        {loading ? 'Gerando PDF…' : 'Baixar PDF'}
+      </button>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
   );
 }
 

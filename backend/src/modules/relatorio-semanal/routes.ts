@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/auth';
 import multer from 'multer';
 import * as ctrl from './controller';
+import { generatePdf } from './pdf.controller';
 
 const router = Router({ mergeParams: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -15,6 +16,7 @@ router.put('/curva-s', ctrl.replaceCurvaS);
 router.post('/curva-s', ctrl.upsertCurvaSPlanejado);
 router.get('/tarefas', ctrl.getAllTarefas);
 router.get('/dados-periodo', ctrl.getDadosPeriodo);
+router.get('/:relatorioId/pdf', generatePdf);
 router.get('/:relatorioId', ctrl.getRelatorio);
 router.patch('/:relatorioId', ctrl.updateRelatorio);
 router.delete('/:relatorioId', ctrl.deleteRelatorio);
