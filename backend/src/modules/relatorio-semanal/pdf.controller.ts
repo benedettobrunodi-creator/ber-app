@@ -261,6 +261,41 @@ ${atividades.length > 0 ? `
     ${proximos.map(a => bullet(`${a.wbs ? `[${a.wbs}] ` : ''}${a.nome}`, '#f59e0b')).join('')}` : ''}
 </div>` : ''}
 
+<!-- PONTOS DE ATENÇÃO -->
+${(rel.pontosAtencao ?? []).length > 0 ? `
+<div style="margin-bottom:14px;break-inside:avoid;">
+  ${sectionTitle('Pontos de atenção')}
+  ${(rel.pontosAtencao as any[]).map((p: any) => `
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;">
+      <span style="font-size:7px;font-weight:700;padding:2px 6px;border-radius:3px;flex-shrink:0;margin-top:2px;background:${p.severidade === 'critico' ? '#fee2e2' : '#fef3c7'};color:${p.severidade === 'critico' ? '#b91c1c' : '#92400e'};">
+        ${p.severidade === 'critico' ? 'CRÍTICO' : 'ATENÇÃO'}
+      </span>
+      <span style="font-size:10px;color:#374151;">${p.descricao}</span>
+    </div>`).join('')}
+</div>` : ''}
+
+<!-- PLANO DE AÇÃO -->
+${(rel.planoAcao ?? []).length > 0 ? `
+<div style="margin-bottom:14px;break-inside:avoid;">
+  ${sectionTitle('Plano de ação para atividades em atraso')}
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;">Atividade atrasada</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;">Ação corretiva</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;width:90px;">Responsável</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;width:70px;">Prazo</th>
+    </tr></thead>
+    <tbody>
+      ${(rel.planoAcao as any[]).map((p: any) => `<tr>
+        <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#374151;">${p.atividadeAtrasada}</td>
+        <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#374151;">${p.acaoCorretiva}</td>
+        <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;">${p.responsavel || '—'}</td>
+        <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;">${p.prazo ? fmt(p.prazo) : '—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
 <!-- MARCOS -->
 ${(marcosConc.length > 0 || marcosProx.length > 0) ? `
 <div style="margin-bottom:14px;break-inside:avoid;">

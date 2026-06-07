@@ -1697,6 +1697,8 @@ model RelatorioSemanal {
   efetivoMedio         Decimal?  @map("efetivo_medio") @db.Decimal(6, 1)
   efetivoPorDisciplina Json?     @map("efetivo_por_disciplina")
   atividadesSemana     Json?     @map("atividades_semana")
+  pontosAtencao        Json?     @map("pontos_atencao")
+  planoAcao            Json?     @map("plano_acao")
   destaques            String?
   proximosSete       String?   @map("proximos_sete")
   responsavelId      String?   @map("responsavel_id") @db.Uuid

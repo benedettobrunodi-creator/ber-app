@@ -9,6 +9,8 @@ import {
 
 interface EfetivoDisciplina { disciplina: string; quantidade: number; }
 interface AtividadeSemana { wbs: string; nome: string; tipo: 'andamento' | 'proximo'; }
+interface PontoAtencao { descricao: string; severidade: string; }
+interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
 
 interface Relatorio {
   id: string;
@@ -29,6 +31,8 @@ interface Relatorio {
   dataContrato?: string | null;
   efetivoPorDisciplina?: EfetivoDisciplina[] | null;
   atividadesSemana?: AtividadeSemana[] | null;
+  pontosAtencao?: PontoAtencao[] | null;
+  planoAcao?: PlanoAcaoItem[] | null;
   pendencias: { descricao: string; responsavel?: string | null; status: string; prazo?: string | null }[];
   marcos: { nome: string; data: string; tipo: string }[];
   fotos: { id: string; url: string; legenda?: string | null; anguloId?: string | null; angulo?: { id: string; nome: string } | null }[];
@@ -336,6 +340,48 @@ export default function RelatorioImpressao() {
                 </div>
               );
             })}
+          </Section>
+        )}
+
+        {/* PONTOS DE ATENÇÃO */}
+        {(relatorio.pontosAtencao ?? []).length > 0 && (
+          <Section title="Pontos de atenção">
+            <div className="space-y-1.5">
+              {(relatorio.pontosAtencao ?? []).map((p, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className={`mt-0.5 shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded ${p.severidade === 'critico' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {p.severidade === 'critico' ? 'CRÍTICO' : 'ATENÇÃO'}
+                  </span>
+                  <p className="text-sm text-gray-700">{p.descricao}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* PLANO DE AÇÃO */}
+        {(relatorio.planoAcao ?? []).length > 0 && (
+          <Section title="Plano de ação para atividades em atraso">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Atividade atrasada</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Ação corretiva</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-28">Responsável</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Prazo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(relatorio.planoAcao ?? []).map((p, i) => (
+                  <tr key={i}>
+                    <td className="py-2 text-gray-800">{p.atividadeAtrasada}</td>
+                    <td className="py-2 text-gray-700">{p.acaoCorretiva}</td>
+                    <td className="py-2 text-gray-500">{p.responsavel || '—'}</td>
+                    <td className="py-2 text-gray-500">{p.prazo ? new Date(p.prazo + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Section>
         )}
 

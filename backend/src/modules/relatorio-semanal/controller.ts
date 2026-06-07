@@ -54,7 +54,7 @@ export async function createRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, destaques, proximosSete,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
       pendencias = [], marcos = [],
     } = req.body;
@@ -86,6 +86,8 @@ export async function createRelatorio(req: Request, res: Response) {
         efetivoMedio: efetivoMedio ?? null,
         efetivoPorDisciplina: efetivoPorDisciplina ?? null,
         atividadesSemana: atividadesSemana ?? null,
+        pontosAtencao: pontosAtencao ?? null,
+        planoAcao: planoAcao ?? null,
         destaques: destaques ?? null,
         proximosSete: proximosSete ?? null,
         responsavelId: responsavelId ?? null,
@@ -110,7 +112,7 @@ export async function updateRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, destaques, proximosSete,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
       pendencias, marcos,
     } = req.body;
@@ -128,6 +130,8 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (efetivoMedio !== undefined) data.efetivoMedio = efetivoMedio;
     if (efetivoPorDisciplina !== undefined) data.efetivoPorDisciplina = efetivoPorDisciplina;
     if (atividadesSemana !== undefined) data.atividadesSemana = atividadesSemana;
+    if (pontosAtencao !== undefined) data.pontosAtencao = pontosAtencao;
+    if (planoAcao !== undefined) data.planoAcao = planoAcao;
     if (destaques !== undefined) data.destaques = destaques;
     if (proximosSete !== undefined) data.proximosSete = proximosSete;
     if (responsavelId !== undefined) data.responsavelId = responsavelId;

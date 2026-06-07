@@ -80,11 +80,15 @@ interface Relatorio {
   pendencias: RelatorioPendencia[];
   marcos: RelatorioMarco[];
   atividadesSemana?: AtividadeSemana[] | null;
+  pontosAtencao?: PontoAtencao[] | null;
+  planoAcao?: PlanoAcaoItem[] | null;
   fotos: RelatorioFoto[];
 }
 
 interface TarefaCron { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; }
 interface AtividadeSemana { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; tipo: 'andamento' | 'proximo'; }
+interface PontoAtencao { descricao: string; severidade: 'atencao' | 'critico'; }
+interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
 interface EfetivosDia { data: string; total: number; }
 
 const STATUS_OPTS = [
@@ -157,6 +161,8 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     dataContrato: null,
     efetivoPorDisciplina: [],
     atividadesSemana: [],
+    pontosAtencao: [],
+    planoAcao: [],
     pendencias: [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
     marcos: [],
     fotos: [],
@@ -306,6 +312,8 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       dataContrato:   r.dataContrato ? r.dataContrato.slice(0, 10) : null,
       efetivoPorDisciplina: Array.isArray(r.efetivoPorDisciplina) ? r.efetivoPorDisciplina : [],
       atividadesSemana: Array.isArray(r.atividadesSemana) ? r.atividadesSemana : [],
+      pontosAtencao: Array.isArray(r.pontosAtencao) ? r.pontosAtencao : [],
+      planoAcao: Array.isArray(r.planoAcao) ? r.planoAcao : [],
       pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
       fotos:          r.fotos,
@@ -999,6 +1007,86 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   </div>
                 );
               })()}
+            </FormSection>
+
+            {/* ── 4b. PONTOS DE ATENÇÃO ───────────────────────────────────────── */}
+            <FormSection title="Pontos de atenção"
+              desc="Riscos, bloqueios ou situações que precisam de monitoramento.">
+              <div className="space-y-2">
+                {(form.pontosAtencao ?? []).map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-ber-border bg-[#F7F7F5]">
+                    <input value={p.descricao}
+                      onChange={e => setForm(f => ({ ...f, pontosAtencao: (f.pontosAtencao ?? []).map((x, xi) => xi === i ? { ...x, descricao: e.target.value } : x) }))}
+                      placeholder="Descreva o ponto de atenção..." className="fi py-1.5 bg-white text-sm flex-1" />
+                    <select value={p.severidade}
+                      onChange={e => setForm(f => ({ ...f, pontosAtencao: (f.pontosAtencao ?? []).map((x, xi) => xi === i ? { ...x, severidade: e.target.value as 'atencao' | 'critico' } : x) }))}
+                      className={`shrink-0 text-[11px] font-bold rounded-md px-2 py-1.5 border-0 cursor-pointer ${p.severidade === 'critico' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                      <option value="atencao">Atenção</option>
+                      <option value="critico">Crítico</option>
+                    </select>
+                    <button onClick={() => setForm(f => ({ ...f, pontosAtencao: (f.pontosAtencao ?? []).filter((_, xi) => xi !== i) }))}
+                      className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setForm(f => ({ ...f, pontosAtencao: [...(f.pontosAtencao ?? []), { descricao: '', severidade: 'atencao' }] }))}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar ponto
+              </button>
+            </FormSection>
+
+            {/* ── 4c. PLANO DE AÇÃO ───────────────────────────────────────────── */}
+            <FormSection title="Plano de ação para atividades em atraso"
+              desc="Ações corretivas para recuperar o cronograma.">
+              {(form.planoAcao ?? []).length > 0 && (
+                <div className="overflow-hidden rounded-lg border border-ber-border mb-3">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#F7F7F5] border-b border-ber-border">
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Atividade atrasada</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Ação corretiva</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-28">Responsável</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-32">Prazo</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ber-border">
+                      {(form.planoAcao ?? []).map((p, i) => (
+                        <tr key={i} className="bg-white">
+                          <td className="px-3 py-2">
+                            <input value={p.atividadeAtrasada}
+                              onChange={e => setForm(f => ({ ...f, planoAcao: (f.planoAcao ?? []).map((x, xi) => xi === i ? { ...x, atividadeAtrasada: e.target.value } : x) }))}
+                              placeholder="Ex: Instalação elétrica" className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={p.acaoCorretiva}
+                              onChange={e => setForm(f => ({ ...f, planoAcao: (f.planoAcao ?? []).map((x, xi) => xi === i ? { ...x, acaoCorretiva: e.target.value } : x) }))}
+                              placeholder="Ex: Adicionar 2 eletricistas" className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={p.responsavel ?? ''}
+                              onChange={e => setForm(f => ({ ...f, planoAcao: (f.planoAcao ?? []).map((x, xi) => xi === i ? { ...x, responsavel: e.target.value } : x) }))}
+                              placeholder="Nome" className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="date" value={p.prazo ?? ''}
+                              onChange={e => setForm(f => ({ ...f, planoAcao: (f.planoAcao ?? []).map((x, xi) => xi === i ? { ...x, prazo: e.target.value } : x) }))}
+                              className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-2 py-2">
+                            <button onClick={() => setForm(f => ({ ...f, planoAcao: (f.planoAcao ?? []).filter((_, xi) => xi !== i) }))}
+                              className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <button onClick={() => setForm(f => ({ ...f, planoAcao: [...(f.planoAcao ?? []), { atividadeAtrasada: '', acaoCorretiva: '', responsavel: '', prazo: '' }] }))}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar ação
+              </button>
             </FormSection>
 
             {/* ── 5. TEMAS EM ABERTO ───────────────────────────────────────────── */}
