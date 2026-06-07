@@ -984,22 +984,15 @@ export default function ObraDetailPage() {
           const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
           const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
           const timelinePct = totalDays && elapsed !== null ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : null;
-          // Planned % for today derived from cronograma task schedule (matches MS Project "% planejado")
+          // "% planejado" = linear time elapsed within the cronograma root task span
+          // This matches exactly what MS Project shows as "% planejado" on the summary row
           const planejadoHoje: number | null = (() => {
-            const tarefas = cronograma?.parsedData?.tarefas ?? [];
-            const folhas = tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0 && t.inicio && t.fim);
-            if (!folhas.length) return null;
-            const totalDur = folhas.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
-            if (!totalDur) return null;
-            const nowMs = now.getTime();
-            let weighted = 0;
-            for (const t of folhas) {
-              const s = new Date(t.inicio! + 'T12:00:00').getTime();
-              const e = new Date(t.fim! + 'T12:00:00').getTime();
-              const pTask = nowMs <= s ? 0 : nowMs >= e ? 100 : Math.round((nowMs - s) / (e - s) * 100);
-              weighted += pTask * (t.duracaoDias ?? 0);
-            }
-            return Math.round(weighted / totalDur);
+            const raiz = cronograma?.parsedData?.tarefas?.find(t => t.ehResumo && t.inicio && t.fim);
+            if (!raiz) return null;
+            const s = new Date(raiz.inicio! + 'T12:00:00').getTime();
+            const e = new Date(raiz.fim! + 'T12:00:00').getTime();
+            if (e <= s) return null;
+            return Math.min(100, Math.max(0, Math.round((now.getTime() - s) / (e - s) * 100)));
           })();
           const taskDone = tasks.filter(t => t.status === 'done').length;
           const taskInProgress = tasks.filter(t => t.status === 'in_progress').length;
