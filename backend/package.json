@@ -29,7 +29,7 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
     "pdf-to-png-converter": "^4.0.0",
-    "puppeteer": "^25.1.0",
+    "puppeteer-core": "^25.1.0",
     "resend": "^6.12.3",
     "socket.io": "^4.8.1",
     "xlsx": "^0.18.5",

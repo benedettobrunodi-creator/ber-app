@@ -105,7 +105,7 @@ function buildHtml(
   const semAngulo: any[] = [];
   (rel.fotos ?? []).forEach((ft: any) => {
     if (ft.anguloId && ft.angulo) {
-      const e = angulosMap.get(ft.anguloId) ?? { nome: ft.angulo.nome, fotos: [] };
+      const e: { nome: string; fotos: any[] } = angulosMap.get(ft.anguloId) ?? { nome: ft.angulo.nome, fotos: [] };
       e.fotos.push(ft);
       angulosMap.set(ft.anguloId, e);
     } else {
@@ -390,15 +390,24 @@ export async function generatePdf(req: Request, res: Response) {
     const prevRel = allRelatorios.find(r => r.numero === relatorio.numero - 1) ?? null;
     const html = buildHtml(relatorio, obra, curvaSPontos, prevRel);
 
-    const puppeteer = (await import('puppeteer')).default;
+    const puppeteer = (await import('puppeteer-core')).default;
+    const executablePath = process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser';
     const browser = await puppeteer.launch({
+      executablePath,
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-extensions'],
     });
 
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+      await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+      // Wait for images to finish loading
+      await page.evaluate(() => Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Array.from((globalThis as any).document.querySelectorAll('img')).map((img: any) =>
+          img.complete ? Promise.resolve() : new Promise((r) => { img.onload = r; img.onerror = r; })
+        )
+      ));
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
