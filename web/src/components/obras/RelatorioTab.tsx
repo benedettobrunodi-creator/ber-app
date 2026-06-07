@@ -82,6 +82,10 @@ interface Relatorio {
   atividadesSemana?: AtividadeSemana[] | null;
   pontosAtencao?: PontoAtencao[] | null;
   planoAcao?: PlanoAcaoItem[] | null;
+  dataInicioObra?: string | null;
+  dataPrevistaTermino?: string | null;
+  dataRealTermino?: string | null;
+  secoesPdf?: Record<string, boolean> | null;
   fotos: RelatorioFoto[];
 }
 
@@ -107,6 +111,26 @@ const DISCIPLINA_OPTS = [
   'Civil', 'Pintura', 'Elétrica', 'Hidráulica', 'Drywall',
   'Ar Condicionado', 'Marcenaria', 'Pedras', 'Serralheria', 'Impermeabilização',
   'Gesso', 'Piso', 'Vidro', 'Paisagismo',
+];
+
+const DEFAULT_SECOES_PDF: Record<string, boolean> = {
+  fotos: true, curvaS: true, atividades: true, pontosAtencao: true,
+  planoAcao: true, equipe: true, histograma: true, marcos: true,
+  destaques: true, pendencias: true, proximosSete: true,
+};
+
+const SECOES_PDF_LABELS: { key: string; label: string }[] = [
+  { key: 'fotos',         label: 'Fotos' },
+  { key: 'curvaS',        label: 'Curva S' },
+  { key: 'atividades',    label: 'Atividades' },
+  { key: 'pontosAtencao', label: 'Pontos de atenção' },
+  { key: 'planoAcao',     label: 'Plano de ação' },
+  { key: 'equipe',        label: 'Equipe' },
+  { key: 'histograma',    label: 'Histograma' },
+  { key: 'marcos',        label: 'Marcos' },
+  { key: 'destaques',     label: 'Destaques' },
+  { key: 'pendencias',    label: 'Itens em aberto' },
+  { key: 'proximosSete',  label: 'Próximos 7 dias' },
 ];
 
 const AMBIENT_COLORS = [
@@ -163,6 +187,10 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     atividadesSemana: [],
     pontosAtencao: [],
     planoAcao: [],
+    dataInicioObra: null,
+    dataPrevistaTermino: null,
+    dataRealTermino: null,
+    secoesPdf: { ...DEFAULT_SECOES_PDF },
     pendencias: [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
     marcos: [],
     fotos: [],
@@ -186,6 +214,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   const [efetivos, setEfetivos]     = useState<EfetivosDia[]>([]);
   const [curvaSLocal, setCurvaSLocal] = useState<CurvaSPonto[]>([]);
   const [showAngulosConfig, setShowAngulosConfig] = useState(false);
+  const [showSecoesPdf, setShowSecoesPdf] = useState(false);
   const [novoAngulo, setNovoAngulo] = useState('');
   const [selDisciplina, setSelDisciplina] = useState<string>(DISCIPLINA_OPTS[0]);
   const [customDisciplina, setCustomDisciplina] = useState('');
@@ -287,6 +316,9 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   function openNew() {
     const prev = relatorios[0];
     const f = emptyForm(obra.progressPercent, prev ? +prev.avancoPct : undefined);
+    f.dataInicioObra = obra.startDate ? obra.startDate.slice(0, 10) : null;
+    f.dataPrevistaTermino = obra.expectedEndDate ? obra.expectedEndDate.slice(0, 10) : null;
+    f.dataRealTermino = null;
     setForm(f);
     setEditing(null);
     setCurvaSLocal(curvaS.map(p => ({ ...p, semana: p.semana.slice(0, 10) })));
@@ -314,6 +346,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       atividadesSemana: Array.isArray(r.atividadesSemana) ? r.atividadesSemana : [],
       pontosAtencao: Array.isArray(r.pontosAtencao) ? r.pontosAtencao : [],
       planoAcao: Array.isArray(r.planoAcao) ? r.planoAcao : [],
+      dataInicioObra: r.dataInicioObra ? r.dataInicioObra.slice(0, 10) : null,
+      dataPrevistaTermino: r.dataPrevistaTermino ? r.dataPrevistaTermino.slice(0, 10) : null,
+      dataRealTermino: r.dataRealTermino ? r.dataRealTermino.slice(0, 10) : null,
+      secoesPdf: r.secoesPdf ?? { ...DEFAULT_SECOES_PDF },
       pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
       fotos:          r.fotos,
@@ -584,6 +620,30 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
             <button onClick={() => setShowForm(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
           </div>
 
+          {/* ── SEÇÕES DO PDF ──────────────────────────────────────────────────── */}
+          <div className="px-5 py-3 border-b border-ber-border bg-[#F7F7F5]">
+            <button onClick={() => setShowSecoesPdf(v => !v)}
+              className="flex items-center gap-2 text-xs font-semibold text-ber-gray hover:text-ber-carbon transition-colors w-full text-left">
+              <Settings size={12} />
+              Seções do PDF para o cliente
+              {showSecoesPdf ? <ChevronUp size={12} className="ml-auto" /> : <ChevronDown size={12} className="ml-auto" />}
+            </button>
+            {showSecoesPdf && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SECOES_PDF_LABELS.map(({ key, label }) => {
+                  const active = (form.secoesPdf ?? DEFAULT_SECOES_PDF)[key] !== false;
+                  return (
+                    <button key={key} onClick={() => setForm(f => ({ ...f, secoesPdf: { ...(f.secoesPdf ?? DEFAULT_SECOES_PDF), [key]: !active } }))}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ber-carbon text-white border-ber-carbon' : 'bg-white text-ber-gray border-ber-border'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-white' : 'bg-ber-gray/30'}`} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="divide-y divide-ber-border">
 
             {/* ── 1. PERÍODO E STATUS ─────────────────────────────────────────── */}
@@ -628,6 +688,23 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   <input type="number" min={0} max={100} step={0.1} value={form.avancoDelta ?? ''}
                     onChange={e => setForm(f => ({ ...f, avancoDelta: e.target.value ? +e.target.value : null }))}
                     placeholder="Ex: 3.5" className="fi w-28" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <Field label="Início da obra (planejado)">
+                  <input type="date" value={form.dataInicioObra ?? ''}
+                    onChange={e => setForm(f => ({ ...f, dataInicioObra: e.target.value || null }))}
+                    className="fi" />
+                </Field>
+                <Field label="Previsão de término">
+                  <input type="date" value={form.dataPrevistaTermino ?? ''}
+                    onChange={e => setForm(f => ({ ...f, dataPrevistaTermino: e.target.value || null }))}
+                    className="fi" />
+                </Field>
+                <Field label="Término real">
+                  <input type="date" value={form.dataRealTermino ?? ''}
+                    onChange={e => setForm(f => ({ ...f, dataRealTermino: e.target.value || null }))}
+                    className="fi" />
                 </Field>
               </div>
             </FormSection>

@@ -88,6 +88,10 @@ function buildHtml(
   curvaS: any[],
   prevRel: any | null,
 ): string {
+  const sec = (key: string): boolean => {
+    if (!rel.secoesPdf) return true;
+    return rel.secoesPdf[key] !== false;
+  };
   const st = STATUS_MAP[rel.status] ?? STATUS_MAP.no_prazo;
   const dias = diasRestantes(obra.expectedEndDate);
   const avanco = parseFloat(rel.avancoPct ?? 0);
@@ -193,6 +197,13 @@ function buildHtml(
   </div>
 </div>
 
+${(rel.dataInicioObra || rel.dataPrevistaTermino || rel.dataRealTermino) ? `
+<div style="display:flex;gap:24px;margin-bottom:10px;font-size:9px;color:#6b7280;">
+  ${rel.dataInicioObra ? `<span><b style="color:#374151;">Início: </b>${fmt(rel.dataInicioObra)}</span>` : ''}
+  ${rel.dataPrevistaTermino ? `<span><b style="color:#374151;">Prev. término: </b>${fmt(rel.dataPrevistaTermino)}</span>` : ''}
+  ${rel.dataRealTermino ? `<span style="color:#059669;"><b>Término real: </b>${fmt(rel.dataRealTermino)}</span>` : ''}
+</div>` : ''}
+
 <!-- STATUS + PRAZO -->
 <div style="display:flex;gap:10px;margin-bottom:16px;">
   <div style="width:130px;flex-shrink:0;border-radius:6px;border:1px solid ${st.color};display:flex;align-items:center;justify-content:center;padding:10px;">
@@ -224,14 +235,14 @@ function buildHtml(
 </div>
 
 <!-- CURVA S -->
-${curvaS.length >= 1 ? `
+${curvaS.length >= 1 && sec('curvaS') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Curva S — Planejado vs. Realizado (acumulado)')}
   ${buildCurvaSvg(curvaS, obra.startDate ? new Date(obra.startDate) : null, obra.expectedEndDate ? new Date(obra.expectedEndDate) : null)}
 </div>` : ''}
 
 <!-- EFETIVO POR DISCIPLINA -->
-${efetivos.length > 0 ? `
+${efetivos.length > 0 && sec('equipe') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Efetivo por disciplina')}
   <table style="width:100%;border-collapse:collapse;">
@@ -250,7 +261,7 @@ ${efetivos.length > 0 ? `
 </div>` : ''}
 
 <!-- ATIVIDADES DA SEMANA -->
-${atividades.length > 0 ? `
+${atividades.length > 0 && sec('atividades') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Atividades da semana')}
   ${andamento.length > 0 ? `
@@ -262,7 +273,7 @@ ${atividades.length > 0 ? `
 </div>` : ''}
 
 <!-- PONTOS DE ATENÇÃO -->
-${(rel.pontosAtencao ?? []).length > 0 ? `
+${(rel.pontosAtencao ?? []).length > 0 && sec('pontosAtencao') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Pontos de atenção')}
   ${(rel.pontosAtencao as any[]).map((p: any) => `
@@ -275,7 +286,7 @@ ${(rel.pontosAtencao ?? []).length > 0 ? `
 </div>` : ''}
 
 <!-- PLANO DE AÇÃO -->
-${(rel.planoAcao ?? []).length > 0 ? `
+${(rel.planoAcao ?? []).length > 0 && sec('planoAcao') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Plano de ação para atividades em atraso')}
   <table style="width:100%;border-collapse:collapse;">
@@ -297,7 +308,7 @@ ${(rel.planoAcao ?? []).length > 0 ? `
 </div>` : ''}
 
 <!-- MARCOS -->
-${(marcosConc.length > 0 || marcosProx.length > 0) ? `
+${(marcosConc.length > 0 || marcosProx.length > 0) && sec('marcos') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Marcos')}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -323,14 +334,14 @@ ${(marcosConc.length > 0 || marcosProx.length > 0) ? `
 </div>` : ''}
 
 <!-- DESTAQUES -->
-${rel.destaques ? `
+${rel.destaques && sec('destaques') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Destaques da semana')}
   <p style="font-size:10px;color:#374151;white-space:pre-wrap;line-height:1.5;">${rel.destaques}</p>
 </div>` : ''}
 
 <!-- REGISTRO FOTOGRÁFICO -->
-${hasFotos ? `
+${hasFotos && sec('fotos') ? `
 <div style="margin-bottom:14px;">
   ${sectionTitle('Registro fotográfico')}
   ${fotosSection}
@@ -338,7 +349,7 @@ ${hasFotos ? `
 </div>` : ''}
 
 <!-- ITENS EM ABERTO -->
-${(rel.pendencias ?? []).length > 0 ? `
+${(rel.pendencias ?? []).length > 0 && sec('pendencias') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Itens em aberto')}
   <table style="width:100%;border-collapse:collapse;">
@@ -366,7 +377,7 @@ ${(rel.pendencias ?? []).length > 0 ? `
 </div>` : ''}
 
 <!-- PRÓXIMOS 7 DIAS -->
-${rel.proximosSete ? `
+${rel.proximosSete && sec('proximosSete') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Próximos 7 dias')}
   <p style="font-size:10px;color:#374151;white-space:pre-wrap;line-height:1.5;">${rel.proximosSete}</p>

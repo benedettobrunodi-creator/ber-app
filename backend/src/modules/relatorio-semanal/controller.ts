@@ -54,7 +54,9 @@ export async function createRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, destaques, proximosSete,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao,
+      dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
+      destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
       pendencias = [], marcos = [],
     } = req.body;
@@ -88,6 +90,10 @@ export async function createRelatorio(req: Request, res: Response) {
         atividadesSemana: atividadesSemana ?? null,
         pontosAtencao: pontosAtencao ?? null,
         planoAcao: planoAcao ?? null,
+        dataInicioObra: toDate(dataInicioObra),
+        dataPrevistaTermino: toDate(dataPrevistaTermino),
+        dataRealTermino: toDate(dataRealTermino),
+        secoesPdf: secoesPdf ?? null,
         destaques: destaques ?? null,
         proximosSete: proximosSete ?? null,
         responsavelId: responsavelId ?? null,
@@ -112,7 +118,9 @@ export async function updateRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, destaques, proximosSete,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao,
+      dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
+      destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
       pendencias, marcos,
     } = req.body;
@@ -132,6 +140,10 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (atividadesSemana !== undefined) data.atividadesSemana = atividadesSemana;
     if (pontosAtencao !== undefined) data.pontosAtencao = pontosAtencao;
     if (planoAcao !== undefined) data.planoAcao = planoAcao;
+    if (dataInicioObra !== undefined) data.dataInicioObra = toDate(dataInicioObra);
+    if (dataPrevistaTermino !== undefined) data.dataPrevistaTermino = toDate(dataPrevistaTermino);
+    if (dataRealTermino !== undefined) data.dataRealTermino = dataRealTermino ? toDate(dataRealTermino) : null;
+    if (secoesPdf !== undefined) data.secoesPdf = secoesPdf;
     if (destaques !== undefined) data.destaques = destaques;
     if (proximosSete !== undefined) data.proximosSete = proximosSete;
     if (responsavelId !== undefined) data.responsavelId = responsavelId;

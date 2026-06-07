@@ -33,6 +33,9 @@ interface Relatorio {
   atividadesSemana?: AtividadeSemana[] | null;
   pontosAtencao?: PontoAtencao[] | null;
   planoAcao?: PlanoAcaoItem[] | null;
+  dataInicioObra?: string | null;
+  dataPrevistaTermino?: string | null;
+  dataRealTermino?: string | null;
   pendencias: { descricao: string; responsavel?: string | null; status: string; prazo?: string | null }[];
   marcos: { nome: string; data: string; tipo: string }[];
   fotos: { id: string; url: string; legenda?: string | null; anguloId?: string | null; angulo?: { id: string; nome: string } | null }[];
@@ -207,6 +210,21 @@ export default function RelatorioImpressao() {
             <p className="text-xs text-gray-500 mt-0.5">{fmt(relatorio.periodoInicio)} — {fmt(relatorio.periodoFim)}</p>
           </div>
         </div>
+
+        {/* DATAS DA OBRA */}
+        {(relatorio.dataInicioObra || relatorio.dataPrevistaTermino || relatorio.dataRealTermino) && (
+          <div className="flex items-center gap-6 mb-4 text-xs text-gray-500">
+            {relatorio.dataInicioObra && (
+              <span><span className="font-semibold text-gray-700">Início: </span>{fmt(relatorio.dataInicioObra)}</span>
+            )}
+            {relatorio.dataPrevistaTermino && (
+              <span><span className="font-semibold text-gray-700">Prev. término: </span>{fmt(relatorio.dataPrevistaTermino)}</span>
+            )}
+            {relatorio.dataRealTermino && (
+              <span className="text-emerald-600"><span className="font-semibold">Término real: </span>{fmt(relatorio.dataRealTermino)}</span>
+            )}
+          </div>
+        )}
 
         {/* STATUS + PRAZO */}
         <div className="flex items-stretch gap-4 mb-6">
