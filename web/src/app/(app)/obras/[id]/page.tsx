@@ -405,7 +405,6 @@ export default function ObraDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [burndownData, setBurndownData] = useState<BurndownData | null>(null);
-  const [curvaSPontos, setCurvaSPontos] = useState<{ semana: string; planejadoPct: number | null }[]>([]);
   const [kanbanDragId, setKanbanDragId] = useState<string | null>(null);
 
   // Cronograma state
@@ -621,7 +620,6 @@ export default function ObraDetailPage() {
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
       api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data.data)).catch(() => {});
-      api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => setCurvaSPontos(r.data.data ?? [])).catch(() => {});
       setObra(obraRes.data.data);
       const obraData = obraRes.data.data;
       if (obraData?.orcamentoId) {
@@ -986,21 +984,22 @@ export default function ObraDetailPage() {
           const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
           const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
           const timelinePct = totalDays && elapsed !== null ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : null;
-          // Planned % for today interpolated from Curva S (more accurate than linear time)
+          // Planned % for today derived from cronograma task schedule (matches MS Project "% planejado")
           const planejadoHoje: number | null = (() => {
-            const pts = curvaSPontos
-              .filter(p => p.planejadoPct != null)
-              .map(p => ({ ms: new Date(p.semana).getTime(), pct: Number(p.planejadoPct) }))
-              .sort((a, b) => a.ms - b.ms);
-            if (!pts.length) return null;
+            const tarefas = cronograma?.parsedData?.tarefas ?? [];
+            const folhas = tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0 && t.inicio && t.fim);
+            if (!folhas.length) return null;
+            const totalDur = folhas.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+            if (!totalDur) return null;
             const nowMs = now.getTime();
-            if (nowMs <= pts[0].ms) return pts[0].pct;
-            if (nowMs >= pts[pts.length - 1].ms) return pts[pts.length - 1].pct;
-            let idx = 0;
-            for (let i = 0; i < pts.length - 1; i++) { if (pts[i].ms <= nowMs) idx = i; }
-            const p1 = pts[idx], p2 = pts[idx + 1];
-            const ratio = (nowMs - p1.ms) / (p2.ms - p1.ms);
-            return +(p1.pct + ratio * (p2.pct - p1.pct)).toFixed(1);
+            let weighted = 0;
+            for (const t of folhas) {
+              const s = new Date(t.inicio! + 'T12:00:00').getTime();
+              const e = new Date(t.fim! + 'T12:00:00').getTime();
+              const pTask = nowMs <= s ? 0 : nowMs >= e ? 100 : Math.round((nowMs - s) / (e - s) * 100);
+              weighted += pTask * (t.duracaoDias ?? 0);
+            }
+            return Math.round(weighted / totalDur);
           })();
           const taskDone = tasks.filter(t => t.status === 'done').length;
           const taskInProgress = tasks.filter(t => t.status === 'in_progress').length;
