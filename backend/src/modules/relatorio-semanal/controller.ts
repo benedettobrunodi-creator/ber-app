@@ -126,6 +126,12 @@ export async function updateRelatorio(req: Request, res: Response) {
       pendencias, marcos,
     } = req.body;
 
+    const toDate = (v: any): Date | null => {
+      if (!v || typeof v !== 'string' || !v.trim()) return null;
+      const d = new Date(v.trim());
+      return isNaN(d.getTime()) ? null : d;
+    };
+
     const data: any = {};
     if (periodoInicio !== undefined) data.periodoInicio = new Date(periodoInicio);
     if (periodoFim !== undefined) data.periodoFim = new Date(periodoFim);
@@ -151,12 +157,6 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (responsavelId !== undefined) data.responsavelId = responsavelId;
     if (responsavelNome !== undefined) data.responsavelNome = responsavelNome;
     if (dataContrato !== undefined) data.dataContrato = dataContrato ? new Date(dataContrato) : null;
-
-    const toDate = (v: any): Date | null => {
-      if (!v || typeof v !== 'string' || !v.trim()) return null;
-      const d = new Date(v.trim());
-      return isNaN(d.getTime()) ? null : d;
-    };
     if (pendencias !== undefined) {
       await prisma.relatorioPendencia.deleteMany({ where: { relatorioId } });
       data.pendencias = { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: toDate(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) };
