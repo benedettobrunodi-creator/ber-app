@@ -405,6 +405,7 @@ export default function ObraDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [burndownData, setBurndownData] = useState<BurndownData | null>(null);
+  const [curvaSPontos, setCurvaSPontos] = useState<{ semana: string; planejadoPct: number | null }[]>([]);
   const [kanbanDragId, setKanbanDragId] = useState<string | null>(null);
 
   // Cronograma state
@@ -620,6 +621,7 @@ export default function ObraDetailPage() {
         api.get(`/obras/${params.id}/photos`, { params: { limit: 3 } }).catch(() => ({ data: { data: [] } })),
       ]);
       api.get(`/obras/${params.id}/tasks/burndown`).then(r => setBurndownData(r.data.data)).catch(() => {});
+      api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => setCurvaSPontos(r.data.data ?? [])).catch(() => {});
       setObra(obraRes.data.data);
       const obraData = obraRes.data.data;
       if (obraData?.orcamentoId) {
@@ -984,6 +986,22 @@ export default function ObraDetailPage() {
           const elapsed = start ? Math.max(0, Math.round((now.getTime() - start.getTime()) / 86400000)) : null;
           const remaining = end ? Math.round((end.getTime() - now.getTime()) / 86400000) : null;
           const timelinePct = totalDays && elapsed !== null ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : null;
+          // Planned % for today interpolated from Curva S (more accurate than linear time)
+          const planejadoHoje: number | null = (() => {
+            const pts = curvaSPontos
+              .filter(p => p.planejadoPct != null)
+              .map(p => ({ ms: new Date(p.semana).getTime(), pct: Number(p.planejadoPct) }))
+              .sort((a, b) => a.ms - b.ms);
+            if (!pts.length) return null;
+            const nowMs = now.getTime();
+            if (nowMs <= pts[0].ms) return pts[0].pct;
+            if (nowMs >= pts[pts.length - 1].ms) return pts[pts.length - 1].pct;
+            let idx = 0;
+            for (let i = 0; i < pts.length - 1; i++) { if (pts[i].ms <= nowMs) idx = i; }
+            const p1 = pts[idx], p2 = pts[idx + 1];
+            const ratio = (nowMs - p1.ms) / (p2.ms - p1.ms);
+            return +(p1.pct + ratio * (p2.pct - p1.pct)).toFixed(1);
+          })();
           const taskDone = tasks.filter(t => t.status === 'done').length;
           const taskInProgress = tasks.filter(t => t.status === 'in_progress').length;
           const taskTodo = tasks.filter(t => t.status === 'todo').length;
@@ -1057,7 +1075,15 @@ export default function ObraDetailPage() {
                 {(() => { const pct = cronograma?.progressPct ?? obra.progressPercent; return (<>
                 <div className="mt-4 flex items-end gap-3"><span className="text-5xl font-black text-ber-carbon">{pct}</span><span className="mb-1.5 text-2xl font-bold text-ber-gray">%</span></div>
                 <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#B5B820,#8a8c10)' }} /></div>
-                {timelinePct !== null && <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${pct < timelinePct ? 'text-red-500' : 'text-ber-olive'}`}>{pct >= timelinePct ? '▲ Adiantado' : '▼ Atrasado'} ({timelinePct}% decorrido)</span></p>}
+                {(() => {
+                  const ref = planejadoHoje ?? timelinePct;
+                  if (ref === null) return null;
+                  const isAhead = pct >= ref;
+                  const label = planejadoHoje !== null
+                    ? `${ref}% planejado`
+                    : `${ref}% decorrido`;
+                  return <p className="mt-2 text-xs text-ber-gray">Cronograma: <span className={`font-semibold ${isAhead ? 'text-ber-olive' : 'text-red-500'}`}>{isAhead ? '▲ Adiantado' : '▼ Atrasado'} ({label})</span></p>;
+                })()}
                 </>);})()}
               </div>
             ),
@@ -1178,7 +1204,7 @@ export default function ObraDetailPage() {
                   <div><p className="text-xs text-ber-gray">Dias Decorridos</p><p className="mt-0.5 text-2xl font-black text-ber-carbon">{elapsed ?? '--'}</p></div>
                   <div><p className="text-xs text-ber-gray">Dias Restantes</p><p className={`mt-0.5 text-2xl font-black ${remaining !== null && remaining < 0 ? 'text-red-500' : remaining !== null && remaining < 14 ? 'text-amber-500' : 'text-ber-carbon'}`}>{remaining !== null ? (remaining < 0 ? `${Math.abs(remaining)}d atraso` : remaining) : '--'}</p></div>
                 </div>
-                {timelinePct !== null && (() => { const pct = cronograma?.progressPct ?? obra.progressPercent; return (<div className="mt-4"><div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-carbon/20" style={{width:`${timelinePct}%`}}/><div className="absolute top-0 h-full rounded-full" style={{width:`${pct}%`,background:'linear-gradient(90deg,#B5B820,#8a8c10)',opacity:0.85}}/></div><div className="mt-1 flex justify-between text-[10px] text-ber-gray"><span>Início</span><span>Hoje ({timelinePct}%)</span><span>Prazo</span></div></div>); })()}
+                {timelinePct !== null && (() => { const pct = cronograma?.progressPct ?? obra.progressPercent; const refBar = planejadoHoje ?? timelinePct; const refLabel = planejadoHoje !== null ? `${planejadoHoje}% plan.` : `${timelinePct}% dec.`; return (<div className="mt-4"><div className="relative h-2 w-full overflow-hidden rounded-full bg-ber-offwhite"><div className="h-full rounded-full bg-ber-carbon/20" style={{width:`${refBar}%`}}/><div className="absolute top-0 h-full rounded-full" style={{width:`${pct}%`,background:'linear-gradient(90deg,#B5B820,#8a8c10)',opacity:0.85}}/></div><div className="mt-1 flex justify-between text-[10px] text-ber-gray"><span>Início</span><span>Hoje ({refLabel})</span><span>Prazo</span></div></div>); })()}
               </div>
             ),
             tasks: (
