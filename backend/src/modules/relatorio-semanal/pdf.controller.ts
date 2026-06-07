@@ -419,7 +419,7 @@ export async function generatePdf(req: Request, res: Response) {
       const d1 = fmtShort(relatorio.periodoInicio);
       const d2 = fmtShort(relatorio.periodoFim);
       const obraNome = obra.name.replace(/[/\\:*?"<>|]/g, '-');
-      const filename = `RT-${rtNum}_${obraNome}_${d1}-${d2}.pdf`;
+      const filename = `BER_${obraNome}_RT-${rtNum}_${d1}-${d2}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
