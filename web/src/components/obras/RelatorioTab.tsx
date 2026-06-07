@@ -82,6 +82,7 @@ interface Relatorio {
   atividadesSemana?: AtividadeSemana[] | null;
   pontosAtencao?: PontoAtencao[] | null;
   planoAcao?: PlanoAcaoItem[] | null;
+  entregasPrevistas?: EntregaPrevista[] | null;
   dataInicioObra?: string | null;
   dataPrevistaTermino?: string | null;
   dataRealTermino?: string | null;
@@ -93,6 +94,7 @@ interface TarefaCron { wbs: string; nome: string; inicio: string | null; fim: st
 interface AtividadeSemana { wbs: string; nome: string; inicio: string | null; fim: string | null; percentualConcluido: number; tipo: 'andamento' | 'proximo'; }
 interface PontoAtencao { descricao: string; severidade: 'atencao' | 'critico'; }
 interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
+interface EntregaPrevista { descricao: string; dataPrevista?: string; status: 'prevista' | 'recebida' | 'reprogramada'; observacao?: string; }
 interface EfetivosDia { data: string; total: number; }
 
 const STATUS_OPTS = [
@@ -115,22 +117,23 @@ const DISCIPLINA_OPTS = [
 
 const DEFAULT_SECOES_PDF: Record<string, boolean> = {
   fotos: true, curvaS: true, atividades: true, pontosAtencao: true,
-  planoAcao: true, equipe: true, histograma: true, marcos: true,
-  destaques: true, pendencias: true, proximosSete: true,
+  planoAcao: true, entregasPrevistas: true, equipe: true, histograma: true,
+  marcos: true, destaques: true, pendencias: true, proximosSete: true,
 };
 
 const SECOES_PDF_LABELS: { key: string; label: string }[] = [
-  { key: 'fotos',         label: 'Fotos' },
-  { key: 'curvaS',        label: 'Curva S' },
-  { key: 'atividades',    label: 'Atividades' },
-  { key: 'pontosAtencao', label: 'Pontos de atenção' },
-  { key: 'planoAcao',     label: 'Plano de ação' },
-  { key: 'equipe',        label: 'Equipe' },
-  { key: 'histograma',    label: 'Histograma' },
-  { key: 'marcos',        label: 'Marcos' },
-  { key: 'destaques',     label: 'Destaques' },
-  { key: 'pendencias',    label: 'Itens em aberto' },
-  { key: 'proximosSete',  label: 'Próximos 7 dias' },
+  { key: 'fotos',              label: 'Fotos' },
+  { key: 'curvaS',             label: 'Curva S' },
+  { key: 'atividades',         label: 'Atividades' },
+  { key: 'pontosAtencao',      label: 'Pontos de atenção' },
+  { key: 'planoAcao',          label: 'Plano de ação' },
+  { key: 'entregasPrevistas',  label: 'Entregas previstas' },
+  { key: 'equipe',             label: 'Equipe' },
+  { key: 'histograma',         label: 'Histograma' },
+  { key: 'marcos',             label: 'Marcos' },
+  { key: 'destaques',          label: 'Destaques' },
+  { key: 'pendencias',         label: 'Itens em aberto' },
+  { key: 'proximosSete',       label: 'Próximos 7 dias' },
 ];
 
 const AMBIENT_COLORS = [
@@ -187,6 +190,7 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     atividadesSemana: [],
     pontosAtencao: [],
     planoAcao: [],
+    entregasPrevistas: [],
     dataInicioObra: null,
     dataPrevistaTermino: null,
     dataRealTermino: null,
@@ -346,6 +350,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       atividadesSemana: Array.isArray(r.atividadesSemana) ? r.atividadesSemana : [],
       pontosAtencao: Array.isArray(r.pontosAtencao) ? r.pontosAtencao : [],
       planoAcao: Array.isArray(r.planoAcao) ? r.planoAcao : [],
+      entregasPrevistas: Array.isArray(r.entregasPrevistas) ? r.entregasPrevistas : [],
       dataInicioObra: r.dataInicioObra ? r.dataInicioObra.slice(0, 10) : null,
       dataPrevistaTermino: r.dataPrevistaTermino ? r.dataPrevistaTermino.slice(0, 10) : null,
       dataRealTermino: r.dataRealTermino ? r.dataRealTermino.slice(0, 10) : null,
@@ -1163,6 +1168,64 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               <button onClick={() => setForm(f => ({ ...f, planoAcao: [...(f.planoAcao ?? []), { atividadeAtrasada: '', acaoCorretiva: '', responsavel: '', prazo: '' }] }))}
                 className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
                 <Plus size={13} /> Adicionar ação
+              </button>
+            </FormSection>
+
+            {/* ── 4d. ENTREGAS PREVISTAS ──────────────────────────────────────── */}
+            <FormSection title="Entregas previstas"
+              desc="Materiais e equipamentos agendados para a semana ou próximos dias.">
+              {(form.entregasPrevistas ?? []).length > 0 && (
+                <div className="overflow-hidden rounded-lg border border-ber-border mb-3">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#F7F7F5] border-b border-ber-border">
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Material / Equipamento</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-32">Data prevista</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray w-36">Status</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Observação</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ber-border">
+                      {(form.entregasPrevistas ?? []).map((e, i) => (
+                        <tr key={i} className="bg-white">
+                          <td className="px-3 py-2">
+                            <input value={e.descricao}
+                              onChange={ev => setForm(f => ({ ...f, entregasPrevistas: (f.entregasPrevistas ?? []).map((x, xi) => xi === i ? { ...x, descricao: ev.target.value } : x) }))}
+                              placeholder="Ex: Esquadrias de alumínio" className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input type="date" value={e.dataPrevista ?? ''}
+                              onChange={ev => setForm(f => ({ ...f, entregasPrevistas: (f.entregasPrevistas ?? []).map((x, xi) => xi === i ? { ...x, dataPrevista: ev.target.value } : x) }))}
+                              className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-3 py-2">
+                            <select value={e.status}
+                              onChange={ev => setForm(f => ({ ...f, entregasPrevistas: (f.entregasPrevistas ?? []).map((x, xi) => xi === i ? { ...x, status: ev.target.value as EntregaPrevista['status'] } : x) }))}
+                              className={`text-[11px] font-bold rounded-md px-2 py-1.5 border-0 cursor-pointer w-full ${e.status === 'recebida' ? 'bg-green-100 text-green-800' : e.status === 'reprogramada' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+                              <option value="prevista">Prevista</option>
+                              <option value="recebida">Recebida</option>
+                              <option value="reprogramada">Reprogramada</option>
+                            </select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={e.observacao ?? ''}
+                              onChange={ev => setForm(f => ({ ...f, entregasPrevistas: (f.entregasPrevistas ?? []).map((x, xi) => xi === i ? { ...x, observacao: ev.target.value } : x) }))}
+                              placeholder="Opcional" className="fi py-1.5 text-sm" />
+                          </td>
+                          <td className="px-2 py-2">
+                            <button onClick={() => setForm(f => ({ ...f, entregasPrevistas: (f.entregasPrevistas ?? []).filter((_, xi) => xi !== i) }))}
+                              className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <button onClick={() => setForm(f => ({ ...f, entregasPrevistas: [...(f.entregasPrevistas ?? []), { descricao: '', status: 'prevista', dataPrevista: '', observacao: '' }] }))}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar entrega
               </button>
             </FormSection>
 

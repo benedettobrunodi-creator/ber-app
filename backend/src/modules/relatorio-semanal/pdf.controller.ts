@@ -307,6 +307,33 @@ ${(rel.planoAcao ?? []).length > 0 && sec('planoAcao') ? `
   </table>
 </div>` : ''}
 
+<!-- ENTREGAS PREVISTAS -->
+${(rel.entregasPrevistas ?? []).length > 0 && sec('entregasPrevistas') ? `
+<div style="margin-bottom:14px;break-inside:avoid;">
+  ${sectionTitle('Entregas previstas')}
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;">Material / Equipamento</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;width:70px;">Data prevista</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;width:90px;">Status</th>
+      <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:left;">Observação</th>
+    </tr></thead>
+    <tbody>
+      ${(rel.entregasPrevistas as any[]).map((e: any) => {
+        const badge = e.status === 'recebida' ? { bg: '#d1fae5', text: '#065f46', label: 'RECEBIDA' } : e.status === 'reprogramada' ? { bg: '#fee2e2', text: '#b91c1c', label: 'REPROGRAMADA' } : { bg: '#fef3c7', text: '#92400e', label: 'PREVISTA' };
+        return `<tr>
+          <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#374151;">${e.descricao}</td>
+          <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;">${e.dataPrevista ? fmt(e.dataPrevista) : '—'}</td>
+          <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;">
+            <span style="font-size:7px;font-weight:700;padding:2px 5px;border-radius:3px;background:${badge.bg};color:${badge.text};">${badge.label}</span>
+          </td>
+          <td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;">${e.observacao || '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+</div>` : ''}
+
 <!-- MARCOS -->
 ${(marcosConc.length > 0 || marcosProx.length > 0) && sec('marcos') ? `
 <div style="margin-bottom:14px;break-inside:avoid;">

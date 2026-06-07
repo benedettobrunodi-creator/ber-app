@@ -11,6 +11,7 @@ interface EfetivoDisciplina { disciplina: string; quantidade: number; }
 interface AtividadeSemana { wbs: string; nome: string; tipo: 'andamento' | 'proximo'; }
 interface PontoAtencao { descricao: string; severidade: string; }
 interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
+interface EntregaPrevista { descricao: string; dataPrevista?: string; status: string; observacao?: string; }
 
 interface Relatorio {
   id: string;
@@ -33,6 +34,7 @@ interface Relatorio {
   atividadesSemana?: AtividadeSemana[] | null;
   pontosAtencao?: PontoAtencao[] | null;
   planoAcao?: PlanoAcaoItem[] | null;
+  entregasPrevistas?: EntregaPrevista[] | null;
   dataInicioObra?: string | null;
   dataPrevistaTermino?: string | null;
   dataRealTermino?: string | null;
@@ -396,6 +398,36 @@ export default function RelatorioImpressao() {
                     <td className="py-2 text-gray-700">{p.acaoCorretiva}</td>
                     <td className="py-2 text-gray-500">{p.responsavel || '—'}</td>
                     <td className="py-2 text-gray-500">{p.prazo ? new Date(p.prazo + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Section>
+        )}
+
+        {/* ENTREGAS PREVISTAS */}
+        {(relatorio.entregasPrevistas ?? []).length > 0 && (
+          <Section title="Entregas previstas">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Material / Equipamento</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Data prevista</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-28">Status</th>
+                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Observação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(relatorio.entregasPrevistas ?? []).map((e, i) => (
+                  <tr key={i}>
+                    <td className="py-2 text-gray-800">{e.descricao}</td>
+                    <td className="py-2 text-gray-500">{e.dataPrevista ? new Date(e.dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+                    <td className="py-2">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${e.status === 'recebida' ? 'bg-green-100 text-green-700' : e.status === 'reprogramada' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {e.status === 'recebida' ? 'RECEBIDA' : e.status === 'reprogramada' ? 'REPROGRAMADA' : 'PREVISTA'}
+                      </span>
+                    </td>
+                    <td className="py-2 text-gray-500">{e.observacao || '—'}</td>
                   </tr>
                 ))}
               </tbody>

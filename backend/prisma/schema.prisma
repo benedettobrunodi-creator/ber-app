@@ -1699,6 +1699,7 @@ model RelatorioSemanal {
   atividadesSemana     Json?     @map("atividades_semana")
   pontosAtencao        Json?     @map("pontos_atencao")
   planoAcao            Json?     @map("plano_acao")
+  entregasPrevistas    Json?     @map("entregas_previstas")
   dataInicioObra       DateTime? @map("data_inicio_obra") @db.Date
   dataPrevistaTermino  DateTime? @map("data_prevista_termino") @db.Date
   dataRealTermino      DateTime? @map("data_real_termino") @db.Date

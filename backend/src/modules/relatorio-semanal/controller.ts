@@ -54,7 +54,7 @@ export async function createRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, entregasPrevistas,
       dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
       destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
@@ -90,6 +90,7 @@ export async function createRelatorio(req: Request, res: Response) {
         atividadesSemana: atividadesSemana ?? null,
         pontosAtencao: pontosAtencao ?? null,
         planoAcao: planoAcao ?? null,
+        entregasPrevistas: entregasPrevistas ?? null,
         dataInicioObra: toDate(dataInicioObra),
         dataPrevistaTermino: toDate(dataPrevistaTermino),
         dataRealTermino: toDate(dataRealTermino),
@@ -118,7 +119,7 @@ export async function updateRelatorio(req: Request, res: Response) {
     const {
       periodoInicio, periodoFim, status, avancoPct, avancoDelta,
       diasTrabalhados, diasUteis, diasImprodutivos, motivoImprodutivo,
-      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao,
+      efetivoMedio, efetivoPorDisciplina, atividadesSemana, pontosAtencao, planoAcao, entregasPrevistas,
       dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
       destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
@@ -140,6 +141,7 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (atividadesSemana !== undefined) data.atividadesSemana = atividadesSemana;
     if (pontosAtencao !== undefined) data.pontosAtencao = pontosAtencao;
     if (planoAcao !== undefined) data.planoAcao = planoAcao;
+    if (entregasPrevistas !== undefined) data.entregasPrevistas = entregasPrevistas;
     if (dataInicioObra !== undefined) data.dataInicioObra = toDate(dataInicioObra);
     if (dataPrevistaTermino !== undefined) data.dataPrevistaTermino = toDate(dataPrevistaTermino);
     if (dataRealTermino !== undefined) data.dataRealTermino = dataRealTermino ? toDate(dataRealTermino) : null;
