@@ -424,6 +424,7 @@ export default function ObraDetailPage() {
   const [cronogramaSyncing, setCronogramaSyncing] = useState(false);
   const [cronogramaSyncResult, setCronogramaSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
   const [cronogramaCollapsed, setCronogramaCollapsed] = useState<Set<string>>(new Set());
+  const [cronogramaGerandoCurvaS, setCronogramaGerandoCurvaS] = useState(false);
   const cronogramaInputRef = useRef<HTMLInputElement>(null);
 
   // Checklists state
@@ -718,6 +719,64 @@ export default function ObraDetailPage() {
     } finally {
       setCronogramaSyncing(false);
     }
+  }
+
+  async function handleGerarCurvaS() {
+    if (!cronograma?.parsedData) return;
+    setCronogramaGerandoCurvaS(true);
+    try {
+      const tarefas = cronograma.parsedData.tarefas;
+      const overrides = cronograma.overrides ?? {};
+      const folhas = tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0 && t.inicio && t.fim);
+      if (!folhas.length) { alert('Sem tarefas com cronograma para gerar Curva S.'); return; }
+      const totalDias = folhas.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+      if (!totalDias) return;
+      const raiz = tarefas.find(t => t.ehResumo && t.inicio && t.fim);
+      if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
+      const projStart = new Date(raiz.inicio + 'T00:00:00');
+      const projEnd = new Date(raiz.fim + 'T00:00:00');
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const currentPct = Math.round(
+        folhas.reduce((s, t) => {
+          const key = t.wbs || t.nome;
+          const ov = overrides[key];
+          const pct = ov?.pct !== undefined ? ov.pct : t.percentualConcluido;
+          return s + (t.duracaoDias ?? 0) * (pct as number) / 100;
+        }, 0) / totalDias * 100
+      );
+      let existingMap: Record<string, number | null> = {};
+      try {
+        const ex = await api.get(`/obras/${params.id}/relatorios/curva-s`);
+        for (const p of (ex.data.data ?? [])) existingMap[p.semana.slice(0, 10)] = p.realizadoPct ?? null;
+      } catch { /* preserve nothing */ }
+      // snap start to Monday before projStart
+      const firstDay = new Date(projStart);
+      const dow = firstDay.getDay();
+      firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
+      const pontos: { semana: string; planejadoPct: number | null; realizadoPct: number | null }[] = [];
+      let weekStart = new Date(firstDay);
+      while (weekStart <= projEnd) {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
+        const wEnd = weekEnd.getTime();
+        let planejado = 0;
+        for (const t of folhas) {
+          const tStart = new Date(t.inicio! + 'T00:00:00').getTime();
+          const tEnd = new Date(t.fim! + 'T00:00:00').getTime();
+          const w = (t.duracaoDias ?? 0) / totalDias;
+          if (tEnd <= wEnd) planejado += w * 100;
+          else if (tStart <= wEnd) planejado += w * 100 * Math.min(1, (wEnd - tStart) / (tEnd - tStart));
+        }
+        const semanaKey = weekStart.toISOString().slice(0, 10);
+        const isCurrentWeek = weekStart <= today && today <= weekEnd;
+        const realizadoPct = semanaKey in existingMap ? existingMap[semanaKey] : (isCurrentWeek ? currentPct : null);
+        pontos.push({ semana: semanaKey, planejadoPct: Math.min(100, Math.round(planejado * 10) / 10), realizadoPct });
+        weekStart = new Date(weekStart); weekStart.setDate(weekStart.getDate() + 7);
+      }
+      await api.put(`/obras/${params.id}/relatorios/curva-s`, { pontos });
+      alert(`Curva S gerada com ${pontos.length} semanas. Abra o Relatório para visualizar.`);
+    } catch { alert('Erro ao gerar Curva S.'); }
+    finally { setCronogramaGerandoCurvaS(false); }
   }
 
   useEffect(() => {
@@ -2628,6 +2687,15 @@ export default function ObraDetailPage() {
                     className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-olive/90 disabled:opacity-50"
                   >
                     {cronogramaSyncing ? 'Sincronizando...' : '↻ Sincronizar Kanban'}
+                  </button>
+                )}
+                {cronograma?.parsedData && (
+                  <button
+                    onClick={handleGerarCurvaS}
+                    disabled={cronogramaGerandoCurvaS}
+                    className="flex items-center gap-1.5 rounded-md bg-ber-teal/80 px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-teal disabled:opacity-50"
+                  >
+                    {cronogramaGerandoCurvaS ? 'Gerando...' : '📈 Gerar Curva S'}
                   </button>
                 )}
                 <button
