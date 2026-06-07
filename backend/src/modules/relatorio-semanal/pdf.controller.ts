@@ -422,7 +422,8 @@ export async function generatePdf(req: Request, res: Response) {
       const filename = `BER_${obraNome}_RT-${rtNum}_${d1}-${d2}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
       res.send(Buffer.from(pdfBuffer));
     } finally {
       await browser.close();
