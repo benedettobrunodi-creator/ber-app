@@ -735,6 +735,10 @@ export default function ObraDetailPage() {
       if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
       const projStart = new Date(raiz.inicio + 'T00:00:00');
       const projEnd = new Date(raiz.fim + 'T00:00:00');
+      // extend to obra's expectedEndDate if it's later (cronograma root task may have shorter span)
+      const obraEndRaw = obra?.expectedEndDate ?? obra?.startDate ?? null;
+      const obraEnd = obraEndRaw ? new Date(obraEndRaw + 'T00:00:00') : null;
+      const loopEnd = obraEnd && obraEnd > projEnd ? obraEnd : projEnd;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const currentPct = Math.round(
         folhas.reduce((s, t) => {
@@ -755,7 +759,7 @@ export default function ObraDetailPage() {
       firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
       const pontos: { semana: string; planejadoPct: number | null; realizadoPct: number | null }[] = [];
       let weekStart = new Date(firstDay);
-      while (weekStart <= projEnd) {
+      while (weekStart <= loopEnd) {
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
         const wEnd = weekEnd.getTime();
