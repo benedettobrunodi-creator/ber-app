@@ -425,6 +425,7 @@ export default function ObraDetailPage() {
   const [cronogramaSyncResult, setCronogramaSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
   const [cronogramaCollapsed, setCronogramaCollapsed] = useState<Set<string>>(new Set());
   const [cronogramaGerandoCurvaS, setCronogramaGerandoCurvaS] = useState(false);
+  const [relatorioTabKey, setRelatorioTabKey] = useState(0);
   const cronogramaInputRef = useRef<HTMLInputElement>(null);
 
   // Checklists state
@@ -778,7 +779,9 @@ export default function ObraDetailPage() {
         weekStart = new Date(weekStart); weekStart.setDate(weekStart.getDate() + 7);
       }
       await api.put(`/obras/${params.id}/relatorios/curva-s`, { pontos });
-      alert(`Curva S gerada com ${pontos.length} semanas. Abra o Relatório para visualizar.`);
+      setRelatorioTabKey(k => k + 1);
+      setActiveTab('relatorios');
+      alert(`Curva S gerada com ${pontos.length} semanas.`);
     } catch { alert('Erro ao gerar Curva S.'); }
     finally { setCronogramaGerandoCurvaS(false); }
   }
@@ -3655,7 +3658,7 @@ export default function ObraDetailPage() {
 
         {/* ─── Relatórios tab ─── */}
         {activeTab === 'relatorios' && (
-          <RelatorioTab obraId={params.id} obra={obra} />
+          <RelatorioTab key={relatorioTabKey} obraId={params.id} obra={obra} />
         )}
 
     </div>
