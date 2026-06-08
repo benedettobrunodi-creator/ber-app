@@ -794,8 +794,8 @@ export default function ObraDetailPage() {
         const isCurrentWeek = weekStart <= today && today <= weekEnd;
         const isPast = weekEnd.getTime() < today.getTime();
         let realizadoPct: number | null;
-        if (semanaKey in existingMap) {
-          realizadoPct = existingMap[semanaKey];
+        if (semanaKey in existingMap && existingMap[semanaKey] !== null) {
+          realizadoPct = existingMap[semanaKey]; // preserve manually-entered values
         } else if (isCurrentWeek) {
           realizadoPct = currentPct;
         } else if (isPast && planTodayPct > 0) {
