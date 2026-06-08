@@ -734,16 +734,18 @@ export default function ObraDetailPage() {
       if (!totalDias) return;
       const raiz = tarefas.find(t => t.ehResumo && t.inicio && t.fim);
       if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
-      const projStart = new Date(raiz.inicio + 'T00:00:00');
-      const projEnd = new Date(raiz.fim + 'T00:00:00');
-      // use latest fim among ALL leaf tasks (root task may only span a subset)
-      const latestTaskEnd = folhas.reduce((latest, t) => {
+      // use earliest inicio among ALL leaf tasks as start (root task may not capture week 1)
+      const earliestTaskStart = folhas.reduce((earliest, t) => {
+        const d = new Date(t.inicio! + 'T00:00:00');
+        return d < earliest ? d : earliest;
+      }, new Date(raiz.inicio + 'T00:00:00'));
+      const projStart = earliestTaskStart;
+      // use latest fim among ALL leaf tasks as end (matches full cronograma span)
+      const projEnd = folhas.reduce((latest, t) => {
         const d = new Date(t.fim! + 'T00:00:00');
         return d > latest ? d : latest;
-      }, projEnd);
-      // also consider obra's expectedEndDate if set
-      const obraExpEnd = obra?.expectedEndDate ? new Date(obra.expectedEndDate + 'T00:00:00') : null;
-      const loopEnd = obraExpEnd && obraExpEnd > latestTaskEnd ? obraExpEnd : latestTaskEnd;
+      }, new Date(raiz.fim + 'T00:00:00'));
+      const loopEnd = projEnd;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const currentPct = Math.round(
         folhas.reduce((s, t) => {
@@ -753,6 +755,17 @@ export default function ObraDetailPage() {
           return s + (t.duracaoDias ?? 0) * (pct as number) / 100;
         }, 0) / totalDias * 100
       );
+      // planned % at today — used to scale past realized proportionally
+      const todayEndMs = today.getTime() + 23 * 3600000;
+      let planTodayPct = 0;
+      for (const t of folhas) {
+        const tS = new Date(t.inicio! + 'T00:00:00').getTime();
+        const tE = new Date(t.fim! + 'T00:00:00').getTime();
+        const w = (t.duracaoDias ?? 0) / totalDias;
+        if (tE <= todayEndMs) planTodayPct += w * 100;
+        else if (tS <= todayEndMs) planTodayPct += w * 100 * Math.min(1, (todayEndMs - tS) / (tE - tS));
+      }
+      planTodayPct = Math.min(100, Math.round(planTodayPct * 10) / 10);
       let existingMap: Record<string, number | null> = {};
       try {
         const ex = await api.get(`/obras/${params.id}/relatorios/curva-s`);
@@ -776,10 +789,22 @@ export default function ObraDetailPage() {
           if (tEnd <= wEnd) planejado += w * 100;
           else if (tStart <= wEnd) planejado += w * 100 * Math.min(1, (wEnd - tStart) / (tEnd - tStart));
         }
+        const planejadoPct = Math.min(100, Math.round(planejado * 10) / 10);
         const semanaKey = weekStart.toISOString().slice(0, 10);
         const isCurrentWeek = weekStart <= today && today <= weekEnd;
-        const realizadoPct = semanaKey in existingMap ? existingMap[semanaKey] : (isCurrentWeek ? currentPct : null);
-        pontos.push({ semana: semanaKey, planejadoPct: Math.min(100, Math.round(planejado * 10) / 10), realizadoPct });
+        const isPast = weekEnd.getTime() < today.getTime();
+        let realizadoPct: number | null;
+        if (semanaKey in existingMap) {
+          realizadoPct = existingMap[semanaKey];
+        } else if (isCurrentWeek) {
+          realizadoPct = currentPct;
+        } else if (isPast && planTodayPct > 0) {
+          // proportional scaling: realizado_semana = planejado_semana × (realizado_hoje / planejado_hoje)
+          realizadoPct = Math.round(planejadoPct * currentPct / planTodayPct * 10) / 10;
+        } else {
+          realizadoPct = null;
+        }
+        pontos.push({ semana: semanaKey, planejadoPct, realizadoPct });
         weekStart = new Date(weekStart); weekStart.setDate(weekStart.getDate() + 7);
       }
       await api.put(`/obras/${params.id}/relatorios/curva-s`, { pontos });
