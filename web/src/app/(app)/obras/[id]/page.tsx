@@ -742,9 +742,8 @@ export default function ObraDetailPage() {
       const projStart   = new Date(raiz.inicio + 'T00:00:00');
       const loopEnd     = new Date(raiz.fim    + 'T00:00:00');
       const today       = new Date(); today.setHours(0, 0, 0, 0);
-      // realizado at current week = cronograma.progressPct (the "official" % shown in cockpit)
-      // fallback to task-weighted average only if progressPct not set
-      const currentPct = cronograma.progressPct ??
+      // realizado = same source as cockpit: cronograma.progressPct ?? obra.progressPercent
+      const currentPct = cronograma.progressPct ?? obra?.progressPercent ??
         Math.round(
           folhas.reduce((s, t) => {
             const key = t.wbs || t.nome;
@@ -757,11 +756,6 @@ export default function ObraDetailPage() {
       const planTodayPct = raizSpan > 0
         ? Math.min(100, Math.max(0, Math.round((today.getTime() - raizStartMs) / raizSpan * 1000) / 10))
         : 0;
-      let existingMap: Record<string, number | null> = {};
-      try {
-        const ex = await api.get(`/obras/${params.id}/relatorios/curva-s`);
-        for (const p of (ex.data.data ?? [])) existingMap[p.semana.slice(0, 10)] = p.realizadoPct ?? null;
-      } catch { /* preserve nothing */ }
       // snap start to Monday before projStart
       const firstDay = new Date(projStart);
       const dow = firstDay.getDay();
@@ -780,9 +774,7 @@ export default function ObraDetailPage() {
         const isCurrentWeek = weekStart <= today && today <= weekEnd;
         const isPast = weekEnd.getTime() < today.getTime();
         let realizadoPct: number | null;
-        if (semanaKey in existingMap && existingMap[semanaKey] !== null) {
-          realizadoPct = existingMap[semanaKey]; // preserve manually-entered values
-        } else if (isCurrentWeek) {
+        if (isCurrentWeek) {
           realizadoPct = currentPct;
         } else if (isPast && planTodayPct > 0) {
           // proportional scaling: realizado_semanaX = planejado_semanaX × (realizado_hoje / planejado_hoje)
