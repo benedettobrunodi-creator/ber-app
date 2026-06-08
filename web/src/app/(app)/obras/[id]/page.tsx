@@ -736,10 +736,14 @@ export default function ObraDetailPage() {
       if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
       const projStart = new Date(raiz.inicio + 'T00:00:00');
       const projEnd = new Date(raiz.fim + 'T00:00:00');
-      // extend to obra's expectedEndDate if it's later (cronograma root task may have shorter span)
-      const obraEndRaw = obra?.expectedEndDate ?? obra?.startDate ?? null;
-      const obraEnd = obraEndRaw ? new Date(obraEndRaw + 'T00:00:00') : null;
-      const loopEnd = obraEnd && obraEnd > projEnd ? obraEnd : projEnd;
+      // use latest fim among ALL leaf tasks (root task may only span a subset)
+      const latestTaskEnd = folhas.reduce((latest, t) => {
+        const d = new Date(t.fim! + 'T00:00:00');
+        return d > latest ? d : latest;
+      }, projEnd);
+      // also consider obra's expectedEndDate if set
+      const obraExpEnd = obra?.expectedEndDate ? new Date(obra.expectedEndDate + 'T00:00:00') : null;
+      const loopEnd = obraExpEnd && obraExpEnd > latestTaskEnd ? obraExpEnd : latestTaskEnd;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const currentPct = Math.round(
         folhas.reduce((s, t) => {
