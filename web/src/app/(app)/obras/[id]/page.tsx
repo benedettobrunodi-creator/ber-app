@@ -734,38 +734,29 @@ export default function ObraDetailPage() {
       if (!totalDias) return;
       const raiz = tarefas.find(t => t.ehResumo && t.inicio && t.fim);
       if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
-      // use earliest inicio among ALL leaf tasks as start (root task may not capture week 1)
-      const earliestTaskStart = folhas.reduce((earliest, t) => {
-        const d = new Date(t.inicio! + 'T00:00:00');
-        return d < earliest ? d : earliest;
-      }, new Date(raiz.inicio + 'T00:00:00'));
-      const projStart = earliestTaskStart;
-      // use latest fim among ALL leaf tasks as end (matches full cronograma span)
-      const projEnd = folhas.reduce((latest, t) => {
-        const d = new Date(t.fim! + 'T00:00:00');
-        return d > latest ? d : latest;
-      }, new Date(raiz.fim + 'T00:00:00'));
-      const loopEnd = projEnd;
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const currentPct = Math.round(
-        folhas.reduce((s, t) => {
-          const key = t.wbs || t.nome;
-          const ov = overrides[key];
-          const pct = ov?.pct !== undefined ? ov.pct : t.percentualConcluido;
-          return s + (t.duracaoDias ?? 0) * (pct as number) / 100;
-        }, 0) / totalDias * 100
-      );
-      // planned % at today — used to scale past realized proportionally
-      const todayEndMs = today.getTime() + 23 * 3600000;
-      let planTodayPct = 0;
-      for (const t of folhas) {
-        const tS = new Date(t.inicio! + 'T00:00:00').getTime();
-        const tE = new Date(t.fim! + 'T00:00:00').getTime();
-        const w = (t.duracaoDias ?? 0) / totalDias;
-        if (tE <= todayEndMs) planTodayPct += w * 100;
-        else if (tS <= todayEndMs) planTodayPct += w * 100 * Math.min(1, (todayEndMs - tS) / (tE - tS));
-      }
-      planTodayPct = Math.min(100, Math.round(planTodayPct * 10) / 10);
+      // planejado uses linear time within root task span — matches cockpit "% planejado"
+      // (task-weighted approach gives wrong results when parsedData covers only part of project)
+      const raizStartMs = new Date(raiz.inicio + 'T00:00:00').getTime();
+      const raizEndMs   = new Date(raiz.fim   + 'T00:00:00').getTime();
+      const raizSpan    = raizEndMs - raizStartMs;
+      const projStart   = new Date(raiz.inicio + 'T00:00:00');
+      const loopEnd     = new Date(raiz.fim    + 'T00:00:00');
+      const today       = new Date(); today.setHours(0, 0, 0, 0);
+      // realizado at current week = cronograma.progressPct (the "official" % shown in cockpit)
+      // fallback to task-weighted average only if progressPct not set
+      const currentPct = cronograma.progressPct ??
+        Math.round(
+          folhas.reduce((s, t) => {
+            const key = t.wbs || t.nome;
+            const ov = overrides[key];
+            const pct = ov?.pct !== undefined ? ov.pct : t.percentualConcluido;
+            return s + (t.duracaoDias ?? 0) * (pct as number) / 100;
+          }, 0) / totalDias * 100
+        );
+      // planTodayPct via same linear formula — used to scale past realized proportionally
+      const planTodayPct = raizSpan > 0
+        ? Math.min(100, Math.max(0, Math.round((today.getTime() - raizStartMs) / raizSpan * 1000) / 10))
+        : 0;
       let existingMap: Record<string, number | null> = {};
       try {
         const ex = await api.get(`/obras/${params.id}/relatorios/curva-s`);
@@ -781,15 +772,10 @@ export default function ObraDetailPage() {
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
         const wEnd = weekEnd.getTime();
-        let planejado = 0;
-        for (const t of folhas) {
-          const tStart = new Date(t.inicio! + 'T00:00:00').getTime();
-          const tEnd = new Date(t.fim! + 'T00:00:00').getTime();
-          const w = (t.duracaoDias ?? 0) / totalDias;
-          if (tEnd <= wEnd) planejado += w * 100;
-          else if (tStart <= wEnd) planejado += w * 100 * Math.min(1, (wEnd - tStart) / (tEnd - tStart));
-        }
-        const planejadoPct = Math.min(100, Math.round(planejado * 10) / 10);
+        // planejado = linear elapsed within root task span
+        const planejadoPct = raizSpan > 0
+          ? Math.min(100, Math.max(0, Math.round((wEnd - raizStartMs) / raizSpan * 1000) / 10))
+          : 0;
         const semanaKey = weekStart.toISOString().slice(0, 10);
         const isCurrentWeek = weekStart <= today && today <= weekEnd;
         const isPast = weekEnd.getTime() < today.getTime();
@@ -799,7 +785,7 @@ export default function ObraDetailPage() {
         } else if (isCurrentWeek) {
           realizadoPct = currentPct;
         } else if (isPast && planTodayPct > 0) {
-          // proportional scaling: realizado_semana = planejado_semana × (realizado_hoje / planejado_hoje)
+          // proportional scaling: realizado_semanaX = planejado_semanaX × (realizado_hoje / planejado_hoje)
           realizadoPct = Math.round(planejadoPct * currentPct / planTodayPct * 10) / 10;
         } else {
           realizadoPct = null;
