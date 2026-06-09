@@ -17,6 +17,7 @@ interface Obra {
   progressPercent: number;
   startDate: string | null;
   expectedEndDate: string | null;
+  situacaoAtual: string | null;
   coordinator: { id: string; name: string; avatarUrl: string | null } | null;
   _count: { members: number; tasks: number };
 }
@@ -245,6 +246,9 @@ export default function ObrasPage() {
                       </span>
                     )}
                   </div>
+                  {obra.situacaoAtual && (
+                    <p className="mt-1 truncate text-xs text-ber-gray/70 italic">{obra.situacaoAtual}</p>
+                  )}
                 </Link>
 
                 <span className={`w-28 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-semibold ${statusCfg.className}`}>

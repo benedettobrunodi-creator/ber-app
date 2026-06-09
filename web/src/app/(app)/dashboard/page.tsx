@@ -55,6 +55,8 @@ export default function DashboardPage() {
   const [naoConformes, setNaoConformes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const [editingSituacao, setEditingSituacao] = useState<string | null>(null);
+  const [situacaoMap, setSituacaoMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -66,6 +68,9 @@ export default function DashboardPage() {
       const obrasRes = await safe(() => api.get('/obras').then(r => r.data), { data: [] });
       const ativas: any[] = (obrasRes?.data ?? []).filter((o: any) => o.status === 'em_andamento');
       setObras(ativas);
+      const initMap: Record<string, string> = {};
+      for (const o of ativas) if (o.situacaoAtual) initMap[o.id] = o.situacaoAtual;
+      setSituacaoMap(initMap);
 
       await Promise.all(ativas.map(async (o: any) => {
         const [fvsRes, diarioRes, seqRes, checkRes] = await Promise.all([
@@ -280,6 +285,33 @@ export default function DashboardPage() {
                       </span>
                       {fvs > 0 && (
                         <span className="text-[10px] text-ber-gray">{fvs} FVS pend.</span>
+                      )}
+                    </div>
+
+                    {/* Situação atual — inline edit */}
+                    <div
+                      onClick={e => { e.stopPropagation(); setEditingSituacao(obra.id); }}
+                      className="rounded-md border border-transparent hover:border-ber-gray/20 hover:bg-ber-offwhite px-1.5 py-1 -mx-1.5 cursor-text"
+                    >
+                      {editingSituacao === obra.id ? (
+                        <textarea
+                          autoFocus
+                          rows={2}
+                          defaultValue={situacaoMap[obra.id] ?? ''}
+                          placeholder="Situação atual da obra..."
+                          onClick={e => e.stopPropagation()}
+                          onBlur={async e => {
+                            const val = e.target.value.trim();
+                            setSituacaoMap(prev => ({ ...prev, [obra.id]: val }));
+                            setEditingSituacao(null);
+                            await api.patch(`/obras/${obra.id}/situacao`, { situacaoAtual: val || null }).catch(() => null);
+                          }}
+                          className="w-full resize-none bg-transparent text-[11px] text-ber-carbon placeholder:text-ber-gray/40 focus:outline-none"
+                        />
+                      ) : (
+                        <p className={`text-[11px] leading-snug ${situacaoMap[obra.id] ? 'text-ber-carbon' : 'text-ber-gray/40'}`}>
+                          {situacaoMap[obra.id] || 'Situação atual...'}
+                        </p>
                       )}
                     </div>
 

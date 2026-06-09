@@ -33,6 +33,12 @@ export async function updateObraDatas(req: Request, res: Response) {
   sendSuccess(res, obra);
 }
 
+export async function updateSituacao(req: Request, res: Response) {
+  const { situacaoAtual } = req.body;
+  const obra = await obraService.updateObra(req.params.id, { situacaoAtual: situacaoAtual ?? null });
+  sendSuccess(res, { situacaoAtual: obra.situacaoAtual });
+}
+
 export async function getMembers(req: Request, res: Response) {
   const members = await obraService.getMembers(req.params.id);
   sendSuccess(res, members);
