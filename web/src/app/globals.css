@@ -43,3 +43,17 @@ body {
   background: var(--ber-bg);
   color: var(--ber-carbon);
 }
+
+@media print {
+  /* hide app shell */
+  nav, header[data-sidebar], aside, [data-sidebar], .sidebar { display: none !important; }
+  /* dashboard print layout */
+  .print\:hidden { display: none !important; }
+  body { background: white !important; font-size: 11px; }
+  /* obra cards in 3-col grid */
+  .dashboard-obras-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+  /* avoid page break inside cards */
+  .dashboard-obras-grid > * { break-inside: avoid; }
+  /* borders and shadows */
+  * { box-shadow: none !important; }
+}

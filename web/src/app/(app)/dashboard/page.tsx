@@ -140,12 +140,20 @@ export default function DashboardPage() {
             {' · '}{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="relative inline-flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ber-teal opacity-50" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-ber-teal" />
-          </span>
-          <span className="text-[10px] font-semibold text-ber-gray">Ao vivo</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.print()}
+            className="print:hidden flex items-center gap-1.5 rounded-md border border-ber-gray/30 px-3 py-1.5 text-xs font-medium text-ber-gray hover:bg-white hover:text-ber-carbon"
+          >
+            🖨 Imprimir
+          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="relative inline-flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ber-teal opacity-50" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-ber-teal" />
+            </span>
+            <span className="text-[10px] font-semibold text-ber-gray">Ao vivo</span>
+          </div>
         </div>
       </div>
 
@@ -189,7 +197,7 @@ export default function DashboardPage() {
           <p className="text-[9px] font-bold uppercase tracking-widest text-ber-gray mb-3">
             Obras em andamento · {obras.length}
           </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="dashboard-obras-grid grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {obrasOrdenadas.map(obra => {
               const physicalPct = obra.progressPercent ?? 0;
               const timePct = calcTimePct(obra);
@@ -291,6 +299,7 @@ export default function DashboardPage() {
                     {/* Situação atual — inline edit */}
                     <div
                       onClick={e => { e.stopPropagation(); setEditingSituacao(obra.id); }}
+                      data-print-show
                       className="rounded-md border border-transparent hover:border-ber-gray/20 hover:bg-ber-offwhite px-1.5 py-1 -mx-1.5 cursor-text"
                     >
                       {editingSituacao === obra.id ? (
