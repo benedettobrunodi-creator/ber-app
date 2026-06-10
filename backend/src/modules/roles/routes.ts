@@ -12,8 +12,8 @@ router.use(authenticate);
 router.get('/modules', w(ctrl.listModules));
 router.get('/', requireRole('coordenacao'), w(ctrl.listRoles));
 router.get('/:id', requireRole('coordenacao'), w(ctrl.getRole));
-router.post('/', requireRole('diretoria'), w(ctrl.createRole));
-router.put('/:id', requireRole('diretoria'), w(ctrl.updateRole));
-router.delete('/:id', requireRole('diretoria'), w(ctrl.deleteRole));
+router.post('/', requireRole('socio'), w(ctrl.createRole));
+router.put('/:id', requireRole('socio'), w(ctrl.updateRole));
+router.delete('/:id', requireRole('socio'), w(ctrl.deleteRole));
 
 export default router;
