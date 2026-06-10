@@ -299,6 +299,7 @@ export default function DashboardPage() {
                     {/* Situação atual — inline edit */}
                     <div
                       onClick={e => { e.stopPropagation(); setEditingSituacao(obra.id); }}
+                      onMouseDown={e => e.stopPropagation()}
                       data-print-show
                       className="rounded-md border border-transparent hover:border-ber-gray/20 hover:bg-ber-offwhite px-1.5 py-1 -mx-1.5 cursor-text"
                     >
@@ -309,6 +310,8 @@ export default function DashboardPage() {
                           defaultValue={situacaoMap[obra.id] ?? ''}
                           placeholder="Situação atual da obra..."
                           onClick={e => e.stopPropagation()}
+                          onMouseDown={e => e.stopPropagation()}
+                          onKeyDown={e => e.stopPropagation()}
                           onBlur={async e => {
                             const val = e.target.value.trim();
                             setSituacaoMap(prev => ({ ...prev, [obra.id]: val }));
