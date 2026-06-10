@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, Component, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
@@ -588,7 +588,7 @@ function sortOportunidades(ops: Oportunidade[], col: SortCol, dir: SortDir): Opo
 
 interface Filters {
   search: string;
-  etapa: string;
+  etapas: string[];
   responsavelId: string;
   probabilidade: string;
 }
@@ -598,8 +598,20 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [sortCol, setSortCol] = useState<SortCol>('etapa');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [filters, setFilters] = useState<Filters>({ search: '', etapa: '', responsavelId: '', probabilidade: '' });
+  const [filters, setFilters] = useState<Filters>({ search: '', etapas: [], responsavelId: '', probabilidade: '' });
   const [showFilters, setShowFilters] = useState(false);
+  const [etapaDropOpen, setEtapaDropOpen] = useState(false);
+  const etapaDropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (etapaDropRef.current && !etapaDropRef.current.contains(e.target as Node)) {
+        setEtapaDropOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   function toggleSort(col: SortCol) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -615,13 +627,13 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
         (o.empresa?.razaoSocial ?? '').toLowerCase().includes(q)
       );
     }
-    if (filters.etapa) ops = ops.filter(o => o.etapa === filters.etapa);
+    if (filters.etapas.length > 0) ops = ops.filter(o => filters.etapas.includes(o.etapa));
     if (filters.responsavelId) ops = ops.filter(o => o.responsavel?.id === filters.responsavelId);
     if (filters.probabilidade) ops = ops.filter(o => o.probabilidade === filters.probabilidade);
     return ops;
   }, [oportunidades, filters]);
 
-  const activeFilterCount = [filters.etapa, filters.responsavelId, filters.probabilidade].filter(Boolean).length;
+  const activeFilterCount = [filters.etapas.length > 0, filters.responsavelId, filters.probabilidade].filter(Boolean).length;
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -714,14 +726,58 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
                   className="w-full rounded-lg border border-ber-border pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
                 />
               </div>
-              <select
-                value={filters.etapa}
-                onChange={e => setFilters(f => ({ ...f, etapa: e.target.value }))}
-                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon min-w-[130px]"
-              >
-                <option value="">Todas as etapas</option>
-                {ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-              </select>
+              <div ref={etapaDropRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setEtapaDropOpen(v => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium min-w-[130px] focus:outline-none transition-colors ${filters.etapas.length > 0 ? 'border-ber-teal bg-ber-teal/5 text-ber-teal' : 'border-ber-border text-ber-carbon'}`}
+                >
+                  <span className="flex-1 text-left">
+                    {filters.etapas.length === 0
+                      ? 'Todas as etapas'
+                      : filters.etapas.length === 1
+                        ? (ETAPAS.find(e => e.value === filters.etapas[0])?.label ?? filters.etapas[0])
+                        : `${filters.etapas.length} etapas`}
+                  </span>
+                  <ChevronDown size={11} className={`shrink-0 transition-transform ${etapaDropOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {etapaDropOpen && (
+                  <div className="absolute top-full left-0 z-30 mt-1 w-48 rounded-xl border border-ber-border bg-white shadow-lg py-1">
+                    {ETAPAS.map(e => {
+                      const checked = filters.etapas.includes(e.value);
+                      return (
+                        <button
+                          key={e.value}
+                          type="button"
+                          onClick={() => setFilters(f => ({
+                            ...f,
+                            etapas: checked
+                              ? f.etapas.filter(v => v !== e.value)
+                              : [...f.etapas, e.value],
+                          }))}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-ber-carbon hover:bg-ber-surface transition-colors"
+                        >
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${checked ? 'border-ber-teal bg-ber-teal' : 'border-ber-border'}`}>
+                            {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+                          </span>
+                          {e.label}
+                        </button>
+                      );
+                    })}
+                    {filters.etapas.length > 0 && (
+                      <div className="border-t border-ber-border mt-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setFilters(f => ({ ...f, etapas: [] }))}
+                          className="w-full px-3 py-1.5 text-xs text-ber-gray hover:text-red-500 text-left transition-colors"
+                        >
+                          Limpar seleção
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <select
                 value={filters.responsavelId}
                 onChange={e => setFilters(f => ({ ...f, responsavelId: e.target.value }))}
@@ -740,7 +796,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
               </select>
               {activeFilterCount > 0 && (
                 <button
-                  onClick={() => setFilters({ search: '', etapa: '', responsavelId: '', probabilidade: '' })}
+                  onClick={() => setFilters({ search: '', etapas: [], responsavelId: '', probabilidade: '' })}
                   className="text-xs text-ber-gray hover:text-red-500 whitespace-nowrap"
                 >
                   Limpar filtros
