@@ -102,9 +102,32 @@ function deleteNodeFromTree(root: OrgNode, id: string): OrgNode {
   };
 }
 
-function sumSalarios(node: OrgNode): number {
-  const own = (!node.isGroup && node.salario) ? node.salario : 0;
-  return own + node.children.reduce((s, c) => s + sumSalarios(c), 0);
+const CUSTO_DIRETO_KEYS: ColorKey[] = ['gestor', 'campo'];
+
+interface TreeStats {
+  totalPessoas: number;
+  folhaTotal: number;
+  diretoPessoas: number;
+  diretoFolha: number;
+  indiretoPessoas: number;
+  indiretoFolha: number;
+}
+
+function computeStats(node: OrgNode, stats: TreeStats = { totalPessoas: 0, folhaTotal: 0, diretoPessoas: 0, diretoFolha: 0, indiretoPessoas: 0, indiretoFolha: 0 }): TreeStats {
+  if (!node.isGroup) {
+    stats.totalPessoas++;
+    const sal = node.salario ?? 0;
+    stats.folhaTotal += sal;
+    if (CUSTO_DIRETO_KEYS.includes(node.colorKey)) {
+      stats.diretoPessoas++;
+      stats.diretoFolha += sal;
+    } else {
+      stats.indiretoPessoas++;
+      stats.indiretoFolha += sal;
+    }
+  }
+  node.children.forEach(c => computeStats(c, stats));
+  return stats;
 }
 
 /* ─── SVG Connectors ─── */
@@ -625,7 +648,7 @@ export default function OrganogramaPage() {
   }
 
   const activeNode = activeId ? (tree ? findNode(tree, activeId.replace('drag-', '')) : null) : null;
-  const totalFolha = tree ? sumSalarios(tree) : 0;
+  const stats = tree ? computeStats(tree) : null;
 
   if (loading) {
     return (
@@ -684,13 +707,40 @@ export default function OrganogramaPage() {
         </div>
       </div>
 
-      {/* Folha total banner */}
-      {showSalarios && (
-        <div className="mt-3 flex items-center justify-between rounded-lg bg-ber-carbon px-4 py-2.5">
-          <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">Folha total</span>
-          <span className="text-lg font-black text-ber-olive">
-            {totalFolha > 0 ? fmtBRL(totalFolha) : '—'}
-          </span>
+      {/* KPI header */}
+      {stats && (
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-ber-border bg-white px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Colaboradores</p>
+            <p className="mt-1 text-2xl font-black text-ber-carbon">{stats.totalPessoas}</p>
+            <p className="text-[10px] text-ber-gray/70">total na estrutura</p>
+          </div>
+
+          <div className="rounded-xl border border-ber-border bg-white px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Folha mensal</p>
+            <p className="mt-1 text-xl font-black text-ber-carbon">
+              {showSalarios
+                ? (stats.folhaTotal > 0 ? fmtBRL(stats.folhaTotal) : '—')
+                : <span className="text-sm text-ber-gray/50 font-medium">Oculto</span>}
+            </p>
+            <p className="text-[10px] text-ber-gray/70">soma de salários</p>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Custo direto</p>
+            <p className="mt-1 text-2xl font-black text-amber-800">{stats.diretoPessoas}</p>
+            <p className="text-[10px] text-amber-700/70">
+              {showSalarios && stats.diretoFolha > 0 ? fmtBRL(stats.diretoFolha) : 'gestores + campo · variável'}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-ber-teal/20 bg-ber-teal/5 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ber-teal">Custo indireto</p>
+            <p className="mt-1 text-2xl font-black text-ber-teal">{stats.indiretoPessoas}</p>
+            <p className="text-[10px] text-ber-teal/70">
+              {showSalarios && stats.indiretoFolha > 0 ? fmtBRL(stats.indiretoFolha) : 'core da empresa · fixo'}
+            </p>
+          </div>
         </div>
       )}
 
