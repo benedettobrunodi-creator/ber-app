@@ -68,7 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'ADMIN',
     items: [
       { label: 'Organograma', href: '/organograma', icon: Network, perm: 'organograma' },
-      { label: 'Configurações', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
+      { label: 'Configurações', href: '/configuracoes', icon: Settings, perm: 'admin' },
     ],
   },
 ];
@@ -98,7 +98,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/normas', perm: 'normas' },
   { prefix: '/instrucoes', perm: 'instrucoes' },
   { prefix: '/ponto', perm: 'ponto' },
-  { prefix: '/configuracoes', perm: 'configuracoes' },
+  { prefix: '/configuracoes', perm: 'admin' },
   { prefix: '/organograma', perm: 'organograma' },
   { prefix: '/comercial/orcamentos', perm: 'orcamentos' },
   { prefix: '/crm', perm: 'orcamentos' },
