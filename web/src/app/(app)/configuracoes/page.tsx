@@ -46,6 +46,7 @@ interface UserFormData {
 // --- Constants ---
 
 const ROLE_BADGE: Record<UserRole, string> = {
+  socio:       'bg-yellow-500 text-white',
   diretoria:   'bg-ber-carbon text-white',
   coordenacao: 'bg-ber-teal text-white',
   pmo:         'bg-purple-600 text-white',
@@ -58,6 +59,7 @@ const ROLE_BADGE: Record<UserRole, string> = {
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
+  socio:       'Sócio',
   diretoria:   'Diretoria',
   coordenacao: 'Coordenação',
   pmo:         'PMO',
