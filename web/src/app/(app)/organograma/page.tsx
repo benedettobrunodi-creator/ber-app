@@ -525,12 +525,12 @@ export default function OrganogramaPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Recompute SVG lines after every tree change
+  // Recompute SVG lines whenever tree changes (dep array prevents infinite loop)
   useLayoutEffect(() => {
     if (!tree || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setLines(computeLines(tree, cardRefs.current, rect));
-  });
+  }, [tree]);
 
   async function handleSave(treeToSave: OrgNode) {
     setSaving(true);
