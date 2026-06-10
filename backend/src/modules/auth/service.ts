@@ -9,6 +9,19 @@ import { AppError } from '../../utils/errors';
 import type { LoginInput, ForgotPasswordInput, ResetPasswordInput } from './types';
 import type { JwtPayload } from '../../middleware/auth';
 
+export async function me(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) throw AppError.unauthorized('Usuário não encontrado');
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    permissions: user.permissions as Record<string, boolean>,
+  };
+}
+
 export async function login(input: LoginInput) {
   const user = await prisma.user.findUnique({
     where: { email: input.email },

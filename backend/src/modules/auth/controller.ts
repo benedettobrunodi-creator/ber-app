@@ -37,3 +37,12 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     next(err);
   }
 }
+
+export async function me(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await authService.me(req.user!.userId);
+    sendSuccess(res, result);
+  } catch (err) {
+    next(err);
+  }
+}

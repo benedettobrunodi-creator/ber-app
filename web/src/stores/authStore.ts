@@ -83,7 +83,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       } catch {
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+        return;
       }
+      // Refresh user data from server to pick up role/permission changes
+      api.get<{ data: User }>('/auth/me').then(res => {
+        const fresh = res.data.data;
+        localStorage.setItem('user', JSON.stringify(fresh));
+        set({ user: fresh });
+      }).catch(() => { /* keep cached user if network fails */ });
     }
   },
 }));
