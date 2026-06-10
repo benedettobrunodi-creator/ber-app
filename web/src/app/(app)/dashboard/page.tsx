@@ -211,10 +211,10 @@ export default function DashboardPage() {
               const leftBorder = health === 'atrasado' ? '#EF4444' : health === 'risco' ? '#F59E0B' : health === 'ok' ? '#10B981' : '#E8E8E4';
 
               return (
-                <button
+                <div
                   key={obra.id}
                   onClick={() => router.push(`/obras/${obra.id}`)}
-                  className="group rounded-xl border border-ber-border bg-white text-left transition-all hover:shadow-sm hover:border-ber-carbon/20"
+                  className="group rounded-xl border border-ber-border bg-white text-left transition-all hover:shadow-sm hover:border-ber-carbon/20 cursor-pointer"
                   style={{ borderLeftColor: leftBorder, borderLeftWidth: 3 }}
                 >
                   <div className="px-4 py-4 space-y-3">
@@ -328,7 +328,7 @@ export default function DashboardPage() {
                     </div>
 
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
