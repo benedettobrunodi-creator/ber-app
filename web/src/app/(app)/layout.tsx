@@ -10,7 +10,7 @@ import {
   LayoutDashboard, HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
-  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target,
+  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     section: 'ADMIN',
     items: [
+      { label: 'Organograma', href: '/organograma', icon: Network, perm: 'configuracoes' },
       { label: 'Configurações', href: '/configuracoes', icon: Settings, perm: 'configuracoes' },
     ],
   },
@@ -98,6 +99,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/instrucoes', perm: 'instrucoes' },
   { prefix: '/ponto', perm: 'ponto' },
   { prefix: '/configuracoes', perm: 'configuracoes' },
+  { prefix: '/organograma', perm: 'configuracoes' },
   { prefix: '/comercial/orcamentos', perm: 'orcamentos' },
   { prefix: '/crm', perm: 'orcamentos' },
 ];

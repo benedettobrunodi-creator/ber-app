@@ -90,6 +90,7 @@ model User {
   crmCampanhas          CrmCampanha[]          @relation("CrmCampanhaResponsavel")
   relatorios            RelatorioSemanal[]     @relation("RelatorioResponsavel")
   resetTokens           PasswordResetToken[]
+  orgChartUpdates       OrgChart[]
 
   @@map("users")
 }
@@ -1798,4 +1799,15 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+model OrgChart {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @default("main")
+  data        Json     @default("[]")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("org_charts")
 }

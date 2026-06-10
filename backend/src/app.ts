@@ -212,6 +212,9 @@ app.use('/v1/diario', diarioRouter);
 app.use('/v1/obras/:id/cronograma', cronogramaRouter);
 app.use('/v1/obras/:id/relatorios', relatorioRouter);
 
+import organogramaRouter from './modules/organograma/routes';
+app.use('/v1/organograma', organogramaRouter);
+
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';
 
