@@ -719,26 +719,24 @@ export default function OrganogramaPage() {
           <div className="rounded-xl border border-ber-border bg-white px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Folha mensal</p>
             <p className="mt-1 text-xl font-black text-ber-carbon">
-              {showSalarios
-                ? (stats.folhaTotal > 0 ? fmtBRL(stats.folhaTotal) : '—')
-                : <span className="text-sm text-ber-gray/50 font-medium">Oculto</span>}
+              {stats.folhaTotal > 0 ? fmtBRL(stats.folhaTotal) : '—'}
             </p>
             <p className="text-[10px] text-ber-gray/70">soma de salários</p>
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Custo direto</p>
-            <p className="mt-1 text-2xl font-black text-amber-800">{stats.diretoPessoas}</p>
-            <p className="text-[10px] text-amber-700/70">
-              {showSalarios && stats.diretoFolha > 0 ? fmtBRL(stats.diretoFolha) : 'gestores + campo · variável'}
+            <p className="mt-1 text-2xl font-black text-amber-800">{stats.diretoPessoas} <span className="text-sm font-semibold">pessoas</span></p>
+            <p className="text-[10px] font-semibold text-amber-700">
+              {stats.diretoFolha > 0 ? fmtBRL(stats.diretoFolha) : 'gestores + campo · variável'}
             </p>
           </div>
 
           <div className="rounded-xl border border-ber-teal/20 bg-ber-teal/5 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-ber-teal">Custo indireto</p>
-            <p className="mt-1 text-2xl font-black text-ber-teal">{stats.indiretoPessoas}</p>
-            <p className="text-[10px] text-ber-teal/70">
-              {showSalarios && stats.indiretoFolha > 0 ? fmtBRL(stats.indiretoFolha) : 'core da empresa · fixo'}
+            <p className="mt-1 text-2xl font-black text-ber-teal">{stats.indiretoPessoas} <span className="text-sm font-semibold">pessoas</span></p>
+            <p className="text-[10px] font-semibold text-ber-teal">
+              {stats.indiretoFolha > 0 ? fmtBRL(stats.indiretoFolha) : 'core da empresa · fixo'}
             </p>
           </div>
         </div>
