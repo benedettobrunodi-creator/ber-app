@@ -6,7 +6,7 @@ import * as controller from './controller';
 const router = Router();
 
 router.use(authenticate);
-router.get('/', requireRole('diretoria'), controller.getOrgChart);
-router.put('/', requireRole('diretoria'), controller.putOrgChart);
+router.get('/', requireRole('socio'), controller.getOrgChart);
+router.put('/', requireRole('socio'), controller.putOrgChart);
 
 export default router;
