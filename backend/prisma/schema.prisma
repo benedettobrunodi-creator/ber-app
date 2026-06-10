@@ -1719,6 +1719,7 @@ model RelatorioSemanal {
   pendencias   RelatorioPendencia[]
   fotos        RelatorioFoto[]
   marcos       RelatorioMarco[]
+  ocorrencias  RelatorioOcorrencia[]
 
   @@unique([obraId, numero])
   @@index([obraId, periodoInicio])
@@ -1786,6 +1787,23 @@ model RelatorioMarco {
 
   @@index([relatorioId])
   @@map("relatorio_marcos")
+}
+
+model RelatorioOcorrencia {
+  id          String    @id @default(uuid()) @db.Uuid
+  relatorioId String    @map("relatorio_id") @db.Uuid
+  data        DateTime  @db.Date
+  descricao   String
+  acaoTomada  String?   @map("acao_tomada")
+  responsavel String?   @db.VarChar(255)
+  status      String    @default("em_andamento") @db.VarChar(20)
+  ordem       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+
+  @@index([relatorioId])
+  @@map("relatorio_ocorrencias")
 }
 
 model PasswordResetToken {

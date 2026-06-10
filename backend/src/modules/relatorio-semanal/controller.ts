@@ -9,6 +9,7 @@ const include = {
   responsavel: { select: { id: true, name: true, email: true } },
   pendencias: { orderBy: { ordem: 'asc' as const } },
   marcos: { orderBy: { data: 'asc' as const } },
+  ocorrencias: { orderBy: { ordem: 'asc' as const } },
   fotos: {
     orderBy: { ordem: 'asc' as const },
     include: { angulo: { select: { id: true, nome: true } } },
@@ -58,7 +59,7 @@ export async function createRelatorio(req: Request, res: Response) {
       dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
       destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
-      pendencias = [], marcos = [],
+      pendencias = [], marcos = [], ocorrencias = [],
     } = req.body;
 
     const last = await prisma.relatorioSemanal.findFirst({
@@ -102,6 +103,7 @@ export async function createRelatorio(req: Request, res: Response) {
         dataContrato: toDate(dataContrato),
         pendencias: { create: pendencias.map((p: any, i: number) => ({ descricao: p.descricao, responsavel: p.responsavel ?? null, prazo: toDate(p.prazo), status: p.status, categoria: p.categoria, ordem: i })) },
         marcos: { create: marcos.map((m: any) => ({ nome: m.nome, data: toDate(m.data), tipo: m.tipo })).filter((m: any) => m.data !== null) },
+        ocorrencias: { create: ocorrencias.filter((o: any) => (o.descricao ?? '').trim() && o.data).map((o: any, i: number) => ({ data: new Date(o.data), descricao: o.descricao, acaoTomada: o.acaoTomada ?? null, responsavel: o.responsavel ?? null, status: o.status ?? 'em_andamento', ordem: i })) },
       },
       include,
     });
@@ -123,7 +125,7 @@ export async function updateRelatorio(req: Request, res: Response) {
       dataInicioObra, dataPrevistaTermino, dataRealTermino, secoesPdf,
       destaques, proximosSete,
       responsavelId, responsavelNome, dataContrato,
-      pendencias, marcos,
+      pendencias, marcos, ocorrencias,
     } = req.body;
 
     const toDate = (v: any): Date | null => {
@@ -164,6 +166,10 @@ export async function updateRelatorio(req: Request, res: Response) {
     if (marcos !== undefined) {
       await prisma.relatorioMarco.deleteMany({ where: { relatorioId } });
       data.marcos = { create: marcos.map((m: any) => ({ nome: m.nome, data: toDate(m.data), tipo: m.tipo })).filter((m: any) => m.data !== null) };
+    }
+    if (ocorrencias !== undefined) {
+      await (prisma as any).relatorioOcorrencia.deleteMany({ where: { relatorioId } });
+      data.ocorrencias = { create: ocorrencias.filter((o: any) => (o.descricao ?? '').trim() && o.data).map((o: any, i: number) => ({ data: new Date(o.data), descricao: o.descricao, acaoTomada: o.acaoTomada ?? null, responsavel: o.responsavel ?? null, status: o.status ?? 'em_andamento', ordem: i })) };
     }
 
     const relatorio = await prisma.relatorioSemanal.update({
