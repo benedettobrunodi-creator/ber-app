@@ -589,8 +589,8 @@ function sortOportunidades(ops: Oportunidade[], col: SortCol, dir: SortDir): Opo
 interface Filters {
   search: string;
   etapas: string[];
-  responsavelId: string;
-  probabilidade: string;
+  responsavelIds: string[];
+  probabilidades: string[];
 }
 
 export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
@@ -598,16 +598,20 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [sortCol, setSortCol] = useState<SortCol>('etapa');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [filters, setFilters] = useState<Filters>({ search: '', etapas: [], responsavelId: '', probabilidade: '' });
+  const [filters, setFilters] = useState<Filters>({ search: '', etapas: [], responsavelIds: [], probabilidades: [] });
   const [showFilters, setShowFilters] = useState(false);
   const [etapaDropOpen, setEtapaDropOpen] = useState(false);
+  const [respDropOpen, setRespDropOpen] = useState(false);
+  const [probDropOpen, setProbDropOpen] = useState(false);
   const etapaDropRef = useRef<HTMLDivElement>(null);
+  const respDropRef = useRef<HTMLDivElement>(null);
+  const probDropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (etapaDropRef.current && !etapaDropRef.current.contains(e.target as Node)) {
-        setEtapaDropOpen(false);
-      }
+      if (etapaDropRef.current && !etapaDropRef.current.contains(e.target as Node)) setEtapaDropOpen(false);
+      if (respDropRef.current && !respDropRef.current.contains(e.target as Node)) setRespDropOpen(false);
+      if (probDropRef.current && !probDropRef.current.contains(e.target as Node)) setProbDropOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -628,12 +632,12 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
       );
     }
     if (filters.etapas.length > 0) ops = ops.filter(o => filters.etapas.includes(o.etapa));
-    if (filters.responsavelId) ops = ops.filter(o => o.responsavel?.id === filters.responsavelId);
-    if (filters.probabilidade) ops = ops.filter(o => o.probabilidade === filters.probabilidade);
+    if (filters.responsavelIds.length > 0) ops = ops.filter(o => filters.responsavelIds.includes(o.responsavel?.id ?? ''));
+    if (filters.probabilidades.length > 0) ops = ops.filter(o => filters.probabilidades.includes(o.probabilidade ?? ''));
     return ops;
   }, [oportunidades, filters]);
 
-  const activeFilterCount = [filters.etapas.length > 0, filters.responsavelId, filters.probabilidade].filter(Boolean).length;
+  const activeFilterCount = [filters.etapas.length > 0, filters.responsavelIds.length > 0, filters.probabilidades.length > 0].filter(Boolean).length;
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
@@ -778,25 +782,113 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
                   </div>
                 )}
               </div>
-              <select
-                value={filters.responsavelId}
-                onChange={e => setFilters(f => ({ ...f, responsavelId: e.target.value }))}
-                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon min-w-[130px]"
-              >
-                <option value="">Todos responsáveis</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-              <select
-                value={filters.probabilidade}
-                onChange={e => setFilters(f => ({ ...f, probabilidade: e.target.value }))}
-                className="rounded-lg border border-ber-border px-2.5 py-1.5 text-xs focus:outline-none focus:border-ber-teal text-ber-carbon"
-              >
-                <option value="">Todas probabilidades</option>
-                {PROBABILIDADES.map(p => <option key={p.value} value={p.value}>{p.label} ({p.pct}%)</option>)}
-              </select>
+              <div ref={respDropRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setRespDropOpen(v => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium min-w-[130px] focus:outline-none transition-colors ${filters.responsavelIds.length > 0 ? 'border-ber-teal bg-ber-teal/5 text-ber-teal' : 'border-ber-border text-ber-carbon'}`}
+                >
+                  <span className="flex-1 text-left">
+                    {filters.responsavelIds.length === 0
+                      ? 'Todos responsáveis'
+                      : filters.responsavelIds.length === 1
+                        ? (users.find(u => u.id === filters.responsavelIds[0])?.name ?? '1 pessoa')
+                        : `${filters.responsavelIds.length} responsáveis`}
+                  </span>
+                  <ChevronDown size={11} className={`shrink-0 transition-transform ${respDropOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {respDropOpen && (
+                  <div className="absolute top-full left-0 z-30 mt-1 w-48 rounded-xl border border-ber-border bg-white shadow-lg py-1 max-h-56 overflow-y-auto">
+                    {users.map(u => {
+                      const checked = filters.responsavelIds.includes(u.id);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => setFilters(f => ({
+                            ...f,
+                            responsavelIds: checked
+                              ? f.responsavelIds.filter(v => v !== u.id)
+                              : [...f.responsavelIds, u.id],
+                          }))}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-ber-carbon hover:bg-ber-surface transition-colors"
+                        >
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${checked ? 'border-ber-teal bg-ber-teal' : 'border-ber-border'}`}>
+                            {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+                          </span>
+                          {u.name}
+                        </button>
+                      );
+                    })}
+                    {filters.responsavelIds.length > 0 && (
+                      <div className="border-t border-ber-border mt-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setFilters(f => ({ ...f, responsavelIds: [] }))}
+                          className="w-full px-3 py-1.5 text-xs text-ber-gray hover:text-red-500 text-left transition-colors"
+                        >
+                          Limpar seleção
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div ref={probDropRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProbDropOpen(v => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium min-w-[130px] focus:outline-none transition-colors ${filters.probabilidades.length > 0 ? 'border-ber-teal bg-ber-teal/5 text-ber-teal' : 'border-ber-border text-ber-carbon'}`}
+                >
+                  <span className="flex-1 text-left">
+                    {filters.probabilidades.length === 0
+                      ? 'Todas probabilidades'
+                      : filters.probabilidades.length === 1
+                        ? (PROBABILIDADES.find(p => p.value === filters.probabilidades[0])?.label ?? filters.probabilidades[0])
+                        : `${filters.probabilidades.length} probabilidades`}
+                  </span>
+                  <ChevronDown size={11} className={`shrink-0 transition-transform ${probDropOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {probDropOpen && (
+                  <div className="absolute top-full left-0 z-30 mt-1 w-48 rounded-xl border border-ber-border bg-white shadow-lg py-1">
+                    {PROBABILIDADES.map(p => {
+                      const checked = filters.probabilidades.includes(p.value);
+                      return (
+                        <button
+                          key={p.value}
+                          type="button"
+                          onClick={() => setFilters(f => ({
+                            ...f,
+                            probabilidades: checked
+                              ? f.probabilidades.filter(v => v !== p.value)
+                              : [...f.probabilidades, p.value],
+                          }))}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-ber-carbon hover:bg-ber-surface transition-colors"
+                        >
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${checked ? 'border-ber-teal bg-ber-teal' : 'border-ber-border'}`}>
+                            {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+                          </span>
+                          {p.label} ({p.pct}%)
+                        </button>
+                      );
+                    })}
+                    {filters.probabilidades.length > 0 && (
+                      <div className="border-t border-ber-border mt-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setFilters(f => ({ ...f, probabilidades: [] }))}
+                          className="w-full px-3 py-1.5 text-xs text-ber-gray hover:text-red-500 text-left transition-colors"
+                        >
+                          Limpar seleção
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               {activeFilterCount > 0 && (
                 <button
-                  onClick={() => setFilters({ search: '', etapas: [], responsavelId: '', probabilidade: '' })}
+                  onClick={() => setFilters({ search: '', etapas: [], responsavelIds: [], probabilidades: [] })}
                   className="text-xs text-ber-gray hover:text-red-500 whitespace-nowrap"
                 >
                   Limpar filtros
