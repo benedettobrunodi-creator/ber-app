@@ -10,8 +10,8 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // pdfjs-dist uses node canvas — exclude from server bundle
-  serverExternalPackages: ['pdfjs-dist'],
+  // exclude packages with node-only internals from server bundle
+  serverExternalPackages: ['pdfjs-dist', 'jspdf', 'html2canvas'],
 
   // Rewrites only used in local dev (when NEXT_PUBLIC_API_URL is not set)
   // In production (Vercel) NEXT_PUBLIC_API_URL points to Railway backend
