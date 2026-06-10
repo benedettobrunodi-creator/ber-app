@@ -213,12 +213,14 @@ export default function DashboardPage() {
               return (
                 <div
                   key={obra.id}
-                  onClick={() => router.push(`/obras/${obra.id}`)}
-                  className="group rounded-xl border border-ber-border bg-white text-left transition-all hover:shadow-sm hover:border-ber-carbon/20 cursor-pointer"
+                  className="group rounded-xl border border-ber-border bg-white text-left transition-all hover:shadow-sm hover:border-ber-carbon/20"
                   style={{ borderLeftColor: leftBorder, borderLeftWidth: 3 }}
                 >
-                  <div className="px-4 py-4 space-y-3">
-
+                  {/* Clickable zone — navigates to obra */}
+                  <div
+                    onClick={() => router.push(`/obras/${obra.id}`)}
+                    className="px-4 pt-4 space-y-3 cursor-pointer"
+                  >
                     {/* Nome + dias restantes */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -279,7 +281,7 @@ export default function DashboardPage() {
                     )}
 
                     {/* Diário + FVS */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pb-3">
                       <span className={`text-[10px] ${
                         diasDiario == null ? 'text-ber-gray/40' :
                         diasDiario === 0   ? 'text-ber-gray' :
@@ -295,12 +297,15 @@ export default function DashboardPage() {
                         <span className="text-[10px] text-ber-gray">{fvs} FVS pend.</span>
                       )}
                     </div>
+                  </div>
 
-                    {/* Situação atual — inline edit */}
+                  {/* Situação atual — NOT inside the clickable zone */}
+                  <div
+                    className="px-4 pb-4"
+                    data-print-show
+                  >
                     <div
-                      onClick={e => { e.stopPropagation(); setEditingSituacao(obra.id); }}
-                      onMouseDown={e => e.stopPropagation()}
-                      data-print-show
+                      onClick={() => setEditingSituacao(obra.id)}
                       className="rounded-md border border-transparent hover:border-ber-gray/20 hover:bg-ber-offwhite px-1.5 py-1 -mx-1.5 cursor-text"
                     >
                       {editingSituacao === obra.id ? (
@@ -309,9 +314,6 @@ export default function DashboardPage() {
                           rows={2}
                           defaultValue={situacaoMap[obra.id] ?? ''}
                           placeholder="Situação atual da obra..."
-                          onClick={e => e.stopPropagation()}
-                          onMouseDown={e => e.stopPropagation()}
-                          onKeyDown={e => e.stopPropagation()}
                           onBlur={async e => {
                             const val = e.target.value.trim();
                             setSituacaoMap(prev => ({ ...prev, [obra.id]: val }));
@@ -326,7 +328,6 @@ export default function DashboardPage() {
                         </p>
                       )}
                     </div>
-
                   </div>
                 </div>
               );
