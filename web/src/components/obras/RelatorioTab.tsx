@@ -24,6 +24,16 @@ interface ObraAmbiente {
   cor: string;
 }
 
+interface RelatorioOcorrencia {
+  id?: string;
+  data: string;
+  descricao: string;
+  acaoTomada?: string;
+  responsavel?: string;
+  status: string;
+  ordem: number;
+}
+
 interface RelatorioPendencia {
   id?: string;
   descricao: string;
@@ -79,6 +89,7 @@ interface Relatorio {
   efetivoPorDisciplina?: EfetivoDisciplina[] | null;
   pendencias: RelatorioPendencia[];
   marcos: RelatorioMarco[];
+  ocorrencias: RelatorioOcorrencia[];
   atividadesSemana?: AtividadeSemana[] | null;
   pontosAtencao?: PontoAtencao[] | null;
   planoAcao?: PlanoAcaoItem[] | null;
@@ -118,7 +129,7 @@ const DISCIPLINA_OPTS = [
 const DEFAULT_SECOES_PDF: Record<string, boolean> = {
   fotos: true, curvaS: true, atividades: true, pontosAtencao: true,
   planoAcao: true, entregasPrevistas: true, equipe: true, histograma: true,
-  marcos: true, destaques: true, pendencias: true, proximosSete: true,
+  marcos: true, destaques: true, pendencias: true, ocorrencias: true, proximosSete: true,
 };
 
 const SECOES_PDF_LABELS: { key: string; label: string }[] = [
@@ -133,6 +144,7 @@ const SECOES_PDF_LABELS: { key: string; label: string }[] = [
   { key: 'marcos',             label: 'Marcos' },
   { key: 'destaques',          label: 'Destaques' },
   { key: 'pendencias',         label: 'Itens em aberto' },
+  { key: 'ocorrencias',        label: 'Ocorrências' },
   { key: 'proximosSete',       label: 'Próximos 7 dias' },
 ];
 
@@ -197,6 +209,7 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
     secoesPdf: { ...DEFAULT_SECOES_PDF },
     pendencias: [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
     marcos: [],
+    ocorrencias: [] as RelatorioOcorrencia[],
     fotos: [],
   };
 };
@@ -357,6 +370,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       secoesPdf: r.secoesPdf ?? { ...DEFAULT_SECOES_PDF },
       pendencias:     r.pendencias.length ? r.pendencias : [{ descricao: '', status: 'sob_controle', categoria: 'outro', ordem: 0 }],
       marcos:         r.marcos.map(m => ({ ...m, data: m.data.slice(0, 10) })),
+      ocorrencias:    (r.ocorrencias ?? []).map(o => ({ ...o, data: o.data.slice(0, 10) })),
       fotos:          r.fotos,
     });
     setEditing(r);
@@ -425,6 +439,18 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     setForm(f => ({ ...f, pendencias: f.pendencias.filter((_, idx) => idx !== i) }));
   }
 
+  // ─── Ocorrências ────────────────────────────────────────────────────────────
+
+  function addOcorrencia() {
+    setForm(f => ({ ...f, ocorrencias: [...f.ocorrencias, { data: '', descricao: '', acaoTomada: '', responsavel: '', status: 'em_andamento', ordem: f.ocorrencias.length }] }));
+  }
+  function updateOcorrencia(i: number, field: string, value: string) {
+    setForm(f => ({ ...f, ocorrencias: f.ocorrencias.map((o, idx) => idx === i ? { ...o, [field]: value } : o) }));
+  }
+  function removeOcorrencia(i: number) {
+    setForm(f => ({ ...f, ocorrencias: f.ocorrencias.filter((_, idx) => idx !== i) }));
+  }
+
   // ─── Fotos ──────────────────────────────────────────────────────────────────
 
   async function ensureSaved(): Promise<string | null> {
@@ -439,6 +465,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
+        ocorrencias:  form.ocorrencias.filter(o => (o.descricao ?? '').trim() && o.data).map(({ data, descricao, acaoTomada, responsavel, status, ordem }) => ({ data, descricao, acaoTomada: acaoTomada || null, responsavel: responsavel || null, status, ordem })),
       };
       const res = await api.post(`/obras/${obraId}/relatorios`, payload);
       const novo = res.data.data as Relatorio;
@@ -493,6 +520,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
+        ocorrencias:  form.ocorrencias.filter(o => (o.descricao ?? '').trim() && o.data).map(({ data, descricao, acaoTomada, responsavel, status, ordem }) => ({ data, descricao, acaoTomada: acaoTomada || null, responsavel: responsavel || null, status, ordem })),
       };
       if (editing) {
         const res = await api.patch(`/obras/${obraId}/relatorios/${editing.id}`, payload);
@@ -1254,6 +1282,36 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               <button onClick={addPendencia}
                 className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
                 <Plus size={13} /> Adicionar tema
+              </button>
+            </FormSection>
+
+            {/* ── 6b. OCORRÊNCIAS ─────────────────────────────────────────────── */}
+            <FormSection title="Ocorrências" desc="Registre eventos relevantes da semana com a ação tomada.">
+              <div className="space-y-3">
+                {form.ocorrencias.map((o, i) => (
+                  <div key={i} className="rounded-lg border border-ber-border bg-[#F7F7F5] p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input type="date" value={o.data} onChange={e => updateOcorrencia(i, 'data', e.target.value)}
+                        className="fi py-1.5 bg-white text-sm w-36 shrink-0" title="Data da ocorrência" />
+                      <input value={o.responsavel ?? ''} onChange={e => updateOcorrencia(i, 'responsavel', e.target.value)}
+                        placeholder="Responsável" className="fi py-1.5 bg-white text-sm w-36 shrink-0" />
+                      <select value={o.status} onChange={e => updateOcorrencia(i, 'status', e.target.value)}
+                        className="shrink-0 text-[11px] font-bold rounded-md px-2 py-1.5 border border-ber-border bg-white cursor-pointer text-ber-carbon">
+                        <option value="em_andamento">Em andamento</option>
+                        <option value="resolvido">Resolvido</option>
+                      </select>
+                      <button onClick={() => removeOcorrencia(i)} className="ml-auto text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
+                    </div>
+                    <input value={o.descricao} onChange={e => updateOcorrencia(i, 'descricao', e.target.value)}
+                      placeholder="Descreva a ocorrência..." className="fi py-1.5 bg-white text-sm" />
+                    <input value={o.acaoTomada ?? ''} onChange={e => updateOcorrencia(i, 'acaoTomada', e.target.value)}
+                      placeholder="Ação tomada..." className="fi py-1.5 bg-white text-sm" />
+                  </div>
+                ))}
+              </div>
+              <button onClick={addOcorrencia}
+                className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-3 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                <Plus size={13} /> Adicionar ocorrência
               </button>
             </FormSection>
 
