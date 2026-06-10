@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Plus, Trash2, Download, Loader2, Check, X } from 'lucide-react';
+import { GripVertical, Pencil, Plus, Trash2, Download, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
@@ -16,19 +15,20 @@ interface OrgNode {
   nome: string;
   cargo: string;
   colorKey: ColorKey;
+  salario?: number;
   isGroup?: boolean;
   children: OrgNode[];
 }
 
 type ColorKey = 'diretoria' | 'operacional' | 'coordenacao' | 'gestor' | 'admin' | 'campo';
 
-const COLOR_MAP: Record<ColorKey, { bg: string; text: string; border: string }> = {
-  diretoria:   { bg: '#1E2432', text: '#ffffff', border: '#1E2432' },
-  operacional: { bg: '#2C4A5A', text: '#ffffff', border: '#2C4A5A' },
-  admin:       { bg: '#3D5A6A', text: '#ffffff', border: '#3D5A6A' },
-  coordenacao: { bg: '#5A7A7A', text: '#ffffff', border: '#5A7A7A' },
-  gestor:      { bg: '#B5B820', text: '#ffffff', border: '#B5B820' },
-  campo:       { bg: '#868686', text: '#ffffff', border: '#868686' },
+const COLOR_MAP: Record<ColorKey, { bg: string; text: string }> = {
+  diretoria:   { bg: '#1E2432', text: '#ffffff' },
+  operacional: { bg: '#2C4A5A', text: '#ffffff' },
+  admin:       { bg: '#3D5A6A', text: '#ffffff' },
+  coordenacao: { bg: '#5A7A7A', text: '#ffffff' },
+  gestor:      { bg: '#B5B820', text: '#ffffff' },
+  campo:       { bg: '#868686', text: '#ffffff' },
 };
 
 const COLOR_OPTIONS: { key: ColorKey; label: string }[] = [
@@ -40,19 +40,14 @@ const COLOR_OPTIONS: { key: ColorKey; label: string }[] = [
   { key: 'campo',       label: 'Campo' },
 ];
 
+function fmtBRL(n: number) {
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
+
 /* ─── Helpers ─── */
 
 function generateId(): string {
   return `node-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function findParent(root: OrgNode, targetId: string): OrgNode | null {
-  if (root.children.some(c => c.id === targetId)) return root;
-  for (const c of root.children) {
-    const found = findParent(c, targetId);
-    if (found) return found;
-  }
-  return null;
 }
 
 function findNode(root: OrgNode, id: string): OrgNode | null {
@@ -85,16 +80,11 @@ function reparentNode(root: OrgNode, draggedId: string, targetId: string): OrgNo
   const dragged = findNode(root, draggedId);
   if (!dragged) return root;
   if (isDescendant(dragged, targetId)) return root;
-
   const { tree: withoutDragged } = removeNode(root, draggedId);
-
   function addToTarget(node: OrgNode): OrgNode {
-    if (node.id === targetId) {
-      return { ...node, children: [...node.children, dragged!] };
-    }
+    if (node.id === targetId) return { ...node, children: [...node.children, dragged!] };
     return { ...node, children: node.children.map(addToTarget) };
   }
-
   return addToTarget(withoutDragged);
 }
 
@@ -112,17 +102,17 @@ function deleteNodeFromTree(root: OrgNode, id: string): OrgNode {
   };
 }
 
+function sumSalarios(node: OrgNode): number {
+  const own = (!node.isGroup && node.salario) ? node.salario : 0;
+  return own + node.children.reduce((s, c) => s + sumSalarios(c), 0);
+}
+
 /* ─── SVG Connectors ─── */
 
 interface Line { x1: number; y1: number; x2: number; y2: number }
 
-function computeLines(
-  root: OrgNode,
-  cardRefs: Map<string, HTMLElement>,
-  container: DOMRect,
-): Line[] {
+function computeLines(root: OrgNode, cardRefs: Map<string, HTMLElement>, container: DOMRect): Line[] {
   const lines: Line[] = [];
-
   function traverse(node: OrgNode) {
     if (node.isGroup) return;
     const parentEl = cardRefs.get(node.id);
@@ -130,21 +120,7 @@ function computeLines(
     const pr = parentEl.getBoundingClientRect();
     const px = pr.left + pr.width / 2 - container.left;
     const py = pr.bottom - container.top;
-
     for (const child of node.children) {
-      if (child.isGroup) {
-        const childEl = cardRefs.get(child.id);
-        if (!childEl) { traverse(child); continue; }
-        const cr = childEl.getBoundingClientRect();
-        const cx = cr.left + cr.width / 2 - container.left;
-        const cy = cr.top - container.top;
-        const midY = py + (cy - py) / 2;
-        lines.push({ x1: px, y1: py, x2: px, y2: midY });
-        lines.push({ x1: px, y1: midY, x2: cx, y2: midY });
-        lines.push({ x1: cx, y1: midY, x2: cx, y2: cy });
-        traverse(child);
-        continue;
-      }
       const childEl = cardRefs.get(child.id);
       if (!childEl) { traverse(child); continue; }
       const cr = childEl.getBoundingClientRect();
@@ -157,31 +133,22 @@ function computeLines(
       traverse(child);
     }
   }
-
   traverse(root);
   return lines;
 }
 
-/* ─── Draggable/Droppable node card ─── */
+/* ─── Node card (card only — no action buttons) ─── */
 
 function NodeCard({
   node,
   cardRefs,
   isDragOverlay = false,
-  isDropTarget = false,
-  onEdit,
-  onAddChild,
-  onDelete,
-  canDelete,
+  showSalarios = false,
 }: {
   node: OrgNode;
   cardRefs?: React.MutableRefObject<Map<string, HTMLElement>>;
   isDragOverlay?: boolean;
-  isDropTarget?: boolean;
-  onEdit?: (n: OrgNode) => void;
-  onAddChild?: (parentId: string) => void;
-  onDelete?: (id: string) => void;
-  canDelete?: boolean;
+  showSalarios?: boolean;
 }) {
   const color = COLOR_MAP[node.colorKey] ?? COLOR_MAP.campo;
 
@@ -201,16 +168,13 @@ function NodeCard({
     if (cardRefs && el) cardRefs.current.set(node.id, el);
   }, [node.id]);
 
-  const ring = isDropTarget && isOver ? '0 0 0 3px #B5B820' : undefined;
-
   return (
     <div
       ref={ref}
       {...attributes}
-      className={`group/card relative select-none rounded-lg transition-opacity ${isDragging && !isDragOverlay ? 'opacity-30' : 'opacity-100'}`}
-      style={{ boxShadow: ring ? ring : '0 1px 4px rgba(0,0,0,0.15)', width: 176 }}
+      className={`relative select-none rounded-lg transition-opacity ${isDragging && !isDragOverlay ? 'opacity-30' : 'opacity-100'}`}
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.15)', width: 176 }}
     >
-      {/* Drag handle — only on non-group nodes */}
       {!node.isGroup && !isDragOverlay && (
         <div
           {...listeners}
@@ -221,42 +185,19 @@ function NodeCard({
       )}
 
       <div
-        className="rounded-lg px-3 py-2.5 pl-6 text-center"
+        className="rounded-lg px-3 py-2.5 pl-6"
         style={{ backgroundColor: color.bg, color: color.text }}
       >
-        <p className="text-xs font-bold leading-tight">{node.nome}</p>
+        <p className="text-xs font-bold leading-tight text-center">{node.nome}</p>
         {node.cargo && (
-          <p className="mt-0.5 text-[10px] font-medium opacity-80 leading-tight">{node.cargo}</p>
+          <p className="mt-0.5 text-[10px] font-medium opacity-80 leading-tight text-center">{node.cargo}</p>
+        )}
+        {showSalarios && !node.isGroup && (
+          <p className="mt-1 text-[10px] font-semibold text-center opacity-90 border-t border-white/20 pt-1">
+            {node.salario ? fmtBRL(node.salario) : '—'}
+          </p>
         )}
       </div>
-
-      {/* Hover actions */}
-      {!isDragOverlay && onEdit && (
-        <div className="absolute -right-1 -top-1 hidden group-hover/card:flex items-center gap-0.5 z-20">
-          <button
-            onClick={() => onEdit(node)}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-ber-teal"
-          >
-            <Pencil size={10} />
-          </button>
-          {onAddChild && (
-            <button
-              onClick={() => onAddChild(node.id)}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-ber-teal"
-            >
-              <Plus size={10} />
-            </button>
-          )}
-          {onDelete && canDelete && (
-            <button
-              onClick={() => onDelete(node.id)}
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-red-500"
-            >
-              <Trash2 size={10} />
-            </button>
-          )}
-        </div>
-      )}
 
       {isOver && !isDragOverlay && !node.isGroup && (
         <div className="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-ber-olive" />
@@ -270,12 +211,16 @@ function NodeCard({
 function GroupBox({
   node,
   cardRefs,
+  showSalarios,
   onEdit,
+  onAddMember,
   onDelete,
 }: {
   node: OrgNode;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  showSalarios: boolean;
   onEdit: (n: OrgNode) => void;
+  onAddMember: (parentId: string) => void;
   onDelete: (id: string) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: `drop-${node.id}`, disabled: true });
@@ -286,7 +231,7 @@ function GroupBox({
   }, [node.id]);
 
   return (
-    <div ref={ref} className="group/grp flex flex-col items-center">
+    <div ref={ref} className="flex flex-col items-center">
       <div className="rounded-lg border-2 border-dashed border-ber-gray/40 px-4 py-3 min-w-[160px]">
         <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-wide text-ber-gray">
           {node.nome}
@@ -295,39 +240,63 @@ function GroupBox({
           {node.children.map(member => {
             const color = COLOR_MAP[member.colorKey] ?? COLOR_MAP.campo;
             return (
-              <div
-                key={member.id}
-                className="group/member relative rounded-md px-2 py-1 text-center"
-                style={{ backgroundColor: color.bg, color: color.text, minWidth: 70 }}
-              >
-                <p className="text-[10px] font-semibold leading-tight">{member.nome}</p>
-                {member.cargo && (
-                  <p className="text-[9px] opacity-75 leading-tight">{member.cargo}</p>
-                )}
-                <button
-                  onClick={() => onEdit(member)}
-                  className="absolute -right-1 -top-1 hidden group-hover/member:flex h-4 w-4 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-ber-teal"
+              <div key={member.id} className="flex flex-col items-center gap-0.5">
+                <div
+                  className="rounded-md px-2 py-1 text-center"
+                  style={{ backgroundColor: color.bg, color: color.text, minWidth: 70 }}
                 >
-                  <Pencil size={8} />
-                </button>
+                  <p className="text-[10px] font-semibold leading-tight">{member.nome}</p>
+                  {member.cargo && (
+                    <p className="text-[9px] opacity-75 leading-tight">{member.cargo}</p>
+                  )}
+                  {showSalarios && (
+                    <p className="text-[9px] font-semibold border-t border-white/20 pt-0.5 mt-0.5">
+                      {member.salario ? fmtBRL(member.salario) : '—'}
+                    </p>
+                  )}
+                </div>
+                {/* Member actions */}
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => onEdit(member)}
+                    className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+                  >
+                    <Pencil size={8} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(member.id)}
+                    className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
+                  >
+                    <Trash2 size={8} />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
-      {/* Group-level actions */}
-      <div className="mt-1 hidden group-hover/grp:flex items-center gap-1">
+      {/* Group actions */}
+      <div className="mt-1 flex items-center gap-1">
         <button
           onClick={() => onEdit(node)}
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-ber-teal"
+          title="Editar grupo"
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
         >
-          <Pencil size={10} />
+          <Pencil size={9} />
+        </button>
+        <button
+          onClick={() => onAddMember(node.id)}
+          title="Adicionar membro"
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+        >
+          <Plus size={9} />
         </button>
         <button
           onClick={() => onDelete(node.id)}
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow text-ber-carbon hover:text-red-500"
+          title="Excluir grupo"
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
         >
-          <Trash2 size={10} />
+          <Trash2 size={9} />
         </button>
       </div>
     </div>
@@ -339,8 +308,7 @@ function GroupBox({
 function OrgSubtree({
   node,
   cardRefs,
-  activeId,
-  overId,
+  showSalarios,
   onEdit,
   onAddChild,
   onDelete,
@@ -348,8 +316,7 @@ function OrgSubtree({
 }: {
   node: OrgNode;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
-  activeId: string | null;
-  overId: string | null;
+  showSalarios: boolean;
   onEdit: (n: OrgNode) => void;
   onAddChild: (parentId: string) => void;
   onDelete: (id: string) => void;
@@ -357,7 +324,14 @@ function OrgSubtree({
 }) {
   if (node.isGroup) {
     return (
-      <GroupBox node={node} cardRefs={cardRefs} onEdit={onEdit} onDelete={onDelete} />
+      <GroupBox
+        node={node}
+        cardRefs={cardRefs}
+        showSalarios={showSalarios}
+        onEdit={onEdit}
+        onAddMember={onAddChild}
+        onDelete={onDelete}
+      />
     );
   }
 
@@ -369,22 +343,44 @@ function OrgSubtree({
       <NodeCard
         node={node}
         cardRefs={cardRefs}
-        isDropTarget={true}
-        onEdit={onEdit}
-        onAddChild={onAddChild}
-        onDelete={onDelete}
-        canDelete={canDelete}
+        showSalarios={showSalarios}
       />
 
+      {/* Action buttons — always visible */}
+      <div className="flex items-center gap-1 mt-1">
+        <button
+          onClick={() => onEdit(node)}
+          title="Editar"
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+        >
+          <Pencil size={9} />
+        </button>
+        <button
+          onClick={() => onAddChild(node.id)}
+          title="Adicionar subordinado"
+          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+        >
+          <Plus size={9} />
+        </button>
+        {canDelete && (
+          <button
+            onClick={() => onDelete(node.id)}
+            title="Excluir"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
+          >
+            <Trash2 size={9} />
+          </button>
+        )}
+      </div>
+
       {hasChildren && (
-        <div className="flex items-start gap-8 pt-12">
+        <div className="flex items-start gap-8 pt-8">
           {node.children.map(child => (
             <OrgSubtree
               key={child.id}
               node={child}
               cardRefs={cardRefs}
-              activeId={activeId}
-              overId={overId}
+              showSalarios={showSalarios}
               onEdit={onEdit}
               onAddChild={onAddChild}
               onDelete={onDelete}
@@ -410,15 +406,17 @@ function EditModal({
   const [nome, setNome] = useState(node.nome);
   const [cargo, setCargo] = useState(node.cargo);
   const [colorKey, setColorKey] = useState<ColorKey>(node.colorKey);
+  const [salario, setSalario] = useState(node.salario != null ? String(node.salario) : '');
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({ ...node, nome, cargo, colorKey });
+    const salNum = salario.replace(/\D/g, '');
+    onSave({ ...node, nome, cargo, colorKey, salario: salNum ? Number(salNum) : undefined });
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-ber-carbon">Editar nó</h2>
           <button onClick={onCancel} className="text-ber-gray hover:text-ber-carbon">
@@ -443,6 +441,18 @@ function EditModal({
               className="w-full rounded-md border border-ber-border px-3 py-2 text-sm text-ber-carbon focus:border-ber-teal focus:outline-none"
             />
           </div>
+          {!node.isGroup && (
+            <div>
+              <label className="block text-xs font-semibold text-ber-gray mb-1">Salário (R$)</label>
+              <input
+                value={salario}
+                onChange={e => setSalario(e.target.value)}
+                placeholder="Ex: 8000"
+                inputMode="numeric"
+                className="w-full rounded-md border border-ber-border px-3 py-2 text-sm text-ber-carbon focus:border-ber-teal focus:outline-none"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-ber-gray mb-1">Cor</label>
             <div className="flex flex-wrap gap-2">
@@ -499,6 +509,7 @@ export default function OrganogramaPage() {
   const [overId, setOverId] = useState<string | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [showSalarios, setShowSalarios] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -507,17 +518,13 @@ export default function OrganogramaPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  // Guard: diretoria only
   useEffect(() => {
-    if (user && !perms.configuracoes) {
-      router.replace('/dashboard');
-    }
+    if (user && !perms.configuracoes) router.replace('/dashboard');
   }, [user]);
 
   useEffect(() => {
     api.get('/organograma')
       .then(r => {
-        // Backend returns { data: [rootNode] }; INITIAL_DATA is an array with one root
         const payload = r.data.data;
         setTree(Array.isArray(payload) ? payload[0] : payload);
       })
@@ -525,7 +532,6 @@ export default function OrganogramaPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Recompute SVG lines whenever tree changes (dep array prevents infinite loop)
   useLayoutEffect(() => {
     if (!tree || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -576,8 +582,7 @@ export default function OrganogramaPage() {
       if (node.id === parentId) return { ...node, children: [...node.children, newNode] };
       return { ...node, children: node.children.map(addChild) };
     }
-    const newTree = addChild(tree);
-    applyChange(newTree);
+    applyChange(addChild(tree));
     setTimeout(() => setEditNode(newNode), 100);
   }
 
@@ -591,12 +596,7 @@ export default function OrganogramaPage() {
     setExporting(true);
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(containerRef.current, {
-        backgroundColor: '#FFFFFF',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+      const canvas = await html2canvas(containerRef.current, { backgroundColor: '#FFFFFF', scale: 2, useCORS: true, logging: false });
       const link = document.createElement('a');
       link.download = 'organograma-ber.png';
       link.href = canvas.toDataURL('image/png');
@@ -611,12 +611,7 @@ export default function OrganogramaPage() {
     try {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(containerRef.current, {
-        backgroundColor: '#FFFFFF',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+      const canvas = await html2canvas(containerRef.current, { backgroundColor: '#FFFFFF', scale: 2, useCORS: true, logging: false });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
@@ -630,6 +625,7 @@ export default function OrganogramaPage() {
   }
 
   const activeNode = activeId ? (tree ? findNode(tree, activeId.replace('drag-', '')) : null) : null;
+  const totalFolha = tree ? sumSalarios(tree) : 0;
 
   if (loading) {
     return (
@@ -647,9 +643,9 @@ export default function OrganogramaPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Organograma</h1>
-          <p className="mt-0.5 text-xs text-ber-gray">Arraste os cartões para reorganizar · Clique no ✏️ para editar</p>
+          <p className="mt-0.5 text-xs text-ber-gray">Arraste os cartões para reorganizar · ✏️ editar · + adicionar · 🗑 excluir</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {saved && (
             <span className="flex items-center gap-1 text-xs font-medium text-ber-green">
               <Check size={12} /> Salvo
@@ -661,26 +657,45 @@ export default function OrganogramaPage() {
             </span>
           )}
           <button
+            onClick={() => setShowSalarios(s => !s)}
+            className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+              showSalarios
+                ? 'border-ber-olive bg-ber-olive/10 text-ber-olive'
+                : 'border-ber-gray/30 bg-white text-ber-carbon hover:bg-ber-offwhite'
+            }`}
+          >
+            {showSalarios ? <EyeOff size={13} /> : <Eye size={13} />}
+            Salários
+          </button>
+          <button
             onClick={handleExportPNG}
             disabled={exporting}
             className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
           >
-            <Download size={13} />
-            PNG
+            <Download size={13} /> PNG
           </button>
           <button
             onClick={handleExportPDF}
             disabled={exporting}
             className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
           >
-            <Download size={13} />
-            PDF
+            <Download size={13} /> PDF
           </button>
         </div>
       </div>
 
+      {/* Folha total banner */}
+      {showSalarios && (
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-ber-carbon px-4 py-2.5">
+          <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">Folha total</span>
+          <span className="text-lg font-black text-ber-olive">
+            {totalFolha > 0 ? fmtBRL(totalFolha) : '—'}
+          </span>
+        </div>
+      )}
+
       {/* Chart area */}
-      <div className="mt-6 overflow-auto rounded-xl border border-ber-border bg-white p-8 pb-12">
+      <div className="mt-4 overflow-auto rounded-xl border border-ber-border bg-white p-8 pb-12">
         <DndContext
           sensors={sensors}
           onDragStart={e => setActiveId(String(e.active.id))}
@@ -695,12 +710,7 @@ export default function OrganogramaPage() {
               style={{ width: '100%', height: '100%', zIndex: 0 }}
             >
               {lines.map((l, i) => (
-                <line
-                  key={i}
-                  x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-                  stroke="#D8DDD8"
-                  strokeWidth={2}
-                />
+                <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#D8DDD8" strokeWidth={2} />
               ))}
             </svg>
 
@@ -709,8 +719,7 @@ export default function OrganogramaPage() {
               <OrgSubtree
                 node={tree}
                 cardRefs={cardRefs}
-                activeId={activeId}
-                overId={overId}
+                showSalarios={showSalarios}
                 onEdit={setEditNode}
                 onAddChild={handleAddChild}
                 onDelete={handleDelete}
@@ -720,20 +729,13 @@ export default function OrganogramaPage() {
           </div>
 
           <DragOverlay dropAnimation={null}>
-            {activeNode && (
-              <NodeCard node={activeNode} isDragOverlay />
-            )}
+            {activeNode && <NodeCard node={activeNode} isDragOverlay />}
           </DragOverlay>
         </DndContext>
       </div>
 
-      {/* Edit modal */}
       {editNode && (
-        <EditModal
-          node={editNode}
-          onSave={handleEditSave}
-          onCancel={() => setEditNode(null)}
-        />
+        <EditModal node={editNode} onSave={handleEditSave} onCancel={() => setEditNode(null)} />
       )}
     </div>
   );
