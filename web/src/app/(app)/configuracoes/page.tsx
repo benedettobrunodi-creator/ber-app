@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { useAuthStore, UserRole } from '@/stores/authStore';
+import { useAuthStore, getUserPermissions, UserRole } from '@/stores/authStore';
 import Link from 'next/link';
 import {
   Users,
@@ -95,8 +95,8 @@ function getInitials(name: string): string {
 
 export default function ConfiguracoesPage() {
   const user = useAuthStore((s) => s.user);
-  const isDiretoria = user?.role === 'diretoria';
-  const canManageUsers = user?.role === 'diretoria' || user?.role === 'coordenacao';
+  const perms = getUserPermissions(user);
+  const canManageUsers = perms['admin'] === true;
 
   const [activeTab, setActiveTab] = useState<'usuarios' | 'perfil' | 'api'>(
     canManageUsers ? 'usuarios' : 'perfil',
