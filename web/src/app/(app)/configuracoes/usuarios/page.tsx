@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { useAuthStore, UserRole } from '@/stores/authStore';
+import { useAuthStore, getUserPermissions, UserRole } from '@/stores/authStore';
 import {
   Users, UserPlus, ArrowLeft, Save, X, Shield, Search, KeyRound,
 } from 'lucide-react';
@@ -81,7 +81,7 @@ function getInitials(name: string): string {
 export default function UsuariosPage() {
   const router = useRouter();
   const user = useAuthStore(s => s.user);
-  const canManage = user?.role === 'diretoria' || user?.role === 'coordenacao';
+  const canManage = getUserPermissions(user)['admin'] === true;
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);

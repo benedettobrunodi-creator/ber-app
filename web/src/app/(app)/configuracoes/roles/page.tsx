@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { ArrowLeft, Plus, Save, X, Shield, Lock, Trash2 } from 'lucide-react';
 
 interface RoleRecord {
@@ -33,7 +33,7 @@ const MODULES = [
 export default function RolesPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const canManage = user?.role === 'diretoria' || user?.role === 'coordenacao';
+  const canManage = getUserPermissions(user)['admin'] === true;
 
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +145,7 @@ export default function RolesPage() {
           <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Roles e Permissoes</h1>
           <p className="text-xs text-ber-gray">{roles.length} roles configuradas</p>
         </div>
-        {user?.role === 'diretoria' && (
+        {canManage && (
           <button onClick={openCreate}
             className="flex items-center gap-2 rounded-lg bg-ber-olive px-4 py-2.5 min-h-[44px] text-sm font-semibold text-white hover:opacity-90 transition-colors">
             <Plus size={16} />
@@ -198,7 +198,7 @@ export default function RolesPage() {
                     className="rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors">
                     Editar
                   </button>
-                  {!r.isSystem && user?.role === 'diretoria' && (
+                  {!r.isSystem && canManage && (
                     <button onClick={() => handleDelete(r)}
                       className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-colors">
                       <Trash2 size={12} />
