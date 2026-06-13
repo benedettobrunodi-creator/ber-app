@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
+import { APP_MODULES } from '@/lib/modules';
 import { ArrowLeft, Plus, Save, X, Shield, Lock, Trash2 } from 'lucide-react';
 
 interface RoleRecord {
@@ -15,20 +16,7 @@ interface RoleRecord {
   _count: { users: number };
 }
 
-const MODULES = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'obras', label: 'Obras' },
-  { key: 'kanban', label: 'Kanban' },
-  { key: 'checklists', label: 'Checklists' },
-  { key: 'recebimentos', label: 'Recebimentos' },
-  { key: 'seguranca', label: 'Seguranca' },
-  { key: 'normas', label: 'Normas Tecnicas' },
-  { key: 'instrucoes', label: 'Instrucoes Tecnicas' },
-  { key: 'ponto', label: 'Registro de Ponto' },
-  { key: 'orcamentos', label: 'Esteira de Orcamentos' },
-  { key: 'dre', label: 'DRE' },
-  { key: 'configuracoes', label: 'Configuracoes' },
-];
+const MODULES = APP_MODULES;
 
 export default function RolesPage() {
   const router = useRouter();

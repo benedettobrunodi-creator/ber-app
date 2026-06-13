@@ -14,18 +14,25 @@ export interface User {
   permissions: Record<string, boolean>;
 }
 
-/** Default permissions per cargo — used when user has no explicit permissions set */
+const ALL_OFF: Record<string, boolean> = {
+  dashboard: false, obras: false, kanban: false, checklists: false, diario: false,
+  recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: false,
+  orcamentos: false, organograma: false, configuracoes: false, admin: false,
+};
+
+/** Default permissions per cargo — used when user has no explicit permissions set.
+ *  All roles start with no access; socio keeps admin so the owner can always manage users. */
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
-  socio:       { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: true,  configuracoes: true,  orcamentos: true,  diario: true,  organograma: true,  admin: true  },
-  diretoria:   { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: true,  orcamentos: true,  diario: true,  organograma: false, admin: false },
-  coordenacao: { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: true,  orcamentos: true,  diario: true,  organograma: false, admin: false },
-  pmo:         { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: false, seguranca: false, normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
-  engenharia:  { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: false, seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
-  financeiro:  { dashboard: true,  obras: true,  kanban: false, checklists: false, recebimentos: true,  seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
-  gestor:      { dashboard: true,  obras: true,  kanban: true,  checklists: true,  recebimentos: true,  seguranca: true,  normas: true,  instrucoes: true,  ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
-  compras:     { dashboard: true,  obras: true,  kanban: false, checklists: false, recebimentos: true,  seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
-  orcamentos:  { dashboard: true,  obras: false, kanban: false, checklists: false, recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: true,  diario: true,  organograma: false, admin: false },
-  campo:       { dashboard: false, obras: false, kanban: false, checklists: false, recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: true,  dre: false, configuracoes: false, orcamentos: false, diario: true,  organograma: false, admin: false },
+  socio:       { ...ALL_OFF, admin: true },
+  diretoria:   { ...ALL_OFF },
+  coordenacao: { ...ALL_OFF },
+  pmo:         { ...ALL_OFF },
+  engenharia:  { ...ALL_OFF },
+  financeiro:  { ...ALL_OFF },
+  gestor:      { ...ALL_OFF },
+  compras:     { ...ALL_OFF },
+  orcamentos:  { ...ALL_OFF },
+  campo:       { ...ALL_OFF },
 };
 
 /** Returns the user's explicit permissions, or the cargo defaults if none are set */

@@ -4,24 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore, getUserPermissions, UserRole } from '@/stores/authStore';
+import { APP_MODULES } from '@/lib/modules';
 import {
   Users, UserPlus, ArrowLeft, Save, X, Shield, Search, KeyRound,
 } from 'lucide-react';
 
-const MODULES = [
-  { key: 'dashboard',     label: 'Dashboard' },
-  { key: 'obras',         label: 'Obras' },
-  { key: 'kanban',        label: 'Kanban' },
-  { key: 'checklists',    label: 'Checklists' },
-  { key: 'recebimentos',  label: 'Recebimentos' },
-  { key: 'seguranca',     label: 'Segurança' },
-  { key: 'normas',        label: 'Normas Técnicas' },
-  { key: 'instrucoes',    label: 'Instruções Técnicas' },
-  { key: 'ponto',         label: 'Registro de Ponto' },
-  { key: 'orcamentos',    label: 'Esteira de Orçamentos' },
-  { key: 'dre',           label: 'DRE' },
-  { key: 'configuracoes', label: 'Configurações' },
-];
+const MODULES = APP_MODULES;
 
 const CARGO_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'diretoria',   label: 'Diretoria' },
