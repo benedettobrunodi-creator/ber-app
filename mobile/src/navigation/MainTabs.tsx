@@ -6,6 +6,7 @@ import type { MainTabsParamList } from './types';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { useNotificationStore } from '../stores/notificationStore';
+import { useAuthStore, getUserPermissions } from '../stores/authStore';
 
 import { ComercialStack } from './ComercialStack';
 import { EngenhariaStack } from './EngenhariaStack';
@@ -63,6 +64,9 @@ function ChatBadge() {
 // ──────────────────────────────────────────────
 
 export function MainTabs() {
+  const user = useAuthStore((s) => s.user);
+  const perms = getUserPermissions(user);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -91,20 +95,24 @@ export function MainTabs() {
         },
       }}
     >
-      <Tab.Screen
-        name="Comercial"
-        component={ComercialStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon name="Comercial" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Engenharia"
-        component={EngenhariaStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon name="Engenharia" focused={focused} />,
-        }}
-      />
+      {perms['orcamentos'] && (
+        <Tab.Screen
+          name="Comercial"
+          component={ComercialStack}
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon name="Comercial" focused={focused} />,
+          }}
+        />
+      )}
+      {perms['obras'] && (
+        <Tab.Screen
+          name="Engenharia"
+          component={EngenhariaStack}
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon name="Engenharia" focused={focused} />,
+          }}
+        />
+      )}
       <Tab.Screen
         name="Comunicados"
         component={ComunicadosStack}

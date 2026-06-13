@@ -6,7 +6,9 @@ import { STORAGE_KEYS } from '../services/api';
 // Types
 // ──────────────────────────────────────────────
 
-export type UserRole = 'diretoria' | 'coordenacao' | 'gestor' | 'campo';
+export type UserRole =
+  | 'socio' | 'diretoria' | 'coordenacao' | 'pmo' | 'engenharia'
+  | 'financeiro' | 'gestor' | 'compras' | 'orcamentos' | 'campo';
 
 export interface User {
   id: string;
@@ -16,6 +18,32 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   isActive: boolean;
+  permissions: Record<string, boolean>;
+}
+
+const ALL_OFF: Record<string, boolean> = {
+  dashboard: false, obras: false, kanban: false, checklists: false, diario: false,
+  recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: false,
+  orcamentos: false, organograma: false, configuracoes: false, admin: false,
+};
+
+const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
+  socio:       { ...ALL_OFF, admin: true },
+  diretoria:   { ...ALL_OFF },
+  coordenacao: { ...ALL_OFF },
+  pmo:         { ...ALL_OFF },
+  engenharia:  { ...ALL_OFF },
+  financeiro:  { ...ALL_OFF },
+  gestor:      { ...ALL_OFF },
+  compras:     { ...ALL_OFF },
+  orcamentos:  { ...ALL_OFF },
+  campo:       { ...ALL_OFF },
+};
+
+export function getUserPermissions(user: User | null): Record<string, boolean> {
+  if (!user) return ALL_OFF;
+  if (user.permissions && Object.keys(user.permissions).length > 0) return user.permissions;
+  return DEFAULT_PERMS[user.role] ?? ALL_OFF;
 }
 
 interface AuthState {

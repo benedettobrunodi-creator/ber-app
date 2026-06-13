@@ -13,10 +13,11 @@ interface LoginResponse {
     id: string;
     email: string;
     name: string;
-    role: 'diretoria' | 'coordenacao' | 'gestor' | 'campo';
+    role: string;
     phone?: string;
     avatarUrl?: string;
     isActive: boolean;
+    permissions: Record<string, boolean>;
   };
   accessToken: string;
   refreshToken: string;
