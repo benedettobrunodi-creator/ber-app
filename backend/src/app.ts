@@ -54,6 +54,10 @@ import relatorioRouter from './modules/relatorio-semanal/routes';
 import crmRoutes from './modules/crm/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
+import { requirePermission } from './middleware/permission';
+
+// Shorthand: authenticate + permission check as middleware array
+const perm = (key: string) => [authenticate as any, requirePermission(key) as any];
 
 // Scheduler
 import { startScheduler } from './services/scheduler';
@@ -110,110 +114,140 @@ app.get('/health', (_req, res) => {
 
 // API Routes (v1)
 app.use('/v1/auth', authRoutes);
-app.use('/v1/users', userRoutes);
-app.use('/v1/obras', obraRoutes);
-app.use('/v1/obras/:obraId/tasks', obraTaskRoutes);
-app.use('/v1/tasks', taskRoutes);
-app.use('/v1/proposals', proposalRoutes);
-app.use('/v1/meetings', meetingRoutes);
-app.use('/v1/announcements', announcementRoutes);
-app.use('/v1/chat', chatRoutes);
-app.use('/v1/obras/:obraId/photos', obraPhotoRoutes);
-app.use('/v1/photos', photoRoutes);
-app.use('/v1/time-entries', timeEntryRoutes);
-app.use('/v1/notifications', notificationRoutes);
-app.use('/v1/checklist-templates', checklistTemplateRoutes);
-app.use('/v1/obras/:id/checklists', obraChecklistRouter);
-app.use('/v1/checklists', checklistRoutes);
-app.use('/v1/canteiro-templates', canteiroTemplateRouter);
-app.use('/v1/obras/:id/canteiro', obraCanteiroRouter);
-app.use('/v1/canteiro', canteiroRoutes);
-app.use('/v1/obras/:id/apr', aprObraRouter);
-app.use('/v1/apr', aprRouter);
-app.use('/v1/obras/:id/epi', epiObraRouter);
-app.use('/v1/epi', epiRouter);
-app.use('/v1/obras/:id/incidents', incidentObraRouter);
-app.use('/v1/incidents', incidentRouter);
-app.use('/v1/trainings', trainingRouter);
-app.use('/v1/seguranca', segurancaRouter);
-app.use('/v1/sequenciamento-templates', seqTemplateRouter);
-app.use('/v1/obras/:id/sequenciamento', obraSeqRouter);
-app.use('/v1/obras/:id/etapas', obraEtapaRouter);
-app.use('/v1/obras/:obraId/edit-requests', editReqRouter);
-app.use('/v1/sequenciamento/edit-requests', globalEditReqRouter);
-app.use('/v1/normas', normasRouter);
-app.use('/v1/instrucoes-tecnicas', instrucoesRouter);
-app.use('/v1/obras/:id/recebimentos', obraRecebimentoRouter);
-app.use('/v1/recebimentos', recebimentoRouter);
-app.use('/v1/obras/:id/touchpoints', obraTouchpointRouter);
-app.use('/v1/touchpoints', touchpointRoutes);
-app.use('/v1/obras/:id/punch-lists', obraPunchListRouter);
-app.use('/v1/punch-lists', punchListRouter);
-app.use('/v1/punch-list-items', punchListItemRouter);
-app.use('/v1/dashboard', dashboardRoutes);
-app.use('/v1/obras/:id', obraComunicadoRouter);
-app.use('/v1/comunicados', announcementRoutes);
+app.use('/v1/users', userRoutes);                                                        // /me open; admin check inside
+app.use('/v1/notifications', notificationRoutes);                                        // always accessible
+app.use('/v1/announcements', announcementRoutes);                                        // always accessible
+app.use('/v1/comunicados', announcementRoutes);                                          // always accessible
+app.use('/v1/chat', chatRoutes);                                                         // always accessible
 
-// FVS
+// — Módulo: obras —
+app.use('/v1/obras', ...perm('obras'), obraRoutes);
+app.use('/v1/obras/:obraId/tasks', ...perm('obras'), obraTaskRoutes);
+app.use('/v1/tasks', ...perm('obras'), taskRoutes);
+app.use('/v1/obras/:obraId/photos', ...perm('obras'), obraPhotoRoutes);
+app.use('/v1/photos', ...perm('obras'), photoRoutes);
+app.use('/v1/obras/:id', ...perm('obras'), obraComunicadoRouter);
+app.use('/v1/canteiro-templates', ...perm('obras'), canteiroTemplateRouter);
+app.use('/v1/obras/:id/canteiro', ...perm('obras'), obraCanteiroRouter);
+app.use('/v1/canteiro', ...perm('obras'), canteiroRoutes);
+app.use('/v1/sequenciamento-templates', ...perm('obras'), seqTemplateRouter);
+app.use('/v1/obras/:id/sequenciamento', ...perm('obras'), obraSeqRouter);
+app.use('/v1/obras/:id/etapas', ...perm('obras'), obraEtapaRouter);
+app.use('/v1/obras/:obraId/edit-requests', ...perm('obras'), editReqRouter);
+app.use('/v1/sequenciamento/edit-requests', ...perm('obras'), globalEditReqRouter);
+app.use('/v1/obras/:id/touchpoints', ...perm('obras'), obraTouchpointRouter);
+app.use('/v1/touchpoints', ...perm('obras'), touchpointRoutes);
+app.use('/v1/obras/:id/punch-lists', ...perm('obras'), obraPunchListRouter);
+app.use('/v1/punch-lists', ...perm('obras'), punchListRouter);
+app.use('/v1/punch-list-items', ...perm('obras'), punchListItemRouter);
+
+// — Módulo: checklists —
+app.use('/v1/checklist-templates', ...perm('checklists'), checklistTemplateRoutes);
+app.use('/v1/obras/:id/checklists', ...perm('checklists'), obraChecklistRouter);
+app.use('/v1/checklists', ...perm('checklists'), checklistRoutes);
+
+// — Módulo: segurança —
+app.use('/v1/obras/:id/apr', ...perm('seguranca'), aprObraRouter);
+app.use('/v1/apr', ...perm('seguranca'), aprRouter);
+app.use('/v1/obras/:id/epi', ...perm('seguranca'), epiObraRouter);
+app.use('/v1/epi', ...perm('seguranca'), epiRouter);
+app.use('/v1/obras/:id/incidents', ...perm('seguranca'), incidentObraRouter);
+app.use('/v1/incidents', ...perm('seguranca'), incidentRouter);
+app.use('/v1/trainings', ...perm('seguranca'), trainingRouter);
+app.use('/v1/seguranca', ...perm('seguranca'), segurancaRouter);
+
+// — Módulo: normas —
+app.use('/v1/normas', ...perm('normas'), normasRouter);
+
+// — Módulo: instruções —
+app.use('/v1/instrucoes-tecnicas', ...perm('instrucoes'), instrucoesRouter);
+
+// — Módulo: recebimentos —
+app.use('/v1/obras/:id/recebimentos', ...perm('recebimentos'), obraRecebimentoRouter);
+app.use('/v1/recebimentos', ...perm('recebimentos'), recebimentoRouter);
+
+// — Módulo: ponto —
+app.use('/v1/time-entries', ...perm('ponto'), timeEntryRoutes);
+
+// — Módulo: dashboard —
+app.use('/v1/dashboard', ...perm('dashboard'), dashboardRoutes);
+
+// — Módulo: orçamentos / CRM —
+app.use('/v1/proposals', ...perm('orcamentos'), proposalRoutes);
+app.use('/v1/meetings', ...perm('orcamentos'), meetingRoutes);
+app.use('/v1/orcamentos', ...perm('orcamentos'), orcamentosRoutes);
+app.use('/v1/crm', ...perm('orcamentos'), crmRoutes);
+
+// — Módulo: organograma —
+import organogramaRouter from './modules/organograma/routes';
+app.use('/v1/organograma', ...perm('organograma'), organogramaRouter);
+
+// — Módulo: alocações (usa perm configuracoes) —
+app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
+
+// — Admin —
+app.use('/v1/roles', ...perm('admin'), rolesRoutes);
+
+// Remaining (sem restrição de módulo ou handled internamente)
+app.use('/v1/recursos-externos', recursosExternosRoutes);
+app.use('/v1/clickup', clickupRoutes);
+app.use('/v1/api-keys', apiKeysRoutes);
+
+// FVS (sub-obras — requer perm obras)
 import { obraFvsRouter, fvsRouter } from './modules/fvs/routes';
 import { listTemplates } from './modules/fvs/controller';
-app.use('/v1/obras/:id', obraFvsRouter);
-app.use('/v1/obra-fvs', fvsRouter);
-app.get('/v1/fvs-templates', authenticate as any, listTemplates);
+app.use('/v1/obras/:id', ...perm('obras'), obraFvsRouter);
+app.use('/v1/obra-fvs', ...perm('obras'), fvsRouter);
+app.get('/v1/fvs-templates', ...perm('obras'), listTemplates as any);
 
-// Módulo de Fotos
+// Módulo de Fotos (sub-obras — requer perm obras)
 import * as fotosCtrl from './modules/fotos/controller';
 const fotosUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 const wf = (fn: any) => (req: any, res: any, next: any) => fn(req, res).catch(next);
-app.get('/v1/obras/:id/plantas',                     authenticate as any, wf(fotosCtrl.listPlantas));
-app.post('/v1/obras/:id/plantas',                    authenticate as any, fotosUpload.single('file'), wf(fotosCtrl.createPlanta));
-app.delete('/v1/obras/:id/plantas/:plantaId',        authenticate as any, wf(fotosCtrl.deletePlanta));
-app.get('/v1/obras/:id/ambientes',                   authenticate as any, wf(fotosCtrl.listAmbientes));
-app.post('/v1/obras/:id/ambientes',                  authenticate as any, wf(fotosCtrl.createAmbiente));
-app.patch('/v1/obras/:id/ambientes/:ambienteId',     authenticate as any, wf(fotosCtrl.updateAmbiente));
-app.delete('/v1/obras/:id/ambientes/:ambienteId',    authenticate as any, wf(fotosCtrl.deleteAmbiente));
-app.get('/v1/obras/:id/fotos/referencia',            authenticate as any, wf(fotosCtrl.getFotoReferencia));
-app.get('/v1/obras/:id/fotos',                       authenticate as any, wf(fotosCtrl.listFotos));
-app.post('/v1/obras/:id/fotos',                      authenticate as any, fotosUpload.single('file'), wf(fotosCtrl.createFoto));
-app.post('/v1/obras/:id/fotos/batch',                authenticate as any, wf(fotosCtrl.createFotosBatch));
-app.delete('/v1/obras/:id/fotos/:fotoId',            authenticate as any, wf(fotosCtrl.deleteFoto));
+const op = perm('obras');
+app.get('/v1/obras/:id/plantas',                     ...op, wf(fotosCtrl.listPlantas));
+app.post('/v1/obras/:id/plantas',                    ...op, fotosUpload.single('file'), wf(fotosCtrl.createPlanta));
+app.delete('/v1/obras/:id/plantas/:plantaId',        ...op, wf(fotosCtrl.deletePlanta));
+app.get('/v1/obras/:id/ambientes',                   ...op, wf(fotosCtrl.listAmbientes));
+app.post('/v1/obras/:id/ambientes',                  ...op, wf(fotosCtrl.createAmbiente));
+app.patch('/v1/obras/:id/ambientes/:ambienteId',     ...op, wf(fotosCtrl.updateAmbiente));
+app.delete('/v1/obras/:id/ambientes/:ambienteId',    ...op, wf(fotosCtrl.deleteAmbiente));
+app.get('/v1/obras/:id/fotos/referencia',            ...op, wf(fotosCtrl.getFotoReferencia));
+app.get('/v1/obras/:id/fotos',                       ...op, wf(fotosCtrl.listFotos));
+app.post('/v1/obras/:id/fotos',                      ...op, fotosUpload.single('file'), wf(fotosCtrl.createFoto));
+app.post('/v1/obras/:id/fotos/batch',                ...op, wf(fotosCtrl.createFotosBatch));
+app.delete('/v1/obras/:id/fotos/:fotoId',            ...op, wf(fotosCtrl.deleteFoto));
 
-// BÈR Checklists — register with explicit paths to avoid catch-all conflict
+// BÈR Checklists (requer perm checklists)
 import * as berClCtrl from './modules/ber-checklists/controller';
 import { clRouter } from './modules/ber-checklists/routes';
-app.get('/v1/obras/:id/ber-checklists', authenticate as any, (req: any, res: any) => berClCtrl.listByObra(req, res));
-app.post('/v1/obras/:id/ber-checklists', authenticate as any, (req: any, res: any, next: any) => berClCtrl.createChecklist(req, res).catch(next));
-app.use('/v1/obra-ber-checklists', clRouter);
-app.get('/v1/ber-checklist-templates', authenticate as any, (req: any, res: any) => berClCtrl.listTemplates(req, res));
+const cp = perm('checklists');
+app.get('/v1/obras/:id/ber-checklists',  ...cp, (req: any, res: any) => berClCtrl.listByObra(req, res));
+app.post('/v1/obras/:id/ber-checklists', ...cp, (req: any, res: any, next: any) => berClCtrl.createChecklist(req, res).catch(next));
+app.use('/v1/obra-ber-checklists', ...cp, clRouter);
+app.get('/v1/ber-checklist-templates',   ...cp, (req: any, res: any) => berClCtrl.listTemplates(req, res));
 
-// ── MEDIÇÃO DE CONTRATO ──────────────────────────────────────────────────────
+// ── MEDIÇÃO DE CONTRATO (requer perm obras) ──────────────────────────────────
 import * as medCtrl from './modules/medicoes/controller';
 import medicaoRouter from './modules/medicoes/routes';
 import comprasRoutes from './modules/compras/routes';
-app.get('/v1/obras/:id/medicoes',            authenticate as any, (req: any, res: any, next: any) => medCtrl.listMedicoes(req, res, next).catch(next));
-app.post('/v1/obras/:id/medicoes',           authenticate as any, (req: any, res: any, next: any) => medCtrl.createMedicao(req, res, next).catch(next));
-app.get('/v1/obras/:id/medicao-itens',       authenticate as any, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
-app.post('/v1/obras/:id/medicao-itens/bulk', authenticate as any, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
-app.patch('/v1/medicao-itens/:itemId',       authenticate as any, (req: any, res: any, next: any) => medCtrl.updateItem(req, res, next).catch(next));
-app.use('/v1/medicoes', medicaoRouter);
-app.use('/v1/obras', comprasRoutes);
-app.use('/v1/roles', rolesRoutes);
-app.use('/v1/alocacoes', alocacoesRoutes);
-app.use('/v1/recursos-externos', recursosExternosRoutes);
-app.use('/v1/orcamentos', orcamentosRoutes);
-app.use('/v1/crm', crmRoutes);
-app.use('/v1/clickup', clickupRoutes);
-app.use('/v1/api-keys', apiKeysRoutes);
-app.use('/v1/obras/:id/diario', obraDiarioRouter);
-app.use('/v1/diario', diarioRouter);
-app.use('/v1/obras/:id/cronograma', cronogramaRouter);
-app.use('/v1/obras/:id/relatorios', relatorioRouter);
+app.get('/v1/obras/:id/medicoes',            ...op, (req: any, res: any, next: any) => medCtrl.listMedicoes(req, res, next).catch(next));
+app.post('/v1/obras/:id/medicoes',           ...op, (req: any, res: any, next: any) => medCtrl.createMedicao(req, res, next).catch(next));
+app.get('/v1/obras/:id/medicao-itens',       ...op, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
+app.post('/v1/obras/:id/medicao-itens/bulk', ...op, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
+app.patch('/v1/medicao-itens/:itemId',       ...op, (req: any, res: any, next: any) => medCtrl.updateItem(req, res, next).catch(next));
+app.use('/v1/medicoes', ...op, medicaoRouter);
+app.use('/v1/obras', ...perm('obras'), comprasRoutes);
+// — Módulo: diário de obra —
+app.use('/v1/obras/:id/diario', ...perm('diario'), obraDiarioRouter);
+app.use('/v1/diario', ...perm('diario'), diarioRouter);
 
-import organogramaRouter from './modules/organograma/routes';
-app.use('/v1/organograma', organogramaRouter);
+// — Sub-rotas de obras (cronograma/relatórios) —
+app.use('/v1/obras/:id/cronograma', ...perm('obras'), cronogramaRouter);
+app.use('/v1/obras/:id/relatorios', ...perm('obras'), relatorioRouter);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';
