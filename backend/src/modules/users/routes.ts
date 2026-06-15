@@ -15,6 +15,9 @@ router.put('/me', validate(updateProfileSchema), controller.updateMe);
 router.put('/me/push-token', validate(pushTokenSchema), controller.updatePushToken);
 router.post('/me/change-password', validate(changePasswordSchema), controller.changePassword);
 
+// Public (authenticated) — minimal user list for dropdowns
+router.get('/responsaveis', controller.listResponsaveis);
+
 // Admin routes — require admin permission
 const adminPerm = requirePermission('admin');
 router.get('/', adminPerm, controller.listUsers);

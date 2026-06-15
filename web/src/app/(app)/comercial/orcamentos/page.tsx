@@ -1515,7 +1515,7 @@ export default function EsteiraDOrcamentosPage() {
 
       const [itemsRes, usersRes] = await Promise.all([
         api.get('/orcamentos', { params }),
-        api.get('/users', { params: { limit: 100 } }),
+        api.get('/users/responsaveis').catch(() => ({ data: { data: [] } })),
       ]);
       setItems(itemsRes.data.data ?? []);
       setUsers(usersRes.data.data ?? []);
