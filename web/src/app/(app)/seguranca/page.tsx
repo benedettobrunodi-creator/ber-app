@@ -158,10 +158,10 @@ export default function SegurancaPage() {
       try {
         const [obrasRes, usersRes] = await Promise.all([
           api.get('/obras', { params: { limit: 100 } }),
-          api.get('/users', { params: { limit: 100 } }),
+          api.get('/users', { params: { limit: 100 } }).catch(() => ({ data: { data: [] } })),
         ]);
         setObras(obrasRes.data.data.map((o: ObraOption) => ({ id: o.id, name: o.name })));
-        setUsers(usersRes.data.data.map((u: UserOption) => ({ id: u.id, name: u.name })));
+        setUsers((usersRes.data.data ?? []).map((u: UserOption) => ({ id: u.id, name: u.name })));
       } catch {
         /* interceptor */
       }

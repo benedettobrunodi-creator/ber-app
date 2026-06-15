@@ -44,7 +44,7 @@ export default function CrmPage() {
         api.get('/crm/atividades'),
         api.get('/crm/contatos'),
         api.get('/crm/campanhas'),
-        api.get('/users?limit=100'),
+        api.get('/users?limit=100').catch(() => ({ data: [] })),
       ]);
       setOportunidades(ops.data);
       setEmpresas(emps.data);
