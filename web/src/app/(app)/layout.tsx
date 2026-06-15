@@ -138,7 +138,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [counts, setCounts] = useState<Record<string, number | null>>({});
   const [kpi, setKpi] = useState<{ ativas: number; total: number; atrasadas: number } | null>(null);
 
-  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => {
+    hydrate();
+    const onVisible = () => { if (!document.hidden) hydrate(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [hydrate]);
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   // Route-level access guard — redirect if user lacks permission for current path
