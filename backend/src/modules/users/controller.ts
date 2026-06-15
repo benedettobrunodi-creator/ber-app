@@ -1,6 +1,13 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import * as userService from './service';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
+
+export async function listResponsaveis(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const users = await userService.listResponsaveis();
+    sendSuccess(res, users);
+  } catch (err) { next(err); }
+}
 
 export async function listUsers(req: Request, res: Response) {
   const { page, limit } = parsePagination(req.query as { page?: string; limit?: string });
