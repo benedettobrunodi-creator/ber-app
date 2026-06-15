@@ -109,7 +109,7 @@ app.use('/uploads', express.static('/tmp/uploads'));
 
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), v: 2 });
 });
 
 // API Routes (v1)
