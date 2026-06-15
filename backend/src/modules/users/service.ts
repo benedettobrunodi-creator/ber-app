@@ -17,14 +17,6 @@ const userSelect = {
   updatedAt: true,
 };
 
-export async function listResponsaveis() {
-  return prisma.user.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true, role: true },
-    orderBy: { name: 'asc' },
-  });
-}
-
 export async function listUsers(page: number, limit: number) {
   const skip = (page - 1) * limit;
   const [users, total] = await Promise.all([

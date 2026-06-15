@@ -8,11 +8,6 @@ export async function listUsers(req: Request, res: Response) {
   sendPaginated(res, users, buildPagination(page, limit, total));
 }
 
-export async function listResponsaveis(_req: Request, res: Response) {
-  const users = await userService.listResponsaveis();
-  sendSuccess(res, users);
-}
-
 export async function getMe(req: Request, res: Response) {
   const user = await userService.getUserById(req.user!.userId);
   sendSuccess(res, user);
