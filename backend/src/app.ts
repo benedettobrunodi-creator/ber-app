@@ -1,4 +1,5 @@
 import express from 'express';
+import 'express-async-errors'; // patches Express 4 to forward async errors to next(err) automatically
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -225,10 +226,10 @@ app.delete('/v1/obras/:id/fotos/:fotoId',            ...op, wf(fotosCtrl.deleteF
 import * as berClCtrl from './modules/ber-checklists/controller';
 import { clRouter } from './modules/ber-checklists/routes';
 const cp = perm('checklists');
-app.get('/v1/obras/:id/ber-checklists',  ...cp, (req: any, res: any) => berClCtrl.listByObra(req, res));
+app.get('/v1/obras/:id/ber-checklists',  ...cp, (req: any, res: any, next: any) => berClCtrl.listByObra(req, res).catch(next));
 app.post('/v1/obras/:id/ber-checklists', ...cp, (req: any, res: any, next: any) => berClCtrl.createChecklist(req, res).catch(next));
 app.use('/v1/obra-ber-checklists', ...cp, clRouter);
-app.get('/v1/ber-checklist-templates',   ...cp, (req: any, res: any) => berClCtrl.listTemplates(req, res));
+app.get('/v1/ber-checklist-templates',   ...cp, (req: any, res: any, next: any) => berClCtrl.listTemplates(req, res).catch(next));
 
 // ── MEDIÇÃO DE CONTRATO (requer perm obras) ──────────────────────────────────
 import * as medCtrl from './modules/medicoes/controller';
