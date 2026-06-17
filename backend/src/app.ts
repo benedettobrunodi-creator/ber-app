@@ -448,6 +448,11 @@ async function start() {
 }
 
 // Graceful shutdown
+// Prevent unhandled async rejections (from Express 4 controllers without try/catch) from crashing the process
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] Unhandled promise rejection (caught, not crashing):', reason);
+});
+
 process.on('SIGTERM', async () => {
   console.log('[Server] SIGTERM received, shutting down...');
   await prisma.$disconnect();
