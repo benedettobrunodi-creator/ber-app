@@ -4,6 +4,8 @@ import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
 import { syncProgressoFromClickUp } from '../../services/clickup';
 import { syncAllTasksFromClickUp } from '../../services/clickup-tasks-sync';
+import { OBRA_STATUSES } from '../../config/constants';
+import { AppError } from '../../utils/errors';
 
 export async function listObras(req: Request, res: Response) {
   const { page, limit } = parsePagination(req.query as any);
@@ -37,6 +39,15 @@ export async function updateSituacao(req: Request, res: Response) {
   const { situacaoAtual } = req.body;
   const obra = await obraService.updateObra(req.params.id, { situacaoAtual: situacaoAtual ?? null });
   sendSuccess(res, { situacaoAtual: obra.situacaoAtual });
+}
+
+export async function updateStatus(req: Request, res: Response) {
+  const { status } = req.body;
+  if (!OBRA_STATUSES.includes(status)) {
+    throw AppError.badRequest(`status inválido. Valores aceitos: ${OBRA_STATUSES.join(', ')}`);
+  }
+  const obra = await obraService.updateObra(req.params.id, { status });
+  sendSuccess(res, { status: obra.status });
 }
 
 export async function getMembers(req: Request, res: Response) {

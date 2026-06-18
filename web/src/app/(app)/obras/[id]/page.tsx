@@ -133,9 +133,6 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
   concluida: { label: 'Concluída', badge: 'bg-ber-olive/15 text-ber-olive', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
 };
 
-const CAN_CHANGE_STATUS = ['diretoria', 'coordenacao'];
-
-
 type TabKey = 'cockpit' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
 
 interface TouchpointSummary {
@@ -583,7 +580,7 @@ export default function ObraDetailPage() {
   const [addingMember, setAddingMember] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
-  const canChangeStatus = user?.role ? CAN_CHANGE_STATUS.includes(user.role) : false;
+  const canManageMembers = user?.role ? ['diretoria', 'coordenacao'].includes(user.role) : false;
 
   async function fetchChecklists() {
     setLoadingChecklists(true);
@@ -823,7 +820,7 @@ export default function ObraDetailPage() {
     if (!obra || newStatus === obra.status) return;
     setUpdatingStatus(true);
     try {
-      await api.put(`/obras/${params.id}`, { status: newStatus });
+      await api.patch(`/obras/${params.id}/status`, { status: newStatus });
       setObra((prev) => prev ? { ...prev, status: newStatus } : prev);
     } catch {
       /* handled by interceptor */
@@ -982,22 +979,20 @@ export default function ObraDetailPage() {
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-opacity ${statusCfg.badge} ${updatingStatus ? 'animate-pulse opacity-60' : ''}`}>
               {updatingStatus ? 'Salvando...' : statusCfg.label}
             </span>
-            {canChangeStatus && (
-              <div className="relative">
-                <select
-                  value={obra.status}
-                  disabled={updatingStatus}
-                  onChange={(e) => handleStatusChange(e.target.value as ObraStatus)}
-                  className={`appearance-none rounded-md border py-1 pl-3 pr-7 text-xs font-medium focus:ring-1 focus:outline-none disabled:opacity-50 ${statusCfg.selectBorder}`}
-                >
-                  <option value="planejamento">Planejamento</option>
-                  <option value="em_andamento">Em andamento</option>
-                  <option value="pausada">Pausada</option>
-                  <option value="concluida">Concluída</option>
-                </select>
-                <ChevronDown size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ber-gray" />
-              </div>
-            )}
+            <div className="relative">
+              <select
+                value={obra.status}
+                disabled={updatingStatus}
+                onChange={(e) => handleStatusChange(e.target.value as ObraStatus)}
+                className={`appearance-none rounded-md border py-1 pl-3 pr-7 text-xs font-medium focus:ring-1 focus:outline-none disabled:opacity-50 ${statusCfg.selectBorder}`}
+              >
+                <option value="planejamento">Planejamento</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="pausada">Pausada</option>
+                <option value="concluida">Concluída</option>
+              </select>
+              <ChevronDown size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ber-gray" />
+            </div>
           </div>
           {obra.client && (
             <p className="mt-0.5 text-sm text-ber-gray">{obra.client}</p>
@@ -2067,7 +2062,7 @@ export default function ObraDetailPage() {
                       <p className="truncate text-sm font-semibold text-ber-carbon">{m.user.name}</p>
                       <p className="text-xs text-ber-gray capitalize">{m.user.role}</p>
                     </div>
-                    {canChangeStatus && (
+                    {canManageMembers && (
                       <button
                         onClick={() => handleRemoveMember(m.user.id)}
                         disabled={removingMemberId === m.user.id}

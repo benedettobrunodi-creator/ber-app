@@ -19,6 +19,7 @@ router.post('/', requireRole('coordenacao'), validate(createObraSchema), control
 router.put('/:id', requireRole('coordenacao'), validate(updateObraSchema), controller.updateObra);
 router.patch('/:id/datas', requireRole('gestor'), controller.updateObraDatas);
 router.patch('/:id/situacao', requireRole('campo'), controller.updateSituacao);
+router.patch('/:id/status', requireRole('campo'), controller.updateStatus);
 
 router.get('/:id/members', requireRole('campo'), controller.getMembers);
 router.post('/:id/members', requireRole('coordenacao'), validate(addMemberSchema), controller.addMember);
