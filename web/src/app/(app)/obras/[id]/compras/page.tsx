@@ -371,10 +371,14 @@ export default function ComprasPage() {
       )}
 
       {/* Cards de resumo */}
-      {items.length > 0 && (
+      {items.length > 0 && (() => {
+        const compradosRatio = onlyItems.length > 0 ? itemsComComprado.length / onlyItems.length : 0;
+        const showProjection = compradosRatio >= 0.10;
+        const savingProjected = totalVenda * (okSavingPct / 100);
+        return (
         <div className="mb-4 space-y-3">
-          {/* 3 cards principais */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Cards principais */}
+          <div className={`grid grid-cols-1 gap-3 ${showProjection ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
             {/* Comprado */}
             <div className="rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm">
               <p className="text-xs font-medium text-ber-gray uppercase tracking-wide">Comprado</p>
@@ -402,6 +406,16 @@ export default function ComprasPage() {
                 {okSavingMeta >= 0 ? 'dentro da meta' : '⚠ acima da meta'}
               </p>
             </div>
+
+            {/* Projeção — só com >= 10% dos itens já comprados */}
+            {showProjection && (
+              <div className="rounded-xl p-5 shadow-sm border bg-ber-teal/5 border-ber-teal/30">
+                <p className="text-xs font-medium uppercase tracking-wide text-ber-teal">📈 Projeção</p>
+                <p className="mt-2 text-2xl font-black text-ber-teal">{fmtBRL(savingProjected)}</p>
+                <p className="mt-1 text-3xl font-black text-ber-teal">{okSavingPct.toFixed(1)}%</p>
+                <p className="mt-1 text-xs text-ber-gray">saving final estimado se manter o ritmo</p>
+              </div>
+            )}
           </div>
 
           {/* Linha de referência */}
@@ -429,7 +443,8 @@ export default function ComprasPage() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Tabela */}
       {loading ? (
