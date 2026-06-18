@@ -537,15 +537,19 @@ export default function ComprasPage() {
                     const etapaVendaLiq = children.reduce((s, c) => s + baseItem(c), 0);
                     const etapaMeta = children.reduce((s, c) => s + metaItem(c), 0);
                     const etapaPctMeta = etapaVendaLiq > 0 ? (1 - etapaMeta / etapaVendaLiq) * 100 : 0;
-                    const etapaComprado = children.reduce((s, c) => {
-                      const childComprado = c.splits.length > 0
-                        ? c.splits.reduce((ss, sp) => ss + sp.valor, 0)
-                        : c.comprado;
-                      return s + childComprado;
-                    }, 0);
-                    const effectiveComprado = etapaComprado > 0 ? etapaComprado : item.comprado;
-                    const etapaSavOrc = etapaVendaLiq - effectiveComprado;
-                    const etapaSavMeta = etapaMeta - effectiveComprado;
+                    const childCompradoVal = (c: typeof items[number]) => (c.splits.length > 0
+                      ? c.splits.reduce((ss, sp) => ss + sp.valor, 0)
+                      : c.comprado);
+                    const etapaComprado = children.reduce((s, c) => s + childCompradoVal(c), 0);
+                    // Subtotais Sav.Orç / Sav.Meta consideram só filhos com compra lançada
+                    const childrenComComprado = children.filter(c => childCompradoVal(c) > 0);
+                    const etapaSavOrc = childrenComComprado.reduce(
+                      (s, c) => s + (baseItem(c) - childCompradoVal(c)), 0
+                    );
+                    const etapaSavMeta = childrenComComprado.reduce(
+                      (s, c) => s + (metaItem(c) - childCompradoVal(c)), 0
+                    );
+                    const etapaHasComprado = childrenComComprado.length > 0;
                     return (
                       <tr key={item.id} className="bg-ber-carbon/5 border-t-2 border-ber-carbon/10">
                         <td className="px-3 py-2" />
@@ -614,11 +618,11 @@ export default function ComprasPage() {
                             <option value="Fornecedor">Fornecedor</option>
                           </select>
                         </td>
-                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavOrc >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                          {etapaSavOrc >= 0 ? fmtBRL(etapaSavOrc) : '–'}
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${!etapaHasComprado ? 'text-gray-300' : etapaSavOrc >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {etapaHasComprado ? fmtBRL(etapaSavOrc) : '–'}
                         </td>
-                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${etapaSavMeta >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                          {etapaSavMeta >= 0 ? fmtBRL(etapaSavMeta) : '–'}
+                        <td className={`px-3 py-2 text-right text-xs tabular-nums font-bold ${!etapaHasComprado ? 'text-gray-300' : etapaSavMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {etapaHasComprado ? fmtBRL(etapaSavMeta) : '–'}
                         </td>
                         <td className="px-3 py-2" />
                       </tr>
@@ -909,13 +913,13 @@ export default function ComprasPage() {
                           <Plus size={10} /> split
                         </button>
                       </td>
-                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savOrç >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                        {savOrç >= 0 ? (
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${effectiveComprado === 0 ? 'text-gray-300' : savOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {effectiveComprado === 0 ? '–' : (
                           <><TrendingDown size={10} className="inline mr-0.5" />{fmtBRL(savOrç)}</>
-                        ) : '–'}
+                        )}
                       </td>
-                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${savMeta >= 0 ? 'text-green-600' : 'text-gray-300'}`}>
-                        {savMeta >= 0 ? fmtBRL(savMeta) : '–'}
+                      <td className={`px-3 py-2 text-right text-xs tabular-nums font-medium ${effectiveComprado === 0 ? 'text-gray-300' : savMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {effectiveComprado === 0 ? '–' : fmtBRL(savMeta)}
                       </td>
                       <td className="px-3 py-2 text-center text-base">{status}</td>
                     </tr>
