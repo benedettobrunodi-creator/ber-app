@@ -266,6 +266,33 @@ export default function ComprasPage() {
   const pendVenda = itemsPend.reduce((s, i) => s + baseItem(i), 0);
   const pendMeta = itemsPend.reduce((s, i) => s + metaItem(i), 0);
 
+  // Saving "limpo" — média ponderada removendo outliers via IQR.
+  // Usado pra projeção: itens fora-da-curva (ex: R$30k saving num único item)
+  // não devem extrapolar pra obra inteira.
+  const { cleanSavingPct, cleanCount, outlierCount } = (() => {
+    const pcts = itemsComComprado
+      .map(i => ({ item: i, pct: baseItem(i) > 0 ? (baseItem(i) - i.comprado) / baseItem(i) : 0 }))
+      .sort((a, b) => a.pct - b.pct);
+    if (pcts.length < 4) {
+      return { cleanSavingPct: okSavingPct, cleanCount: pcts.length, outlierCount: 0 };
+    }
+    const q = (p: number) => {
+      const idx = (pcts.length - 1) * p;
+      const lo = Math.floor(idx), hi = Math.ceil(idx);
+      return pcts[lo].pct + (pcts[hi].pct - pcts[lo].pct) * (idx - lo);
+    };
+    const q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
+    const lower = q1 - 1.5 * iqr, upper = q3 + 1.5 * iqr;
+    const clean = pcts.filter(p => p.pct >= lower && p.pct <= upper);
+    const cleanVenda = clean.reduce((s, { item }) => s + baseItem(item), 0);
+    const cleanSaving = clean.reduce((s, { item }) => s + (baseItem(item) - item.comprado), 0);
+    return {
+      cleanSavingPct: cleanVenda > 0 ? (cleanSaving / cleanVenda) * 100 : 0,
+      cleanCount: clean.length,
+      outlierCount: pcts.length - clean.length,
+    };
+  })();
+
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
@@ -374,7 +401,7 @@ export default function ComprasPage() {
       {items.length > 0 && (() => {
         const compradosRatio = onlyItems.length > 0 ? itemsComComprado.length / onlyItems.length : 0;
         const showProjection = compradosRatio >= 0.10;
-        const savingProjected = totalVenda * (okSavingPct / 100);
+        const savingProjected = totalVenda * (cleanSavingPct / 100);
         return (
         <div className="mb-4 space-y-3">
           {/* Cards principais */}
@@ -412,8 +439,11 @@ export default function ComprasPage() {
               <div className="rounded-xl p-5 shadow-sm border bg-ber-teal/5 border-ber-teal/30">
                 <p className="text-xs font-medium uppercase tracking-wide text-ber-teal">📈 Projeção</p>
                 <p className="mt-2 text-2xl font-black text-ber-teal">{fmtBRL(savingProjected)}</p>
-                <p className="mt-1 text-3xl font-black text-ber-teal">{okSavingPct.toFixed(1)}%</p>
-                <p className="mt-1 text-xs text-ber-gray">saving final estimado se manter o ritmo</p>
+                <p className="mt-1 text-xs text-ber-gray">{cleanSavingPct.toFixed(1)}% × {fmtBRL(totalVenda)} venda total</p>
+                <p className="mt-2 text-xs text-ber-gray">
+                  saving final estimado · base limpa de {cleanCount} itens
+                  {outlierCount > 0 && <> · <span className="text-amber-700">{outlierCount} outlier{outlierCount > 1 ? 's' : ''} excluído{outlierCount > 1 ? 's' : ''}</span></>}
+                </p>
               </div>
             )}
           </div>
