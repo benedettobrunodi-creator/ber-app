@@ -373,100 +373,61 @@ export default function ComprasPage() {
       {/* Cards de resumo */}
       {items.length > 0 && (
         <div className="mb-4 space-y-3">
-          {/* Linha geral */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="text-xs text-ber-gray">Total Venda</p>
-              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalVendaBruta)}</p>
-              {comissao > 0 && (
-                <p className="text-xs text-ber-teal font-semibold mt-0.5">Líq. {fmtBRL(totalVenda)}</p>
-              )}
+          {/* 3 cards principais */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Comprado */}
+            <div className="rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm">
+              <p className="text-xs font-medium text-ber-gray uppercase tracking-wide">Comprado</p>
+              <p className="mt-2 text-2xl font-black text-ber-carbon">
+                {itemsOk.length}<span className="text-base font-semibold text-ber-gray"> de {onlyItems.length} itens</span>
+              </p>
+              <p className="mt-2 text-lg font-bold text-ber-carbon">{fmtBRL(okComprado)}</p>
+              <p className="text-xs text-ber-gray">de {fmtBRL(okVenda)} vendidos</p>
             </div>
-            <div className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="text-xs text-ber-gray">Total Meta</p>
-              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalMeta)}</p>
+
+            {/* Saving s/ Vendido */}
+            <div className={`rounded-xl p-5 shadow-sm border ${okSaving >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <p className={`text-xs font-medium uppercase tracking-wide ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Vendido</p>
+              <p className={`mt-2 text-2xl font-black ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
+              <p className={`mt-1 text-3xl font-black ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{okSavingPct.toFixed(1)}%</p>
+              <p className="mt-1 text-xs text-ber-gray">vs venda dos itens já comprados</p>
             </div>
-            <div className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="text-xs text-ber-gray">Total Comprado</p>
-              <p className="mt-1 text-lg font-bold text-ber-carbon">{fmtBRL(totalComprado)}</p>
-            </div>
-            <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <p className="text-xs text-ber-gray">Saving s/ Orçado</p>
-              <p className={`mt-1 text-lg font-bold ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingTotal)}</p>
-            </div>
-            <div className={`rounded-xl p-4 shadow-sm ${savingTotal >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <p className="text-xs text-ber-gray">% Saving s/ Orçado</p>
-              <p className={`mt-1 text-3xl font-black ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{savingPct.toFixed(1)}%</p>
-            </div>
-            <div className={`rounded-xl p-4 shadow-sm ${totalMeta - totalComprado >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <p className="text-xs text-ber-gray">Saving s/ Meta</p>
-              <p className={`mt-1 text-lg font-bold ${totalMeta - totalComprado >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(totalMeta - totalComprado)}</p>
-              <p className={`text-xs font-semibold ${totalMeta - totalComprado >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {totalVenda > 0 ? (((totalMeta - totalComprado) / totalVenda) * 100).toFixed(1) : '0.0'}%
+
+            {/* Saving s/ Meta */}
+            <div className={`rounded-xl p-5 shadow-sm border ${okSavingMeta >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <p className={`text-xs font-medium uppercase tracking-wide ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Meta</p>
+              <p className={`mt-2 text-2xl font-black ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSavingMeta)}</p>
+              <p className={`mt-1 text-3xl font-black ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>{okSavingMetaPct.toFixed(1)}%</p>
+              <p className="mt-1 text-xs text-ber-gray">
+                {okSavingMeta >= 0 ? 'dentro da meta' : '⚠ acima da meta'}
               </p>
             </div>
           </div>
-          {/* Linha saving realizado (itens com valor lançado) */}
-          {totalComprado > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
-                <p className="text-xs text-teal-700 font-medium">✅ Saving Realizado s/ Orçado</p>
-                <p className="text-xs text-teal-600 mt-0.5">{itemsComComprado.length} itens com valor lançado</p>
-                <p className={`mt-2 text-lg font-bold ${okSaving >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
-              </div>
-              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
-                <p className="text-xs text-teal-700 font-medium">✅ % Saving Realizado s/ Orçado</p>
-                <p className="text-xs text-teal-600 mt-0.5">orçado dos itens comprados</p>
-                <p className={`mt-2 text-3xl font-black ${okSavingPct >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{okSavingPct.toFixed(1)}%</p>
-              </div>
-              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
-                <p className="text-xs text-teal-700 font-medium">✅ Saving Realizado s/ Meta</p>
-                <p className="text-xs text-teal-600 mt-0.5">meta dos itens comprados</p>
-                <p className={`mt-2 text-lg font-bold ${okSavingMeta >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{fmtBRL(okSavingMeta)}</p>
-              </div>
-              <div className="rounded-xl bg-teal-50 border border-teal-100 p-4 shadow-sm">
-                <p className="text-xs text-teal-700 font-medium">✅ % Saving Realizado s/ Meta</p>
-                <p className="text-xs text-teal-600 mt-0.5">meta dos itens comprados</p>
-                <p className={`mt-2 text-3xl font-black ${okSavingMetaPct >= 0 ? 'text-teal-700' : 'text-red-600'}`}>{okSavingMetaPct.toFixed(1)}%</p>
-              </div>
+
+          {/* Linha de referência */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-lg bg-white border border-ber-gray/10 p-3">
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Total Venda</p>
+              <p className="mt-0.5 text-sm font-bold text-ber-carbon">{fmtBRL(totalVendaBruta)}</p>
+              {comissao > 0 && (
+                <p className="text-[10px] text-ber-teal font-semibold">Líq. {fmtBRL(totalVenda)}</p>
+              )}
             </div>
-          )}
-          {/* Linha comprados */}
-          {itemsOk.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl bg-green-50 p-3 shadow-sm border border-green-100">
-                <p className="text-xs text-green-700 font-medium">✅ Comprados ({itemsOk.length})</p>
-                <p className="text-xs text-ber-gray mt-1">Venda</p>
-                <p className="text-base font-bold text-green-700">{fmtBRL(okVenda)}</p>
-              </div>
-              <div className="rounded-xl bg-green-50 p-3 shadow-sm border border-green-100">
-                <p className="text-xs text-green-700 font-medium">Valor Pago</p>
-                <p className="text-base font-bold text-green-700 mt-4">{fmtBRL(okComprado)}</p>
-              </div>
-              <div className={`rounded-xl p-3 shadow-sm border ${okSaving >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                <p className={`text-xs font-medium ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving Realizado</p>
-                <p className={`text-base font-bold mt-4 ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
-              </div>
+            <div className="rounded-lg bg-white border border-ber-gray/10 p-3">
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Total Meta</p>
+              <p className="mt-0.5 text-sm font-bold text-ber-carbon">{fmtBRL(totalMeta)}</p>
             </div>
-          )}
-          {/* Linha a comprar */}
-          {itemsPend.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium">🛒 A Comprar ({itemsPend.length})</p>
-                <p className="text-xs text-ber-gray mt-1">Venda</p>
-                <p className="text-base font-bold text-amber-700">{fmtBRL(pendVenda)}</p>
-              </div>
-              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium">Meta</p>
-                <p className="text-base font-bold text-amber-700 mt-4">{fmtBRL(pendMeta)}</p>
-              </div>
-              <div className="rounded-xl bg-amber-50 p-3 shadow-sm border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium">Potencial Saving</p>
-                <p className="text-base font-bold text-amber-700 mt-4">{fmtBRL(pendVenda - pendMeta)}</p>
-              </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-100 p-3">
+              <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">🛒 A Comprar</p>
+              <p className="mt-0.5 text-sm font-bold text-amber-700">{itemsPend.length} itens · {fmtBRL(pendVenda)}</p>
+              <p className="text-[10px] text-amber-700/80">meta {fmtBRL(pendMeta)}</p>
             </div>
-          )}
+            <div className="rounded-lg bg-amber-50 border border-amber-100 p-3">
+              <p className="text-[10px] font-medium text-amber-700 uppercase tracking-wide">Potencial Saving</p>
+              <p className="mt-0.5 text-sm font-bold text-amber-700">{fmtBRL(pendVenda - pendMeta)}</p>
+              <p className="text-[10px] text-amber-700/80">se bater a meta no restante</p>
+            </div>
+          </div>
         </div>
       )}
 
