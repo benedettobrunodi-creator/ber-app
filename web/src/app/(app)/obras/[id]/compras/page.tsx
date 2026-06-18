@@ -381,27 +381,33 @@ export default function ComprasPage() {
               <p className="mt-2 text-2xl font-black text-ber-carbon">
                 {itemsOk.length}<span className="text-base font-semibold text-ber-gray"> de {onlyItems.length} itens</span>
               </p>
-              <p className="mt-2 text-lg font-bold text-ber-carbon">{fmtBRL(okComprado)}</p>
-              <p className="text-xs text-ber-gray">de {fmtBRL(okVenda)} vendidos</p>
+              <p className="mt-2 text-lg font-bold text-ber-carbon">{fmtBRL(totalComprado)}</p>
+              <p className="text-xs text-ber-gray">de {fmtBRL(totalVenda)} vendido</p>
             </div>
 
-            {/* Saving s/ Vendido */}
-            <div className={`rounded-xl p-5 shadow-sm border ${okSaving >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-              <p className={`text-xs font-medium uppercase tracking-wide ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Vendido</p>
-              <p className={`mt-2 text-2xl font-black ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSaving)}</p>
-              <p className={`mt-1 text-3xl font-black ${okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>{okSavingPct.toFixed(1)}%</p>
-              <p className="mt-1 text-xs text-ber-gray">vs venda dos itens já comprados</p>
+            {/* Saving s/ Vendido (vs valor da venda total) */}
+            <div className={`rounded-xl p-5 shadow-sm border ${savingTotal >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <p className={`text-xs font-medium uppercase tracking-wide ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Vendido</p>
+              <p className={`mt-2 text-2xl font-black ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingTotal)}</p>
+              <p className={`mt-1 text-3xl font-black ${savingTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{savingPct.toFixed(1)}%</p>
+              <p className="mt-1 text-xs text-ber-gray">venda − comprado, sobre venda total</p>
             </div>
 
-            {/* Saving s/ Meta */}
-            <div className={`rounded-xl p-5 shadow-sm border ${okSavingMeta >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-              <p className={`text-xs font-medium uppercase tracking-wide ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Meta</p>
-              <p className={`mt-2 text-2xl font-black ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(okSavingMeta)}</p>
-              <p className={`mt-1 text-3xl font-black ${okSavingMeta >= 0 ? 'text-green-700' : 'text-red-600'}`}>{okSavingMetaPct.toFixed(1)}%</p>
-              <p className="mt-1 text-xs text-ber-gray">
-                {okSavingMeta >= 0 ? 'dentro da meta' : '⚠ acima da meta'}
-              </p>
-            </div>
+            {/* Saving s/ Meta (vs meta total) */}
+            {(() => {
+              const savingMetaTotal = totalMeta - totalComprado;
+              const savingMetaPctTotal = totalMeta > 0 ? (savingMetaTotal / totalMeta) * 100 : 0;
+              return (
+                <div className={`rounded-xl p-5 shadow-sm border ${savingMetaTotal >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${savingMetaTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>Saving / Meta</p>
+                  <p className={`mt-2 text-2xl font-black ${savingMetaTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(savingMetaTotal)}</p>
+                  <p className={`mt-1 text-3xl font-black ${savingMetaTotal >= 0 ? 'text-green-700' : 'text-red-600'}`}>{savingMetaPctTotal.toFixed(1)}%</p>
+                  <p className="mt-1 text-xs text-ber-gray">
+                    {savingMetaTotal >= 0 ? 'dentro da meta' : '⚠ acima da meta'}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Linha de referência */}
