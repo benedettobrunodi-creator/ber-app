@@ -520,6 +520,27 @@ export default function ComprasPage() {
                 <th className="px-3 py-3 text-right">Sav. Meta</th>
                 <th className="px-3 py-3 text-center w-10">🚦</th>
               </tr>
+              <tr className="bg-ber-carbon/80 text-[11px]">
+                <th
+                  colSpan={comissao > 0 ? 12 : 11}
+                  className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-white/60"
+                >
+                  Total
+                </th>
+                <th className={`px-3 py-2 text-right tabular-nums font-bold ${okSaving >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                  <div className="leading-tight">
+                    {fmtBRL(okSaving)}
+                    <div className="text-[10px] font-medium opacity-80">{okSavingPct.toFixed(1)}%</div>
+                  </div>
+                </th>
+                <th className={`px-3 py-2 text-right tabular-nums font-bold ${okSavingMeta >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                  <div className="leading-tight">
+                    {fmtBRL(okSavingMeta)}
+                    <div className="text-[10px] font-medium opacity-80">{okSavingMetaPct.toFixed(1)}%</div>
+                  </div>
+                </th>
+                <th />
+              </tr>
             </thead>
             <tbody>
               {(() => {
