@@ -53,6 +53,7 @@ import diarioRouter, { obraDiarioRouter } from './modules/diario/routes';
 import cronogramaRouter from './modules/cronograma/routes';
 import relatorioRouter from './modules/relatorio-semanal/routes';
 import crmRoutes from './modules/crm/routes';
+import comprasDashboardRoutes from './modules/compras-dashboard/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 import { requirePermission } from './middleware/permission';
@@ -172,6 +173,9 @@ app.use('/v1/time-entries', ...perm('ponto'), timeEntryRoutes);
 
 // — Módulo: dashboard —
 app.use('/v1/dashboard', ...perm('dashboard'), dashboardRoutes);
+
+// — Módulo: compras-dashboard (visão consolidada cross-obras) —
+app.use('/v1/compras-dashboard', ...perm('comprasDashboard'), comprasDashboardRoutes);
 
 // — Módulo: orçamentos / CRM —
 app.use('/v1/proposals', ...perm('orcamentos'), proposalRoutes);
