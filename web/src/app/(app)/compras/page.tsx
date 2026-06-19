@@ -294,18 +294,18 @@ export default function ComprasGlobalPage() {
                       <div className="flex flex-col items-end leading-tight">
                         <span className="inline-flex items-center gap-1">
                           {i.okSaving >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                          {fmtPct(i.okSavingPct)}
+                          {fmtBRL(i.okSaving)}
                         </span>
-                        <span className="text-[11px] font-medium opacity-80">{fmtBRL(i.okSaving)}</span>
+                        <span className="text-[11px] font-medium opacity-80">{fmtPct(i.okSavingPct)}</span>
                       </div>
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${savingNeg ? 'text-red-600' : 'text-green-700'}`}>
                       <div className="flex flex-col items-end leading-tight">
                         <span className="inline-flex items-center gap-1">
                           {savingNeg && <AlertTriangle size={12} />}
-                          {fmtPct(i.okSavingMetaPct)}
+                          {fmtBRL(i.okSavingMeta)}
                         </span>
-                        <span className="text-[11px] font-medium opacity-80">{fmtBRL(i.okSavingMeta)}</span>
+                        <span className="text-[11px] font-medium opacity-80">{fmtPct(i.okSavingMetaPct)}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
