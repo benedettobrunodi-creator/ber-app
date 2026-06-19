@@ -291,16 +291,22 @@ export default function ComprasGlobalPage() {
                     <td className="px-3 py-2.5 text-right tabular-nums">{fmtBRL(i.totalComprado)}</td>
                     <td className="px-3 py-2.5 text-center tabular-nums text-ber-gray">{fmtPct(pctItens)}</td>
                     <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${i.okSaving >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      <span className="inline-flex items-center gap-1">
-                        {i.okSaving >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {fmtPct(i.okSavingPct)}
-                      </span>
+                      <div className="flex flex-col items-end leading-tight">
+                        <span className="inline-flex items-center gap-1">
+                          {i.okSaving >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {fmtPct(i.okSavingPct)}
+                        </span>
+                        <span className="text-[11px] font-medium opacity-80">{fmtBRL(i.okSaving)}</span>
+                      </div>
                     </td>
                     <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${savingNeg ? 'text-red-600' : 'text-green-700'}`}>
-                      <span className="inline-flex items-center gap-1">
-                        {savingNeg && <AlertTriangle size={12} />}
-                        {fmtPct(i.okSavingMetaPct)}
-                      </span>
+                      <div className="flex flex-col items-end leading-tight">
+                        <span className="inline-flex items-center gap-1">
+                          {savingNeg && <AlertTriangle size={12} />}
+                          {fmtPct(i.okSavingMetaPct)}
+                        </span>
+                        <span className="text-[11px] font-medium opacity-80">{fmtBRL(i.okSavingMeta)}</span>
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       <span className="text-amber-700">{i.itensPendentes} · {fmtBRL(i.pendVenda)}</span>
