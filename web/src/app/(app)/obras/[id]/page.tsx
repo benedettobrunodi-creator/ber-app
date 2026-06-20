@@ -1081,6 +1081,12 @@ export default function ObraDetailPage() {
         <Link href={`/obras/${params.id}/raci`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
           🧩 RACI
         </Link>
+        <Link href={`/obras/${params.id}/cronograma-contratacoes`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          📆 Crn. Contratações
+        </Link>
+        <Link href={`/obras/${params.id}/histograma`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          📊 Histograma
+        </Link>
       </div>
 
       {/* Tab content */}

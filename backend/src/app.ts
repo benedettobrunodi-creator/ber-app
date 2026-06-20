@@ -228,6 +228,15 @@ import { obraRaciRouter, raciRouter } from './modules/raci/routes';
 app.use('/v1/obras/:obraId/raci', ...perm('raci'), obraRaciRouter);
 app.use('/v1/raci', ...perm('raci'), raciRouter);
 
+// — Módulo: cronograma de contratações (Gestão 360) —
+import { obraPlanoRouter, planoRouter } from './modules/contratacao-plano/routes';
+app.use('/v1/obras/:obraId/contratacao-plano', ...perm('contratacaoPlano'), obraPlanoRouter);
+app.use('/v1/contratacao-plano', ...perm('contratacaoPlano'), planoRouter);
+
+// — Módulo: histograma de MO (Gestão 360) —
+import { obraHistogramaRouter } from './modules/histograma/routes';
+app.use('/v1/obras/:obraId/histograma', ...perm('histograma'), obraHistogramaRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 

@@ -20,6 +20,8 @@ export const APP_MODULES = [
   { key: 'stakeholders', label: 'Stakeholders' },
   { key: 'kickoff',      label: 'Kick-Off' },
   { key: 'raci',         label: 'Matriz RACI' },
+  { key: 'contratacaoPlano', label: 'Cronograma de Contratações' },
+  { key: 'histograma',   label: 'Histograma de MO' },
   { key: 'organograma',  label: 'Organograma' },
   { key: 'configuracoes', label: 'Configurações' },
   { key: 'admin',        label: 'Admin (Gestão de Usuários)' },

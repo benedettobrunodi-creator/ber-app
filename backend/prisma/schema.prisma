@@ -187,6 +187,8 @@ model Obra {
   stakeholders       ObraStakeholder[]
   kickoff            ObraKickoff?
   raciItens          ObraRaci[]
+  contratacaoPlanos  ObraContratacaoPlano[]
+  histograma         ObraHistograma[]
 
   @@map("obras")
 }
@@ -1864,6 +1866,47 @@ model OrgChart {
   @@map("org_charts")
 }
 
+// ─── ObraContratacaoPlano (cronograma de contratações) ──────────────────
+model ObraContratacaoPlano {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  pacote        String    @db.VarChar(150) // disciplina ou etapa
+  dataIdeal     DateTime? @map("data_ideal") @db.Date
+  dataLimite    DateTime? @map("data_limite") @db.Date
+  contratacaoId String?   @unique @map("contratacao_id") @db.Uuid
+  status        String    @default("a_contratar") @db.VarChar(20)
+  // a_contratar | em_cotacao | contratado | atrasado
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra              @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratacao ObraContratacao?  @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+
+  @@index([obraId])
+  @@index([status])
+  @@map("obra_contratacao_planos")
+}
+
+// ─── ObraHistograma (mão de obra plan × real por mês) ────────────────────
+model ObraHistograma {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  funcao    String   @db.VarChar(100)
+  ano       Int
+  mes       Int      // 1..12
+  hhPlan    Float    @default(0) @map("hh_plan")
+  hhReal    Float    @default(0) @map("hh_real")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@unique([obraId, funcao, ano, mes])
+  @@index([obraId])
+  @@map("obra_histograma")
+}
+
 // ─── ObraDocumento (controle de docs e aprovações) ───────────────────────
 model ObraDocumento {
   id            String    @id @default(uuid()) @db.Uuid
@@ -1983,8 +2026,9 @@ model ObraContratacao {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra Obra              @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  ocs  ObraOrdemCompra[]
+  obra  Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  ocs   ObraOrdemCompra[]
+  plano ObraContratacaoPlano? @relation("PlanoContratacao")
 
   @@index([obraId])
   @@index([status])
