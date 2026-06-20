@@ -181,6 +181,7 @@ model Obra {
   aditivos           ObraAditivo[]
   contratacoes       ObraContratacao[]
   ordensCompra       ObraOrdemCompra[]
+  atas               ObraAta[]
 
   @@map("obras")
 }
@@ -901,10 +902,18 @@ model PunchListItem {
   resolvedAt    DateTime? @map("resolved_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
+  // ─── Origem (Sprint 1.4) ─── alimenta o módulo Pendências unificado
+  origem        String    @default("livre") @db.VarChar(20)
+  // livre | ata | diario | vistoria
+  ataOrigemId   String?   @map("ata_origem_id") @db.Uuid
+  prazo         DateTime? @db.Date
+
   punchList   PunchList @relation(fields: [punchListId], references: [id], onDelete: Cascade)
   responsible User?     @relation("PunchListResponsible", fields: [responsibleId], references: [id])
+  ataOrigem   ObraAta?  @relation("AtaPendencias", fields: [ataOrigemId], references: [id], onDelete: SetNull)
 
   @@index([punchListId])
+  @@index([ataOrigemId])
   @@map("punch_list_items")
 }
 
@@ -1848,6 +1857,28 @@ model OrgChart {
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("org_charts")
+}
+
+// ─── ObraAta (atas de reuniões internas e externas) ─────────────────────
+model ObraAta {
+  id            String   @id @default(uuid()) @db.Uuid
+  obraId        String   @map("obra_id") @db.Uuid
+  tipo          String   @db.VarChar(10) // "interna" | "externa"
+  numero        String   @db.VarChar(20)
+  data          DateTime @db.Date
+  local         String?  @db.VarChar(255)
+  participantes Json     @default("[]") // [{ nome, papel }]
+  pauta         String
+  decisoes      String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra       Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  pendencias PunchListItem[] @relation("AtaPendencias")
+
+  @@index([obraId])
+  @@index([tipo])
+  @@map("obra_atas")
 }
 
 // ─── ObraContratacao (formaliza contrato com fornecedor) ─────────────────

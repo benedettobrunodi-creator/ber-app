@@ -1062,6 +1062,13 @@ export default function ObraDetailPage() {
         >
           📑 Contratos
         </Link>
+        {/* Atas — página dedicada */}
+        <Link
+          href={`/obras/${params.id}/atas`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          📋 Atas
+        </Link>
       </div>
 
       {/* Tab content */}

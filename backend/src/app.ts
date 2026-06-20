@@ -204,6 +204,11 @@ app.use('/v1/contratacoes', ...perm('contratacoes'), contratacoesRouter);
 app.use('/v1/obras/:obraId/ordens-compra', ...perm('contratacoes'), obraOcsRouter);
 app.use('/v1/ordens-compra', ...perm('contratacoes'), ocsRouter);
 
+// — Módulo: atas (Gestão 360) —
+import { obraAtasRouter, atasRouter } from './modules/atas/routes';
+app.use('/v1/obras/:obraId/atas', ...perm('atas'), obraAtasRouter);
+app.use('/v1/atas', ...perm('atas'), atasRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 

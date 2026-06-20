@@ -15,6 +15,7 @@ export const APP_MODULES = [
   { key: 'comprasDashboard', label: 'Metas de Compra (Consolidado)' },
   { key: 'aditivos',     label: 'Aditivos (Change Orders)' },
   { key: 'contratacoes', label: 'Contratações & OCs' },
+  { key: 'atas',         label: 'Atas de Reunião' },
   { key: 'organograma',  label: 'Organograma' },
   { key: 'configuracoes', label: 'Configurações' },
   { key: 'admin',        label: 'Admin (Gestão de Usuários)' },
