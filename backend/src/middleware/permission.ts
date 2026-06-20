@@ -8,13 +8,13 @@ const ALL_OFF: Record<string, boolean> = {
   orcamentos: false, organograma: false, configuracoes: false, admin: false,
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
-  contratacaoPlano: false, histograma: false,
+  contratacaoPlano: false, histograma: false, gestao360: false,
 };
 
 const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
   socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
                  documentos: true, stakeholders: true, kickoff: true, raci: true,
-                 contratacaoPlano: true, histograma: true },
+                 contratacaoPlano: true, histograma: true, gestao360: true },
   diretoria:   { ...ALL_OFF },
   coordenacao: { ...ALL_OFF },
   pmo:         { ...ALL_OFF },

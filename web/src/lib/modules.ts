@@ -22,6 +22,7 @@ export const APP_MODULES = [
   { key: 'raci',         label: 'Matriz RACI' },
   { key: 'contratacaoPlano', label: 'Cronograma de Contratações' },
   { key: 'histograma',   label: 'Histograma de MO' },
+  { key: 'gestao360',    label: 'Gestão 360 (cockpit)' },
   { key: 'organograma',  label: 'Organograma' },
   { key: 'configuracoes', label: 'Configurações' },
   { key: 'admin',        label: 'Admin (Gestão de Usuários)' },

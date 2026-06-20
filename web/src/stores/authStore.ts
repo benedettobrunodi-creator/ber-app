@@ -20,7 +20,7 @@ const ALL_OFF: Record<string, boolean> = {
   orcamentos: false, organograma: false, configuracoes: false, admin: false,
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
-  contratacaoPlano: false, histograma: false,
+  contratacaoPlano: false, histograma: false, gestao360: false,
 };
 
 /** Default permissions per cargo — used when user has no explicit permissions set.
@@ -28,7 +28,7 @@ const ALL_OFF: Record<string, boolean> = {
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
   socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
                  documentos: true, stakeholders: true, kickoff: true, raci: true,
-                 contratacaoPlano: true, histograma: true },
+                 contratacaoPlano: true, histograma: true, gestao360: true },
   diretoria:   { ...ALL_OFF },
   coordenacao: { ...ALL_OFF },
   pmo:         { ...ALL_OFF },

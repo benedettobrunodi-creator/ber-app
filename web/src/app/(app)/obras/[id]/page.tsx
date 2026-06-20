@@ -1041,6 +1041,13 @@ export default function ObraDetailPage() {
             <RotateCcw size={10} /> Resetar layout
           </button>
         )}
+        {/* Gestão 360 — cockpit destaque */}
+        <Link
+          href={`/obras/${params.id}/gestao-360`}
+          className="shrink-0 px-4 py-2.5 text-sm font-semibold text-white bg-ber-carbon hover:bg-ber-black rounded-md transition-colors flex items-center gap-1.5 ml-2"
+        >
+          🎯 Gestão 360
+        </Link>
         {/* Compras — página dedicada */}
         <Link
           href={`/obras/${params.id}/compras`}
