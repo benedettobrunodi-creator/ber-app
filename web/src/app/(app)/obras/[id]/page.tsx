@@ -1055,6 +1055,13 @@ export default function ObraDetailPage() {
         >
           📝 Aditivos
         </Link>
+        {/* Contratações & OCs — página dedicada */}
+        <Link
+          href={`/obras/${params.id}/contratacoes`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          📑 Contratos
+        </Link>
       </div>
 
       {/* Tab content */}

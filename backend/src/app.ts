@@ -196,6 +196,14 @@ import { obraAditivosRouter, aditivosRouter } from './modules/aditivos/routes';
 app.use('/v1/obras/:obraId/aditivos', ...perm('aditivos'), obraAditivosRouter);
 app.use('/v1/aditivos', ...perm('aditivos'), aditivosRouter);
 
+// — Módulo: contratações + ordens de compra (Gestão 360) —
+import { obraContratacoesRouter, contratacoesRouter } from './modules/contratacoes/routes';
+import { obraOcsRouter, ocsRouter } from './modules/ordens-compra/routes';
+app.use('/v1/obras/:obraId/contratacoes', ...perm('contratacoes'), obraContratacoesRouter);
+app.use('/v1/contratacoes', ...perm('contratacoes'), contratacoesRouter);
+app.use('/v1/obras/:obraId/ordens-compra', ...perm('contratacoes'), obraOcsRouter);
+app.use('/v1/ordens-compra', ...perm('contratacoes'), ocsRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 
