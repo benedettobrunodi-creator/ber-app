@@ -178,6 +178,7 @@ model Obra {
   cronogramas        Cronograma[]
   relatorios         RelatorioSemanal[]
   curvaS             RelatorioCurvaS[]
+  aditivos           ObraAditivo[]
 
   @@map("obras")
 }

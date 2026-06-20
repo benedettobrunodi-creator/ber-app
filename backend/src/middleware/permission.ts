@@ -6,11 +6,11 @@ const ALL_OFF: Record<string, boolean> = {
   dashboard: false, obras: false, kanban: false, checklists: false, diario: false,
   recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: false,
   orcamentos: false, organograma: false, configuracoes: false, admin: false,
-  comprasDashboard: false,
+  comprasDashboard: false, aditivos: false,
 };
 
 const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
-  socio:       { ...ALL_OFF, admin: true, comprasDashboard: true },
+  socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true },
   diretoria:   { ...ALL_OFF },
   coordenacao: { ...ALL_OFF },
   pmo:         { ...ALL_OFF },

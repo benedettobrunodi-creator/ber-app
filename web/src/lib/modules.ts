@@ -13,6 +13,7 @@ export const APP_MODULES = [
   { key: 'ponto',        label: 'Registro de Ponto' },
   { key: 'orcamentos',   label: 'Orçamentos / CRM' },
   { key: 'comprasDashboard', label: 'Metas de Compra (Consolidado)' },
+  { key: 'aditivos',     label: 'Aditivos (Change Orders)' },
   { key: 'organograma',  label: 'Organograma' },
   { key: 'configuracoes', label: 'Configurações' },
   { key: 'admin',        label: 'Admin (Gestão de Usuários)' },

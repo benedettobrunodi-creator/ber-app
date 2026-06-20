@@ -191,6 +191,11 @@ app.use('/v1/organograma', ...perm('organograma'), organogramaRouter);
 import attachmentsRouter from './modules/attachments/routes';
 app.use('/v1/attachments', authenticate, attachmentsRouter);
 
+// — Módulo: aditivos (Gestão 360) —
+import { obraAditivosRouter, aditivosRouter } from './modules/aditivos/routes';
+app.use('/v1/obras/:obraId/aditivos', ...perm('aditivos'), obraAditivosRouter);
+app.use('/v1/aditivos', ...perm('aditivos'), aditivosRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 

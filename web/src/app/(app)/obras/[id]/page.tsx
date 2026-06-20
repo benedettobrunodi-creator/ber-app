@@ -1048,6 +1048,13 @@ export default function ObraDetailPage() {
         >
           🛒 Compras
         </Link>
+        {/* Aditivos — página dedicada */}
+        <Link
+          href={`/obras/${params.id}/aditivos`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          📝 Aditivos
+        </Link>
       </div>
 
       {/* Tab content */}
