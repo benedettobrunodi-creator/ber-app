@@ -371,13 +371,38 @@ Priorizada por impacto (financeiro/operacional) e dependências:
 
 ---
 
-## 7. Pontos abertos pra decisão
+## 7. Decisões (Bruno · 2026-06-20)
 
-- [ ] **PunchList vs Pendências:** reaproveitar o módulo existente de PunchList (rebranding) ou criar `ObraPendencia` separado? Recomendação: rebranding/extender PunchList.
-- [ ] **Cronograma físico:** hoje é upload de arquivo + parsed data. Pra Gantt no 360, precisaríamos parsear estruturado (MS Project / Excel padronizado) ou criar UI de cadastro manual de atividades?
-- [ ] **Permissions por obra:** os módulos hoje são acesso global (você vê todas as obras se tem a perm). Faz sentido restringir aditivos/contratos por obra (só coordenador da obra edita)?
-- [ ] **Anexos:** todos os modelos têm `*Url` pra anexo único. Vale generalizar via tabela `Attachment` polimórfica (1 entidade → N anexos)?
-- [ ] **Stakeholders e User:** stakeholders externos não são users do sistema. Cabe expor convite p/ virarem users? Ou ficam só como contato?
+- [x] **Pendências (PunchList unificado):** estender `PunchList` pra ser o módulo único de Pendências. Adicionar campo `origem` (livre / ata / diário / vistoria / etc) e adaptar a UI. Não criar `ObraPendencia` separado.
+- [x] **Cronograma físico:** manter como upload de arquivo. O Gestão 360 consome o parsed data atual no melhor esforço — sem UI de cadastro manual de atividades. Possível upgrade futuro: melhorar parser pra reconhecer marcos.
+- [x] **Permissions por obra:** modelo MISTO. Quem tem a perm de um módulo (ex: `aditivos`) vê os dados de todas as obras (read), mas só edita se for `coordinator` ou `member` daquela obra. `socio`/`admin` ignora a restrição.
+- [x] **Anexos polimórficos:** criar tabela `Attachment` única (`entityType` + `entityId` + URL + metadata). Todos os módulos novos usam ela em vez de campo `anexoUrl`. Refatorar os campos já existentes em sprint separada.
+- [x] **Stakeholders × Users:** stakeholders ficam como contatos puros (nome, empresa, contato). Sem convite p/ virar User. Se precisar futuramente, vira feature dedicada.
+
+### Implicações nos schemas
+
+Aplicar antes de gerar migrações:
+- Substituir `anexoUrl` em `ObraKickoff`, `ObraAta`, `ObraAditivo`, `ObraContratacao`, `ObraOrdemCompra`, `ObraDocumento` por relação com tabela `Attachment`.
+- Em `PunchListItem` adicionar `origem` (String), `origemId` (UUID opcional), `ataOrigemId` (UUID opcional). Manter `ObraPendencia` fora do schema.
+- Aditivos/Contratos: criar middleware `obraMemberOnly` no backend que valida edit. Read continua via `perm()` padrão.
+
+### Tabela `Attachment` (polimórfica)
+```prisma
+model Attachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(50) // "aditivo" | "ata" | "documento" | ...
+  entityId    String   @map("entity_id") @db.Uuid
+  fileName    String   @map("file_name") @db.VarChar(255)
+  fileUrl     String   @map("file_url")
+  mimeType    String?  @map("mime_type") @db.VarChar(100)
+  sizeBytes   Int?     @map("size_bytes")
+  uploadedById String? @map("uploaded_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("attachments")
+}
+```
 
 ---
 
