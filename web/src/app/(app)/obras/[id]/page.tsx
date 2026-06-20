@@ -1069,6 +1069,18 @@ export default function ObraDetailPage() {
         >
           📋 Atas
         </Link>
+        <Link href={`/obras/${params.id}/documentos`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          📄 Docs
+        </Link>
+        <Link href={`/obras/${params.id}/stakeholders`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          👥 Stakeholders
+        </Link>
+        <Link href={`/obras/${params.id}/kickoff`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          🚀 Kick-Off
+        </Link>
+        <Link href={`/obras/${params.id}/raci`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
+          🧩 RACI
+        </Link>
       </div>
 
       {/* Tab content */}

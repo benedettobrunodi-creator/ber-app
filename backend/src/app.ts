@@ -209,6 +209,25 @@ import { obraAtasRouter, atasRouter } from './modules/atas/routes';
 app.use('/v1/obras/:obraId/atas', ...perm('atas'), obraAtasRouter);
 app.use('/v1/atas', ...perm('atas'), atasRouter);
 
+// — Módulo: documentos (Gestão 360) —
+import { obraDocumentosRouter, documentosRouter } from './modules/documentos/routes';
+app.use('/v1/obras/:obraId/documentos', ...perm('documentos'), obraDocumentosRouter);
+app.use('/v1/documentos', ...perm('documentos'), documentosRouter);
+
+// — Módulo: stakeholders (Gestão 360) —
+import { obraStakeholdersRouter, stakeholdersRouter } from './modules/stakeholders/routes';
+app.use('/v1/obras/:obraId/stakeholders', ...perm('stakeholders'), obraStakeholdersRouter);
+app.use('/v1/stakeholders', ...perm('stakeholders'), stakeholdersRouter);
+
+// — Módulo: kickoff (Gestão 360 · 1:1 por obra) —
+import { obraKickoffRouter } from './modules/kickoff/routes';
+app.use('/v1/obras/:obraId/kickoff', ...perm('kickoff'), obraKickoffRouter);
+
+// — Módulo: RACI (Gestão 360) —
+import { obraRaciRouter, raciRouter } from './modules/raci/routes';
+app.use('/v1/obras/:obraId/raci', ...perm('raci'), obraRaciRouter);
+app.use('/v1/raci', ...perm('raci'), raciRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 

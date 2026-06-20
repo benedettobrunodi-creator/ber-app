@@ -69,6 +69,7 @@ model User {
   coordFvs                ObraFvs[]               @relation("FvsCoordApprover")
   rejectedFvs             ObraFvs[]               @relation("FvsRejector")
   aditivosDecididos       ObraAditivo[]           @relation("AditivoDecididoPor")
+  documentosAprovados     ObraDocumento[]         @relation("DocumentoAprovadoPor")
   filledFvsItems          ObraFvsItem[]           @relation("FvsItemFiller")
   filledBerChecklists     ObraBerChecklist[]      @relation("BerChecklistFiller")
   fotosEnviadas           ObraFoto[]              @relation("FotoAutor")
@@ -182,6 +183,10 @@ model Obra {
   contratacoes       ObraContratacao[]
   ordensCompra       ObraOrdemCompra[]
   atas               ObraAta[]
+  documentos         ObraDocumento[]
+  stakeholders       ObraStakeholder[]
+  kickoff            ObraKickoff?
+  raciItens          ObraRaci[]
 
   @@map("obras")
 }
@@ -1857,6 +1862,87 @@ model OrgChart {
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("org_charts")
+}
+
+// ─── ObraDocumento (controle de docs e aprovações) ───────────────────────
+model ObraDocumento {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  tipo          String    @db.VarChar(50)
+  // projeto | memorial | contrato | as_built | certificado | proposta | outros
+  nome          String    @db.VarChar(255)
+  revisao       String?   @db.VarChar(20)
+  emitidoPor    String?   @map("emitido_por") @db.VarChar(255)
+  dataEmissao   DateTime? @map("data_emissao") @db.Date
+  status        String    @default("em_analise") @db.VarChar(20)
+  // em_analise | aprovado | reprovado | pendente
+  aprovadoEm    DateTime? @map("aprovado_em")
+  aprovadoPorId String?   @map("aprovado_por") @db.Uuid
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  aprovadoPor User? @relation("DocumentoAprovadoPor", fields: [aprovadoPorId], references: [id])
+
+  @@index([obraId])
+  @@index([status])
+  @@map("obra_documentos")
+}
+
+// ─── ObraStakeholder (contatos do projeto) ───────────────────────────────
+model ObraStakeholder {
+  id        String  @id @default(uuid()) @db.Uuid
+  obraId    String  @map("obra_id") @db.Uuid
+  empresa   String  @db.VarChar(255)
+  nome      String  @db.VarChar(255)
+  cargo     String? @db.VarChar(150)
+  email     String? @db.VarChar(255)
+  telefone  String? @db.VarChar(50)
+  funcao    String? @db.VarChar(150)
+  ordem     Int     @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@map("obra_stakeholders")
+}
+
+// ─── ObraKickoff (1:1 com a obra) ────────────────────────────────────────
+model ObraKickoff {
+  id              String    @id @default(uuid()) @db.Uuid
+  obraId          String    @unique @map("obra_id") @db.Uuid
+  dataRealizada   DateTime? @map("data_realizada") @db.Date
+  participantes   Json      @default("[]") // [{ nome, papel }]
+  pautaCoberta    String?   @map("pauta_coberta")
+  decisoes        String?
+  premissas       String?
+  riscosIniciais  String?   @map("riscos_iniciais")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("obra_kickoffs")
+}
+
+// ─── ObraRaci (matriz de responsabilidades) ──────────────────────────────
+model ObraRaci {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  atividade String   @db.VarChar(255)
+  ordem     Int      @default(0)
+  // papeis: { stakeholderId|userId: "R" | "A" | "C" | "I" }
+  papeis    Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@map("obra_raci")
 }
 
 // ─── ObraAta (atas de reuniões internas e externas) ─────────────────────

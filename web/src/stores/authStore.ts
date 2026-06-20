@@ -19,12 +19,14 @@ const ALL_OFF: Record<string, boolean> = {
   recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: false,
   orcamentos: false, organograma: false, configuracoes: false, admin: false,
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
+  documentos: false, stakeholders: false, kickoff: false, raci: false,
 };
 
 /** Default permissions per cargo — used when user has no explicit permissions set.
  *  All roles start with no access; socio keeps admin so the owner can always manage users. */
 const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
-  socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true, contratacoes: true, atas: true },
+  socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
+                 documentos: true, stakeholders: true, kickoff: true, raci: true },
   diretoria:   { ...ALL_OFF },
   coordenacao: { ...ALL_OFF },
   pmo:         { ...ALL_OFF },
