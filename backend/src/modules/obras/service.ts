@@ -60,6 +60,9 @@ export async function createObra(input: CreateObraInput) {
         startDate: input.startDate ? new Date(input.startDate) : undefined,
         expectedEndDate: input.expectedEndDate ? new Date(input.expectedEndDate) : undefined,
         coordinatorId: input.coordinatorId,
+        arquiteturaEscritorio: input.arquiteturaEscritorio,
+        gerenciadora: input.gerenciadora,
+        areaM2: input.areaM2,
       },
       include: {
         coordinator: { select: { id: true, name: true } },

@@ -22,75 +22,75 @@ model User {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relations
-  coordinatedObras Obra[]             @relation("ObraCoordinator")
-  obraMembers      ObraMember[]
-  assignedTasks    ObraTask[]         @relation("TaskAssignee")
-  createdTasks     ObraTask[]         @relation("TaskCreator")
-  proposals        Proposal[]
-  meetingsCreated  Meeting[]
-  announcements    Announcement[]
-  announcementReads AnnouncementRead[]
-  chatRoomMembers  ChatRoomMember[]
-  chatMessages     ChatMessage[]
-  photos           Photo[]
-  photoComments    PhotoComment[]
-  notifications    Notification[]
-  timeEntries      TimeEntry[]
-  createdChecklists  Checklist[]     @relation("ChecklistCreator")
-  responsibleItems   ChecklistItem[] @relation("ChecklistItemResponsible")
-  answeredItems      ChecklistItem[] @relation("ChecklistItemAnswerer")
-  canteiroCreated    CanteiroChecklist[]     @relation("CanteiroCreator")
-  canteiroApproved   CanteiroChecklist[]     @relation("CanteiroApprover")
-  canteiroAnswered   CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
-  aprsCreated      APR[]               @relation("APRCreator")
-  aprsApproved     APR[]               @relation("APRApprover")
-  epiControls      EPIControl[]        @relation("EPIUser")
-  incidentsReported Incident[]         @relation("IncidentReporter")
-  incidentsInjured  Incident[]         @relation("IncidentInjured")
-  trainings        Training[]          @relation("TrainingUser")
-  sequenciamentosCreated ObraSequenciamento[] @relation("SeqCreator")
-  etapasSubmitted  ObraEtapa[]         @relation("EtapaSubmitter")
-  etapasApproved   ObraEtapa[]         @relation("EtapaApprover")
-  etapasRejected   ObraEtapa[]         @relation("EtapaRejecter")
-  instrucoesCreated  InstrucaoTecnica[] @relation("ITCreator")
-  instrucoesUpdated  InstrucaoTecnica[] @relation("ITUpdater")
-  recebimentosRegistrados RecebimentoMaterial[] @relation("RecebimentoRegistrador")
-  faseHistoryChanged    ObraFaseHistory[]    @relation("FaseHistoryChanger")
-  obraFaseUpdated       Obra[]               @relation("ObraFaseUpdater")
-  conductedTouchpoints  ClientTouchpoint[]   @relation("TouchpointConductor")
-  touchpointNextActions ClientTouchpoint[]   @relation("TouchpointNextOwner")
-  createdTouchpoints    ClientTouchpoint[]   @relation("TouchpointCreator")
-  createdPunchLists     PunchList[]          @relation("PunchListCreator")
-  punchListItems        PunchListItem[]      @relation("PunchListResponsible")
-  etapaEditRequests     EtapaEditRequest[]   @relation("EtapaEditRequester")
-  etapaEditResolved     EtapaEditRequest[]   @relation("EtapaEditResolver")
-  filledFvs             ObraFvs[]            @relation("FvsFiller")
-  gestorFvs             ObraFvs[]            @relation("FvsGestorApprover")
-  coordFvs              ObraFvs[]            @relation("FvsCoordApprover")
-  rejectedFvs           ObraFvs[]            @relation("FvsRejector")
-  filledFvsItems        ObraFvsItem[]        @relation("FvsItemFiller")
-  filledBerChecklists   ObraBerChecklist[]   @relation("BerChecklistFiller")
-  fotosEnviadas         ObraFoto[]           @relation("FotoAutor")
-  filledBerItems        ObraBerChecklistItem[] @relation("BerChecklistItemFiller")
-  dreUpdates            DreValue[]             @relation("DreUpdater")
-  alocacoes             Alocacao[]             @relation("AlocacaoUser")
-  recursosExternosCriados RecursoExterno[]     @relation("RecursoExternoCreator")
-  customRole            CustomRole?            @relation(fields: [customRoleId], references: [id])
-  customRoleId          String?                @map("custom_role_id") @db.Uuid
-  orcamentosResponsavel Orcamento[]            @relation("OrcResp")
-  orcamentosCriados     Orcamento[]            @relation("OrcCriador")
-  apiKeys               ApiKey[]               @relation("ApiKeyCreator")
-  diariosCriados        DiarioObra[]           @relation("DiarioCriadoPor")
-  diariosFechados       DiarioObra[]           @relation("DiarioFechadoPor")
-  diarioFotos           DiarioFoto[]           @relation("DiarioFotoUploader")
-  diarioEfetivos        DiarioEfetivo[]        @relation("DiarioEfetivoUser")
-  crmOportunidadesResp  CrmOportunidade[]      @relation("CrmOportResponsavel")
-  crmOportunidadesCriadas CrmOportunidade[]    @relation("CrmOportCreator")
-  crmAtividades         CrmAtividade[]         @relation("CrmAtividadeUsuario")
-  crmCampanhas          CrmCampanha[]          @relation("CrmCampanhaResponsavel")
-  relatorios            RelatorioSemanal[]     @relation("RelatorioResponsavel")
-  resetTokens           PasswordResetToken[]
-  orgChartUpdates       OrgChart[]
+  coordinatedObras        Obra[]                  @relation("ObraCoordinator")
+  obraMembers             ObraMember[]
+  assignedTasks           ObraTask[]              @relation("TaskAssignee")
+  createdTasks            ObraTask[]              @relation("TaskCreator")
+  proposals               Proposal[]
+  meetingsCreated         Meeting[]
+  announcements           Announcement[]
+  announcementReads       AnnouncementRead[]
+  chatRoomMembers         ChatRoomMember[]
+  chatMessages            ChatMessage[]
+  photos                  Photo[]
+  photoComments           PhotoComment[]
+  notifications           Notification[]
+  timeEntries             TimeEntry[]
+  createdChecklists       Checklist[]             @relation("ChecklistCreator")
+  responsibleItems        ChecklistItem[]         @relation("ChecklistItemResponsible")
+  answeredItems           ChecklistItem[]         @relation("ChecklistItemAnswerer")
+  canteiroCreated         CanteiroChecklist[]     @relation("CanteiroCreator")
+  canteiroApproved        CanteiroChecklist[]     @relation("CanteiroApprover")
+  canteiroAnswered        CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
+  aprsCreated             APR[]                   @relation("APRCreator")
+  aprsApproved            APR[]                   @relation("APRApprover")
+  epiControls             EPIControl[]            @relation("EPIUser")
+  incidentsReported       Incident[]              @relation("IncidentReporter")
+  incidentsInjured        Incident[]              @relation("IncidentInjured")
+  trainings               Training[]              @relation("TrainingUser")
+  sequenciamentosCreated  ObraSequenciamento[]    @relation("SeqCreator")
+  etapasSubmitted         ObraEtapa[]             @relation("EtapaSubmitter")
+  etapasApproved          ObraEtapa[]             @relation("EtapaApprover")
+  etapasRejected          ObraEtapa[]             @relation("EtapaRejecter")
+  instrucoesCreated       InstrucaoTecnica[]      @relation("ITCreator")
+  instrucoesUpdated       InstrucaoTecnica[]      @relation("ITUpdater")
+  recebimentosRegistrados RecebimentoMaterial[]   @relation("RecebimentoRegistrador")
+  faseHistoryChanged      ObraFaseHistory[]       @relation("FaseHistoryChanger")
+  obraFaseUpdated         Obra[]                  @relation("ObraFaseUpdater")
+  conductedTouchpoints    ClientTouchpoint[]      @relation("TouchpointConductor")
+  touchpointNextActions   ClientTouchpoint[]      @relation("TouchpointNextOwner")
+  createdTouchpoints      ClientTouchpoint[]      @relation("TouchpointCreator")
+  createdPunchLists       PunchList[]             @relation("PunchListCreator")
+  punchListItems          PunchListItem[]         @relation("PunchListResponsible")
+  etapaEditRequests       EtapaEditRequest[]      @relation("EtapaEditRequester")
+  etapaEditResolved       EtapaEditRequest[]      @relation("EtapaEditResolver")
+  filledFvs               ObraFvs[]               @relation("FvsFiller")
+  gestorFvs               ObraFvs[]               @relation("FvsGestorApprover")
+  coordFvs                ObraFvs[]               @relation("FvsCoordApprover")
+  rejectedFvs             ObraFvs[]               @relation("FvsRejector")
+  filledFvsItems          ObraFvsItem[]           @relation("FvsItemFiller")
+  filledBerChecklists     ObraBerChecklist[]      @relation("BerChecklistFiller")
+  fotosEnviadas           ObraFoto[]              @relation("FotoAutor")
+  filledBerItems          ObraBerChecklistItem[]  @relation("BerChecklistItemFiller")
+  dreUpdates              DreValue[]              @relation("DreUpdater")
+  alocacoes               Alocacao[]              @relation("AlocacaoUser")
+  recursosExternosCriados RecursoExterno[]        @relation("RecursoExternoCreator")
+  customRole              CustomRole?             @relation(fields: [customRoleId], references: [id])
+  customRoleId            String?                 @map("custom_role_id") @db.Uuid
+  orcamentosResponsavel   Orcamento[]             @relation("OrcResp")
+  orcamentosCriados       Orcamento[]             @relation("OrcCriador")
+  apiKeys                 ApiKey[]                @relation("ApiKeyCreator")
+  diariosCriados          DiarioObra[]            @relation("DiarioCriadoPor")
+  diariosFechados         DiarioObra[]            @relation("DiarioFechadoPor")
+  diarioFotos             DiarioFoto[]            @relation("DiarioFotoUploader")
+  diarioEfetivos          DiarioEfetivo[]         @relation("DiarioEfetivoUser")
+  crmOportunidadesResp    CrmOportunidade[]       @relation("CrmOportResponsavel")
+  crmOportunidadesCriadas CrmOportunidade[]       @relation("CrmOportCreator")
+  crmAtividades           CrmAtividade[]          @relation("CrmAtividadeUsuario")
+  crmCampanhas            CrmCampanha[]           @relation("CrmCampanhaResponsavel")
+  relatorios              RelatorioSemanal[]      @relation("RelatorioResponsavel")
+  resetTokens             PasswordResetToken[]
+  orgChartUpdates         OrgChart[]
 
   @@map("users")
 }
@@ -123,9 +123,9 @@ model Obra {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  fase             String    @default("kickoff_interno") @db.VarChar(50)
-  faseUpdatedAt    DateTime? @map("fase_updated_at")
-  faseUpdatedById  String?   @map("fase_updated_by") @db.Uuid
+  fase            String    @default("kickoff_interno") @db.VarChar(50)
+  faseUpdatedAt   DateTime? @map("fase_updated_at")
+  faseUpdatedById String?   @map("fase_updated_by") @db.Uuid
 
   dataInicioProjeto DateTime? @map("data_inicio_projeto") @db.Date
   dataFimProjeto    DateTime? @map("data_fim_projeto") @db.Date
@@ -136,65 +136,69 @@ model Obra {
   whatsappCliente   String?   @map("whatsapp_cliente") @db.VarChar(20)
   situacaoAtual     String?   @map("situacao_atual")
 
+  arquiteturaEscritorio String? @map("arquitetura_escritorio") @db.VarChar(255)
+  gerenciadora          String? @db.VarChar(255)
+  areaM2                Float?  @map("area_m2")
+
   // Relations
-  coordinator User? @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
-  orcamento   Orcamento? @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
-  faseUpdatedBy  User?            @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
-  members     ObraMember[]
-  tasks       ObraTask[]
-  chatRooms   ChatRoom[]
-  photos      Photo[]
-  timeEntries TimeEntry[]
-  checklists  Checklist[]
+  coordinator        User?                 @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  orcamento          Orcamento?            @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  faseUpdatedBy      User?                 @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
+  members            ObraMember[]
+  tasks              ObraTask[]
+  chatRooms          ChatRoom[]
+  photos             Photo[]
+  timeEntries        TimeEntry[]
+  checklists         Checklist[]
   canteiroChecklists CanteiroChecklist[]
-  aprs        APR[]
-  epiControls EPIControl[]
-  incidents   Incident[]
-  trainings   Training[]
-  sequenciamentos ObraSequenciamento[]
-  etapas          ObraEtapa[]
-  recebimentos    RecebimentoMaterial[]
-  faseHistory    ObraFaseHistory[]
-  touchpoints    ClientTouchpoint[]
-  announcements  Announcement[]
-  punchLists     PunchList[]
-  obraFvs        ObraFvs[]
-  berChecklists  ObraBerChecklist[] @relation("ObraBerChecklists")
-  plantas        ObraPlanta[]       @relation("ObraPlantas")
-  ambientes      ObraAmbiente[]     @relation("ObraAmbientes")
-  fotosObra      ObraFoto[]         @relation("ObraFotos")
-  medicoes       Medicao[]          @relation("ObraMedicoes")
-  medicaoItens   MedicaoItem[]      @relation("ObraMedicaoItens")
-  comprasMetas    ComprasMeta[]
-  comprasConfig   ComprasConfig?
-  alocacoes       Alocacao[]    @relation("AlocacaoObra")
-  ambientesDiario Ambiente[]
-  diarios         DiarioObra[]
-  cronogramas     Cronograma[]
-  relatorios      RelatorioSemanal[]
-  curvaS          RelatorioCurvaS[]
+  aprs               APR[]
+  epiControls        EPIControl[]
+  incidents          Incident[]
+  trainings          Training[]
+  sequenciamentos    ObraSequenciamento[]
+  etapas             ObraEtapa[]
+  recebimentos       RecebimentoMaterial[]
+  faseHistory        ObraFaseHistory[]
+  touchpoints        ClientTouchpoint[]
+  announcements      Announcement[]
+  punchLists         PunchList[]
+  obraFvs            ObraFvs[]
+  berChecklists      ObraBerChecklist[]    @relation("ObraBerChecklists")
+  plantas            ObraPlanta[]          @relation("ObraPlantas")
+  ambientes          ObraAmbiente[]        @relation("ObraAmbientes")
+  fotosObra          ObraFoto[]            @relation("ObraFotos")
+  medicoes           Medicao[]             @relation("ObraMedicoes")
+  medicaoItens       MedicaoItem[]         @relation("ObraMedicaoItens")
+  comprasMetas       ComprasMeta[]
+  comprasConfig      ComprasConfig?
+  alocacoes          Alocacao[]            @relation("AlocacaoObra")
+  ambientesDiario    Ambiente[]
+  diarios            DiarioObra[]
+  cronogramas        Cronograma[]
+  relatorios         RelatorioSemanal[]
+  curvaS             RelatorioCurvaS[]
 
   @@map("obras")
 }
 
 model ComprasMeta {
-  id         String   @id @default(uuid()) @db.Uuid
-  obraId     String   @map("obra_id") @db.Uuid
-  n          String?  @db.VarChar(20)
-  tipo       String   @default("item") @db.VarChar(20)
-  categoria  String   @db.VarChar(200)
-  descritivo String?  @db.VarChar(500)
-  venda      Float    @default(0)
-  pctMeta    Float    @default(0.2) @map("pct_meta")
-  comprado   Float    @default(0)
+  id          String   @id @default(uuid()) @db.Uuid
+  obraId      String   @map("obra_id") @db.Uuid
+  n           String?  @db.VarChar(20)
+  tipo        String   @default("item") @db.VarChar(20)
+  categoria   String   @db.VarChar(200)
+  descritivo  String?  @db.VarChar(500)
+  venda       Float    @default(0)
+  pctMeta     Float    @default(0.2) @map("pct_meta")
+  comprado    Float    @default(0)
   fornecedor  String?  @db.VarChar(500)
   faturamento String?  @db.VarChar(50)
   pacote      Int?
   compradoOk  Boolean  @default(false) @map("comprado_ok")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra   Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  obra   Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
   splits ComprasSplit[]
 
   @@index([obraId])
@@ -213,13 +217,13 @@ model ComprasConfig {
 }
 
 model ComprasSplit {
-  id            String      @id @default(uuid()) @db.Uuid
-  comprasMetaId String      @map("compras_meta_id") @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
+  comprasMetaId String   @map("compras_meta_id") @db.Uuid
   fornecedor    String?
   faturamento   String?
-  valor         Float       @default(0)
-  coTipo        String?     @map("co_tipo") @db.VarChar(10)
-  createdAt     DateTime    @default(now()) @map("created_at")
+  valor         Float    @default(0)
+  coTipo        String?  @map("co_tipo") @db.VarChar(10)
+  createdAt     DateTime @default(now()) @map("created_at")
 
   comprasMeta ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)
 
@@ -242,24 +246,24 @@ model ObraMember {
 }
 
 model ObraTask {
-  id          String    @id @default(uuid()) @db.Uuid
-  obraId      String    @map("obra_id") @db.Uuid
-  title       String    @db.VarChar(255)
-  description String?
-  status      String    @default("todo") @db.VarChar(50)
-  priority    String    @default("medium") @db.VarChar(20)
-  assignedTo  String?   @map("assigned_to") @db.Uuid
-  createdBy   String?   @map("created_by") @db.Uuid
-  dueDate     DateTime? @map("due_date") @db.Date
-  position       Int       @default(0)
-  clickupTaskId   String?   @unique @map("clickup_task_id") @db.VarChar(50)
-  completedAt     DateTime? @map("completed_at")
-  clickupListId   String?   @map("clickup_list_id") @db.VarChar(50)
-  clickupListName String?   @map("clickup_list_name") @db.VarChar(255)
+  id               String    @id @default(uuid()) @db.Uuid
+  obraId           String    @map("obra_id") @db.Uuid
+  title            String    @db.VarChar(255)
+  description      String?
+  status           String    @default("todo") @db.VarChar(50)
+  priority         String    @default("medium") @db.VarChar(20)
+  assignedTo       String?   @map("assigned_to") @db.Uuid
+  createdBy        String?   @map("created_by") @db.Uuid
+  dueDate          DateTime? @map("due_date") @db.Date
+  position         Int       @default(0)
+  clickupTaskId    String?   @unique @map("clickup_task_id") @db.VarChar(50)
+  completedAt      DateTime? @map("completed_at")
+  clickupListId    String?   @map("clickup_list_id") @db.VarChar(50)
+  clickupListName  String?   @map("clickup_list_name") @db.VarChar(255)
   clickupStartDate DateTime? @map("clickup_start_date")
-  cronogramaRef  String?   @map("cronograma_ref") @db.VarChar(100)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  cronogramaRef    String?   @map("cronograma_ref") @db.VarChar(100)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
   assignee User? @relation("TaskAssignee", fields: [assignedTo], references: [id])
@@ -316,21 +320,21 @@ model Meeting {
 }
 
 model Announcement {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String   @db.VarChar(255)
-  body        String
-  category    String   @default("informativo") @db.VarChar(50)
-  targetRoles String[] @default(["diretoria", "coordenacao", "gestor", "campo"]) @map("target_roles")
-  authorId    String?  @map("author_id") @db.Uuid
-  pinned      Boolean  @default(false)
+  id               String    @id @default(uuid()) @db.Uuid
+  title            String    @db.VarChar(255)
+  body             String
+  category         String    @default("informativo") @db.VarChar(50)
+  targetRoles      String[]  @default(["diretoria", "coordenacao", "gestor", "campo"]) @map("target_roles")
+  authorId         String?   @map("author_id") @db.Uuid
+  pinned           Boolean   @default(false)
   tipo             String    @default("interno") @db.VarChar(30)
   obraId           String?   @map("obra_id") @db.Uuid
   semanaReferencia DateTime? @map("semana_referencia") @db.Date
   templateData     Json      @default("{}") @map("template_data")
   enviadoCliente   Boolean   @default(false) @map("enviado_cliente")
   enviadoEm        DateTime? @map("enviado_em")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   author User?              @relation(fields: [authorId], references: [id])
   obra   Obra?              @relation(fields: [obraId], references: [id])
@@ -562,7 +566,7 @@ model CanteiroTemplateItem {
   order       Int     @default(0)
   required    Boolean @default(true)
 
-  template       CanteiroTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template       CanteiroTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
   checklistItems CanteiroChecklistItem[]
 
   @@index([templateId])
@@ -580,10 +584,10 @@ model CanteiroChecklist {
   approvedAt DateTime? @map("approved_at")
   createdAt  DateTime  @default(now()) @map("created_at")
 
-  obra     Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  template CanteiroTemplate?  @relation(fields: [templateId], references: [id])
-  creator  User?              @relation("CanteiroCreator", fields: [createdBy], references: [id])
-  approver User?              @relation("CanteiroApprover", fields: [approvedBy], references: [id])
+  obra     Obra                    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  template CanteiroTemplate?       @relation(fields: [templateId], references: [id])
+  creator  User?                   @relation("CanteiroCreator", fields: [createdBy], references: [id])
+  approver User?                   @relation("CanteiroApprover", fields: [approvedBy], references: [id])
   items    CanteiroChecklistItem[]
 
   @@unique([obraId, weekStart])
@@ -605,25 +609,25 @@ model CanteiroChecklistItem {
   answeredBy     String?   @map("answered_by") @db.Uuid
   answeredAt     DateTime? @map("answered_at")
 
-  checklist    CanteiroChecklist      @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  templateItem CanteiroTemplateItem?  @relation(fields: [templateItemId], references: [id])
-  answerer     User?                  @relation("CanteiroItemAnswerer", fields: [answeredBy], references: [id])
+  checklist    CanteiroChecklist     @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  templateItem CanteiroTemplateItem? @relation(fields: [templateItemId], references: [id])
+  answerer     User?                 @relation("CanteiroItemAnswerer", fields: [answeredBy], references: [id])
 
   @@index([checklistId])
   @@map("canteiro_checklist_items")
 }
 
 model APR {
-  id           String    @id @default(uuid()) @db.Uuid
-  obraId       String    @map("obra_id") @db.Uuid
-  activityName String    @map("activity_name") @db.VarChar(255)
-  date         DateTime  @db.Date
-  responsible  String    @db.VarChar(255)
-  risks        Json      @default("[]")
-  status       String    @default("rascunho") @db.VarChar(50)
-  createdBy    String?   @map("created_by") @db.Uuid
-  approvedBy   String?   @map("approved_by") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  obraId       String   @map("obra_id") @db.Uuid
+  activityName String   @map("activity_name") @db.VarChar(255)
+  date         DateTime @db.Date
+  responsible  String   @db.VarChar(255)
+  risks        Json     @default("[]")
+  status       String   @default("rascunho") @db.VarChar(50)
+  createdBy    String?  @map("created_by") @db.Uuid
+  approvedBy   String?  @map("approved_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
 
   obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
   creator  User? @relation("APRCreator", fields: [createdBy], references: [id])
@@ -655,19 +659,19 @@ model EPIControl {
 }
 
 model Incident {
-  id              String   @id @default(uuid()) @db.Uuid
-  obraId          String   @map("obra_id") @db.Uuid
-  type            String   @db.VarChar(50)
-  severity        String   @db.VarChar(50)
-  description     String
-  immediateAction String?  @map("immediate_action")
-  correctiveAction String? @map("corrective_action")
-  occurredAt      DateTime @map("occurred_at")
-  reportedBy      String?  @map("reported_by") @db.Uuid
-  injuredUserId   String?  @map("injured_user_id") @db.Uuid
-  photoUrls       String[] @default([]) @map("photo_urls")
-  status          String   @default("aberto") @db.VarChar(50)
-  createdAt       DateTime @default(now()) @map("created_at")
+  id               String   @id @default(uuid()) @db.Uuid
+  obraId           String   @map("obra_id") @db.Uuid
+  type             String   @db.VarChar(50)
+  severity         String   @db.VarChar(50)
+  description      String
+  immediateAction  String?  @map("immediate_action")
+  correctiveAction String?  @map("corrective_action")
+  occurredAt       DateTime @map("occurred_at")
+  reportedBy       String?  @map("reported_by") @db.Uuid
+  injuredUserId    String?  @map("injured_user_id") @db.Uuid
+  photoUrls        String[] @default([]) @map("photo_urls")
+  status           String   @default("aberto") @db.VarChar(50)
+  createdAt        DateTime @default(now()) @map("created_at")
 
   obra     Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
   reporter User? @relation("IncidentReporter", fields: [reportedBy], references: [id])
@@ -703,7 +707,7 @@ model SequenciamentoTemplate {
   segment   String   @db.VarChar(50)
   createdAt DateTime @default(now()) @map("created_at")
 
-  etapas         SequenciamentoEtapa[]
+  etapas          SequenciamentoEtapa[]
   sequenciamentos ObraSequenciamento[]
 
   @@map("sequenciamento_templates")
@@ -744,44 +748,44 @@ model ObraSequenciamento {
 }
 
 model ObraEtapa {
-  id               String    @id @default(uuid()) @db.Uuid
-  sequenciamentoId String    @map("sequenciamento_id") @db.Uuid
-  obraId           String    @map("obra_id") @db.Uuid
-  templateEtapaId  String?   @map("template_etapa_id") @db.Uuid
-  name             String    @db.VarChar(255)
-  discipline       String    @db.VarChar(50)
-  order            Int       @default(0)
-  estimatedDays    Int       @default(0) @map("estimated_days")
-  dependsOn        String[]  @default([]) @map("depends_on")
-  startDate        DateTime? @map("start_date")
-  endDate          DateTime? @map("end_date")
-  estimatedEndDate DateTime? @map("estimated_end_date")
-  status           String    @default("nao_iniciada") @db.VarChar(50)
-  gestorNotes      String?   @map("gestor_notes")
-  coordenadorNotes String?   @map("coordenador_notes")
-  submittedBy      String?   @map("submitted_by") @db.Uuid
-  submittedAt      DateTime? @map("submitted_at")
-  approvedBy       String?   @map("approved_by") @db.Uuid
-  approvedAt       DateTime? @map("approved_at")
-  rejectedBy       String?   @map("rejected_by") @db.Uuid
-  rejectedAt       DateTime? @map("rejected_at")
-  rejectionReason        String?   @map("rejection_reason")
-  evidenciaDescricao     String?   @map("evidencia_descricao")
-  evidenciaFotos         String[]  @default([]) @map("evidencia_fotos")
-  evidenciaRegistradaEm  DateTime? @map("evidencia_registrada_em")
+  id                    String    @id @default(uuid()) @db.Uuid
+  sequenciamentoId      String    @map("sequenciamento_id") @db.Uuid
+  obraId                String    @map("obra_id") @db.Uuid
+  templateEtapaId       String?   @map("template_etapa_id") @db.Uuid
+  name                  String    @db.VarChar(255)
+  discipline            String    @db.VarChar(50)
+  order                 Int       @default(0)
+  estimatedDays         Int       @default(0) @map("estimated_days")
+  dependsOn             String[]  @default([]) @map("depends_on")
+  startDate             DateTime? @map("start_date")
+  endDate               DateTime? @map("end_date")
+  estimatedEndDate      DateTime? @map("estimated_end_date")
+  status                String    @default("nao_iniciada") @db.VarChar(50)
+  gestorNotes           String?   @map("gestor_notes")
+  coordenadorNotes      String?   @map("coordenador_notes")
+  submittedBy           String?   @map("submitted_by") @db.Uuid
+  submittedAt           DateTime? @map("submitted_at")
+  approvedBy            String?   @map("approved_by") @db.Uuid
+  approvedAt            DateTime? @map("approved_at")
+  rejectedBy            String?   @map("rejected_by") @db.Uuid
+  rejectedAt            DateTime? @map("rejected_at")
+  rejectionReason       String?   @map("rejection_reason")
+  evidenciaDescricao    String?   @map("evidencia_descricao")
+  evidenciaFotos        String[]  @default([]) @map("evidencia_fotos")
+  evidenciaRegistradaEm DateTime? @map("evidencia_registrada_em")
 
   // Rich transition fields
-  fornecedor           String?   @map("fornecedor")
-  numOperarios         Int?      @map("num_operarios")
-  conducoesIniciais    String?   @map("condicoes_iniciais")
-  fotoInicialUrl       String?   @map("foto_inicial_url")
-  qtdExecutada         String?   @map("qtd_executada") @db.VarChar(100)
-  qtdPrevista          String?   @map("qtd_prevista") @db.VarChar(100)
-  fvsPreenchida        Boolean   @default(false) @map("fvs_preenchida")
-  naoConformidades     String?   @map("nao_conformidades")
-  fotosEvidencia       String[]  @default([]) @map("fotos_evidencia")
-  obsConclusao         String?   @map("obs_conclusao")
-  obsAprovador         String?   @map("obs_aprovador")
+  fornecedor        String?  @map("fornecedor")
+  numOperarios      Int?     @map("num_operarios")
+  conducoesIniciais String?  @map("condicoes_iniciais")
+  fotoInicialUrl    String?  @map("foto_inicial_url")
+  qtdExecutada      String?  @map("qtd_executada") @db.VarChar(100)
+  qtdPrevista       String?  @map("qtd_prevista") @db.VarChar(100)
+  fvsPreenchida     Boolean  @default(false) @map("fvs_preenchida")
+  naoConformidades  String?  @map("nao_conformidades")
+  fotosEvidencia    String[] @default([]) @map("fotos_evidencia")
+  obsConclusao      String?  @map("obs_conclusao")
+  obsAprovador      String?  @map("obs_aprovador")
 
   sequenciamento ObraSequenciamento @relation(fields: [sequenciamentoId], references: [id], onDelete: Cascade)
   obra           Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
@@ -811,29 +815,29 @@ model NormaTecnica {
 }
 
 model InstrucaoTecnica {
-  id                  String   @id @default(uuid()) @db.Uuid
-  code                String   @unique @db.VarChar(20)
-  title               String   @db.VarChar(500)
-  discipline          String   @db.VarChar(50)
-  objective           String?
-  content             String?
-  materials           Json     @default("[]")
-  tools               Json     @default("[]")
-  steps               Json     @default("[]")
-  attentionPoints     Json     @default("[]") @map("attention_points")
-  approvalCriteria    Json     @default("[]") @map("approval_criteria")
-  relatedNormas       String[] @default([]) @map("related_normas") @db.Uuid
-  normas              String[] @default([]) @map("normas")
-  epis                String[] @default([]) @map("epis")
-  preRequisitos       String?  @map("pre_requisitos")
-  criteriosQualidade  String?  @map("criterios_qualidade")
-  errosComuns         String?  @map("erros_comuns")
-  fvsCode             String?  @map("fvs_code") @db.VarChar(20)
-  status              String   @default("rascunho") @db.VarChar(20)
-  createdBy           String?  @map("created_by") @db.Uuid
-  updatedBy           String?  @map("updated_by") @db.Uuid
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid()) @db.Uuid
+  code               String   @unique @db.VarChar(20)
+  title              String   @db.VarChar(500)
+  discipline         String   @db.VarChar(50)
+  objective          String?
+  content            String?
+  materials          Json     @default("[]")
+  tools              Json     @default("[]")
+  steps              Json     @default("[]")
+  attentionPoints    Json     @default("[]") @map("attention_points")
+  approvalCriteria   Json     @default("[]") @map("approval_criteria")
+  relatedNormas      String[] @default([]) @map("related_normas") @db.Uuid
+  normas             String[] @default([]) @map("normas")
+  epis               String[] @default([]) @map("epis")
+  preRequisitos      String?  @map("pre_requisitos")
+  criteriosQualidade String?  @map("criterios_qualidade")
+  errosComuns        String?  @map("erros_comuns")
+  fvsCode            String?  @map("fvs_code") @db.VarChar(20)
+  status             String   @default("rascunho") @db.VarChar(20)
+  createdBy          String?  @map("created_by") @db.Uuid
+  updatedBy          String?  @map("updated_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
 
   creator User? @relation("ITCreator", fields: [createdBy], references: [id])
   updater User? @relation("ITUpdater", fields: [updatedBy], references: [id])
@@ -844,21 +848,21 @@ model InstrucaoTecnica {
 }
 
 model RecebimentoMaterial {
-  id             String   @id @default(uuid()) @db.Uuid
-  obraId         String   @map("obra_id") @db.Uuid
-  fornecedor     String   @db.VarChar(255)
-  material       String   @db.VarChar(255)
-  quantidade     Decimal  @db.Decimal(12, 2)
-  unidade        String   @db.VarChar(30)
-  numeroNF       String?  @map("numero_nf") @db.VarChar(50)
-  dataNF         DateTime? @map("data_nf") @db.Date
-  dataEntrega    DateTime @map("data_entrega") @db.Date
-  condicao       String   @default("aprovado") @db.VarChar(30)
-  observacao     String?
-  fotosMaterial  String[] @default([]) @map("fotos_material")
-  fotoNF         String?  @map("foto_nf")
-  registradoPor  String   @map("registrado_por") @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at")
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  fornecedor    String    @db.VarChar(255)
+  material      String    @db.VarChar(255)
+  quantidade    Decimal   @db.Decimal(12, 2)
+  unidade       String    @db.VarChar(30)
+  numeroNF      String?   @map("numero_nf") @db.VarChar(50)
+  dataNF        DateTime? @map("data_nf") @db.Date
+  dataEntrega   DateTime  @map("data_entrega") @db.Date
+  condicao      String    @default("aprovado") @db.VarChar(30)
+  observacao    String?
+  fotosMaterial String[]  @default([]) @map("fotos_material")
+  fotoNF        String?   @map("foto_nf")
+  registradoPor String    @map("registrado_por") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   obra        Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
   registrador User @relation("RecebimentoRegistrador", fields: [registradoPor], references: [id])
@@ -935,10 +939,10 @@ model ClientTouchpoint {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra           Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  conductedBy    User? @relation("TouchpointConductor", fields: [conductedById], references: [id])
+  obra            Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  conductedBy     User? @relation("TouchpointConductor", fields: [conductedById], references: [id])
   nextActionOwner User? @relation("TouchpointNextOwner", fields: [nextActionOwnerId], references: [id])
-  createdBy      User? @relation("TouchpointCreator", fields: [createdById], references: [id])
+  createdBy       User? @relation("TouchpointCreator", fields: [createdById], references: [id])
 
   @@index([obraId, occurredAt(sort: Desc)])
   @@index([nextActionDue])
@@ -947,256 +951,268 @@ model ClientTouchpoint {
 
 model EtapaEditRequest {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  etapaId         String    @db.Uuid @map("etapa_id")
-  requestedBy     String    @db.Uuid @map("requested_by")
+  etapaId         String    @map("etapa_id") @db.Uuid
+  requestedBy     String    @map("requested_by") @db.Uuid
   status          String    @default("pending")
   motivo          String?
   rejectionReason String?   @map("rejection_reason")
-  resolvedBy      String?   @db.Uuid @map("resolved_by")
+  resolvedBy      String?   @map("resolved_by") @db.Uuid
   resolvedAt      DateTime? @map("resolved_at")
   unlockedUntil   DateTime? @map("unlocked_until")
   createdAt       DateTime  @default(now()) @map("created_at")
 
-  etapa      ObraEtapa           @relation("ObraEtapaEditReq", fields: [etapaId], references: [id], onDelete: Cascade)
-  requester  User                @relation("EtapaEditRequester", fields: [requestedBy], references: [id])
-  resolver   User?               @relation("EtapaEditResolver", fields: [resolvedBy], references: [id])
+  etapa     ObraEtapa @relation("ObraEtapaEditReq", fields: [etapaId], references: [id], onDelete: Cascade)
+  requester User      @relation("EtapaEditRequester", fields: [requestedBy], references: [id])
+  resolver  User?     @relation("EtapaEditResolver", fields: [resolvedBy], references: [id])
 
   @@map("etapa_edit_requests")
 }
 
 model FvsTemplate {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code       String    @db.VarChar(10)
-  name       String    @db.VarChar(100)
-  disciplina String?   @db.VarChar(50)
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String            @db.VarChar(10)
+  name       String            @db.VarChar(100)
+  disciplina String?           @db.VarChar(50)
   bloco      Int?
-  createdAt  DateTime  @default(now()) @map("created_at")
+  createdAt  DateTime          @default(now()) @map("created_at")
   items      FvsTemplateItem[]
   obraFvs    ObraFvs[]
+
   @@map("fvs_templates")
 }
 
 model FvsTemplateItem {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  templateId      String   @db.Uuid @map("template_id")
-  momento         String   @db.VarChar(20)
-  secao           String?  @db.VarChar(100)
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId      String        @map("template_id") @db.Uuid
+  momento         String        @db.VarChar(20)
+  secao           String?       @db.VarChar(100)
   descricao       String
-  obrigatorio     Boolean  @default(true)
-  fotoObrigatoria Boolean  @default(true) @map("foto_obrigatoria")
-  sourceItCode    String?  @map("source_it_code") @db.VarChar(20)
-  ordem           Int      @default(0)
-  createdAt       DateTime @default(now()) @map("created_at")
+  obrigatorio     Boolean       @default(true)
+  fotoObrigatoria Boolean       @default(true) @map("foto_obrigatoria")
+  sourceItCode    String?       @map("source_it_code") @db.VarChar(20)
+  ordem           Int           @default(0)
+  createdAt       DateTime      @default(now()) @map("created_at")
   template        FvsTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
   responses       ObraFvsItem[]
+
   @@index([sourceItCode])
   @@map("fvs_template_items")
 }
 
 model ObraFvs {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId           String    @db.Uuid @map("obra_id")
-  etapaId          String?   @db.Uuid @map("etapa_id")
-  templateId       String?   @db.Uuid @map("template_id")
-  status           String    @default("pendente") @db.VarChar(30)
-  filledBy         String?   @db.Uuid @map("filled_by")
-  gestorApprovedBy String?   @db.Uuid @map("gestor_approved_by")
-  gestorApprovedAt DateTime? @map("gestor_approved_at")
-  coordApprovedBy  String?   @db.Uuid @map("coord_approved_by")
-  coordApprovedAt  DateTime? @map("coord_approved_at")
-  rejectedBy       String?   @db.Uuid @map("rejected_by")
-  rejectionReason  String?   @map("rejection_reason")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  obra             Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  etapa            ObraEtapa?      @relation(fields: [etapaId], references: [id])
-  template         FvsTemplate?    @relation(fields: [templateId], references: [id])
-  filler           User?           @relation("FvsFiller", fields: [filledBy], references: [id])
-  gestorApprover   User?           @relation("FvsGestorApprover", fields: [gestorApprovedBy], references: [id])
-  coordApprover    User?           @relation("FvsCoordApprover", fields: [coordApprovedBy], references: [id])
-  rejector         User?           @relation("FvsRejector", fields: [rejectedBy], references: [id])
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId           String        @map("obra_id") @db.Uuid
+  etapaId          String?       @map("etapa_id") @db.Uuid
+  templateId       String?       @map("template_id") @db.Uuid
+  status           String        @default("pendente") @db.VarChar(30)
+  filledBy         String?       @map("filled_by") @db.Uuid
+  gestorApprovedBy String?       @map("gestor_approved_by") @db.Uuid
+  gestorApprovedAt DateTime?     @map("gestor_approved_at")
+  coordApprovedBy  String?       @map("coord_approved_by") @db.Uuid
+  coordApprovedAt  DateTime?     @map("coord_approved_at")
+  rejectedBy       String?       @map("rejected_by") @db.Uuid
+  rejectionReason  String?       @map("rejection_reason")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  obra             Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapa            ObraEtapa?    @relation(fields: [etapaId], references: [id])
+  template         FvsTemplate?  @relation(fields: [templateId], references: [id])
+  filler           User?         @relation("FvsFiller", fields: [filledBy], references: [id])
+  gestorApprover   User?         @relation("FvsGestorApprover", fields: [gestorApprovedBy], references: [id])
+  coordApprover    User?         @relation("FvsCoordApprover", fields: [coordApprovedBy], references: [id])
+  rejector         User?         @relation("FvsRejector", fields: [rejectedBy], references: [id])
   items            ObraFvsItem[]
+
   @@map("obra_fvs")
 }
 
 model ObraFvsItem {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  fvsId          String    @db.Uuid @map("fvs_id")
-  templateItemId String?   @db.Uuid @map("template_item_id")
-  momento        String    @db.VarChar(20)
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fvsId          String           @map("fvs_id") @db.Uuid
+  templateItemId String?          @map("template_item_id") @db.Uuid
+  momento        String           @db.VarChar(20)
   descricao      String?
-  checked        Boolean   @default(false)
-  na             Boolean   @default(false)
+  checked        Boolean          @default(false)
+  na             Boolean          @default(false)
   observacao     String?
-  fotoUrl        String?   @map("foto_url")
-  filledAt       DateTime? @map("filled_at")
-  filledBy       String?   @db.Uuid @map("filled_by")
+  fotoUrl        String?          @map("foto_url")
+  filledAt       DateTime?        @map("filled_at")
+  filledBy       String?          @map("filled_by") @db.Uuid
   fvs            ObraFvs          @relation(fields: [fvsId], references: [id], onDelete: Cascade)
   templateItem   FvsTemplateItem? @relation(fields: [templateItemId], references: [id])
   filler         User?            @relation("FvsItemFiller", fields: [filledBy], references: [id])
+
   @@map("obra_fvs_items")
 }
 
 // ─── BÈR Checklists ────────────────────────────────────────────────────────
 
 model BerChecklistTemplate {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code        String   @unique @db.VarChar(10)
-  name        String   @db.VarChar(150)
-  recorrente  Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-  items       BerChecklistTemplateItem[]
-  checklists  ObraBerChecklist[]
+  id         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String                     @unique @db.VarChar(10)
+  name       String                     @db.VarChar(150)
+  recorrente Boolean                    @default(false)
+  createdAt  DateTime                   @default(now()) @map("created_at")
+  items      BerChecklistTemplateItem[]
+  checklists ObraBerChecklist[]
+
   @@map("ber_checklist_templates")
 }
 
 model BerChecklistTemplateItem {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  templateId      String   @db.Uuid @map("template_id")
-  secao           String?  @db.VarChar(100)
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId      String                 @map("template_id") @db.Uuid
+  secao           String?                @db.VarChar(100)
   descricao       String
-  fotoObrigatoria Boolean  @default(false) @map("foto_obrigatoria")
-  ordem           Int      @default(0)
-  createdAt       DateTime @default(now()) @map("created_at")
-  template        BerChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  fotoObrigatoria Boolean                @default(false) @map("foto_obrigatoria")
+  ordem           Int                    @default(0)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  template        BerChecklistTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
   responses       ObraBerChecklistItem[]
+
   @@map("ber_checklist_template_items")
 }
 
 model ObraBerChecklist {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId        String    @db.Uuid @map("obra_id")
-  templateId    String    @db.Uuid @map("template_id")
-  status        String    @default("nao_iniciado") @db.VarChar(20)
-  filledBy      String?   @db.Uuid @map("filled_by")
-  submittedAt   DateTime? @map("submitted_at")
-  visitaNumero  Int       @default(1) @map("visita_numero")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  obra          Obra      @relation("ObraBerChecklists", fields: [obraId], references: [id], onDelete: Cascade)
-  template      BerChecklistTemplate @relation(fields: [templateId], references: [id])
-  filler        User?     @relation("BerChecklistFiller", fields: [filledBy], references: [id])
-  items         ObraBerChecklistItem[]
-  ambientes     ObraChecklistAmbiente[]
+  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId       String                  @map("obra_id") @db.Uuid
+  templateId   String                  @map("template_id") @db.Uuid
+  status       String                  @default("nao_iniciado") @db.VarChar(20)
+  filledBy     String?                 @map("filled_by") @db.Uuid
+  submittedAt  DateTime?               @map("submitted_at")
+  visitaNumero Int                     @default(1) @map("visita_numero")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  obra         Obra                    @relation("ObraBerChecklists", fields: [obraId], references: [id], onDelete: Cascade)
+  template     BerChecklistTemplate    @relation(fields: [templateId], references: [id])
+  filler       User?                   @relation("BerChecklistFiller", fields: [filledBy], references: [id])
+  items        ObraBerChecklistItem[]
+  ambientes    ObraChecklistAmbiente[]
+
   @@map("obra_ber_checklists")
 }
 
 model ObraBerChecklistItem {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  checklistId    String    @db.Uuid @map("checklist_id")
-  templateItemId String?   @db.Uuid @map("template_item_id")
-  ambiente       String?   @db.VarChar(100)
-  checked        Boolean   @default(false)
-  fotoUrl        String?   @map("foto_url")
+  id             String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklistId    String                    @map("checklist_id") @db.Uuid
+  templateItemId String?                   @map("template_item_id") @db.Uuid
+  ambiente       String?                   @db.VarChar(100)
+  checked        Boolean                   @default(false)
+  fotoUrl        String?                   @map("foto_url")
   observacao     String?
-  filledAt       DateTime? @map("filled_at")
-  filledBy       String?   @db.Uuid @map("filled_by")
+  filledAt       DateTime?                 @map("filled_at")
+  filledBy       String?                   @map("filled_by") @db.Uuid
   checklist      ObraBerChecklist          @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   templateItem   BerChecklistTemplateItem? @relation(fields: [templateItemId], references: [id])
   filler         User?                     @relation("BerChecklistItemFiller", fields: [filledBy], references: [id])
+
   @@map("obra_ber_checklist_items")
 }
 
 model ObraChecklistAmbiente {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  checklistId String   @db.Uuid @map("checklist_id")
-  nome        String   @db.VarChar(100)
-  ordem       Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklistId String           @map("checklist_id") @db.Uuid
+  nome        String           @db.VarChar(100)
+  ordem       Int              @default(0)
+  createdAt   DateTime         @default(now()) @map("created_at")
   checklist   ObraBerChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
   @@map("obra_checklist_ambientes")
 }
 
 // ─── Módulo de Fotos ───────────────────────────────────────────────────────
 
 model ObraPlanta {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId     String   @db.Uuid @map("obra_id")
-  fileUrl    String   @map("file_url")
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId     String         @map("obra_id") @db.Uuid
+  fileUrl    String         @map("file_url")
   pages      Json?
-  name       String?  @db.VarChar(120)
-  sourceType String   @default("pdf") @db.VarChar(20) @map("source_type")
-  createdAt  DateTime @default(now()) @map("created_at")
-  obra       Obra     @relation("ObraPlantas", fields: [obraId], references: [id], onDelete: Cascade)
+  name       String?        @db.VarChar(120)
+  sourceType String         @default("pdf") @map("source_type") @db.VarChar(20)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  obra       Obra           @relation("ObraPlantas", fields: [obraId], references: [id], onDelete: Cascade)
   ambientes  ObraAmbiente[]
+
   @@map("obra_plantas")
 }
 
 model ObraAmbiente {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId    String     @db.Uuid @map("obra_id")
-  plantaId  String?    @db.Uuid @map("planta_id")
-  pageIndex Int        @default(0) @map("page_index")
-  nome      String     @db.VarChar(100)
-  posX      Float      @default(0) @map("pos_x")
-  posY      Float      @default(0) @map("pos_y")
-  cor       String     @default("#6B7280") @db.VarChar(20)
-  createdAt DateTime   @default(now()) @map("created_at")
-  obra           Obra           @relation("ObraAmbientes", fields: [obraId], references: [id], onDelete: Cascade)
-  planta         ObraPlanta?    @relation(fields: [plantaId], references: [id], onDelete: SetNull)
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId         String          @map("obra_id") @db.Uuid
+  plantaId       String?         @map("planta_id") @db.Uuid
+  pageIndex      Int             @default(0) @map("page_index")
+  nome           String          @db.VarChar(100)
+  posX           Float           @default(0) @map("pos_x")
+  posY           Float           @default(0) @map("pos_y")
+  cor            String          @default("#6B7280") @db.VarChar(20)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  obra           Obra            @relation("ObraAmbientes", fields: [obraId], references: [id], onDelete: Cascade)
+  planta         ObraPlanta?     @relation(fields: [plantaId], references: [id], onDelete: SetNull)
   fotos          ObraFoto[]
   relatorioFotos RelatorioFoto[]
+
   @@map("obra_ambientes")
 }
 
 model ObraFoto {
-  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId     String       @db.Uuid @map("obra_id")
-  ambienteId String?      @db.Uuid @map("ambiente_id")
-  categoria  String       @default("geral") @db.VarChar(50)
-  fileUrl    String       @map("file_url")
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId     String        @map("obra_id") @db.Uuid
+  ambienteId String?       @map("ambiente_id") @db.Uuid
+  categoria  String        @default("geral") @db.VarChar(50)
+  fileUrl    String        @map("file_url")
   legenda    String?
-  tiradaPor  String?      @db.Uuid @map("tirada_por")
-  tiradaEm   DateTime?    @db.Date @map("tirada_em")
-  createdAt  DateTime     @default(now()) @map("created_at")
-  obra       Obra         @relation("ObraFotos", fields: [obraId], references: [id], onDelete: Cascade)
+  tiradaPor  String?       @map("tirada_por") @db.Uuid
+  tiradaEm   DateTime?     @map("tirada_em") @db.Date
+  createdAt  DateTime      @default(now()) @map("created_at")
+  obra       Obra          @relation("ObraFotos", fields: [obraId], references: [id], onDelete: Cascade)
   ambiente   ObraAmbiente? @relation(fields: [ambienteId], references: [id], onDelete: SetNull)
-  autor      User?        @relation("FotoAutor", fields: [tiradaPor], references: [id], onDelete: SetNull)
+  autor      User?         @relation("FotoAutor", fields: [tiradaPor], references: [id], onDelete: SetNull)
+
   @@map("obra_fotos")
 }
 
 // ── MEDIÇÃO DE CONTRATO ──────────────────────────────────────────────────────
 
 model Medicao {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId        String    @db.Uuid @map("obra_id")
-  numero        String    @db.VarChar(10)
-  periodoInicio DateTime  @map("periodo_inicio") @db.Date
-  periodoFim    DateTime  @map("periodo_fim") @db.Date
-  status        String    @default("rascunho") @db.VarChar(20)
-  criadoEm     DateTime  @default(now()) @map("criado_em")
-  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId        String   @map("obra_id") @db.Uuid
+  numero        String   @db.VarChar(10)
+  periodoInicio DateTime @map("periodo_inicio") @db.Date
+  periodoFim    DateTime @map("periodo_fim") @db.Date
+  status        String   @default("rascunho") @db.VarChar(20)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
 
-  obra         Obra               @relation("ObraMedicoes", fields: [obraId], references: [id], onDelete: Cascade)
-  lancamentos  MedicaoLancamento[]
+  obra        Obra                @relation("ObraMedicoes", fields: [obraId], references: [id], onDelete: Cascade)
+  lancamentos MedicaoLancamento[]
 
   @@map("medicoes")
 }
 
 model MedicaoItem {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId       String    @db.Uuid @map("obra_id")
-  numero       String    @db.VarChar(20)
-  descricao    String
-  unidade      String?   @db.VarChar(20)
-  quantidade   Decimal?  @map("quantidade") @db.Decimal(14, 4)
-  valorOrcado  Decimal   @default(0) @map("valor_orcado") @db.Decimal(14, 2)
-  tipo         String    @default("subitem") @db.VarChar(10)
-  ordem        Int       @default(0)
-  criadoEm    DateTime  @default(now()) @map("criado_em")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  obraId      String   @map("obra_id") @db.Uuid
+  numero      String   @db.VarChar(20)
+  descricao   String
+  unidade     String?  @db.VarChar(20)
+  quantidade  Decimal? @map("quantidade") @db.Decimal(14, 4)
+  valorOrcado Decimal  @default(0) @map("valor_orcado") @db.Decimal(14, 2)
+  tipo        String   @default("subitem") @db.VarChar(10)
+  ordem       Int      @default(0)
+  criadoEm    DateTime @default(now()) @map("criado_em")
 
-  obra         Obra               @relation("ObraMedicaoItens", fields: [obraId], references: [id], onDelete: Cascade)
-  lancamentos  MedicaoLancamento[]
+  obra        Obra                @relation("ObraMedicaoItens", fields: [obraId], references: [id], onDelete: Cascade)
+  lancamentos MedicaoLancamento[]
 
   @@map("medicao_itens")
 }
 
 model MedicaoLancamento {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  itemId              String    @db.Uuid @map("item_id")
-  medicaoId           String    @db.Uuid @map("medicao_id")
-  percentualExecutado Decimal   @default(0) @map("percentual_executado") @db.Decimal(5, 2)
-  valorMedido         Decimal   @default(0) @map("valor_medido") @db.Decimal(14, 2)
-  criadoEm           DateTime  @default(now()) @map("criado_em")
-  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId              String   @map("item_id") @db.Uuid
+  medicaoId           String   @map("medicao_id") @db.Uuid
+  percentualExecutado Decimal  @default(0) @map("percentual_executado") @db.Decimal(5, 2)
+  valorMedido         Decimal  @default(0) @map("valor_medido") @db.Decimal(14, 2)
+  criadoEm            DateTime @default(now()) @map("criado_em")
+  atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 
   item    MedicaoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   medicao Medicao     @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
@@ -1216,7 +1232,7 @@ model DreValue {
   updatedBy String?  @map("updated_by") @db.Uuid
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  updater   User?    @relation("DreUpdater", fields: [updatedBy], references: [id])
+  updater User? @relation("DreUpdater", fields: [updatedBy], references: [id])
 
   @@unique([rowKey, colKey])
   @@map("dre_values")
@@ -1246,11 +1262,11 @@ model Alocacao {
 }
 
 model RecursoExterno {
-  id          String     @id @default(uuid()) @db.Uuid
-  nome        String     @db.VarChar(255)
-  funcao      String     @db.VarChar(20)
-  createdById String?    @map("created_by") @db.Uuid
-  createdAt   DateTime   @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  nome        String   @db.VarChar(255)
+  funcao      String   @db.VarChar(20)
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
 
   createdBy User?      @relation("RecursoExternoCreator", fields: [createdById], references: [id], onDelete: SetNull)
   alocacoes Alocacao[] @relation("AlocacaoRecursoExterno")
@@ -1302,13 +1318,13 @@ model Orcamento {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  responsavel  User?               @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
-  createdBy    User                @relation("OrcCriador", fields: [createdById], references: [id])
-  pai          Orcamento?          @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
-  filhos       Orcamento[]         @relation("CO")
+  responsavel  User?                @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation("OrcCriador", fields: [createdById], references: [id])
+  pai          Orcamento?           @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
+  filhos       Orcamento[]          @relation("CO")
   historico    OrcamentoHistorico[]
-  obra         Obra?               @relation("ObraOrcamento")
-  oportunidade CrmOportunidade?    @relation("OportOrcamento")
+  obra         Obra?                @relation("ObraOrcamento")
+  oportunidade CrmOportunidade?     @relation("OportOrcamento")
 
   @@index([status])
   @@index([categoria])
@@ -1317,13 +1333,13 @@ model Orcamento {
 }
 
 model OrcamentoHistorico {
-  id          String    @id @default(uuid()) @db.Uuid
-  orcamentoId String    @map("orcamento_id") @db.Uuid
-  campo       String    @db.VarChar(100)
-  valorAntigo String?   @map("valor_antigo")
-  valorNovo   String?   @map("valor_novo")
-  alteradoPor String    @map("alterado_por") @db.VarChar(255)
-  alteradoEm  DateTime  @default(now()) @map("alterado_em")
+  id          String   @id @default(uuid()) @db.Uuid
+  orcamentoId String   @map("orcamento_id") @db.Uuid
+  campo       String   @db.VarChar(100)
+  valorAntigo String?  @map("valor_antigo")
+  valorNovo   String?  @map("valor_novo")
+  alteradoPor String   @map("alterado_por") @db.VarChar(255)
+  alteradoEm  DateTime @default(now()) @map("alterado_em")
 
   orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
 
@@ -1618,11 +1634,11 @@ model CrmOportunidade {
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  empresa     CrmEmpresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-  contato     CrmContato? @relation(fields: [contatoId], references: [id], onDelete: SetNull)
-  responsavel User?       @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
-  createdBy   User        @relation("CrmOportCreator", fields: [createdById], references: [id])
-  orcamento   Orcamento?  @relation("OportOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  empresa     CrmEmpresa?                @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  contato     CrmContato?                @relation(fields: [contatoId], references: [id], onDelete: SetNull)
+  responsavel User?                      @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy   User                       @relation("CrmOportCreator", fields: [createdById], references: [id])
+  orcamento   Orcamento?                 @relation("OportOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
   atividades  CrmAtividade[]
   historico   CrmOportunidadeHistorico[]
 
@@ -1648,19 +1664,19 @@ model CrmOportunidadeHistorico {
 }
 
 model CrmAtividade {
-  id             String    @id @default(uuid()) @db.Uuid
-  oportunidadeId String?   @map("oportunidade_id") @db.Uuid
-  empresaId      String?   @map("empresa_id") @db.Uuid
-  usuarioId      String    @map("usuario_id") @db.Uuid
-  tipo           String    @db.VarChar(50)
-  dataHora       DateTime  @map("data_hora")
+  id             String   @id @default(uuid()) @db.Uuid
+  oportunidadeId String?  @map("oportunidade_id") @db.Uuid
+  empresaId      String?  @map("empresa_id") @db.Uuid
+  usuarioId      String   @map("usuario_id") @db.Uuid
+  tipo           String   @db.VarChar(50)
+  dataHora       DateTime @map("data_hora")
   duracao        Int?
   notas          String?
-  googleEventId  String?   @map("google_event_id") @db.VarChar(255)
-  concluida      Boolean   @default(false)
+  googleEventId  String?  @map("google_event_id") @db.VarChar(255)
+  concluida      Boolean  @default(false)
   resultado      String?
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   oportunidade CrmOportunidade? @relation(fields: [oportunidadeId], references: [id], onDelete: SetNull)
   usuario      User             @relation("CrmAtividadeUsuario", fields: [usuarioId], references: [id])
@@ -1684,18 +1700,18 @@ model CrmMetaVendas {
 }
 
 model RelatorioSemanal {
-  id                 String    @id @default(uuid()) @db.Uuid
-  obraId             String    @map("obra_id") @db.Uuid
-  numero             Int
-  periodoInicio      DateTime  @map("periodo_inicio") @db.Date
-  periodoFim         DateTime  @map("periodo_fim") @db.Date
-  status             String    @default("no_prazo") @db.VarChar(20)
-  avancoPct          Decimal   @default(0) @map("avanco_pct") @db.Decimal(5, 2)
-  avancoDelta        Decimal?  @map("avanco_delta") @db.Decimal(5, 2)
-  diasTrabalhados    Int?      @map("dias_trabalhados")
-  diasUteis          Int?      @map("dias_uteis")
-  diasImprodutivos   Int?      @map("dias_improdutivos")
-  motivoImprodutivo  String?   @map("motivo_improdutivo")
+  id                   String    @id @default(uuid()) @db.Uuid
+  obraId               String    @map("obra_id") @db.Uuid
+  numero               Int
+  periodoInicio        DateTime  @map("periodo_inicio") @db.Date
+  periodoFim           DateTime  @map("periodo_fim") @db.Date
+  status               String    @default("no_prazo") @db.VarChar(20)
+  avancoPct            Decimal   @default(0) @map("avanco_pct") @db.Decimal(5, 2)
+  avancoDelta          Decimal?  @map("avanco_delta") @db.Decimal(5, 2)
+  diasTrabalhados      Int?      @map("dias_trabalhados")
+  diasUteis            Int?      @map("dias_uteis")
+  diasImprodutivos     Int?      @map("dias_improdutivos")
+  motivoImprodutivo    String?   @map("motivo_improdutivo")
   efetivoMedio         Decimal?  @map("efetivo_medio") @db.Decimal(6, 1)
   efetivoPorDisciplina Json?     @map("efetivo_por_disciplina")
   atividadesSemana     Json?     @map("atividades_semana")
@@ -1707,19 +1723,19 @@ model RelatorioSemanal {
   dataRealTermino      DateTime? @map("data_real_termino") @db.Date
   secoesPdf            Json?     @map("secoes_pdf")
   destaques            String?
-  proximosSete       String?   @map("proximos_sete")
-  responsavelId      String?   @map("responsavel_id") @db.Uuid
-  responsavelNome    String?   @map("responsavel_nome") @db.VarChar(255)
-  dataContrato       DateTime? @map("data_contrato") @db.Date
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  proximosSete         String?   @map("proximos_sete")
+  responsavelId        String?   @map("responsavel_id") @db.Uuid
+  responsavelNome      String?   @map("responsavel_nome") @db.VarChar(255)
+  dataContrato         DateTime? @map("data_contrato") @db.Date
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra         Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  responsavel  User?          @relation("RelatorioResponsavel", fields: [responsavelId], references: [id])
-  pendencias   RelatorioPendencia[]
-  fotos        RelatorioFoto[]
-  marcos       RelatorioMarco[]
-  ocorrencias  RelatorioOcorrencia[]
+  obra        Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel User?                 @relation("RelatorioResponsavel", fields: [responsavelId], references: [id])
+  pendencias  RelatorioPendencia[]
+  fotos       RelatorioFoto[]
+  marcos      RelatorioMarco[]
+  ocorrencias RelatorioOcorrencia[]
 
   @@unique([obraId, numero])
   @@index([obraId, periodoInicio])
@@ -1767,8 +1783,8 @@ model RelatorioFoto {
   ordem       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  relatorio RelatorioSemanal  @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
-  angulo    ObraAmbiente?     @relation(fields: [anguloId], references: [id], onDelete: SetNull)
+  relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  angulo    ObraAmbiente?    @relation(fields: [anguloId], references: [id], onDelete: SetNull)
 
   @@index([relatorioId])
   @@index([anguloId])
@@ -1790,15 +1806,15 @@ model RelatorioMarco {
 }
 
 model RelatorioOcorrencia {
-  id          String    @id @default(uuid()) @db.Uuid
-  relatorioId String    @map("relatorio_id") @db.Uuid
-  data        DateTime  @db.Date
+  id          String   @id @default(uuid()) @db.Uuid
+  relatorioId String   @map("relatorio_id") @db.Uuid
+  data        DateTime @db.Date
   descricao   String
-  acaoTomada  String?   @map("acao_tomada")
-  responsavel String?   @db.VarChar(255)
-  status      String    @default("em_andamento") @db.VarChar(20)
-  ordem       Int       @default(0)
-  createdAt   DateTime  @default(now()) @map("created_at")
+  acaoTomada  String?  @map("acao_tomada")
+  responsavel String?  @db.VarChar(255)
+  status      String   @default("em_andamento") @db.VarChar(20)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
 
   relatorio RelatorioSemanal @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
 
@@ -1828,4 +1844,22 @@ model OrgChart {
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("org_charts")
+}
+
+// ─── Attachment (polymorphic) ───────────────────────────────────────────────
+// One attachment row per file. entityType + entityId points at any record.
+// No FK to keep coupling loose; consumer modules handle their own cascading.
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  entityType   String   @map("entity_type") @db.VarChar(50)
+  entityId     String   @map("entity_id") @db.Uuid
+  fileName     String   @map("file_name") @db.VarChar(255)
+  fileUrl      String   @map("file_url")
+  mimeType     String?  @map("mime_type") @db.VarChar(100)
+  sizeBytes    Int?     @map("size_bytes")
+  uploadedById String?  @map("uploaded_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("attachments")
 }

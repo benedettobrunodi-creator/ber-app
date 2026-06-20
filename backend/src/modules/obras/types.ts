@@ -9,6 +9,9 @@ export const createObraSchema = z.object({
   startDate: z.string().datetime().optional(),
   expectedEndDate: z.string().datetime().optional(),
   coordinatorId: z.string().uuid().optional(),
+  arquiteturaEscritorio: z.string().optional(),
+  gerenciadora: z.string().optional(),
+  areaM2: z.number().positive().optional(),
 });
 
 export const updateObraSchema = z.object({
@@ -27,6 +30,9 @@ export const updateObraSchema = z.object({
   dataFimObra: z.string().optional().nullable(),
   valorContrato: z.number().positive().optional().nullable(),
   situacaoAtual: z.string().optional().nullable(),
+  arquiteturaEscritorio: z.string().optional().nullable(),
+  gerenciadora: z.string().optional().nullable(),
+  areaM2: z.number().positive().optional().nullable(),
 });
 
 export const addMemberSchema = z.object({

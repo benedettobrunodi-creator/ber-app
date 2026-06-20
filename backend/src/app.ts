@@ -187,6 +187,10 @@ app.use('/v1/crm', ...perm('orcamentos'), crmRoutes);
 import organogramaRouter from './modules/organograma/routes';
 app.use('/v1/organograma', ...perm('organograma'), organogramaRouter);
 
+// — Módulo: attachments (polimórfico, usado por Gestão 360) —
+import attachmentsRouter from './modules/attachments/routes';
+app.use('/v1/attachments', authenticate, attachmentsRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 

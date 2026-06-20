@@ -14,6 +14,9 @@ const novaObraSchema = z.object({
   coordinatorId: z.string().optional(),
   startDate: z.string().optional(),
   expectedEndDate: z.string().optional(),
+  arquiteturaEscritorio: z.string().optional(),
+  gerenciadora: z.string().optional(),
+  areaM2: z.string().optional(),
 });
 
 type NovaObraForm = z.infer<typeof novaObraSchema>;
@@ -50,12 +53,18 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
   async function onSubmit(data: NovaObraForm) {
     setError('');
     try {
-      const body: Record<string, string> = { name: data.name };
+      const body: Record<string, string | number> = { name: data.name };
       if (data.client) body.client = data.client;
       if (data.address) body.address = data.address;
       if (data.coordinatorId) body.coordinatorId = data.coordinatorId;
       if (data.startDate) body.startDate = new Date(data.startDate).toISOString();
       if (data.expectedEndDate) body.expectedEndDate = new Date(data.expectedEndDate).toISOString();
+      if (data.arquiteturaEscritorio) body.arquiteturaEscritorio = data.arquiteturaEscritorio;
+      if (data.gerenciadora) body.gerenciadora = data.gerenciadora;
+      if (data.areaM2) {
+        const area = Number(data.areaM2.replace(',', '.'));
+        if (!isNaN(area) && area > 0) body.areaM2 = area;
+      }
       await api.post('/obras', body);
       onCreated();
     } catch (err: unknown) {
@@ -158,6 +167,42 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
                 className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ber-carbon">
+                Arquitetura (escritório)
+              </label>
+              <input
+                {...register('arquiteturaEscritorio')}
+                placeholder="Ex: Studio XYZ"
+                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ber-carbon">
+                Gerenciadora
+              </label>
+              <input
+                {...register('gerenciadora')}
+                placeholder="Ex: CBRE"
+                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-ber-carbon">
+              Área do projeto (m²)
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              {...register('areaM2')}
+              placeholder="Ex: 850"
+              className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+            />
           </div>
 
           {/* Actions */}
