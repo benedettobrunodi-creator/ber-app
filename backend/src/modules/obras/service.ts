@@ -215,7 +215,20 @@ export async function getStats(obraId: string) {
 export async function deleteObraPermanent(id: string) {
   const existing = await prisma.obra.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Obra');
-  await prisma.obra.delete({ where: { id } });
+
+  try {
+    await prisma.obra.delete({ where: { id } });
+  } catch (err: any) {
+    if (err?.code === 'P2003') {
+      const meta = (err.meta || {}) as { field_name?: string; constraint?: string };
+      const target = meta.field_name || meta.constraint || 'tabela relacionada';
+      throw AppError.conflict(
+        `Não foi possível excluir a obra: há dados relacionados que bloqueiam a remoção (${target}). ` +
+        `Arquive a obra em vez de excluir, ou remova primeiro os dados dependentes.`,
+      );
+    }
+    throw err;
+  }
 }
 
 export async function archiveObra(id: string) {

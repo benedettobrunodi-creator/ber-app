@@ -86,6 +86,8 @@ export default function ObrasPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmObra, setConfirmObra] = useState<Obra | null>(null);
   const [deleteObra, setDeleteObra] = useState<Obra | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
@@ -127,12 +129,18 @@ export default function ObrasPage() {
   }
 
   async function handleDeletePermanent(obra: Obra) {
+    setDeleteError('');
+    setDeleting(true);
     try {
       await api.delete(`/obras/${obra.id}/permanent`);
       setDeleteObra(null);
       fetchObras();
-    } catch {
-      /* handled by interceptor */
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+      const text = typeof msg === 'string' ? msg : msg?.message;
+      setDeleteError(text || 'Erro ao excluir a obra. Tente arquivar.');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -327,18 +335,25 @@ export default function ObrasPage() {
                 </p>
               </div>
             </div>
+            {deleteError && (
+              <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {deleteError}
+              </div>
+            )}
             <div className="mt-5 flex gap-3">
               <button
-                onClick={() => setDeleteObra(null)}
-                className="flex-1 rounded-md border border-ber-gray/30 px-4 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-offwhite"
+                onClick={() => { setDeleteObra(null); setDeleteError(''); }}
+                disabled={deleting}
+                className="flex-1 rounded-md border border-ber-gray/30 px-4 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDeletePermanent(deleteObra)}
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                disabled={deleting}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Excluir definitivamente
+                {deleting ? 'Excluindo...' : 'Excluir definitivamente'}
               </button>
             </div>
           </div>

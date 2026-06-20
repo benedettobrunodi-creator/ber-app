@@ -68,6 +68,7 @@ model User {
   gestorFvs               ObraFvs[]               @relation("FvsGestorApprover")
   coordFvs                ObraFvs[]               @relation("FvsCoordApprover")
   rejectedFvs             ObraFvs[]               @relation("FvsRejector")
+  aditivosDecididos       ObraAditivo[]           @relation("AditivoDecididoPor")
   filledFvsItems          ObraFvsItem[]           @relation("FvsItemFiller")
   filledBerChecklists     ObraBerChecklist[]      @relation("BerChecklistFiller")
   fotosEnviadas           ObraFoto[]              @relation("FotoAutor")
@@ -337,7 +338,7 @@ model Announcement {
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   author User?              @relation(fields: [authorId], references: [id])
-  obra   Obra?              @relation(fields: [obraId], references: [id])
+  obra   Obra?              @relation(fields: [obraId], references: [id], onDelete: SetNull)
   reads  AnnouncementRead[]
 
   @@index([createdAt(sort: Desc)])
@@ -365,7 +366,7 @@ model ChatRoom {
   obraId    String?  @map("obra_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
 
-  obra     Obra?            @relation(fields: [obraId], references: [id])
+  obra     Obra?            @relation(fields: [obraId], references: [id], onDelete: SetNull)
   members  ChatRoomMember[]
   messages ChatMessage[]
 
@@ -463,7 +464,7 @@ model TimeEntry {
   createdAt DateTime @default(now()) @map("created_at")
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  obra Obra? @relation(fields: [obraId], references: [id])
+  obra Obra? @relation(fields: [obraId], references: [id], onDelete: SetNull)
 
   @@index([userId, timestamp(sort: Desc)])
   @@index([obraId, timestamp(sort: Desc)])
@@ -694,7 +695,7 @@ model Training {
   createdAt      DateTime  @default(now()) @map("created_at")
 
   user User  @relation("TrainingUser", fields: [userId], references: [id])
-  obra Obra? @relation(fields: [obraId], references: [id])
+  obra Obra? @relation(fields: [obraId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([obraId])
@@ -1844,6 +1845,31 @@ model OrgChart {
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("org_charts")
+}
+
+// ─── ObraAditivo (Change Orders / Aditivos contratuais) ──────────────────
+model ObraAditivo {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  numero        String    @db.VarChar(20)
+  descricao     String
+  valor         Decimal   @db.Decimal(14, 2)
+  tipo          String    @db.VarChar(20) // "credito" | "debito"
+  motivo        String?
+  status        String    @default("em_analise") @db.VarChar(20)
+  // em_analise | aprovado | rejeitado | em_execucao | concluido
+  dataAbertura  DateTime  @default(now()) @map("data_abertura")
+  dataDecisao   DateTime? @map("data_decisao")
+  decididoPorId String?   @map("decidido_por") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  decididoPor User? @relation("AditivoDecididoPor", fields: [decididoPorId], references: [id])
+
+  @@index([obraId])
+  @@index([status])
+  @@map("obra_aditivos")
 }
 
 // ─── Attachment (polymorphic) ───────────────────────────────────────────────

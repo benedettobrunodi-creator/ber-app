@@ -12,6 +12,7 @@ import CockpitBlock from '@/components/obras/CockpitBlock';
 import BurndownChart, { type BurndownData } from '@/components/obras/BurndownChart';
 import DiarioTab from '@/components/obras/DiarioTab';
 import RelatorioTab from '@/components/obras/RelatorioTab';
+import ObraInfoModal from '@/components/obras/ObraInfoModal';
 import dynamic from 'next/dynamic';
 import { usePdfAsImage } from '@/components/PdfImage';
 
@@ -401,6 +402,7 @@ export default function ObraDetailPage() {
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '', priority: 'medium' as TaskPriority, dueDate: '' });
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [burndownData, setBurndownData] = useState<BurndownData | null>(null);
   const [kanbanDragId, setKanbanDragId] = useState<string | null>(null);
 
@@ -997,6 +999,12 @@ export default function ObraDetailPage() {
           {obra.client && (
             <p className="mt-0.5 text-sm text-ber-gray">{obra.client}</p>
           )}
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-ber-teal hover:underline"
+          >
+            <Pencil size={11} /> Editar informações da obra
+          </button>
           {orcamentoCtx && (
             <div className="mt-1 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-[11px] bg-ber-teal/10 text-ber-teal px-2 py-0.5 rounded-full font-medium">
@@ -3663,6 +3671,16 @@ export default function ObraDetailPage() {
           <RelatorioTab key={relatorioTabKey} obraId={params.id} obra={obra} />
         )}
 
+        {showInfoModal && (
+          <ObraInfoModal
+            obraId={params.id}
+            onClose={() => setShowInfoModal(false)}
+            onSaved={() => {
+              setShowInfoModal(false);
+              api.get(`/obras/${params.id}`).then(r => setObra(r.data.data)).catch(() => {});
+            }}
+          />
+        )}
     </div>
   );
 }
