@@ -542,7 +542,7 @@ export default function OrganogramaPage() {
   );
 
   useEffect(() => {
-    if (user && !perms.organograma) router.replace('/dashboard');
+    if (user && !perms.organograma) router.replace('/portfolio-360');
   }, [user]);
 
   useEffect(() => {

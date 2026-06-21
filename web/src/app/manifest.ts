@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'BÈR App',
     short_name: 'BÈR',
     description: 'Sistema interno BÈR — Excelência Operacional',
-    start_url: '/dashboard',
+    start_url: '/portfolio-360',
     display: 'standalone',
     background_color: '#D8DDD8',
     theme_color: '#16a34a',

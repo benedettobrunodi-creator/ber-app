@@ -7,10 +7,10 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import {
-  LayoutDashboard, HardHat, Clock, Settings, LogOut,
+  HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
-  Kanban, Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
+  Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
   ShoppingCart, Building2,
   type LucideIcon,
 } from 'lucide-react';
@@ -31,9 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'OBRAS',
     items: [
       { label: 'Portfolio 360', href: '/portfolio-360', icon: Building2, perm: 'dashboard' },
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, perm: 'dashboard' },
       { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
-      { label: 'Painel de Gestão', href: '/kanban', icon: Kanban, perm: 'kanban' },
     ],
   },
   {
@@ -80,9 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
   { label: 'Portfolio 360', href: '/portfolio-360', perm: 'dashboard' },
-  { label: 'Dashboard', href: '/dashboard' },
   { label: 'Obras', href: '/obras' },
-  { label: 'Painel', href: '/kanban' },
   { label: 'Checklists', href: '/checklists' },
   { label: 'Recebimentos', href: '/recebimentos' },
   { label: 'Ponto', href: '/ponto' },
@@ -92,9 +88,7 @@ const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
 
 const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/portfolio-360', perm: 'dashboard' },
-  { prefix: '/dashboard', perm: 'dashboard' },
   { prefix: '/obras', perm: 'obras' },
-  { prefix: '/kanban', perm: 'kanban' },
   { prefix: '/checklists', perm: 'checklists' },
   { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },
@@ -113,10 +107,10 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
 /* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Portfolio', href: '/portfolio-360', icon: Building2 },
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Apontamento', href: '/ponto', icon: Clock },
-  { label: 'Painel', href: '/kanban', icon: Kanban },
+  { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
   { label: 'Config', href: '/configuracoes', icon: Settings },
 ];
 
@@ -267,7 +261,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={22} />
           </button>
           <Link
-            href="/dashboard"
+            href="/portfolio-360"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
             title="Início"
           >

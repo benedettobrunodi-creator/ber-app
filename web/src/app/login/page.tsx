@@ -19,7 +19,7 @@ export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
   const [error, setError] = useState('');
-  const [redirect, setRedirect] = useState('/obras');
+  const [redirect, setRedirect] = useState('/portfolio-360');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
