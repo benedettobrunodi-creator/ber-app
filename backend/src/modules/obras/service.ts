@@ -98,23 +98,7 @@ export async function createObra(input: CreateObraInput) {
     }
 
     // Matriz RACI padrão — atividades-chave de toda obra BÈR
-    const RACI_DEFAULT_ATIVIDADES = [
-      'Aprovação de Projetos Executivos (arquitetura)',
-      'Aprovação de Projetos Complementares (elétrica/hidráulica/AVAC)',
-      'Aprovação de Amostras e Mock-ups',
-      'Aprovação de Compras (acima do threshold)',
-      'Aprovação de Change Orders / Aditivos',
-      'Aprovação de Fornecedores Principais',
-      'Aprovação de Cronograma Macro',
-      'Aprovação de Medições e Pagamentos',
-      'Aprovação de Plano de Contratações',
-      'Recebimento de Materiais',
-      'Aceite de Punch List',
-      'Definição de Especificações Técnicas (quando indefinido em projeto)',
-      'Reunião Semanal de Obra',
-      'Relatório Semanal ao Cliente',
-      'Aceite Final / TAP (Termo de Aceite Provisório)',
-    ];
+    const { RACI_DEFAULT_ATIVIDADES } = await import('../raci/templates');
     await tx.obraRaci.createMany({
       data: RACI_DEFAULT_ATIVIDADES.map((atividade, ordem) => ({
         obraId: newObra.id,

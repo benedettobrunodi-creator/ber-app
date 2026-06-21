@@ -20,6 +20,11 @@ obraRaciRouter.post('/', obraMemberOnly, validate(createRaciSchema), w(async (re
   res.status(201).json({ data });
 }));
 
+obraRaciRouter.post('/apply-template', obraMemberOnly, w(async (req: Request, res: Response) => {
+  const data = await service.applyTemplate(req.params.obraId);
+  res.status(201).json({ data });
+}));
+
 async function resolveObraId(req: Request, _res: Response, next: NextFunction) {
   try {
     const { prisma } = await import('../../config/database');

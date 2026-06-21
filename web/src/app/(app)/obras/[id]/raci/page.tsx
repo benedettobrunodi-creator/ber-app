@@ -84,6 +84,16 @@ export default function RaciPage() {
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }
 
+  async function applyTemplate() {
+    try {
+      const r = await api.post<{ data: { created: number; skipped: number } }>(`/obras/${obraId}/raci/apply-template`);
+      const { created, skipped } = r.data.data;
+      fetchAll();
+      if (created === 0) alert('Template já estava aplicado nesta obra.');
+      else if (skipped > 0) alert(`${created} atividade(s) adicionada(s). ${skipped} já existiam.`);
+    } catch (err) { alert(errMsg(err, 'Erro ao aplicar template')); }
+  }
+
   function nextPapel(p: Papel | undefined): Papel | undefined {
     const seq: (Papel | undefined)[] = [undefined, 'R', 'A', 'C', 'I'];
     const idx = seq.indexOf(p);
@@ -154,6 +164,13 @@ export default function RaciPage() {
           <Network size={28} className="mx-auto mb-2 text-ber-gray/40" />
           <p className="text-sm font-medium text-ber-gray">Nenhuma atividade cadastrada</p>
           <p className="mt-1 text-xs text-ber-gray/60">Adicione atividades-chave do projeto pra atribuir responsabilidades</p>
+          <button
+            onClick={applyTemplate}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-ber-teal px-4 py-2 text-sm font-semibold text-white hover:bg-ber-teal/90"
+            title="Adiciona as 15 atividades-chave de toda obra BÈR (aprovações, cronograma, execução, comunicação)"
+          >
+            <Plus size={14} /> Aplicar template padrão (15 atividades)
+          </button>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-ber-gray/10 bg-white shadow-sm">
