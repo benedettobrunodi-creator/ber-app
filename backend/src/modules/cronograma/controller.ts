@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { uploadToR2, isR2Configured } from '../../services/storage';
-import { parseCronogramaPDF } from '../../services/cronograma-parser';
 import path from 'path';
 import fs from 'fs';
 import { env } from '../../config/env';
@@ -44,73 +43,16 @@ export async function uploadCronograma(req: Request, res: Response) {
   return res.json({ data: cronograma });
 }
 
-export async function parseCronograma(req: Request, res: Response) {
-  const { id: obraId } = req.params;
-  try {
-    const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
-    if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma enviado' } });
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(503).json({ error: { message: 'ANTHROPIC_API_KEY não configurada' } });
-    }
-
-    // Fetch PDF bytes
-    let pdfBuffer: Buffer;
-    if (cronograma.fileUrl.startsWith('http')) {
-      const response = await fetch(cronograma.fileUrl);
-      if (!response.ok) throw new Error(`Falha ao baixar PDF do storage: ${response.status} ${response.statusText}`);
-      const contentType = response.headers.get('content-type') ?? '';
-      pdfBuffer = Buffer.from(await response.arrayBuffer());
-      console.log(`[CRONOGRAMA] Downloaded ${pdfBuffer.length} bytes, content-type: ${contentType}, header: ${pdfBuffer.slice(0,5).toString('ascii')}`);
-    } else {
-      const localPath = path.resolve(env.uploadDir, path.basename(cronograma.fileUrl));
-      pdfBuffer = fs.readFileSync(localPath);
-    }
-
-    // Validate PDF signature
-    const header = pdfBuffer.slice(0, 5).toString('ascii');
-    if (!header.startsWith('%PDF')) {
-      throw new Error(`O arquivo não é um PDF válido (header: "${header}"). Tamanho: ${pdfBuffer.length} bytes. Verifique se o arquivo foi enviado corretamente.`);
-    }
-
-    // Check file size (Anthropic limit ~32MB)
-    const MB = 1024 * 1024;
-    if (pdfBuffer.length > 30 * MB) {
-      throw new Error(`PDF muito grande (${Math.round(pdfBuffer.length / MB)} MB). Limite: 30 MB. Reduza o tamanho ou exporte com menos páginas.`);
-    }
-
-    // Detect password-protected PDFs (search for /Encrypt dict in first 4KB)
-    const pdfSample = pdfBuffer.slice(0, 4096).toString('latin1');
-    if (pdfSample.includes('/Encrypt')) {
-      throw new Error('O PDF está protegido por senha. Abra no MS Project ou Adobe, remova a senha (Arquivo → Salvar como PDF sem restrições) e envie novamente.');
-    }
-
-    let result;
-    try {
-      result = await parseCronogramaPDF(pdfBuffer);
-    } catch (apiErr: unknown) {
-      const apiMsg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-      if (apiMsg.includes('not valid') || apiMsg.includes('invalid') || apiMsg.includes('pdf.source')) {
-        throw new Error('O Claude não conseguiu ler o PDF. Possíveis causas: PDF com senha, arquivo corrompido ou formato não suportado. Tente exportar novamente como PDF padrão sem restrições.');
-      }
-      throw apiErr;
-    }
-
-    const updated = await prisma.cronograma.update({
-      where: { id: cronograma.id },
-      data: {
-        parsedAt: new Date(),
-        parsedData: result as unknown as import('@prisma/client').Prisma.JsonObject,
-        progressPct: result.progressoGeral,
-      },
-    });
-
-    return res.json({ data: updated });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[CRONOGRAMA PARSE ERROR]', msg);
-    return res.status(500).json({ error: { message: msg } });
-  }
+export async function parseCronograma(_req: Request, res: Response) {
+  // Parser AI desativado pra zerar custo de API. O cronograma já parseado
+  // anteriormente continua disponível via GET; só o novo upload+parse foi
+  // descontinuado. Próximo passo: cadastro manual (UI + CSV).
+  return res.status(410).json({
+    error: {
+      message: 'Parser automático desativado. Cronograma deve ser cadastrado manualmente (em desenvolvimento).',
+      code: 'PARSER_DISABLED',
+    },
+  });
 }
 
 export async function syncToKanban(req: Request, res: Response) {

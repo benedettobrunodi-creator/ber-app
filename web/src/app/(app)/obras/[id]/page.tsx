@@ -2733,16 +2733,7 @@ export default function ObraDetailPage() {
             <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
               <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Cronograma da Obra</h3>
               <div className="flex gap-2">
-                {cronograma && (
-                  <button
-                    onClick={handleCronogramaParse}
-                    disabled={cronogramaParsing}
-                    className="flex items-center gap-1.5 rounded-md bg-ber-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-teal/90 disabled:opacity-50"
-                  >
-                    <RefreshCw size={13} className={cronogramaParsing ? 'animate-spin' : ''} />
-                    {cronogramaParsing ? 'Processando IA...' : 'Processar com IA'}
-                  </button>
-                )}
+                {/* Botão "Processar com IA" removido em 2026-06-21 — parser desativado. */}
                 {cronograma?.parsedData && (
                   <button
                     onClick={handleCronogramaSync}
@@ -2990,7 +2981,7 @@ export default function ObraDetailPage() {
                   );
                 })() : (
                   <div className="rounded-lg border border-dashed border-ber-gray/20 py-8 text-center">
-                    <p className="text-sm text-ber-gray">PDF enviado. Clique em <strong>Processar com IA</strong> para extrair as tarefas.</p>
+                    <p className="text-sm text-ber-gray">PDF enviado. <strong>Cadastro manual em desenvolvimento</strong> — em breve você poderá inserir as tarefas direto pelo app.</p>
                   </div>
                 )}
               </div>
