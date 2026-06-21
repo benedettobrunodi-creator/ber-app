@@ -94,7 +94,7 @@ export default function Gestao360Page() {
         punchRes,
       ] = await Promise.all([
         safeGet<ObraInfo>(`/obras/${obraId}`),
-        safeGet<{ totais: ComprasSummary }>(`/compras-dashboard/summary`).then(r => r ? r.totais ?? null : null).catch(() => null) as Promise<ComprasSummary | null>,
+        safeGet<{ totais: ComprasSummary }>(`/compras-dashboard/summary`, { obraId }).then(r => r ? r.totais ?? null : null).catch(() => null) as Promise<ComprasSummary | null>,
         safeGet<AditivosResp>(`/obras/${obraId}/aditivos`),
         safeGet<ContratacoesResp>(`/obras/${obraId}/contratacoes`),
         safeGet<OcsResp>(`/obras/${obraId}/ordens-compra`),
@@ -251,7 +251,7 @@ export default function Gestao360Page() {
             </Section>
           </div>
 
-          <Section title="Equipe da obra" linkTo={`/obras/${obraId}/stakeholders`}>
+          <Section title="Equipe da obra" linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}>
             <p className="text-xs text-ber-gray mb-2">{stakeholdersCount} stakeholders cadastrados</p>
             <div className="flex flex-wrap gap-2">
               {stakeholders.slice(0, 12).map(s => (
@@ -268,7 +268,7 @@ export default function Gestao360Page() {
       {/* ─── TAB: Equipe & Stakeholders ─────────────────────────────────── */}
       {tab === 'equipe' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Section title="Stakeholders" linkTo={`/obras/${obraId}/stakeholders`}>
+          <Section title="Stakeholders" linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}>
             {stakeholders.length === 0 ? (
               <EmptyMsg msg="Nenhum stakeholder cadastrado" />
             ) : (
@@ -284,7 +284,7 @@ export default function Gestao360Page() {
             )}
           </Section>
 
-          <Section title="Matriz RACI" linkTo={`/obras/${obraId}/raci`}>
+          <Section title="Matriz RACI" linkTo={`/obras/${obraId}/raci?from=gestao-360`}>
             {raci.length === 0 ? (
               <EmptyMsg msg="Nenhuma atividade RACI cadastrada" />
             ) : (
@@ -311,7 +311,7 @@ export default function Gestao360Page() {
       {tab === 'compras' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title="Saving consolidado (Compras)" linkTo={`/obras/${obraId}/compras`}>
+            <Section title="Saving consolidado (Compras)" linkTo={`/obras/${obraId}/compras?from=gestao-360`}>
               {compras ? (
                 <div className="space-y-2 text-sm">
                   <KpiRow label="Saving / Vendido" value={fmtBRL(compras.okSaving)} sub={`${compras.okSavingPct.toFixed(1)}%`} positive={compras.okSaving >= 0} />
@@ -322,7 +322,7 @@ export default function Gestao360Page() {
               ) : <EmptyMsg msg="Sem dados de compras consolidados" />}
             </Section>
 
-            <Section title="Cronograma de Contratações" linkTo={`/obras/${obraId}/cronograma-contratacoes`}>
+            <Section title="Cronograma de Contratações" linkTo={`/obras/${obraId}/cronograma-contratacoes?from=gestao-360`}>
               {planos.length === 0 ? <EmptyMsg msg="Sem pacotes no cronograma" /> : (
                 <ul className="space-y-1.5 text-sm">
                   {planos.slice(0, 8).map(p => {
@@ -344,7 +344,7 @@ export default function Gestao360Page() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title={`Contratos (${contratos?.contratacoes.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes`}>
+            <Section title={`Contratos (${contratos?.contratacoes.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}>
               {!contratos || contratos.contratacoes.length === 0 ? <EmptyMsg msg="Nenhuma contratação" /> : (
                 <>
                   <p className="text-xs text-ber-gray mb-2">Total contratado: <strong className="text-ber-carbon">{fmtBRL(contratos.totals.total)}</strong></p>
@@ -360,7 +360,7 @@ export default function Gestao360Page() {
               )}
             </Section>
 
-            <Section title={`Ordens de Compra (${ocs?.ocs.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes`}>
+            <Section title={`Ordens de Compra (${ocs?.ocs.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}>
               {!ocs || ocs.ocs.length === 0 ? <EmptyMsg msg="Nenhuma OC" /> : (
                 <>
                   <p className="text-xs text-ber-gray mb-2">Total em OCs: <strong className="text-ber-carbon">{fmtBRL(ocs.totals.total)}</strong></p>
@@ -382,7 +382,7 @@ export default function Gestao360Page() {
       {/* ─── TAB: Reuniões & Decisões ───────────────────────────────────── */}
       {tab === 'reunioes' && (
         <div className="space-y-4">
-          <Section title="Kick-Off" linkTo={`/obras/${obraId}/kickoff`}>
+          <Section title="Kick-Off" linkTo={`/obras/${obraId}/kickoff?from=gestao-360`}>
             {!kickoff || (!kickoff.dataRealizada && (!kickoff.participantes || kickoff.participantes.length === 0)) ? (
               <EmptyMsg msg="Kick-Off ainda não registrado" />
             ) : (
@@ -395,7 +395,7 @@ export default function Gestao360Page() {
           </Section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title={`Atas (${atas.length})`} linkTo={`/obras/${obraId}/atas`}>
+            <Section title={`Atas (${atas.length})`} linkTo={`/obras/${obraId}/atas?from=gestao-360`}>
               {atas.length === 0 ? <EmptyMsg msg="Nenhuma ata cadastrada" /> : (
                 <ul className="space-y-1.5 text-sm">
                   {atas.slice(0, 6).map(a => {
@@ -414,7 +414,7 @@ export default function Gestao360Page() {
               )}
             </Section>
 
-            <Section title={`Pendências abertas (${pendAbertas})`} linkTo={`/obras/${obraId}/punch-lists`}>
+            <Section title={`Pendências abertas (${pendAbertas})`} linkTo={`/obras/${obraId}/punch-lists?from=gestao-360`}>
               {pendAbertas === 0 ? <EmptyMsg msg="Sem pendências abertas 🎉" /> : (
                 <ul className="space-y-1.5 text-sm">
                   {pendencias.filter(p => p.status === 'aberto' || p.status === 'em_andamento').slice(0, 8).map(p => (
@@ -447,7 +447,7 @@ export default function Gestao360Page() {
             ))}
           </div>
 
-          <Section title={`Aditivos (${aditivos?.aditivos.length ?? 0})`} linkTo={`/obras/${obraId}/aditivos`}>
+          <Section title={`Aditivos (${aditivos?.aditivos.length ?? 0})`} linkTo={`/obras/${obraId}/aditivos?from=gestao-360`}>
             {!aditivos || aditivos.aditivos.length === 0 ? <EmptyMsg msg="Nenhum aditivo cadastrado" /> : (
               <ul className="space-y-1.5 text-sm">
                 {aditivos.aditivos.slice(0, 10).map(a => {
@@ -470,13 +470,13 @@ export default function Gestao360Page() {
       {/* ─── TAB: Medições & Documentos ─────────────────────────────────── */}
       {tab === 'medicoes' && (
         <div className="space-y-4">
-          <Section title="Histograma (resumo)" linkTo={`/obras/${obraId}/histograma`}>
+          <Section title="Histograma (resumo)" linkTo={`/obras/${obraId}/histograma?from=gestao-360`}>
             {histograma.length === 0 ? <EmptyMsg msg="Nenhum dado de mão de obra cadastrado" /> : (
               <HistogramaResumo cells={histograma} />
             )}
           </Section>
 
-          <Section title={`Documentos (${documentos?.documentos.length ?? 0})`} linkTo={`/obras/${obraId}/documentos`}>
+          <Section title={`Documentos (${documentos?.documentos.length ?? 0})`} linkTo={`/obras/${obraId}/documentos?from=gestao-360`}>
             <div className="grid grid-cols-4 gap-2 mb-3">
               <MiniKpi label="Aprovados" value={docsAprovados} color="bg-green-100 text-green-700" />
               <MiniKpi label="Em análise" value={docsEmAnalise} color="bg-amber-100 text-amber-700" />

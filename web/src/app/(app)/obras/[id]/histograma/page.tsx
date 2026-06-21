@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Activity, Trash2, Save, X } from 'lucide-react';
 import api from '@/lib/api';
@@ -25,6 +26,7 @@ const errMsg = (err: unknown, fallback: string) => {
 export default function HistogramaPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
+  const backHref = useBackToObra();
   const [obraName, setObraName] = useState('');
   const [cells, setCells] = useState<Cell[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +148,7 @@ export default function HistogramaPage() {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center gap-2 text-sm text-ber-gray">
-        <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1 hover:text-ber-carbon">
+        <Link href={backHref} className="inline-flex items-center gap-1 hover:text-ber-carbon">
           <ArrowLeft size={14} /> {obraName || 'Obra'}
         </Link>
         <span>/</span><span className="text-ber-carbon font-medium">Histograma de MO</span>

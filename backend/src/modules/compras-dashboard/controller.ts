@@ -33,18 +33,22 @@ interface TotaisConsolidados {
   projecaoSaving: number;
 }
 
-// GET /v1/compras-dashboard/summary?status=em_andamento,planejamento
+// GET /v1/compras-dashboard/summary?status=em_andamento,planejamento&obraId=<uuid>
 export async function getSummary(req: Request, res: Response, next: NextFunction) {
   try {
     const statusParam = typeof req.query.status === 'string' ? req.query.status : '';
     const statusFilter = statusParam
       ? statusParam.split(',').map(s => s.trim()).filter(Boolean)
       : null;
+    const obraIdParam = typeof req.query.obraId === 'string' && req.query.obraId.trim() ? req.query.obraId.trim() : null;
 
     // Soma de splits por compras_meta_id — usado pra sobrescrever item.comprado
     // quando o item tem splits (mesma regra do front: split.valor[] domina).
     const obras = await prisma.obra.findMany({
-      where: statusFilter ? { status: { in: statusFilter } } : undefined,
+      where: {
+        ...(statusFilter ? { status: { in: statusFilter } } : {}),
+        ...(obraIdParam ? { id: obraIdParam } : {}),
+      },
       select: { id: true, name: true, status: true },
       orderBy: { name: 'asc' },
     });

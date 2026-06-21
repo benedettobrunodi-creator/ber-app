@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Network, Trash2, X } from 'lucide-react';
 import api from '@/lib/api';
@@ -45,6 +46,7 @@ const errMsg = (err: unknown, fallback: string) => {
 export default function RaciPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
+  const backHref = useBackToObra();
   const [obraName, setObraName] = useState('');
   const [items, setItems] = useState<RaciItem[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
@@ -110,7 +112,7 @@ export default function RaciPage() {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center gap-2 text-sm text-ber-gray">
-        <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1 hover:text-ber-carbon">
+        <Link href={backHref} className="inline-flex items-center gap-1 hover:text-ber-carbon">
           <ArrowLeft size={14} /> {obraName || 'Obra'}
         </Link>
         <span>/</span><span className="text-ber-carbon font-medium">Matriz RACI</span>
