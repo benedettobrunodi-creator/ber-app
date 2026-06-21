@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, LayoutDashboard, Users, ShoppingCart, FileSearch, FileText, Activity,
   TrendingUp, TrendingDown, AlertTriangle, ArrowRight, CalendarClock, FileSignature,
-  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock,
+  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -130,6 +130,25 @@ export default function Gestao360Page() {
 
   useEffect(() => { fetchAll(); }, [obraId]);
 
+  // Inline edit das infos da obra — salva campo isolado e atualiza estado local
+  async function saveObraField(field: keyof ObraInfo, raw: string) {
+    const body: Record<string, unknown> = {};
+    if (field === 'startDate' || field === 'expectedEndDate') {
+      body[field] = raw ? new Date(raw + 'T00:00:00').toISOString() : null;
+    } else if (field === 'areaM2') {
+      const n = Number(raw.replace(',', '.'));
+      body[field] = !isNaN(n) && n > 0 ? n : null;
+    } else if (field === 'valorContrato') {
+      const n = Number(raw.replace(',', '.'));
+      body[field] = !isNaN(n) && n > 0 ? n : null;
+    } else {
+      body[field] = raw.trim() === '' ? null : raw;
+    }
+    await api.put(`/obras/${obraId}`, body);
+    const r = await api.get<{ data: ObraInfo }>(`/obras/${obraId}`);
+    setObra(r.data.data);
+  }
+
   // ─── Derived KPIs ─────────────────────────────────────────────────────
   const prazo = useMemo(() => {
     if (!obra?.startDate || !obra?.expectedEndDate) return null;
@@ -198,16 +217,24 @@ export default function Gestao360Page() {
 
           {/* Info da obra + alertas */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Section title="Informações da obra" linkTo={`/obras/${obraId}`} className="lg:col-span-2">
+            <Section title="Informações da obra" linkTo={null} className="lg:col-span-2">
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <InfoRow label="Cliente" value={obra.client} />
-                <InfoRow label="Endereço" value={obra.address} />
-                <InfoRow label="Arquitetura" value={obra.arquiteturaEscritorio} />
-                <InfoRow label="Gerenciadora" value={obra.gerenciadora} />
-                <InfoRow label="Área projeto" value={obra.areaM2 ? `${obra.areaM2} m²` : null} />
-                <InfoRow label="Status" value={obra.status} />
-                <InfoRow label="Início" value={fmtDateFull(obra.startDate)} />
-                <InfoRow label="Previsão entrega" value={fmtDateFull(obra.expectedEndDate)} />
+                <EditableInfoRow label="Cliente"          type="text"   displayValue={obra.client}                editValue={obra.client ?? ''}                 onSave={v => saveObraField('client', v)} />
+                <EditableInfoRow label="Endereço"         type="text"   displayValue={obra.address}               editValue={obra.address ?? ''}                onSave={v => saveObraField('address', v)} />
+                <EditableInfoRow label="Arquitetura"      type="text"   displayValue={obra.arquiteturaEscritorio} editValue={obra.arquiteturaEscritorio ?? ''}  onSave={v => saveObraField('arquiteturaEscritorio', v)} />
+                <EditableInfoRow label="Gerenciadora"     type="text"   displayValue={obra.gerenciadora}          editValue={obra.gerenciadora ?? ''}           onSave={v => saveObraField('gerenciadora', v)} />
+                <EditableInfoRow label="Área projeto"     type="number" displayValue={obra.areaM2 ? `${obra.areaM2} m²` : null} editValue={obra.areaM2 ? String(obra.areaM2) : ''} onSave={v => saveObraField('areaM2', v)} />
+                <EditableInfoRow label="Status"           type="select" displayValue={obra.status}                editValue={obra.status}
+                  options={[
+                    { value: 'planejamento', label: 'Planejamento' },
+                    { value: 'em_andamento', label: 'Em andamento' },
+                    { value: 'pausada',      label: 'Pausada' },
+                    { value: 'concluida',    label: 'Concluída' },
+                    { value: 'cancelada',    label: 'Cancelada' },
+                  ]}
+                  onSave={v => saveObraField('status', v)} />
+                <EditableInfoRow label="Início"           type="date"   displayValue={fmtDateFull(obra.startDate)}         editValue={obra.startDate ? obra.startDate.slice(0, 10) : ''}         onSave={v => saveObraField('startDate', v)} />
+                <EditableInfoRow label="Previsão entrega" type="date"   displayValue={fmtDateFull(obra.expectedEndDate)}   editValue={obra.expectedEndDate ? obra.expectedEndDate.slice(0, 10) : ''} onSave={v => saveObraField('expectedEndDate', v)} />
               </div>
             </Section>
             <Section title="Alertas" linkTo={null}>
@@ -519,6 +546,73 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
     <div>
       <p className="text-[11px] uppercase tracking-wide text-ber-gray font-medium">{label}</p>
       <p className="text-sm text-ber-carbon">{value || '—'}</p>
+    </div>
+  );
+}
+
+function EditableInfoRow({
+  label, displayValue, editValue, type, options, onSave,
+}: {
+  label: string;
+  displayValue: string | null;
+  editValue: string;
+  type: 'text' | 'date' | 'number' | 'select';
+  options?: { value: string; label: string }[];
+  onSave: (raw: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(editValue);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => { setVal(editValue); }, [editValue]);
+
+  async function commit() {
+    if (val === editValue) { setEditing(false); return; }
+    setSaving(true); setErr(null);
+    try {
+      await onSave(val);
+      setEditing(false);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+      setErr(typeof msg === 'string' ? msg : msg?.message || 'Erro ao salvar');
+      setVal(editValue);
+    } finally { setSaving(false); }
+  }
+
+  const inputCls = 'mt-0.5 block w-full rounded border border-ber-teal/40 bg-white px-2 py-1 text-sm text-ber-carbon focus:border-ber-teal focus:outline-none disabled:opacity-50';
+
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-ber-gray font-medium">{label}</p>
+      {editing ? (
+        type === 'select' ? (
+          <select autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Escape') { setVal(editValue); setEditing(false); } }}
+            disabled={saving} className={inputCls}>
+            {options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ) : (
+          <input autoFocus
+            type={type === 'date' ? 'date' : type === 'number' ? 'text' : 'text'}
+            inputMode={type === 'number' ? 'decimal' : undefined}
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') { setVal(editValue); setEditing(false); }
+            }}
+            disabled={saving} className={inputCls} />
+        )
+      ) : (
+        <button type="button" onClick={() => setEditing(true)}
+          className="group/edit -mx-1 mt-0.5 flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-sm text-ber-carbon transition-colors hover:bg-ber-bg/60">
+          <span className={displayValue ? '' : 'text-ber-gray italic'}>{displayValue || 'clique para preencher'}</span>
+          <Pencil size={11} className="opacity-0 group-hover/edit:opacity-50 transition-opacity shrink-0" />
+        </button>
+      )}
+      {err && <p className="mt-0.5 text-[10px] text-red-600">{err}</p>}
     </div>
   );
 }

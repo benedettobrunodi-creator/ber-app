@@ -17,6 +17,7 @@ const novaObraSchema = z.object({
   arquiteturaEscritorio: z.string().optional(),
   gerenciadora: z.string().optional(),
   areaM2: z.string().optional(),
+  valorContrato: z.string().optional(),
 });
 
 type NovaObraForm = z.infer<typeof novaObraSchema>;
@@ -26,12 +27,18 @@ interface UserOption {
   name: string;
 }
 
+export interface NovaObraInitial extends Partial<NovaObraForm> {
+  crmOportunidadeId?: string;
+}
+
 interface NovaObraModalProps {
   onClose: () => void;
   onCreated: () => void;
+  initial?: NovaObraInitial;
+  title?: string;
 }
 
-export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps) {
+export default function NovaObraModal({ onClose, onCreated, initial, title }: NovaObraModalProps) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [error, setError] = useState('');
 
@@ -41,6 +48,18 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
     formState: { errors, isSubmitting },
   } = useForm<NovaObraForm>({
     resolver: zodResolver(novaObraSchema),
+    defaultValues: {
+      name: initial?.name ?? '',
+      client: initial?.client ?? '',
+      address: initial?.address ?? '',
+      coordinatorId: initial?.coordinatorId ?? '',
+      startDate: initial?.startDate ?? '',
+      expectedEndDate: initial?.expectedEndDate ?? '',
+      arquiteturaEscritorio: initial?.arquiteturaEscritorio ?? '',
+      gerenciadora: initial?.gerenciadora ?? '',
+      areaM2: initial?.areaM2 ?? '',
+      valorContrato: initial?.valorContrato ?? '',
+    },
   });
 
   useEffect(() => {
@@ -65,6 +84,11 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
         const area = Number(data.areaM2.replace(',', '.'));
         if (!isNaN(area) && area > 0) body.areaM2 = area;
       }
+      if (data.valorContrato) {
+        const vc = Number(data.valorContrato.replace(',', '.'));
+        if (!isNaN(vc) && vc > 0) body.valorContrato = vc;
+      }
+      if (initial?.crmOportunidadeId) body.crmOportunidadeId = initial.crmOportunidadeId;
       await api.post('/obras', body);
       onCreated();
     } catch (err: unknown) {
@@ -80,7 +104,7 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
       <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white max-h-[90dvh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-          <h2 className="text-lg font-black text-ber-carbon">Nova Obra</h2>
+          <h2 className="text-lg font-black text-ber-carbon">{title ?? 'Nova Obra'}</h2>
           <button
             onClick={onClose}
             className="rounded p-1 text-ber-gray transition-colors hover:bg-ber-offwhite hover:text-ber-carbon"
@@ -192,18 +216,38 @@ export default function NovaObraModal({ onClose, onCreated }: NovaObraModalProps
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-ber-carbon">
-              Área do projeto (m²)
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              {...register('areaM2')}
-              placeholder="Ex: 850"
-              className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ber-carbon">
+                Área do projeto (m²)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                {...register('areaM2')}
+                placeholder="Ex: 850"
+                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ber-carbon">
+                Valor do contrato (R$)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                {...register('valorContrato')}
+                placeholder="Ex: 1500000"
+                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+              />
+            </div>
           </div>
+
+          {initial?.crmOportunidadeId && (
+            <div className="rounded-md bg-ber-teal/10 border border-ber-teal/30 px-3 py-2 text-xs text-ber-carbon">
+              ↗ A obra ficará vinculada à oportunidade do CRM
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">

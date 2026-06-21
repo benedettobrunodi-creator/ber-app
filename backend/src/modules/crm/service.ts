@@ -367,6 +367,7 @@ export async function listOportunidades(opts: {
         take: 1,
       },
       orcamento: { select: { id: true, numero: true, status: true, valorVenda: true, m2: true, cliente: true } },
+      obra: { select: { id: true, name: true, status: true, fase: true } },
     },
   });
 }
@@ -386,6 +387,7 @@ export async function getOportunidadeById(id: string) {
           obra: { select: { id: true, name: true, status: true, fase: true } },
         },
       },
+      obra: { select: { id: true, name: true, status: true, fase: true } },
     },
   });
 }

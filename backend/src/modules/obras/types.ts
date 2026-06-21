@@ -12,12 +12,14 @@ export const createObraSchema = z.object({
   arquiteturaEscritorio: z.string().optional(),
   gerenciadora: z.string().optional(),
   areaM2: z.number().positive().optional(),
+  valorContrato: z.number().positive().optional(),
+  crmOportunidadeId: z.string().uuid().optional(),
 });
 
 export const updateObraSchema = z.object({
   name: z.string().min(2).optional(),
-  client: z.string().optional(),
-  address: z.string().optional(),
+  client: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
   status: z.enum(OBRA_STATUSES).optional(),
   startDate: z.string().datetime().optional().nullable(),
   expectedEndDate: z.string().datetime().optional().nullable(),
@@ -33,6 +35,7 @@ export const updateObraSchema = z.object({
   arquiteturaEscritorio: z.string().optional().nullable(),
   gerenciadora: z.string().optional().nullable(),
   areaM2: z.number().positive().optional().nullable(),
+  crmOportunidadeId: z.string().uuid().optional().nullable(),
 });
 
 export const addMemberSchema = z.object({

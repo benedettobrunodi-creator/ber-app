@@ -134,6 +134,7 @@ model Obra {
   dataInicioObra    DateTime? @map("data_inicio_obra") @db.Date
   dataFimObra       DateTime? @map("data_fim_obra") @db.Date
   orcamentoId       String?   @unique @map("orcamento_id") @db.Uuid
+  crmOportunidadeId String?   @unique @map("crm_oportunidade_id") @db.Uuid
   valorContrato     Decimal?  @map("valor_contrato") @db.Decimal(14, 2)
   whatsappCliente   String?   @map("whatsapp_cliente") @db.VarChar(20)
   situacaoAtual     String?   @map("situacao_atual")
@@ -143,9 +144,10 @@ model Obra {
   areaM2                Float?  @map("area_m2")
 
   // Relations
-  coordinator        User?                 @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
-  orcamento          Orcamento?            @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
-  faseUpdatedBy      User?                 @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
+  coordinator        User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  orcamento          Orcamento?             @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  crmOportunidade    CrmOportunidade?       @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
+  faseUpdatedBy      User?                  @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
   members            ObraMember[]
   tasks              ObraTask[]
   chatRooms          ChatRoom[]
@@ -165,15 +167,15 @@ model Obra {
   announcements      Announcement[]
   punchLists         PunchList[]
   obraFvs            ObraFvs[]
-  berChecklists      ObraBerChecklist[]    @relation("ObraBerChecklists")
-  plantas            ObraPlanta[]          @relation("ObraPlantas")
-  ambientes          ObraAmbiente[]        @relation("ObraAmbientes")
-  fotosObra          ObraFoto[]            @relation("ObraFotos")
-  medicoes           Medicao[]             @relation("ObraMedicoes")
-  medicaoItens       MedicaoItem[]         @relation("ObraMedicaoItens")
+  berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
+  plantas            ObraPlanta[]           @relation("ObraPlantas")
+  ambientes          ObraAmbiente[]         @relation("ObraAmbientes")
+  fotosObra          ObraFoto[]             @relation("ObraFotos")
+  medicoes           Medicao[]              @relation("ObraMedicoes")
+  medicaoItens       MedicaoItem[]          @relation("ObraMedicaoItens")
   comprasMetas       ComprasMeta[]
   comprasConfig      ComprasConfig?
-  alocacoes          Alocacao[]            @relation("AlocacaoObra")
+  alocacoes          Alocacao[]             @relation("AlocacaoObra")
   ambientesDiario    Ambiente[]
   diarios            DiarioObra[]
   cronogramas        Cronograma[]
@@ -910,10 +912,10 @@ model PunchListItem {
   createdAt     DateTime  @default(now()) @map("created_at")
 
   // ─── Origem (Sprint 1.4) ─── alimenta o módulo Pendências unificado
-  origem        String    @default("livre") @db.VarChar(20)
+  origem      String    @default("livre") @db.VarChar(20)
   // livre | ata | diario | vistoria
-  ataOrigemId   String?   @map("ata_origem_id") @db.Uuid
-  prazo         DateTime? @db.Date
+  ataOrigemId String?   @map("ata_origem_id") @db.Uuid
+  prazo       DateTime? @db.Date
 
   punchList   PunchList @relation(fields: [punchListId], references: [id], onDelete: Cascade)
   responsible User?     @relation("PunchListResponsible", fields: [responsibleId], references: [id])
@@ -1659,6 +1661,7 @@ model CrmOportunidade {
   responsavel User?                      @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   createdBy   User                       @relation("CrmOportCreator", fields: [createdById], references: [id])
   orcamento   Orcamento?                 @relation("OportOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  obra        Obra?                      @relation("ObraCrmOportunidade")
   atividades  CrmAtividade[]
   historico   CrmOportunidadeHistorico[]
 
@@ -1880,8 +1883,8 @@ model ObraContratacaoPlano {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra        Obra              @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  contratacao ObraContratacao?  @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+  obra        Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratacao ObraContratacao? @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
 
   @@index([obraId])
   @@index([status])
@@ -1894,7 +1897,7 @@ model ObraHistograma {
   obraId    String   @map("obra_id") @db.Uuid
   funcao    String   @db.VarChar(100)
   ano       Int
-  mes       Int      // 1..12
+  mes       Int // 1..12
   hhPlan    Float    @default(0) @map("hh_plan")
   hhReal    Float    @default(0) @map("hh_real")
   createdAt DateTime @default(now()) @map("created_at")
@@ -1935,15 +1938,15 @@ model ObraDocumento {
 
 // ─── ObraStakeholder (contatos do projeto) ───────────────────────────────
 model ObraStakeholder {
-  id        String  @id @default(uuid()) @db.Uuid
-  obraId    String  @map("obra_id") @db.Uuid
-  empresa   String  @db.VarChar(255)
-  nome      String  @db.VarChar(255)
-  cargo     String? @db.VarChar(150)
-  email     String? @db.VarChar(255)
-  telefone  String? @db.VarChar(50)
-  funcao    String? @db.VarChar(150)
-  ordem     Int     @default(0)
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  empresa   String   @db.VarChar(255)
+  nome      String   @db.VarChar(255)
+  cargo     String?  @db.VarChar(150)
+  email     String?  @db.VarChar(255)
+  telefone  String?  @db.VarChar(50)
+  funcao    String?  @db.VarChar(150)
+  ordem     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -1955,16 +1958,16 @@ model ObraStakeholder {
 
 // ─── ObraKickoff (1:1 com a obra) ────────────────────────────────────────
 model ObraKickoff {
-  id              String    @id @default(uuid()) @db.Uuid
-  obraId          String    @unique @map("obra_id") @db.Uuid
-  dataRealizada   DateTime? @map("data_realizada") @db.Date
-  participantes   Json      @default("[]") // [{ nome, papel }]
-  pautaCoberta    String?   @map("pauta_coberta")
-  decisoes        String?
-  premissas       String?
-  riscosIniciais  String?   @map("riscos_iniciais")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  id             String    @id @default(uuid()) @db.Uuid
+  obraId         String    @unique @map("obra_id") @db.Uuid
+  dataRealizada  DateTime? @map("data_realizada") @db.Date
+  participantes  Json      @default("[]") // [{ nome, papel }]
+  pautaCoberta   String?   @map("pauta_coberta")
+  decisoes       String?
+  premissas      String?
+  riscosIniciais String?   @map("riscos_iniciais")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
@@ -2012,19 +2015,19 @@ model ObraAta {
 
 // ─── ObraContratacao (formaliza contrato com fornecedor) ─────────────────
 model ObraContratacao {
-  id              String    @id @default(uuid()) @db.Uuid
-  obraId          String    @map("obra_id") @db.Uuid
-  fornecedor      String    @db.VarChar(255)
-  disciplina      String?   @db.VarChar(100)
-  valor           Decimal   @db.Decimal(14, 2)
-  dataAssinatura  DateTime? @map("data_assinatura") @db.Date
-  vigenciaInicio  DateTime? @map("vigencia_inicio") @db.Date
-  vigenciaFim     DateTime? @map("vigencia_fim") @db.Date
-  status          String    @default("em_negociacao") @db.VarChar(20)
+  id             String    @id @default(uuid()) @db.Uuid
+  obraId         String    @map("obra_id") @db.Uuid
+  fornecedor     String    @db.VarChar(255)
+  disciplina     String?   @db.VarChar(100)
+  valor          Decimal   @db.Decimal(14, 2)
+  dataAssinatura DateTime? @map("data_assinatura") @db.Date
+  vigenciaInicio DateTime? @map("vigencia_inicio") @db.Date
+  vigenciaFim    DateTime? @map("vigencia_fim") @db.Date
+  status         String    @default("em_negociacao") @db.VarChar(20)
   // em_negociacao | aprovado | assinado | em_execucao | concluido | rescindido
-  observacoes     String?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  observacoes    String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra  Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
   ocs   ObraOrdemCompra[]

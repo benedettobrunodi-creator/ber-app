@@ -3,8 +3,9 @@
 import { useState, useCallback, useEffect, useRef, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
+import NovaObraModal from '@/components/obras/NovaObraModal';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
   state = { err: null };
@@ -150,6 +151,7 @@ function OportunidadeDrawer({
   const [loadingHist, setLoadingHist] = useState(false);
   const [novaAtiv, setNovaAtiv] = useState({ tipo: 'ligacao', notas: '', dataHora: new Date().toISOString().slice(0, 16) });
   const [savingAtiv, setSavingAtiv] = useState(false);
+  const [showConvertObra, setShowConvertObra] = useState(false);
 
   useEffect(() => {
     if (op?.empresa?.id) {
@@ -476,6 +478,26 @@ function OportunidadeDrawer({
               )}
             </div>
           )}
+          {!isNew && op?.obra && (
+            <div className="rounded-lg border border-ber-olive/30 bg-ber-olive/5 p-3">
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-2">Obra vinculada</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardHat size={14} className="text-ber-olive" />
+                  <div>
+                    <p className="text-sm font-bold text-ber-carbon">{op.obra.name}</p>
+                    <p className="text-xs text-ber-gray">{op.obra.status} · {op.obra.fase}</p>
+                  </div>
+                </div>
+                <a
+                  href={`/obras/${op.obra.id}/gestao-360`}
+                  className="text-[11px] text-ber-teal hover:underline font-medium"
+                >
+                  Abrir 360 ↗
+                </a>
+              </div>
+            </div>
+          )}
           {/* ── Histórico de atividades ───────────────────────────────────── */}
           {!isNew && (
             <div className="border-t border-ber-border pt-4 mt-2">
@@ -546,6 +568,15 @@ function OportunidadeDrawer({
                   <Trash2 size={15} />
                 </button>
               )}
+              {!isNew && op?.id && !op?.obra && (
+                <button
+                  onClick={() => setShowConvertObra(true)}
+                  title="Criar obra a partir desta oportunidade"
+                  className="px-3 py-2 rounded-lg text-sm font-semibold border border-ber-olive/40 text-ber-carbon hover:bg-ber-olive/10 inline-flex items-center gap-1.5"
+                >
+                  <HardHat size={14} /> Converter em obra
+                </button>
+              )}
               <button onClick={onClose} className="flex-1 py-2 border border-ber-border rounded-lg text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
               <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-ber-teal text-white rounded-lg text-sm font-semibold hover:bg-ber-teal/80 disabled:opacity-50">
                 {saving ? 'Salvando...' : 'Salvar'}
@@ -554,6 +585,20 @@ function OportunidadeDrawer({
           )}
         </div>
       </div>
+
+      {showConvertObra && op?.id && (
+        <NovaObraModal
+          title={`Converter oportunidade em obra`}
+          initial={{
+            name: op.titulo,
+            client: op.empresa?.razaoSocial ?? '',
+            valorContrato: op.valor != null ? String(op.valor) : '',
+            crmOportunidadeId: op.id,
+          }}
+          onClose={() => setShowConvertObra(false)}
+          onCreated={() => { setShowConvertObra(false); onSave(); onClose(); }}
+        />
+      )}
     </div>
   );
 }

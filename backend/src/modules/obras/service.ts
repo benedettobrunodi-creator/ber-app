@@ -63,6 +63,8 @@ export async function createObra(input: CreateObraInput) {
         arquiteturaEscritorio: input.arquiteturaEscritorio,
         gerenciadora: input.gerenciadora,
         areaM2: input.areaM2,
+        valorContrato: input.valorContrato,
+        crmOportunidadeId: input.crmOportunidadeId,
       },
       include: {
         coordinator: { select: { id: true, name: true } },
@@ -93,6 +95,29 @@ export async function createObra(input: CreateObraInput) {
           },
         },
       });
+    }
+
+    // Se veio do CRM, marca oportunidade como ganha (idempotente)
+    if (input.crmOportunidadeId) {
+      const opp = await tx.crmOportunidade.findUnique({
+        where: { id: input.crmOportunidadeId },
+        select: { etapa: true },
+      });
+      if (opp && opp.etapa !== 'ganho') {
+        await tx.crmOportunidade.update({
+          where: { id: input.crmOportunidadeId },
+          data: { etapa: 'ganho', dataGanho: new Date() },
+        });
+        await tx.crmOportunidadeHistorico.create({
+          data: {
+            oportunidadeId: input.crmOportunidadeId,
+            campo: 'etapa',
+            valorAntigo: opp.etapa,
+            valorNovo: 'ganho',
+            alteradoPor: 'Sistema (conversão em obra)',
+          },
+        });
+      }
     }
 
     return newObra;
