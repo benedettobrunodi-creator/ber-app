@@ -186,7 +186,12 @@ export default function Gestao360Page() {
           <LayoutDashboard size={22} className="text-ber-teal" />
           <h1 className="text-2xl font-black text-ber-carbon">Gestão 360 · {obra.name}</h1>
         </div>
-        <button onClick={fetchAll} className="text-xs text-ber-gray hover:text-ber-carbon">⟳ Atualizar</button>
+        <div className="flex items-center gap-3">
+          <Link href={`/obras/${obraId}/capa?from=gestao-360`} className="inline-flex items-center gap-1.5 rounded-md border border-ber-olive/40 px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:bg-ber-olive/10">
+            📄 Ver Capa
+          </Link>
+          <button onClick={fetchAll} className="text-xs text-ber-gray hover:text-ber-carbon">⟳ Atualizar</button>
+        </div>
       </div>
 
       {/* Tabs */}
