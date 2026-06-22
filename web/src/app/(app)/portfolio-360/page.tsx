@@ -37,6 +37,7 @@ interface Ata { id: string; numero: string; data: string; pauta: string; pendenc
 interface Documento { id: string; tipo: string; nome: string; status: string; dataEmissao: string | null }
 interface DocumentosResp { documentos: Documento[]; totals: { byStatus: Record<string, number> } }
 interface PunchItem { id: string; descricao: string; status: string; prazo: string | null }
+interface TempItem { id: string; data: string; avaliacao: string; tipo: string }
 
 interface ObraRow {
   id: string;
@@ -56,6 +57,7 @@ interface ObraRow {
   stakeholders?: Stakeholder[];
   documentos?: DocumentosResp | null;
   pendencias?: PunchItem[];
+  temperaturas?: TempItem[];
 }
 
 // ─── Tabs ──────────────────────────────────────────────────────────────────
@@ -113,7 +115,7 @@ export default function Portfolio360Page() {
 
     // Fan-out por obra. TODO: substituir por endpoints /portfolio/* agregados no backend.
     const hydrated = await Promise.all(ativas.map(async (o) => {
-      const [aditivos, contratos, ocs, planos, atas, stakeholders, documentos, punchRes] = await Promise.all([
+      const [aditivos, contratos, ocs, planos, atas, stakeholders, documentos, punchRes, temperaturas] = await Promise.all([
         safe(api.get(`/obras/${o.id}/aditivos`).then(r => r.data.data as AditivosResp)),
         safe(api.get(`/obras/${o.id}/contratacoes`).then(r => r.data.data as ContratacoesResp)),
         safe(api.get(`/obras/${o.id}/ordens-compra`).then(r => r.data.data as OcsResp)),
@@ -122,10 +124,11 @@ export default function Portfolio360Page() {
         safe(api.get(`/obras/${o.id}/stakeholders`).then(r => r.data.data as Stakeholder[])),
         safe(api.get(`/obras/${o.id}/documentos`).then(r => r.data.data as DocumentosResp)),
         safe(api.get(`/obras/${o.id}/punch-lists`).then(r => r.data.data as { items: PunchItem[] }[])),
+        safe(api.get(`/obras/${o.id}/temperatura`).then(r => r.data.data as TempItem[])),
       ]);
       const pendencias: PunchItem[] = [];
       (punchRes ?? []).forEach(pl => (pl.items ?? []).forEach(it => pendencias.push(it)));
-      return { ...o, aditivos, contratos, ocs, planos: planos ?? [], atas: atas ?? [], stakeholders: stakeholders ?? [], documentos, pendencias };
+      return { ...o, aditivos, contratos, ocs, planos: planos ?? [], atas: atas ?? [], stakeholders: stakeholders ?? [], documentos, pendencias, temperaturas: temperaturas ?? [] };
     }));
     setObras(hydrated);
     setHydrating(false);
@@ -222,6 +225,7 @@ function TabVisao({ obras }: { obras: ObraRow[] }) {
               <Th className="text-right">Δ</Th>
               <Th className="text-right">Prazo</Th>
               <Th className="text-right">Pend.</Th>
+              <Th className="text-center">Temp.</Th>
               <Th className="text-right">Saúde</Th>
             </tr>
           </thead>
@@ -233,6 +237,12 @@ function TabVisao({ obras }: { obras: ObraRow[] }) {
               const h = health(o);
               const pend = (o.pendencias ?? []).filter(p => p.status === 'aberto' || p.status === 'em_andamento').length;
               const color = h === 'atrasado' ? 'bg-red-500' : h === 'risco' ? 'bg-amber-400' : h === 'ok' ? 'bg-green-500' : 'bg-ber-gray/30';
+              const temps = (o.temperaturas ?? []).slice().sort((a, b) => a.data.localeCompare(b.data));
+              const ultTemp = temps[temps.length - 1]?.avaliacao;
+              const tempBg: Record<string, string> = {
+                'Muito Ruim': 'bg-red-900', 'Ruim': 'bg-red-500', 'Regular': 'bg-yellow-400',
+                'Bom': 'bg-lime-500', 'Muito Bom': 'bg-green-600', 'Ótimo': 'bg-sky-400',
+              };
               return (
                 <tr key={o.id} className="hover:bg-ber-bg/30 transition-colors">
                   <Td>
@@ -252,6 +262,11 @@ function TabVisao({ obras }: { obras: ObraRow[] }) {
                     {d == null ? '—' : d < 0 ? `${Math.abs(d)}d atraso` : `${d}d`}
                   </Td>
                   <Td className="text-right tabular-nums">{pend || '—'}</Td>
+                  <Td className="text-center">
+                    {ultTemp ? (
+                      <span className={`inline-block h-3 w-3 rounded-full ${tempBg[ultTemp] ?? 'bg-ber-gray/30'}`} title={`${temps.length} pesquisa(s) · última: ${ultTemp}`} />
+                    ) : <span className="text-ber-gray/40">—</span>}
+                  </Td>
                   <Td className="text-right">
                     <span className={`inline-block h-2 w-2 rounded-full ${color}`} />
                   </Td>

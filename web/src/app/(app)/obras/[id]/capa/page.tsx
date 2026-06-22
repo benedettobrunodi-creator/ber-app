@@ -181,6 +181,32 @@ export default function CapaObraPage() {
   const tempOrdenadas = [...temperaturas].sort((a, b) => a.data.localeCompare(b.data));
   const tipoLabel = (t: TemperaturaTipo): string => TIPOS_TEMPERATURA.find(x => x.value === t)?.label ?? t;
 
+  // Mapeamento qualitativo → numérico pra plotagem (1 = Muito Ruim ... 6 = Ótimo)
+  const avalScale: Record<Avaliacao, number> = {
+    'Muito Ruim': 1, 'Ruim': 2, 'Regular': 3, 'Bom': 4, 'Muito Bom': 5, 'Ótimo': 6,
+  };
+  const tempPoints = tempOrdenadas.map(t => ({
+    label: new Date(t.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    valor: avalScale[t.avaliacao],
+    avaliacao: t.avaliacao,
+    tipo: tipoLabel(t.tipo),
+    observacao: t.observacao,
+  }));
+  const ultimaAval = tempOrdenadas[tempOrdenadas.length - 1]?.avaliacao;
+  const mediaAval = tempOrdenadas.length > 0
+    ? tempOrdenadas.reduce((s, t) => s + avalScale[t.avaliacao], 0) / tempOrdenadas.length
+    : 0;
+  const mediaLabel = mediaAval >= 5.5 ? 'Ótimo'
+    : mediaAval >= 4.5 ? 'Muito Bom'
+    : mediaAval >= 3.5 ? 'Bom'
+    : mediaAval >= 2.5 ? 'Regular'
+    : mediaAval >= 1.5 ? 'Ruim'
+    : mediaAval > 0 ? 'Muito Ruim' : '—';
+  const AVAL_HEX: Record<Avaliacao, string> = {
+    'Muito Ruim': '#7f1d1d', 'Ruim': '#ef4444', 'Regular': '#facc15',
+    'Bom': '#84cc16', 'Muito Bom': '#16a34a', 'Ótimo': '#38bdf8',
+  };
+
   return (
     <div className="p-3 md:p-6 print:p-0 bg-white min-h-screen">
       {/* Header navegação (esconde na impressão) */}
@@ -285,6 +311,20 @@ export default function CapaObraPage() {
               <Plus size={11} /> Adicionar
             </button>
           </div>
+
+          {/* Headline: média + última */}
+          {tempOrdenadas.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mb-3 pb-3 border-b border-ber-gray/10">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wide text-ber-gray">Média</p>
+                <p className={`text-sm font-semibold inline-block rounded px-2 py-0.5 mt-0.5 ${mediaLabel !== '—' ? TEMP_COLORS[mediaLabel as Avaliacao] : 'text-ber-gray'}`}>{mediaLabel}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wide text-ber-gray">Última</p>
+                <p className={`text-sm font-semibold inline-block rounded px-2 py-0.5 mt-0.5 ${ultimaAval ? TEMP_COLORS[ultimaAval] : 'text-ber-gray'}`}>{ultimaAval ?? '—'}</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-[1fr_auto_auto] gap-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray pb-1 border-b border-ber-gray/20">
             <span>Momento</span>
             <span className="text-center">Data</span>
@@ -321,6 +361,43 @@ export default function CapaObraPage() {
                 </span>
               </div>
             ))
+          )}
+
+          {/* Gráfico de evolução */}
+          {tempOrdenadas.length >= 2 && (
+            <div className="mt-3 pt-3 border-t border-ber-gray/10">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-ber-gray mb-1">Evolução</p>
+              <div className="h-[120px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={tempPoints} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
+                    <CartesianGrid strokeDasharray="2 2" stroke="#EEE" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+                    <YAxis domain={[0.5, 6.5]} ticks={[1, 2, 3, 4, 5, 6]} tick={{ fontSize: 9 }} tickFormatter={v => ['', 'MR', 'R', 'Reg', 'B', 'MB', 'Ot'][v as number] ?? ''} width={30} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.[0]) return null;
+                        const p = payload[0].payload as typeof tempPoints[0];
+                        return (
+                          <div className="bg-white border border-ber-gray/20 rounded shadow-md p-2 text-[11px]">
+                            <p className="font-bold text-ber-carbon">{p.tipo}</p>
+                            <p className="text-ber-gray">{p.label}</p>
+                            <p className="font-medium mt-0.5">{p.avaliacao}</p>
+                            {p.observacao && <p className="text-[10px] text-ber-gray italic mt-1 max-w-[200px]">{p.observacao}</p>}
+                          </div>
+                        );
+                      }}
+                    />
+                    <Line type="monotone" dataKey="valor" stroke="#3B82F6" strokeWidth={2}
+                      dot={(props: { cx?: number; cy?: number; payload?: typeof tempPoints[0]; index?: number }) => {
+                        const cx = props.cx, cy = props.cy, p = props.payload;
+                        if (cx == null || cy == null || !p) return <g />;
+                        return <circle key={props.index} cx={cx} cy={cy} r={5} fill={AVAL_HEX[p.avaliacao]} stroke="white" strokeWidth={2} />;
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
         </div>
       </div>
