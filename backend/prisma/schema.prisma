@@ -94,6 +94,7 @@ model User {
   resetTokens             PasswordResetToken[]
   orgChartUpdates         OrgChart[]
   temperaturasPreenchidas ObraTemperatura[]       @relation("TemperaturaCreator")
+  medicaoTransicoes       MedicaoTransicao[]      @relation("MedicaoTransicaoUser")
 
   @@map("users")
 }
@@ -144,6 +145,10 @@ model Obra {
   gerenciadora          String? @db.VarChar(255)
   areaM2                Float?  @map("area_m2")
 
+  // — Medição financeira (migração ber-medicao 2026-06-22) —
+  prazoPagamentoDias   Int      @default(30) @map("prazo_pagamento_dias")
+  retencaoPercentual   Decimal  @default(0)  @map("retencao_percentual") @db.Decimal(5, 2)
+
   // Relations
   coordinator        User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
   orcamento          Orcamento?             @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
@@ -173,8 +178,11 @@ model Obra {
   plantas            ObraPlanta[]           @relation("ObraPlantas")
   ambientes          ObraAmbiente[]         @relation("ObraAmbientes")
   fotosObra          ObraFoto[]             @relation("ObraFotos")
-  medicoes           Medicao[]              @relation("ObraMedicoes")
-  medicaoItens       MedicaoItem[]          @relation("ObraMedicaoItens")
+  medicoes           Medicao[]
+  medicaoEtapas      Etapa[]
+  fornecedores       Fornecedor[]
+  changeOrders       ChangeOrder[]
+  clientesAcesso     ClienteAcesso[]
   comprasMetas       ComprasMeta[]
   comprasConfig      ComprasConfig?
   alocacoes          Alocacao[]             @relation("AlocacaoObra")
@@ -1195,54 +1203,246 @@ model ObraFoto {
 
 // ── MEDIÇÃO DE CONTRATO ──────────────────────────────────────────────────────
 
+// ─── Medição financeira (migração ber-medicao 2026-06-22) ─────────────────
+// Substitui o /medicao antigo (planilha % por item). Cobre fluxo completo:
+// obra → etapas → fornecedores → medições quinzenais → NFs → portal cliente.
+
+enum EtapaFornecedorTipo {
+  terceiro_ber_paga
+  terceiro_fatura_direto
+  miscelaneos_ber
+}
+
+enum MedicaoStatus {
+  rascunho
+  enviada
+  aprovada
+  contestada
+  nf_emitida
+  paga
+}
+
+enum MedicaoFornecedorStatus {
+  pendente
+  liberada
+  nf_recebida
+  paga
+  contestada_pelo_fornecedor
+}
+
+enum NfEmissorTipo {
+  ber
+  fornecedor
+}
+
+enum NfStatus {
+  emitida
+  paga
+  cancelada
+}
+
+model Etapa {
+  id                    String   @id @default(uuid()) @db.Uuid
+  obraId                String   @map("obra_id") @db.Uuid
+  ordem                 Int
+  nome                  String
+  descricao             String?
+  contratoValor         Decimal  @map("contrato_valor") @db.Decimal(14, 2)
+  fornecedoresCompletos Boolean  @default(false) @map("fornecedores_completos")
+  excelLinha            Int?     @map("excel_linha")
+
+  obra              Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapaFornecedores EtapaFornecedor[]
+  evidencias        MedicaoEvidencia[]
+
+  @@index([obraId])
+  @@map("etapas")
+}
+
+model Fornecedor {
+  id          String  @id @default(uuid()) @db.Uuid
+  obraId      String  @map("obra_id") @db.Uuid
+  razaoSocial String  @map("razao_social")
+  cnpj        String
+  contato     String?
+
+  obra               Obra                @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  etapaFornecedores  EtapaFornecedor[]
+  medicoesFornecedor MedicaoFornecedor[]
+
+  @@index([obraId])
+  @@map("fornecedores")
+}
+
+model EtapaFornecedor {
+  id              String              @id @default(uuid()) @db.Uuid
+  etapaId         String              @map("etapa_id") @db.Uuid
+  fornecedorId    String?             @map("fornecedor_id") @db.Uuid
+  escopo          String?
+  tipo            EtapaFornecedorTipo
+  valorContratado Decimal             @map("valor_contratado") @db.Decimal(14, 2)
+
+  etapa        Etapa         @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  fornecedor   Fornecedor?   @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  medicaoItens MedicaoItem[]
+
+  @@index([etapaId])
+  @@index([fornecedorId])
+  @@map("etapa_fornecedores")
+}
+
 model Medicao {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId        String   @map("obra_id") @db.Uuid
-  numero        String   @db.VarChar(10)
-  periodoInicio DateTime @map("periodo_inicio") @db.Date
-  periodoFim    DateTime @map("periodo_fim") @db.Date
-  status        String   @default("rascunho") @db.VarChar(20)
-  criadoEm      DateTime @default(now()) @map("criado_em")
-  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  id                     String        @id @default(uuid()) @db.Uuid
+  obraId                 String        @map("obra_id") @db.Uuid
+  numero                 Int
+  periodoInicio          DateTime      @map("periodo_inicio") @db.Date
+  periodoFim             DateTime      @map("periodo_fim") @db.Date
+  status                 MedicaoStatus @default(rascunho)
+  tokenPublico           String?       @unique @map("token_publico") @db.Uuid
+  dataPagamentoPrevista  DateTime?     @map("data_pagamento_prevista") @db.Date
+  dataPagamentoRealizado DateTime?     @map("data_pagamento_realizado") @db.Date
+  createdAt              DateTime      @default(now()) @map("created_at")
 
-  obra        Obra                @relation("ObraMedicoes", fields: [obraId], references: [id], onDelete: Cascade)
-  lancamentos MedicaoLancamento[]
+  obra               Obra                @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  itens              MedicaoItem[]
+  evidencias         MedicaoEvidencia[]
+  transicoes         MedicaoTransicao[]
+  medicoesFornecedor MedicaoFornecedor[]
+  notasFiscais       NotaFiscal[]
 
+  @@unique([obraId, numero])
+  @@index([obraId])
   @@map("medicoes")
 }
 
 model MedicaoItem {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  obraId      String   @map("obra_id") @db.Uuid
-  numero      String   @db.VarChar(20)
-  descricao   String
-  unidade     String?  @db.VarChar(20)
-  quantidade  Decimal? @map("quantidade") @db.Decimal(14, 4)
-  valorOrcado Decimal  @default(0) @map("valor_orcado") @db.Decimal(14, 2)
-  tipo        String   @default("subitem") @db.VarChar(10)
-  ordem       Int      @default(0)
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  id                  String  @id @default(uuid()) @db.Uuid
+  medicaoId           String  @map("medicao_id") @db.Uuid
+  etapaFornecedorId   String  @map("etapa_fornecedor_id") @db.Uuid
+  valorQuinzena       Decimal @map("valor_quinzena") @db.Decimal(14, 2)
+  percentualAcumulado Decimal @map("percentual_acumulado") @db.Decimal(5, 2)
 
-  obra        Obra                @relation("ObraMedicaoItens", fields: [obraId], references: [id], onDelete: Cascade)
-  lancamentos MedicaoLancamento[]
+  medicao         Medicao         @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+  etapaFornecedor EtapaFornecedor @relation(fields: [etapaFornecedorId], references: [id], onDelete: Restrict)
 
+  @@index([medicaoId])
+  @@index([etapaFornecedorId])
   @@map("medicao_itens")
 }
 
-model MedicaoLancamento {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  itemId              String   @map("item_id") @db.Uuid
-  medicaoId           String   @map("medicao_id") @db.Uuid
-  percentualExecutado Decimal  @default(0) @map("percentual_executado") @db.Decimal(5, 2)
-  valorMedido         Decimal  @default(0) @map("valor_medido") @db.Decimal(14, 2)
-  criadoEm            DateTime @default(now()) @map("criado_em")
-  atualizadoEm        DateTime @updatedAt @map("atualizado_em")
+model MedicaoEvidencia {
+  id             String   @id @default(uuid()) @db.Uuid
+  medicaoId      String   @map("medicao_id") @db.Uuid
+  etapaId        String   @map("etapa_id") @db.Uuid
+  storageKey     String   @map("storage_key")
+  visivelCliente Boolean  @default(true) @map("visivel_cliente")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  item    MedicaoItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  medicao Medicao     @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+  medicao Medicao @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+  etapa   Etapa   @relation(fields: [etapaId], references: [id], onDelete: Cascade)
 
-  @@unique([itemId, medicaoId])
-  @@map("medicao_lancamentos")
+  @@index([medicaoId])
+  @@map("medicao_evidencias")
+}
+
+model MedicaoTransicao {
+  id         String         @id @default(uuid()) @db.Uuid
+  medicaoId  String         @map("medicao_id") @db.Uuid
+  userId     String?        @map("user_id") @db.Uuid
+  deStatus   MedicaoStatus? @map("de_status")
+  paraStatus MedicaoStatus  @map("para_status")
+  comentario String?
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  medicao Medicao @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+  user    User?   @relation("MedicaoTransicaoUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([medicaoId])
+  @@map("medicao_transicoes")
+}
+
+model MedicaoFornecedor {
+  id            String                  @id @default(uuid()) @db.Uuid
+  medicaoId     String                  @map("medicao_id") @db.Uuid
+  fornecedorId  String                  @map("fornecedor_id") @db.Uuid
+  valorQuinzena Decimal                 @map("valor_quinzena") @db.Decimal(14, 2)
+  status        MedicaoFornecedorStatus @default(pendente)
+  liberadaEm    DateTime?               @map("liberada_em")
+  createdAt     DateTime                @default(now()) @map("created_at")
+
+  medicao      Medicao      @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+  fornecedor   Fornecedor   @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  notasFiscais NotaFiscal[]
+
+  @@index([medicaoId])
+  @@index([fornecedorId])
+  @@map("medicoes_fornecedor")
+}
+
+model NotaFiscal {
+  id                    String        @id @default(uuid()) @db.Uuid
+  medicaoId             String?       @map("medicao_id") @db.Uuid
+  medicaoFornecedorId   String?       @map("medicao_fornecedor_id") @db.Uuid
+  emissorTipo           NfEmissorTipo @map("emissor_tipo")
+  emissorId             String?       @map("emissor_id") @db.Uuid
+  numero                String
+  dataEmissao           DateTime      @map("data_emissao") @db.Date
+  dataPagamentoPrevista DateTime      @map("data_pagamento_prevista") @db.Date
+  valor                 Decimal       @db.Decimal(14, 2)
+  arquivoKey            String?       @map("arquivo_key")
+  status                NfStatus      @default(emitida)
+  createdAt             DateTime      @default(now()) @map("created_at")
+
+  medicao           Medicao?           @relation(fields: [medicaoId], references: [id], onDelete: SetNull)
+  medicaoFornecedor MedicaoFornecedor? @relation(fields: [medicaoFornecedorId], references: [id], onDelete: SetNull)
+
+  @@index([medicaoId])
+  @@index([medicaoFornecedorId])
+  @@map("notas_fiscais")
+}
+
+model ChangeOrder {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  numero    Int
+  titulo    String   @default("Change Order") @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  obra  Obra              @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  itens ChangeOrderItem[]
+
+  @@unique([obraId, numero])
+  @@index([obraId])
+  @@map("change_orders")
+}
+
+model ChangeOrderItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  changeOrderId String  @map("change_order_id") @db.Uuid
+  tipo          String  @db.VarChar(10)
+  descricao     String  @default("") @db.VarChar(500)
+  valor         Decimal @default(0) @db.Decimal(14, 2)
+
+  changeOrder ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+
+  @@index([changeOrderId])
+  @@map("change_order_itens")
+}
+
+model ClienteAcesso {
+  id        String    @id @default(uuid()) @db.Uuid
+  obraId    String    @map("obra_id") @db.Uuid
+  email     String
+  nome      String
+  token     String    @unique
+  expiraEm  DateTime? @map("expira_em")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@index([token])
+  @@map("clientes_acesso")
 }
 
 // ─── DRE (Demonstrativo de Resultados) ──────────────────────────────────────

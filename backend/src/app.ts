@@ -290,16 +290,9 @@ app.post('/v1/obras/:id/ber-checklists', ...cp, (req: any, res: any, next: any) 
 app.use('/v1/obra-ber-checklists', ...cp, clRouter);
 app.get('/v1/ber-checklist-templates',   ...cp, (req: any, res: any, next: any) => berClCtrl.listTemplates(req, res).catch(next));
 
-// ── MEDIÇÃO DE CONTRATO (requer perm obras) ──────────────────────────────────
-import * as medCtrl from './modules/medicoes/controller';
-import medicaoRouter from './modules/medicoes/routes';
+// ── MEDIÇÃO (em reconstrução — Fase 2 da migração ber-medicao) ───────────────
+// As rotas voltam na Fase 2 com o módulo novo (etapas + fornecedores + NFs).
 import comprasRoutes from './modules/compras/routes';
-app.get('/v1/obras/:id/medicoes',            ...op, (req: any, res: any, next: any) => medCtrl.listMedicoes(req, res, next).catch(next));
-app.post('/v1/obras/:id/medicoes',           ...op, (req: any, res: any, next: any) => medCtrl.createMedicao(req, res, next).catch(next));
-app.get('/v1/obras/:id/medicao-itens',       ...op, (req: any, res: any, next: any) => medCtrl.listItens(req, res, next).catch(next));
-app.post('/v1/obras/:id/medicao-itens/bulk', ...op, (req: any, res: any, next: any) => medCtrl.bulkItens(req, res, next).catch(next));
-app.patch('/v1/medicao-itens/:itemId',       ...op, (req: any, res: any, next: any) => medCtrl.updateItem(req, res, next).catch(next));
-app.use('/v1/medicoes', ...op, medicaoRouter);
 app.use('/v1/obras', ...perm('obras'), comprasRoutes);
 // — Módulo: diário de obra —
 app.use('/v1/obras/:id/diario', ...perm('diario'), obraDiarioRouter);
