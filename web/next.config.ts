@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // Bookmarks/PWA start_url antigos (commit 23e14022 removeu Dashboard + Painel)
+  async redirects() {
+    return [
+      { source: "/dashboard", destination: "/portfolio-360", permanent: true },
+      { source: "/kanban", destination: "/portfolio-360", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
