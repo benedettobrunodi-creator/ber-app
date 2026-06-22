@@ -194,15 +194,18 @@ export default function Gestao360Page() {
           <h1 className="text-2xl font-black text-ber-carbon">Gestão 360 · {obra.name}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/obras/${obraId}/capa?from=gestao-360`} className="inline-flex items-center gap-1.5 rounded-md border border-ber-olive/40 px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:bg-ber-olive/10">
-            📄 Ver Capa
-          </Link>
           <button onClick={fetchAll} className="text-xs text-ber-gray hover:text-ber-carbon">⟳ Atualizar</button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="mb-5 flex items-center gap-1 border-b border-ber-gray/20 overflow-x-auto">
+        <Link
+          href={`/obras/${obraId}/capa?from=gestao-360`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 text-ber-gray hover:text-ber-carbon"
+        >
+          <FileSignature size={14} /> Capa
+        </Link>
         {TABS.map(t => {
           const Icon = t.icon;
           return (
