@@ -6,6 +6,7 @@ import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, FileText, CheckCircle2, XCircle, Clock, Trash2, Upload, Paperclip, X } from 'lucide-react';
 import api from '@/lib/api';
+import AditivoFormModal from '@/components/obras/AditivoFormModal';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   em_analise:   { label: 'Em análise',   color: 'bg-amber-100 text-amber-700',  icon: Clock },
@@ -293,7 +294,7 @@ export default function ObraAditivosPage() {
       )}
 
       {showForm && (
-        <AditivoForm
+        <AditivoFormModal
           obraId={obraId}
           onClose={() => setShowForm(false)}
           onCreated={() => { setShowForm(false); fetchAll(); }}
@@ -303,96 +304,7 @@ export default function ObraAditivosPage() {
   );
 }
 
-function AditivoForm({ obraId, onClose, onCreated }: { obraId: string; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ numero: '', descricao: '', valor: '', tipo: 'credito' as 'credito' | 'debito', motivo: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      const valor = Number(form.valor.replace(',', '.'));
-      if (!form.numero.trim() || !form.descricao.trim() || isNaN(valor) || valor <= 0) {
-        setError('Preencha número, descrição e valor (> 0).');
-        setSaving(false);
-        return;
-      }
-      await api.post(`/obras/${obraId}/aditivos`, {
-        numero: form.numero.trim(),
-        descricao: form.descricao.trim(),
-        valor,
-        tipo: form.tipo,
-        motivo: form.motivo.trim() || null,
-      });
-      onCreated();
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
-      setError(typeof msg === 'string' ? msg : msg?.message || 'Erro ao criar aditivo');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white max-h-[90dvh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-          <h2 className="text-lg font-black text-ber-carbon">Novo Aditivo</h2>
-          <button onClick={onClose} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite hover:text-ber-carbon">
-            <X size={18} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Número *</label>
-              <input value={form.numero} onChange={e => setForm(p => ({ ...p, numero: e.target.value }))}
-                placeholder="Ex: AD-01" required
-                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Tipo *</label>
-              <select value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value as 'credito' | 'debito' }))}
-                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none">
-                <option value="credito">Crédito (a receber)</option>
-                <option value="debito">Débito (a deduzir)</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Descrição *</label>
-            <textarea rows={2} value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} required
-              className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Valor (R$) *</label>
-            <input value={form.valor} onChange={e => setForm(p => ({ ...p, valor: e.target.value }))}
-              inputMode="decimal" placeholder="Ex: 15000.00" required
-              className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Motivo (opcional)</label>
-            <textarea rows={2} value={form.motivo} onChange={e => setForm(p => ({ ...p, motivo: e.target.value }))}
-              placeholder="Justificativa, número da ata de origem, etc."
-              className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving}
-              className="rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50">
-              {saving ? 'Criando…' : 'Criar Aditivo'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+// Form movido pra components/obras/AditivoFormModal.tsx (reusado no Gestão 360).
 
 function AttachmentsPanel({ aditivoId, attachments, onRefresh }: { aditivoId: string; attachments: Attachment[]; onRefresh: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);

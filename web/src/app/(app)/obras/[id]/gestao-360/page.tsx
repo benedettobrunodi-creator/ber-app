@@ -11,6 +11,8 @@ import {
 import api from '@/lib/api';
 import CronogramaPanel from '@/components/obras/CronogramaPanel';
 import StakeholderFormModal from '@/components/obras/StakeholderFormModal';
+import AtaFormModal, { type Ata as AtaFull, type UserOption } from '@/components/obras/AtaFormModal';
+import AditivoFormModal from '@/components/obras/AditivoFormModal';
 
 type TabKey = 'visao' | 'equipe' | 'raci' | 'compras' | 'reunioes' | 'aditivos' | 'cronograma' | 'medicoes';
 
@@ -42,7 +44,7 @@ interface ContratacoesResp { contratacoes: Contratacao[]; totals: { total: numbe
 interface Oc { id: string; numero: string; fornecedor: string; descricao: string; valor: string; status: string; dataPrevistaEntrega: string | null }
 interface OcsResp { ocs: Oc[]; totals: { total: number; byStatus: Record<string, number> } }
 interface PlanoLite { id: string; pacote: string; dataLimite: string | null; statusEfetivo: string }
-interface Ata { id: string; tipo: 'interna' | 'externa'; numero: string; data: string; pauta: string; pendencias: { status: string }[] }
+type Ata = AtaFull;
 interface Kickoff { id: string; dataRealizada: string | null; participantes: { nome: string; papel?: string | null }[]; decisoes: string | null }
 interface Documento { id: string; tipo: string; nome: string; status: string; dataEmissao: string | null }
 interface DocumentosResp { documentos: Documento[]; totals: { byStatus: Record<string, number> } }
@@ -63,6 +65,9 @@ export default function Gestao360Page() {
   const [tab, setTab] = useState<TabKey>('visao');
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | true | null>(null);
+  const [editingAta, setEditingAta] = useState<Ata | true | null>(null);
+  const [showNewAditivo, setShowNewAditivo] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [compras, setCompras] = useState<ComprasSummary | null>(null);
   const [aditivos, setAditivos] = useState<AditivosResp | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
@@ -99,6 +104,7 @@ export default function Gestao360Page() {
         histRes,
         punchRes,
         cronRes,
+        usersRes,
       ] = await Promise.all([
         safeGet<ObraInfo>(`/obras/${obraId}`),
         safeGet<{ totais: ComprasSummary }>(`/compras-dashboard/summary`, { obraId }).then(r => r ? r.totais ?? null : null).catch(() => null) as Promise<ComprasSummary | null>,
@@ -114,6 +120,7 @@ export default function Gestao360Page() {
         safeGet<HistogramaCell[]>(`/obras/${obraId}/histograma`),
         safeGet<{ id: string; type: string; items: PunchListItemLite[] }[]>(`/obras/${obraId}/punch-lists`),
         safeGet<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null }>(`/obras/${obraId}/cronograma`),
+        api.get<{ data: UserOption[] }>('/users', { params: { limit: 200 } }).then(r => r.data.data).catch(() => [] as UserOption[]),
       ]);
 
       setObra(obraRes);
@@ -129,6 +136,7 @@ export default function Gestao360Page() {
       setDocumentos(docsRes ?? null);
       setHistograma(histRes ?? []);
       setCronograma(cronRes ?? null);
+      setUsers(usersRes ?? []);
 
       // Flatten all punch list items for the obra
       const allItems: PunchListItemLite[] = [];
@@ -452,18 +460,48 @@ export default function Gestao360Page() {
           </Section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title={`Atas (${atas.length})`} linkTo={`/obras/${obraId}/atas?from=gestao-360`}>
-              {atas.length === 0 ? <EmptyMsg msg="Nenhuma ata cadastrada" /> : (
+            <Section
+              title={`Atas (${atas.length})`}
+              linkTo={`/obras/${obraId}/atas?from=gestao-360`}
+              onAdd={() => setEditingAta(true)}
+              addLabel="Nova ata"
+            >
+              {atas.length === 0 ? <EmptyMsg msg="Nenhuma ata cadastrada — clica em 'Nova ata' pra criar." /> : (
                 <ul className="space-y-1.5 text-sm">
                   {atas.slice(0, 6).map(a => {
                     const abertas = a.pendencias.filter(p => p.status === 'aberto' || p.status === 'em_andamento').length;
                     return (
-                      <li key={a.id} className="border-l-2 border-ber-teal/40 pl-3 py-0.5">
+                      <li key={a.id} className="group relative border-l-2 border-ber-teal/40 pl-3 pr-14 py-0.5 rounded-r hover:bg-ber-bg/40">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-ber-carbon truncate"><strong>{a.numero}</strong> ({a.tipo}) · {fmtDate(a.data)}</p>
                           {abertas > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{abertas} pend.</span>}
                         </div>
                         <p className="text-xs text-ber-gray truncate">{a.pauta}</p>
+                        <div className="absolute top-0.5 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingAta(a)}
+                            title="Editar"
+                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Excluir ata ${a.numero}? Pendências geradas continuam abertas.`)) return;
+                              try {
+                                await api.delete(`/atas/${a.id}`);
+                                fetchAll();
+                              } catch (err) {
+                                const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                                alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir');
+                              }
+                            }}
+                            title="Excluir"
+                            className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -504,17 +542,38 @@ export default function Gestao360Page() {
             ))}
           </div>
 
-          <Section title={`Aditivos (${aditivos?.aditivos.length ?? 0})`} linkTo={`/obras/${obraId}/aditivos?from=gestao-360`}>
-            {!aditivos || aditivos.aditivos.length === 0 ? <EmptyMsg msg="Nenhum aditivo cadastrado" /> : (
+          <Section
+            title={`Aditivos (${aditivos?.aditivos.length ?? 0})`}
+            linkTo={`/obras/${obraId}/aditivos?from=gestao-360`}
+            onAdd={() => setShowNewAditivo(true)}
+            addLabel="Novo aditivo"
+          >
+            {!aditivos || aditivos.aditivos.length === 0 ? <EmptyMsg msg="Nenhum aditivo cadastrado — clica em 'Novo aditivo'." /> : (
               <ul className="space-y-1.5 text-sm">
                 {aditivos.aditivos.slice(0, 10).map(a => {
                   const valor = Number(a.valor) * (a.tipo === 'debito' ? -1 : 1);
                   const meta = STATUS_ADIT[a.status as keyof typeof STATUS_ADIT];
                   return (
-                    <li key={a.id} className="flex items-center justify-between gap-3">
+                    <li key={a.id} className="group relative flex items-center justify-between gap-3 pr-8 py-0.5 rounded hover:bg-ber-bg/40">
                       <span className="text-ber-carbon flex-1 truncate"><strong>{a.numero}</strong> · {a.descricao}</span>
                       <span className={`text-xs tabular-nums shrink-0 font-semibold ${valor >= 0 ? 'text-green-700' : 'text-red-600'}`}>{fmtBRL(valor)}</span>
                       {meta && <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${meta.color}`}>{meta.label}</span>}
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Excluir aditivo ${a.numero}?`)) return;
+                          try {
+                            await api.delete(`/aditivos/${a.id}`);
+                            fetchAll();
+                          } catch (err) {
+                            const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                            alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir');
+                          }
+                        }}
+                        title="Excluir"
+                        className="absolute top-0.5 right-1 rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
                     </li>
                   );
                 })}
@@ -574,6 +633,26 @@ export default function Gestao360Page() {
           edit={editingStakeholder === true ? null : editingStakeholder}
           onClose={() => setEditingStakeholder(null)}
           onSaved={() => { setEditingStakeholder(null); fetchAll(); }}
+        />
+      )}
+
+      {/* ─── Modal: Ata (criar/editar) ──────────────────────────────────── */}
+      {editingAta !== null && (
+        <AtaFormModal
+          obraId={obraId}
+          users={users}
+          edit={editingAta === true ? null : editingAta}
+          onClose={() => setEditingAta(null)}
+          onSaved={() => { setEditingAta(null); fetchAll(); }}
+        />
+      )}
+
+      {/* ─── Modal: Aditivo (novo) ──────────────────────────────────────── */}
+      {showNewAditivo && (
+        <AditivoFormModal
+          obraId={obraId}
+          onClose={() => setShowNewAditivo(false)}
+          onCreated={() => { setShowNewAditivo(false); fetchAll(); }}
         />
       )}
     </div>
