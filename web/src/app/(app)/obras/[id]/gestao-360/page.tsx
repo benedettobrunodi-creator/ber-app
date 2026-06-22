@@ -491,7 +491,7 @@ export default function Gestao360Page() {
       {/* ─── TAB: Cronograma & Mão de Obra ──────────────────────────────── */}
       {tab === 'cronograma' && (
         <div className="space-y-4">
-          <Section title="Curva S — % planejado vs real" linkTo={`/obras/${obraId}?tab=cronograma`}>
+          <Section title="Curva S — % planejado vs real" linkTo={null}>
             <CurvaSResumo cronograma={cronograma} />
           </Section>
 
