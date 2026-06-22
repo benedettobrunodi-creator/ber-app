@@ -9,6 +9,7 @@ import {
   ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil,
 } from 'lucide-react';
 import api from '@/lib/api';
+import CronogramaPanel from '@/components/obras/CronogramaPanel';
 
 type TabKey = 'visao' | 'equipe' | 'raci' | 'compras' | 'reunioes' | 'aditivos' | 'cronograma' | 'medicoes';
 
@@ -493,6 +494,10 @@ export default function Gestao360Page() {
         <div className="space-y-4">
           <Section title="Curva S — % planejado vs real" linkTo={null}>
             <CurvaSResumo cronograma={cronograma} />
+          </Section>
+
+          <Section title="Cronograma completo" linkTo={null}>
+            <CronogramaPanel obraId={obraId} />
           </Section>
 
           <Section title="Histograma de Mão de Obra" linkTo={`/obras/${obraId}/histograma?from=gestao-360`}>
