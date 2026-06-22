@@ -13,6 +13,8 @@ import CronogramaPanel from '@/components/obras/CronogramaPanel';
 import StakeholderFormModal from '@/components/obras/StakeholderFormModal';
 import AtaFormModal, { type Ata as AtaFull, type UserOption } from '@/components/obras/AtaFormModal';
 import AditivoFormModal from '@/components/obras/AditivoFormModal';
+import { ContratacaoFormModal, OcFormModal, type Contratacao as ContratacaoFull, type Oc as OcFull } from '@/components/obras/ContratacaoFormModal';
+import KickoffFormModal, { type Kickoff as KickoffFull } from '@/components/obras/KickoffFormModal';
 
 type TabKey = 'visao' | 'equipe' | 'raci' | 'compras' | 'reunioes' | 'aditivos' | 'cronograma' | 'medicoes';
 
@@ -67,6 +69,11 @@ export default function Gestao360Page() {
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | true | null>(null);
   const [editingAta, setEditingAta] = useState<Ata | true | null>(null);
   const [showNewAditivo, setShowNewAditivo] = useState(false);
+  const [editingContratacao, setEditingContratacao] = useState<ContratacaoFull | true | null>(null);
+  const [editingOc, setEditingOc] = useState<OcFull | true | null>(null);
+  const [showKickoff, setShowKickoff] = useState(false);
+  const [novaRaciAtividade, setNovaRaciAtividade] = useState('');
+  const [savingRaci, setSavingRaci] = useState(false);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [compras, setCompras] = useState<ComprasSummary | null>(null);
   const [aditivos, setAditivos] = useState<AditivosResp | null>(null);
@@ -347,28 +354,100 @@ export default function Gestao360Page() {
 
       {/* ─── TAB: Matriz RACI ───────────────────────────────────────────── */}
       {tab === 'raci' && (
-        <Section title={`Matriz RACI (${raci.length} atividades)`} linkTo={`/obras/${obraId}/raci?from=gestao-360`}>
+        <Section
+          title={`Matriz RACI (${raci.length} atividades)`}
+          linkTo={`/obras/${obraId}/raci?from=gestao-360`}
+        >
           {raci.length === 0 ? (
-            <EmptyMsg msg="Nenhuma atividade RACI cadastrada — vá pro módulo pra aplicar o template padrão." />
+            <div className="space-y-3">
+              <EmptyMsg msg="Nenhuma atividade RACI cadastrada." />
+              <button
+                onClick={async () => {
+                  try {
+                    const r = await api.post<{ data: { created: number; skipped: number } }>(`/obras/${obraId}/raci/apply-template`);
+                    const { created } = r.data.data;
+                    fetchAll();
+                    if (created === 0) alert('Template já estava aplicado.');
+                  } catch (err) {
+                    const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                    alert(typeof m === 'string' ? m : m?.message || 'Erro ao aplicar template');
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-semibold text-white hover:bg-ber-black"
+              >
+                Aplicar template padrão
+              </button>
+            </div>
           ) : (
-            <ul className="space-y-1.5 text-sm">
-              {raci.map(r => {
-                const distrib = Object.values(r.papeis);
-                const Rs = distrib.filter(x => x === 'R').length;
-                const As = distrib.filter(x => x === 'A').length;
-                const Cs = distrib.filter(x => x === 'C').length;
-                const Is = distrib.filter(x => x === 'I').length;
-                return (
-                  <li key={r.id} className="flex items-center justify-between gap-3 border-b border-ber-gray/10 pb-1.5">
-                    <span className="text-ber-carbon">{r.atividade}</span>
-                    <span className="text-xs text-ber-gray shrink-0 tabular-nums">
-                      {Rs}<span className="text-blue-600 font-semibold">R</span> · {As}<span className="text-green-600 font-semibold">A</span> · {Cs}<span className="text-amber-600 font-semibold">C</span> · {Is}<span className="text-gray-500 font-semibold">I</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ul className="space-y-1.5 text-sm">
+                {raci.map(r => {
+                  const distrib = Object.values(r.papeis);
+                  const Rs = distrib.filter(x => x === 'R').length;
+                  const As = distrib.filter(x => x === 'A').length;
+                  const Cs = distrib.filter(x => x === 'C').length;
+                  const Is = distrib.filter(x => x === 'I').length;
+                  return (
+                    <li key={r.id} className="group relative flex items-center justify-between gap-3 border-b border-ber-gray/10 pb-1.5 pr-8">
+                      <span className="text-ber-carbon">{r.atividade}</span>
+                      <span className="text-xs text-ber-gray shrink-0 tabular-nums">
+                        {Rs}<span className="text-blue-600 font-semibold">R</span> · {As}<span className="text-green-600 font-semibold">A</span> · {Cs}<span className="text-amber-600 font-semibold">C</span> · {Is}<span className="text-gray-500 font-semibold">I</span>
+                      </span>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Remover "${r.atividade}" da matriz RACI?`)) return;
+                          try {
+                            await api.delete(`/raci/${r.id}`);
+                            fetchAll();
+                          } catch (err) {
+                            const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                            alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir');
+                          }
+                        }}
+                        title="Excluir atividade"
+                        className="absolute top-0 right-0 rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-[11px] text-ber-gray/70">Pra atribuir R/A/C/I aos stakeholders, abra a matriz completa em "Ir pro módulo".</p>
+            </>
           )}
+          <form
+            className="mt-3 flex items-center gap-2"
+            onSubmit={async e => {
+              e.preventDefault();
+              if (!novaRaciAtividade.trim() || savingRaci) return;
+              setSavingRaci(true);
+              try {
+                await api.post(`/obras/${obraId}/raci`, { atividade: novaRaciAtividade.trim(), ordem: raci.length });
+                setNovaRaciAtividade('');
+                fetchAll();
+              } catch (err) {
+                const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                alert(typeof m === 'string' ? m : m?.message || 'Erro ao adicionar');
+              } finally {
+                setSavingRaci(false);
+              }
+            }}
+          >
+            <input
+              value={novaRaciAtividade}
+              onChange={e => setNovaRaciAtividade(e.target.value)}
+              placeholder="Nova atividade…"
+              className="flex-1 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!novaRaciAtividade.trim() || savingRaci}
+              className="inline-flex items-center gap-1 rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-semibold text-white hover:bg-ber-black disabled:opacity-50"
+            >
+              {savingRaci ? 'Adicionando…' : '+ Adicionar'}
+            </button>
+          </form>
         </Section>
       )}
 
@@ -409,15 +488,36 @@ export default function Gestao360Page() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Section title={`Contratos (${contratos?.contratacoes.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}>
-              {!contratos || contratos.contratacoes.length === 0 ? <EmptyMsg msg="Nenhuma contratação" /> : (
+            <Section
+              title={`Contratos (${contratos?.contratacoes.length ?? 0})`}
+              linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}
+              onAdd={() => setEditingContratacao(true)}
+              addLabel="Nova contratação"
+            >
+              {!contratos || contratos.contratacoes.length === 0 ? <EmptyMsg msg="Nenhuma contratação — clica em 'Nova contratação'." /> : (
                 <>
                   <p className="text-xs text-ber-gray mb-2">Total contratado: <strong className="text-ber-carbon">{fmtBRL(contratos.totals.total)}</strong></p>
                   <ul className="space-y-1.5 text-sm">
                     {contratos.contratacoes.slice(0, 6).map(c => (
-                      <li key={c.id} className="flex items-center justify-between gap-3">
+                      <li key={c.id} className="group relative flex items-center justify-between gap-3 pr-14 py-0.5 rounded hover:bg-ber-bg/40">
                         <span className="text-ber-carbon truncate">{c.fornecedor}{c.disciplina ? ` · ${c.disciplina}` : ''}</span>
                         <span className="text-xs tabular-nums text-ber-gray">{fmtBRLcompact(Number(c.valor))}</span>
+                        <div className="absolute top-0.5 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingContratacao(c as unknown as ContratacaoFull)}
+                            title="Editar"
+                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon"
+                          ><Pencil size={12} /></button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Excluir contratação de ${c.fornecedor}? OCs vinculadas mantêm registro.`)) return;
+                              try { await api.delete(`/contratacoes/${c.id}`); fetchAll(); }
+                              catch (err) { const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error; alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir'); }
+                            }}
+                            title="Excluir"
+                            className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600"
+                          ><X size={12} /></button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -425,15 +525,36 @@ export default function Gestao360Page() {
               )}
             </Section>
 
-            <Section title={`Ordens de Compra (${ocs?.ocs.length ?? 0})`} linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}>
-              {!ocs || ocs.ocs.length === 0 ? <EmptyMsg msg="Nenhuma OC" /> : (
+            <Section
+              title={`Ordens de Compra (${ocs?.ocs.length ?? 0})`}
+              linkTo={`/obras/${obraId}/contratacoes?from=gestao-360`}
+              onAdd={() => setEditingOc(true)}
+              addLabel="Nova OC"
+            >
+              {!ocs || ocs.ocs.length === 0 ? <EmptyMsg msg="Nenhuma OC — clica em 'Nova OC'." /> : (
                 <>
                   <p className="text-xs text-ber-gray mb-2">Total em OCs: <strong className="text-ber-carbon">{fmtBRL(ocs.totals.total)}</strong></p>
                   <ul className="space-y-1.5 text-sm">
                     {ocs.ocs.slice(0, 6).map(o => (
-                      <li key={o.id} className="flex items-center justify-between gap-3">
+                      <li key={o.id} className="group relative flex items-center justify-between gap-3 pr-14 py-0.5 rounded hover:bg-ber-bg/40">
                         <span className="text-ber-carbon truncate"><strong>{o.numero}</strong> · {o.fornecedor}</span>
                         <span className="text-xs tabular-nums text-ber-gray">{fmtBRLcompact(Number(o.valor))}</span>
+                        <div className="absolute top-0.5 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingOc(o as unknown as OcFull)}
+                            title="Editar"
+                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon"
+                          ><Pencil size={12} /></button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Excluir OC ${o.numero}?`)) return;
+                              try { await api.delete(`/ordens-compra/${o.id}`); fetchAll(); }
+                              catch (err) { const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error; alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir'); }
+                            }}
+                            title="Excluir"
+                            className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600"
+                          ><X size={12} /></button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -447,9 +568,14 @@ export default function Gestao360Page() {
       {/* ─── TAB: Reuniões & Decisões ───────────────────────────────────── */}
       {tab === 'reunioes' && (
         <div className="space-y-4">
-          <Section title="Kick-Off" linkTo={`/obras/${obraId}/kickoff?from=gestao-360`}>
+          <Section
+            title="Kick-Off"
+            linkTo={`/obras/${obraId}/kickoff?from=gestao-360`}
+            onAdd={() => setShowKickoff(true)}
+            addLabel={kickoff?.dataRealizada ? 'Editar' : 'Registrar'}
+          >
             {!kickoff || (!kickoff.dataRealizada && (!kickoff.participantes || kickoff.participantes.length === 0)) ? (
-              <EmptyMsg msg="Kick-Off ainda não registrado" />
+              <EmptyMsg msg="Kick-Off ainda não registrado — clica em 'Registrar' pra preencher." />
             ) : (
               <div className="text-sm space-y-1">
                 <p className="text-ber-carbon"><strong>Realizado em:</strong> {fmtDateFull(kickoff.dataRealizada)}</p>
@@ -653,6 +779,37 @@ export default function Gestao360Page() {
           obraId={obraId}
           onClose={() => setShowNewAditivo(false)}
           onCreated={() => { setShowNewAditivo(false); fetchAll(); }}
+        />
+      )}
+
+      {/* ─── Modal: Contratação (criar/editar) ──────────────────────────── */}
+      {editingContratacao !== null && (
+        <ContratacaoFormModal
+          obraId={obraId}
+          edit={editingContratacao === true ? null : editingContratacao}
+          onClose={() => setEditingContratacao(null)}
+          onSaved={() => { setEditingContratacao(null); fetchAll(); }}
+        />
+      )}
+
+      {/* ─── Modal: Ordem de Compra (criar/editar) ──────────────────────── */}
+      {editingOc !== null && (
+        <OcFormModal
+          obraId={obraId}
+          contratacoes={(contratos?.contratacoes ?? []) as unknown as ContratacaoFull[]}
+          edit={editingOc === true ? null : editingOc}
+          onClose={() => setEditingOc(null)}
+          onSaved={() => { setEditingOc(null); fetchAll(); }}
+        />
+      )}
+
+      {/* ─── Modal: Kick-Off (editar) ───────────────────────────────────── */}
+      {showKickoff && (
+        <KickoffFormModal
+          obraId={obraId}
+          initial={kickoff as unknown as KickoffFull | null}
+          onClose={() => setShowKickoff(false)}
+          onSaved={() => { setShowKickoff(false); fetchAll(); }}
         />
       )}
     </div>
