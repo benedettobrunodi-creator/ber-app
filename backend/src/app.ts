@@ -228,6 +228,11 @@ import { obraRaciRouter, raciRouter } from './modules/raci/routes';
 app.use('/v1/obras/:obraId/raci', ...perm('raci'), obraRaciRouter);
 app.use('/v1/raci', ...perm('raci'), raciRouter);
 
+// — Módulo: Temperatura (satisfação do cliente) —
+import { obraTemperaturaRouter, temperaturaRouter } from './modules/temperatura/routes';
+app.use('/v1/obras/:obraId/temperatura', ...perm('obras'), obraTemperaturaRouter);
+app.use('/v1/temperatura', ...perm('obras'), temperaturaRouter);
+
 // — Módulo: cronograma de contratações (Gestão 360) —
 import { obraPlanoRouter, planoRouter } from './modules/contratacao-plano/routes';
 app.use('/v1/obras/:obraId/contratacao-plano', ...perm('contratacaoPlano'), obraPlanoRouter);

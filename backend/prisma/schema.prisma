@@ -93,6 +93,7 @@ model User {
   relatorios              RelatorioSemanal[]      @relation("RelatorioResponsavel")
   resetTokens             PasswordResetToken[]
   orgChartUpdates         OrgChart[]
+  temperaturasPreenchidas ObraTemperatura[]       @relation("TemperaturaCreator")
 
   @@map("users")
 }
@@ -167,6 +168,7 @@ model Obra {
   announcements      Announcement[]
   punchLists         PunchList[]
   obraFvs            ObraFvs[]
+  temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
   plantas            ObraPlanta[]           @relation("ObraPlantas")
   ambientes          ObraAmbiente[]         @relation("ObraAmbientes")
@@ -1989,6 +1991,27 @@ model ObraRaci {
 
   @@index([obraId])
   @@map("obra_raci")
+}
+
+// ─── ObraTemperatura (satisfação do cliente em momentos da obra) ─────────
+//   tipo: pos_venda | pos_kickoff | quinzenal | entrega_substancial | entrega_final
+//   avaliacao: Muito Ruim | Ruim | Regular | Bom | Muito Bom | Ótimo
+model ObraTemperatura {
+  id              String   @id @default(uuid()) @db.Uuid
+  obraId          String   @map("obra_id") @db.Uuid
+  tipo            String   @db.VarChar(30)
+  data            DateTime @db.Date
+  avaliacao       String   @db.VarChar(30)
+  observacao      String?
+  preenchidoPorId String   @map("preenchido_por_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra          Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  preenchidoPor User @relation("TemperaturaCreator", fields: [preenchidoPorId], references: [id])
+
+  @@index([obraId, data(sort: Desc)])
+  @@map("obra_temperatura")
 }
 
 // ─── ObraAta (atas de reuniões internas e externas) ─────────────────────

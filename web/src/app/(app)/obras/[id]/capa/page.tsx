@@ -14,12 +14,42 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Printer, Plus, Trash2, X } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import api from '@/lib/api';
 import { useBackToObra } from '@/hooks/useBackToObra';
+
+const TIPOS_TEMPERATURA = [
+  { value: 'pos_venda',           label: 'Pós-venda' },
+  { value: 'pos_kickoff',         label: 'Pós-kickoff' },
+  { value: 'quinzenal',           label: 'Quinzenal (durante obra)' },
+  { value: 'entrega_substancial', label: 'Entrega substancial (TAP)' },
+  { value: 'entrega_final',       label: 'Entrega final' },
+] as const;
+type TemperaturaTipo = typeof TIPOS_TEMPERATURA[number]['value'];
+
+const AVALIACOES = ['Muito Ruim', 'Ruim', 'Regular', 'Bom', 'Muito Bom', 'Ótimo'] as const;
+type Avaliacao = typeof AVALIACOES[number];
+
+const TEMP_COLORS: Record<Avaliacao, string> = {
+  'Muito Ruim': 'bg-red-900 text-white',
+  'Ruim':       'bg-red-500 text-white',
+  'Regular':    'bg-yellow-400 text-yellow-900',
+  'Bom':        'bg-lime-500 text-white',
+  'Muito Bom':  'bg-green-600 text-white',
+  'Ótimo':      'bg-sky-400 text-white',
+};
+
+interface TemperaturaRow {
+  id: string;
+  tipo: TemperaturaTipo;
+  data: string;
+  avaliacao: Avaliacao;
+  observacao: string | null;
+  preenchidoPor: { id: string; name: string; avatarUrl: string | null };
+}
 
 interface ObraInfo {
   id: string; name: string; client: string | null; address: string | null;
@@ -56,24 +86,34 @@ export default function CapaObraPage() {
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
   const [cronograma, setCronograma] = useState<Cronograma | null>(null);
+  const [temperaturas, setTemperaturas] = useState<TemperaturaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tempModalOpen, setTempModalOpen] = useState(false);
+  const [tempEditing, setTempEditing] = useState<TemperaturaRow | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-      const [o, c, cron] = await Promise.all([
-        safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
-        safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
-        safe(api.get<{ data: Cronograma }>(`/obras/${obraId}/cronograma`).then(r => r.data.data)),
-      ]);
-      setObra(o);
-      setContratos(c);
-      setCronograma(cron);
-      setLoading(false);
-    }
-    load();
-  }, [obraId]);
+  async function load() {
+    setLoading(true);
+    const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
+    const [o, c, cron, temps] = await Promise.all([
+      safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
+      safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
+      safe(api.get<{ data: Cronograma }>(`/obras/${obraId}/cronograma`).then(r => r.data.data)),
+      safe(api.get<{ data: TemperaturaRow[] }>(`/obras/${obraId}/temperatura`).then(r => r.data.data)),
+    ]);
+    setObra(o);
+    setContratos(c);
+    setCronograma(cron);
+    setTemperaturas(temps ?? []);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, [obraId]);
+
+  async function deleteTemperatura(id: string) {
+    if (!confirm('Remover esta avaliação?')) return;
+    try { await api.delete(`/temperatura/${id}`); load(); }
+    catch (err) { alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao remover'); }
+  }
 
   if (loading || !obra) {
     return <div className="p-6 text-sm text-ber-gray">Carregando capa…</div>;
@@ -137,16 +177,9 @@ export default function CapaObraPage() {
     };
   });
 
-  // ─── Temperatura (placeholder até ter schema) ──────────────────────────
-  const temperaturaPlaceholder = [1, 2, 3, 4, 5, 6].map(m => ({ momento: m, data: null as string | null, avaliacao: null as string | null }));
-  const tempColors: Record<string, string> = {
-    'Muito Ruim': 'bg-red-900 text-white',
-    'Ruim':       'bg-red-500 text-white',
-    'Regular':    'bg-yellow-400 text-yellow-900',
-    'Bom':        'bg-lime-500 text-white',
-    'Muito Bom':  'bg-green-600 text-white',
-    'Ótimo':      'bg-sky-400 text-white',
-  };
+  // ─── Temperatura (ordenada por data crescente) ─────────────────────────
+  const tempOrdenadas = [...temperaturas].sort((a, b) => a.data.localeCompare(b.data));
+  const tipoLabel = (t: TemperaturaTipo): string => TIPOS_TEMPERATURA.find(x => x.value === t)?.label ?? t;
 
   return (
     <div className="p-3 md:p-6 print:p-0 bg-white min-h-screen">
@@ -243,22 +276,52 @@ export default function CapaObraPage() {
 
         {/* TEMPERATURA */}
         <div className="border border-ber-gray/20 p-4 bg-white">
-          <h3 className="text-lg font-black text-ber-carbon mb-3">TEMPERATURA</h3>
-          <div className="grid grid-cols-3 gap-1 text-[10px] font-bold uppercase tracking-wide text-ber-gray pb-1 border-b border-ber-gray/20">
-            <span>Momento Processo</span>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-black text-ber-carbon">TEMPERATURA</h3>
+            <button
+              onClick={() => { setTempEditing(null); setTempModalOpen(true); }}
+              className="print:hidden inline-flex items-center gap-1 rounded-md bg-ber-carbon px-2 py-1 text-[11px] font-semibold text-white hover:bg-ber-black"
+            >
+              <Plus size={11} /> Adicionar
+            </button>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray pb-1 border-b border-ber-gray/20">
+            <span>Momento</span>
             <span className="text-center">Data</span>
             <span className="text-center">Avaliação</span>
           </div>
-          {temperaturaPlaceholder.map(t => (
-            <div key={t.momento} className="grid grid-cols-3 gap-1 text-[12px] py-1 border-b border-ber-gray/10 items-center">
-              <span className="text-ber-carbon">Momento {t.momento}</span>
-              <span className="text-center text-ber-gray">{t.data ?? '—'}</span>
-              <span className={`text-center text-[11px] font-medium rounded px-2 py-0.5 ${t.avaliacao ? tempColors[t.avaliacao] : 'text-ber-gray/40 italic'}`}>
-                {t.avaliacao ?? '—'}
-              </span>
-            </div>
-          ))}
-          <p className="mt-2 text-[10px] text-ber-gray/60 italic">⚠ Configuração de Temperatura em desenvolvimento — sem schema ainda.</p>
+          {tempOrdenadas.length === 0 ? (
+            <p className="text-[11px] text-ber-gray italic py-3 text-center">
+              Nenhuma avaliação registrada ainda. Clique em + Adicionar.
+            </p>
+          ) : (
+            tempOrdenadas.map(t => (
+              <div key={t.id} className="grid grid-cols-[1fr_auto_auto] gap-2 text-[12px] py-1 border-b border-ber-gray/10 items-center group/temp">
+                <button
+                  onClick={() => { setTempEditing(t); setTempModalOpen(true); }}
+                  className="text-left text-ber-carbon hover:text-ber-teal truncate"
+                  title={t.observacao ?? undefined}
+                >
+                  {tipoLabel(t.tipo)}
+                </button>
+                <span className="text-center text-ber-gray tabular-nums whitespace-nowrap">
+                  {new Date(t.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className={`inline-block text-center text-[11px] font-medium rounded px-2 py-0.5 ${TEMP_COLORS[t.avaliacao]}`}>
+                    {t.avaliacao}
+                  </span>
+                  <button
+                    onClick={() => deleteTemperatura(t.id)}
+                    className="print:hidden opacity-0 group-hover/temp:opacity-100 text-ber-gray hover:text-red-600 transition-opacity"
+                    title="Remover"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -285,6 +348,15 @@ export default function CapaObraPage() {
         )}
       </div>
 
+      {tempModalOpen && (
+        <TemperaturaModal
+          obraId={obraId}
+          editing={tempEditing}
+          onClose={() => setTempModalOpen(false)}
+          onSaved={() => { setTempModalOpen(false); load(); }}
+        />
+      )}
+
       <style jsx global>{`
         @media print {
           @page { size: A4 landscape; margin: 10mm; }
@@ -293,6 +365,94 @@ export default function CapaObraPage() {
     </div>
   );
 }
+
+function TemperaturaModal({
+  obraId, editing, onClose, onSaved,
+}: {
+  obraId: string;
+  editing: TemperaturaRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [tipo,       setTipo]       = useState<TemperaturaTipo>(editing?.tipo ?? 'pos_venda');
+  const [data,       setData]       = useState(editing?.data?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+  const [avaliacao,  setAvaliacao]  = useState<Avaliacao>(editing?.avaliacao ?? 'Bom');
+  const [observacao, setObservacao] = useState(editing?.observacao ?? '');
+  const [saving,     setSaving]     = useState(false);
+  const [err,        setErr]        = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true); setErr(null);
+    try {
+      const body = { tipo, data, avaliacao, observacao: observacao.trim() || null };
+      if (editing) await api.patch(`/temperatura/${editing.id}`, body);
+      else await api.post(`/obras/${obraId}/temperatura`, body);
+      onSaved();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+      setErr(typeof msg === 'string' ? msg : msg?.message || 'Erro ao salvar');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-t-2xl md:rounded-lg bg-white max-h-[90dvh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-ber-gray/15 px-5 py-3">
+          <h2 className="text-base font-black text-ber-carbon">
+            {editing ? 'Editar avaliação' : 'Nova avaliação'}
+          </h2>
+          <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon"><X size={16} /></button>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          {err && <div className="rounded-md bg-red-50 p-2 text-xs text-red-700">{err}</div>}
+          <div>
+            <label className="block text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Momento</label>
+            <select value={tipo} onChange={e => setTipo(e.target.value as TemperaturaTipo)} className={inputCls}>
+              {TIPOS_TEMPERATURA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Data da coleta</label>
+            <input type="date" value={data} onChange={e => setData(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Avaliação</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {AVALIACOES.map(a => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setAvaliacao(a)}
+                  className={`text-[11px] font-medium rounded px-2 py-2 border-2 transition-all ${
+                    avaliacao === a ? `${TEMP_COLORS[a]} border-ber-carbon` : 'bg-white text-ber-gray border-ber-gray/20 hover:border-ber-gray/40'
+                  }`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Observação (opcional)</label>
+            <textarea rows={3} value={observacao} onChange={e => setObservacao(e.target.value)}
+              placeholder="Contexto, falas do cliente, ações pendentes…"
+              className={inputCls + ' resize-none'} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-ber-gray/15 px-5 py-3">
+          <button onClick={onClose} className="rounded-md px-3 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-bg/40">
+            Cancelar
+          </button>
+          <button onClick={save} disabled={saving} className="rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white hover:bg-ber-black disabled:opacity-50">
+            {saving ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const inputCls = 'block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none';
 
 function PrazoRow({ label, value, color = 'normal' }: { label: string; value: string; color?: 'normal' | 'green' | 'red' }) {
   const c = color === 'green' ? 'text-green-700' : color === 'red' ? 'text-red-600' : 'text-ber-carbon';

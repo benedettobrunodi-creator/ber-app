@@ -6,6 +6,7 @@ import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 // import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
 import { checkCrmAlerts } from '../modules/crm/alerts';
+import { obrasComQuinzenalAtrasada } from '../modules/temperatura/service';
 
 export function startScheduler() {
   // Agendor sync — a cada 30 minutos
@@ -54,7 +55,32 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex)');
+  // Temperatura quinzenal — diariamente às 09h00 (BRT) verifica obras sem
+  // pesquisa quinzenal há ≥ 15 dias e notifica o coordenador.
+  cron.schedule('0 9 * * 1-5', async () => {
+    try {
+      await checkTemperaturaQuinzenal();
+    } catch (err) {
+      console.error('[Scheduler] Temperatura quinzenal falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), Temperatura quinzenal (09h seg-sex)');
+}
+
+async function checkTemperaturaQuinzenal() {
+  const obras = await obrasComQuinzenalAtrasada(15);
+  for (const o of obras) {
+    if (!o.coordinatorId) continue;
+    await notifyUsers(
+      [o.coordinatorId],
+      'temperatura_quinzenal',
+      `Temperatura quinzenal: ${o.name} está sem registro há 15+ dias`,
+      undefined,
+      { obraId: o.id },
+    );
+    console.log(`[Scheduler] Notificação temperatura quinzenal — ${o.name}`);
+  }
 }
 
 async function checkPendingChecklists() {
