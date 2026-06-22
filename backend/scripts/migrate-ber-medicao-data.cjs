@@ -297,6 +297,26 @@ async function run() {
       );
     }
 
+    // ── 13. Pagamentos diretos do cliente pra fornecedores ──
+    // Tabela criada no ber-medicao em 2026-06-22 (após Fase 1 da migração).
+    const pagamentosDiretos = (await src.query(
+      `SELECT mpd.id, mpd.medicao_id, mpd.fornecedor_razao_social, mpd.valor, mpd.observacao, mpd.created_at, mpd.updated_at
+         FROM medicao_pagamentos_diretos mpd
+         JOIN medicoes m ON m.id = mpd.medicao_id
+        WHERE m.obra_id = ANY($1)`,
+      [Object.keys(OBRA_MAP)],
+    ).catch(() => ({ rows: [] }))).rows;
+    console.log(`[medicao_pagamentos_diretos] ${pagamentosDiretos.length}`);
+    for (const p of pagamentosDiretos) {
+      if (DRY_RUN) continue;
+      await dst.query(
+        `INSERT INTO medicao_pagamentos_diretos (id, medicao_id, fornecedor_razao_social, valor, observacao, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (id) DO NOTHING`,
+        [p.id, p.medicao_id, p.fornecedor_razao_social, p.valor, p.observacao, p.created_at, p.updated_at],
+      );
+    }
+
     if (DRY_RUN) {
       await dst.query('ROLLBACK');
       console.log('[migrate] DRY RUN — nenhuma escrita commitada');

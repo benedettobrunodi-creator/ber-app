@@ -1308,6 +1308,7 @@ model Medicao {
   evidencias         MedicaoEvidencia[]
   transicoes         MedicaoTransicao[]
   medicoesFornecedor MedicaoFornecedor[]
+  pagamentosDiretos  MedicaoPagamentoDireto[]
   notasFiscais       NotaFiscal[]
 
   @@unique([obraId, numero])
@@ -1443,6 +1444,24 @@ model ClienteAcesso {
   @@index([obraId])
   @@index([token])
   @@map("clientes_acesso")
+}
+
+// Pagamentos do cliente direto pro fornecedor entre uma medição e outra.
+// Abatidos do valor da medição atual pra não cobrar duas vezes.
+model MedicaoPagamentoDireto {
+  id                    String   @id @default(uuid()) @db.Uuid
+  medicaoId             String   @map("medicao_id") @db.Uuid
+  fornecedorRazaoSocial String   @map("fornecedor_razao_social")
+  valor                 Decimal  @db.Decimal(14, 2)
+  observacao            String?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  medicao Medicao @relation(fields: [medicaoId], references: [id], onDelete: Cascade)
+
+  @@unique([medicaoId, fornecedorRazaoSocial])
+  @@index([medicaoId])
+  @@map("medicao_pagamentos_diretos")
 }
 
 // ─── DRE (Demonstrativo de Resultados) ──────────────────────────────────────
