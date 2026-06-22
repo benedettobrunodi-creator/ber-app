@@ -10,15 +10,17 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 
-type TabKey = 'visao' | 'equipe' | 'compras' | 'reunioes' | 'aditivos' | 'medicoes';
+type TabKey = 'visao' | 'equipe' | 'raci' | 'compras' | 'reunioes' | 'aditivos' | 'cronograma' | 'medicoes';
 
 const TABS: { key: TabKey; label: string; icon: typeof LayoutDashboard }[] = [
-  { key: 'visao',     label: 'Visão Geral',         icon: LayoutDashboard },
-  { key: 'equipe',    label: 'Equipe & Stakeholders', icon: Users },
-  { key: 'compras',   label: 'Compras & Contratos', icon: ShoppingCart },
-  { key: 'reunioes',  label: 'Reuniões & Decisões', icon: FileSearch },
-  { key: 'aditivos',  label: 'Aditivos & Mudanças', icon: FileText },
-  { key: 'medicoes',  label: 'Medições & Documentos', icon: Activity },
+  { key: 'visao',      label: 'Visão Geral',          icon: LayoutDashboard },
+  { key: 'equipe',     label: 'Equipe',               icon: Users },
+  { key: 'raci',       label: 'Matriz RACI',          icon: Network },
+  { key: 'compras',    label: 'Compras & Contratos',  icon: ShoppingCart },
+  { key: 'reunioes',   label: 'Reuniões & Decisões',  icon: FileSearch },
+  { key: 'aditivos',   label: 'Aditivos & Mudanças',  icon: FileText },
+  { key: 'cronograma', label: 'Cronograma & MO',      icon: CalendarClock },
+  { key: 'medicoes',   label: 'Medições & Documentos', icon: Activity },
 ];
 
 // ─── Types (subset of each module) ─────────────────────────────────────────
@@ -70,6 +72,7 @@ export default function Gestao360Page() {
   const [documentos, setDocumentos] = useState<DocumentosResp | null>(null);
   const [histograma, setHistograma] = useState<HistogramaCell[]>([]);
   const [pendencias, setPendencias] = useState<PunchListItemLite[]>([]);
+  const [cronograma, setCronograma] = useState<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function fetchAll() {
@@ -92,6 +95,7 @@ export default function Gestao360Page() {
         docsRes,
         histRes,
         punchRes,
+        cronRes,
       ] = await Promise.all([
         safeGet<ObraInfo>(`/obras/${obraId}`),
         safeGet<{ totais: ComprasSummary }>(`/compras-dashboard/summary`, { obraId }).then(r => r ? r.totais ?? null : null).catch(() => null) as Promise<ComprasSummary | null>,
@@ -106,6 +110,7 @@ export default function Gestao360Page() {
         safeGet<DocumentosResp>(`/obras/${obraId}/documentos`),
         safeGet<HistogramaCell[]>(`/obras/${obraId}/histograma`),
         safeGet<{ id: string; type: string; items: PunchListItemLite[] }[]>(`/obras/${obraId}/punch-lists`),
+        safeGet<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null }>(`/obras/${obraId}/cronograma`),
       ]);
 
       setObra(obraRes);
@@ -120,6 +125,7 @@ export default function Gestao360Page() {
       setRaci(raciRes ?? []);
       setDocumentos(docsRes ?? null);
       setHistograma(histRes ?? []);
+      setCronograma(cronRes ?? null);
 
       // Flatten all punch list items for the obra
       const allItems: PunchListItemLite[] = [];
@@ -270,46 +276,56 @@ export default function Gestao360Page() {
         </div>
       )}
 
-      {/* ─── TAB: Equipe & Stakeholders ─────────────────────────────────── */}
+      {/* ─── TAB: Equipe (Stakeholders) ─────────────────────────────────── */}
       {tab === 'equipe' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Section title="Stakeholders" linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}>
-            {stakeholders.length === 0 ? (
-              <EmptyMsg msg="Nenhum stakeholder cadastrado" />
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {stakeholders.slice(0, 10).map(s => (
-                  <li key={s.id} className="border-l-2 border-ber-teal/40 pl-3">
-                    <p className="font-medium text-ber-carbon">{s.nome}</p>
-                    <p className="text-xs text-ber-gray">{s.empresa}{s.cargo ? ` · ${s.cargo}` : ''}{s.funcao ? ` · ${s.funcao}` : ''}</p>
-                  </li>
-                ))}
-                {stakeholders.length > 10 && <li className="text-xs text-ber-gray italic">+ {stakeholders.length - 10} mais</li>}
-              </ul>
-            )}
-          </Section>
+        <Section title={`Stakeholders (${stakeholders.length})`} linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}>
+          {stakeholders.length === 0 ? (
+            <EmptyMsg msg="Nenhum stakeholder cadastrado" />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {stakeholders.map(s => (
+                <div key={s.id} className="border-l-2 border-ber-teal/40 pl-3 py-1">
+                  <p className="font-medium text-ber-carbon text-sm">{s.nome}</p>
+                  <p className="text-xs text-ber-gray">{s.empresa}{s.cargo ? ` · ${s.cargo}` : ''}{s.funcao ? ` · ${s.funcao}` : ''}</p>
+                  {(s.email || s.telefone) && (
+                    <p className="text-[11px] text-ber-gray/80 mt-0.5">
+                      {s.email && <span>{s.email}</span>}
+                      {s.email && s.telefone && <span> · </span>}
+                      {s.telefone && <span>{s.telefone}</span>}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
 
-          <Section title="Matriz RACI" linkTo={`/obras/${obraId}/raci?from=gestao-360`}>
-            {raci.length === 0 ? (
-              <EmptyMsg msg="Nenhuma atividade RACI cadastrada" />
-            ) : (
-              <ul className="space-y-1.5 text-sm">
-                {raci.slice(0, 8).map(r => {
-                  const distrib = Object.values(r.papeis);
-                  const Rs = distrib.filter(x => x === 'R').length;
-                  const As = distrib.filter(x => x === 'A').length;
-                  return (
-                    <li key={r.id} className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-ber-carbon truncate">{r.atividade}</span>
-                      <span className="text-ber-gray shrink-0">{Rs}R · {As}A · {distrib.length} pessoas</span>
-                    </li>
-                  );
-                })}
-                {raci.length > 8 && <li className="text-xs text-ber-gray italic">+ {raci.length - 8} atividades</li>}
-              </ul>
-            )}
-          </Section>
-        </div>
+      {/* ─── TAB: Matriz RACI ───────────────────────────────────────────── */}
+      {tab === 'raci' && (
+        <Section title={`Matriz RACI (${raci.length} atividades)`} linkTo={`/obras/${obraId}/raci?from=gestao-360`}>
+          {raci.length === 0 ? (
+            <EmptyMsg msg="Nenhuma atividade RACI cadastrada — vá pro módulo pra aplicar o template padrão." />
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {raci.map(r => {
+                const distrib = Object.values(r.papeis);
+                const Rs = distrib.filter(x => x === 'R').length;
+                const As = distrib.filter(x => x === 'A').length;
+                const Cs = distrib.filter(x => x === 'C').length;
+                const Is = distrib.filter(x => x === 'I').length;
+                return (
+                  <li key={r.id} className="flex items-center justify-between gap-3 border-b border-ber-gray/10 pb-1.5">
+                    <span className="text-ber-carbon">{r.atividade}</span>
+                    <span className="text-xs text-ber-gray shrink-0 tabular-nums">
+                      {Rs}<span className="text-blue-600 font-semibold">R</span> · {As}<span className="text-green-600 font-semibold">A</span> · {Cs}<span className="text-amber-600 font-semibold">C</span> · {Is}<span className="text-gray-500 font-semibold">I</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
       )}
 
       {/* ─── TAB: Compras & Contratos ───────────────────────────────────── */}
@@ -472,15 +488,24 @@ export default function Gestao360Page() {
         </div>
       )}
 
-      {/* ─── TAB: Medições & Documentos ─────────────────────────────────── */}
-      {tab === 'medicoes' && (
+      {/* ─── TAB: Cronograma & Mão de Obra ──────────────────────────────── */}
+      {tab === 'cronograma' && (
         <div className="space-y-4">
-          <Section title="Histograma (resumo)" linkTo={`/obras/${obraId}/histograma?from=gestao-360`}>
+          <Section title="Curva S — % planejado vs real" linkTo={`/obras/${obraId}?tab=cronograma`}>
+            <CurvaSResumo cronograma={cronograma} />
+          </Section>
+
+          <Section title="Histograma de Mão de Obra" linkTo={`/obras/${obraId}/histograma?from=gestao-360`}>
             {histograma.length === 0 ? <EmptyMsg msg="Nenhum dado de mão de obra cadastrado" /> : (
               <HistogramaResumo cells={histograma} />
             )}
           </Section>
+        </div>
+      )}
 
+      {/* ─── TAB: Medições & Documentos ─────────────────────────────────── */}
+      {tab === 'medicoes' && (
+        <div className="space-y-4">
           <Section title={`Documentos (${documentos?.documentos.length ?? 0})`} linkTo={`/obras/${obraId}/documentos?from=gestao-360`}>
             <div className="grid grid-cols-4 gap-2 mb-3">
               <MiniKpi label="Aprovados" value={docsAprovados} color="bg-green-100 text-green-700" />
@@ -685,6 +710,79 @@ function HistogramaResumo({ cells }: { cells: HistogramaCell[] }) {
       <div className="flex items-center gap-4 text-[11px] text-ber-gray">
         <span className="flex items-center gap-1"><span className="w-3 h-3 bg-ber-teal/40 inline-block" /> Planejado</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 bg-ber-carbon inline-block" /> Realizado</span>
+      </div>
+    </div>
+  );
+}
+
+function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null } | null }) {
+  const tarefas = cronograma?.parsedData?.tarefas ?? [];
+  if (tarefas.length === 0) {
+    return <p className="text-xs text-ber-gray italic">Cronograma ainda não cadastrado. Acesse o módulo cronograma da obra pra subir a planilha.</p>;
+  }
+
+  const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
+  const byMonth = new Map<string, { plan: number; real: number; count: number }>();
+  leaf.forEach(t => {
+    const fim = t.f ?? t.fim;
+    if (!fim) return;
+    const d = new Date(fim);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const pct = t.p ?? t.percentualConcluido ?? 0;
+    const e = byMonth.get(key) ?? { plan: 0, real: 0, count: 0 };
+    e.plan += 1;
+    e.real += pct / 100;
+    e.count += 1;
+    byMonth.set(key, e);
+  });
+  const sortedKeys = [...byMonth.keys()].sort();
+  let acumPlan = 0, acumReal = 0;
+  const totalLeaf = leaf.length || 1;
+  const data = sortedKeys.map(k => {
+    const e = byMonth.get(k)!;
+    acumPlan += e.plan;
+    acumReal += e.real;
+    return {
+      label: k.slice(2),
+      planejado: Math.round((acumPlan / totalLeaf) * 100),
+      real: Math.round((acumReal / totalLeaf) * 100),
+    };
+  });
+
+  if (data.length === 0) return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
+
+  const max = 100;
+  const w = 600, h = 180, pad = { l: 30, r: 10, t: 10, b: 25 };
+  const xStep = (w - pad.l - pad.r) / Math.max(1, data.length - 1);
+  const y = (v: number) => h - pad.b - (v / max) * (h - pad.t - pad.b);
+  const planPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${pad.l + i * xStep} ${y(d.planejado)}`).join(' ');
+  const realPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${pad.l + i * xStep} ${y(d.real)}`).join(' ');
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
+        {[0, 25, 50, 75, 100].map(v => (
+          <g key={v}>
+            <line x1={pad.l} x2={w - pad.r} y1={y(v)} y2={y(v)} stroke="#EEE" strokeDasharray="2 2" />
+            <text x={pad.l - 4} y={y(v)} fontSize={9} textAnchor="end" fill="#999" dy={3}>{v}%</text>
+          </g>
+        ))}
+        {data.map((d, i) => (
+          <text key={i} x={pad.l + i * xStep} y={h - 8} fontSize={9} textAnchor="middle" fill="#666">{d.label}</text>
+        ))}
+        <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
+        <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />
+        {data.map((d, i) => (
+          <g key={`pts-${i}`}>
+            <circle cx={pad.l + i * xStep} cy={y(d.planejado)} r={3} fill="#3B82F6" />
+            <circle cx={pad.l + i * xStep} cy={y(d.real)} r={3} fill="#10B981" />
+          </g>
+        ))}
+      </svg>
+      <div className="flex items-center gap-4 text-[11px] text-ber-gray mt-1">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#3B82F6' }} /> Planejado</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#10B981' }} /> Real</span>
+        <span className="ml-auto">{leaf.length} tarefas · {data.length} meses</span>
       </div>
     </div>
   );
