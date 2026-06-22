@@ -6,10 +6,11 @@ import Link from 'next/link';
 import {
   ArrowLeft, LayoutDashboard, Users, ShoppingCart, FileSearch, FileText, Activity,
   TrendingUp, TrendingDown, AlertTriangle, ArrowRight, CalendarClock, FileSignature,
-  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil,
+  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil, X,
 } from 'lucide-react';
 import api from '@/lib/api';
 import CronogramaPanel from '@/components/obras/CronogramaPanel';
+import StakeholderFormModal from '@/components/obras/StakeholderFormModal';
 
 type TabKey = 'visao' | 'equipe' | 'raci' | 'compras' | 'reunioes' | 'aditivos' | 'cronograma' | 'medicoes';
 
@@ -61,6 +62,7 @@ export default function Gestao360Page() {
   const obraId = params.id;
   const [tab, setTab] = useState<TabKey>('visao');
   const [obra, setObra] = useState<ObraInfo | null>(null);
+  const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | true | null>(null);
   const [compras, setCompras] = useState<ComprasSummary | null>(null);
   const [aditivos, setAditivos] = useState<AditivosResp | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
@@ -282,13 +284,18 @@ export default function Gestao360Page() {
 
       {/* ─── TAB: Equipe (Stakeholders) ─────────────────────────────────── */}
       {tab === 'equipe' && (
-        <Section title={`Stakeholders (${stakeholders.length})`} linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}>
+        <Section
+          title={`Stakeholders (${stakeholders.length})`}
+          linkTo={`/obras/${obraId}/stakeholders?from=gestao-360`}
+          onAdd={() => setEditingStakeholder(true)}
+          addLabel="Novo contato"
+        >
           {stakeholders.length === 0 ? (
-            <EmptyMsg msg="Nenhum stakeholder cadastrado" />
+            <EmptyMsg msg="Nenhum stakeholder cadastrado — clica em 'Novo contato' pra começar." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {stakeholders.map(s => (
-                <div key={s.id} className="border-l-2 border-ber-teal/40 pl-3 py-1">
+                <div key={s.id} className="group relative border-l-2 border-ber-teal/40 pl-3 pr-8 py-1 rounded-r hover:bg-ber-bg/40">
                   <p className="font-medium text-ber-carbon text-sm">{s.nome}</p>
                   <p className="text-xs text-ber-gray">{s.empresa}{s.cargo ? ` · ${s.cargo}` : ''}{s.funcao ? ` · ${s.funcao}` : ''}</p>
                   {(s.email || s.telefone) && (
@@ -298,6 +305,31 @@ export default function Gestao360Page() {
                       {s.telefone && <span>{s.telefone}</span>}
                     </p>
                   )}
+                  <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingStakeholder(s)}
+                      title="Editar"
+                      className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Remover ${s.nome}?`)) return;
+                        try {
+                          await api.delete(`/stakeholders/${s.id}`);
+                          fetchAll();
+                        } catch (err) {
+                          const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
+                          alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir');
+                        }
+                      }}
+                      title="Excluir"
+                      className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -534,6 +566,16 @@ export default function Gestao360Page() {
           </Section>
         </div>
       )}
+
+      {/* ─── Modal: Stakeholder (criar/editar) ──────────────────────────── */}
+      {editingStakeholder !== null && (
+        <StakeholderFormModal
+          obraId={obraId}
+          edit={editingStakeholder === true ? null : editingStakeholder}
+          onClose={() => setEditingStakeholder(null)}
+          onSaved={() => { setEditingStakeholder(null); fetchAll(); }}
+        />
+      )}
     </div>
   );
 }
@@ -564,16 +606,24 @@ function KpiCard({ label, big, sub, accent }: { label: string; big: string; sub?
     </div>
   );
 }
-function Section({ title, linkTo, children, className }: { title: string; linkTo: string | null; children: React.ReactNode; className?: string }) {
+function Section({ title, linkTo, onAdd, addLabel, children, className }: { title: string; linkTo: string | null; onAdd?: () => void; addLabel?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm ${className || ''}`}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
         <h2 className="text-sm font-bold text-ber-carbon">{title}</h2>
-        {linkTo && (
-          <Link href={linkTo} className="text-xs text-ber-teal hover:underline inline-flex items-center gap-0.5">
-            Ir pro módulo <ArrowRight size={11} />
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {onAdd && (
+            <button onClick={onAdd}
+              className="inline-flex items-center gap-1 rounded-md bg-ber-carbon px-2.5 py-1 text-xs font-semibold text-white hover:bg-ber-black">
+              <span className="text-sm leading-none">+</span> {addLabel ?? 'Adicionar'}
+            </button>
+          )}
+          {linkTo && (
+            <Link href={linkTo} className="text-xs text-ber-teal hover:underline inline-flex items-center gap-0.5">
+              Ir pro módulo <ArrowRight size={11} />
+            </Link>
+          )}
+        </div>
       </div>
       {children}
     </div>
