@@ -988,131 +988,101 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 4. ATIVIDADES ────────────────────────────────────────────────── */}
             <FormSection title="Atividades da semana"
-              desc="Selecione as atividades do cronograma para esta semana e para o próximo período.">
+              desc="Liste as atividades em andamento nesta semana e as previstas para o próximo período.">
               {(() => {
                 const atividades = form.atividadesSemana ?? [];
                 const andamento = atividades.filter(a => a.tipo === 'andamento');
                 const proximo   = atividades.filter(a => a.tipo === 'proximo');
-                const selecionadas = new Set(atividades.map(a => a.wbs));
 
-                function addAtividade(t: TarefaCron, tipo: 'andamento' | 'proximo') {
-                  if (selecionadas.has(t.wbs)) return;
-                  setForm(f => ({ ...f, atividadesSemana: [...(f.atividadesSemana ?? []), { ...t, tipo }] }));
+                function addAtividade(tipo: 'andamento' | 'proximo') {
+                  const novaWbs = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+                    ? crypto.randomUUID()
+                    : `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                  setForm(f => ({
+                    ...f,
+                    atividadesSemana: [
+                      ...(f.atividadesSemana ?? []),
+                      { wbs: novaWbs, nome: '', inicio: null, fim: null, percentualConcluido: 0, tipo },
+                    ],
+                  }));
+                }
+                function updateAtividade(wbs: string, patch: Partial<AtividadeSemana>) {
+                  setForm(f => ({
+                    ...f,
+                    atividadesSemana: (f.atividadesSemana ?? []).map(a => a.wbs === wbs ? { ...a, ...patch } : a),
+                  }));
                 }
                 function removeAtividade(wbs: string) {
                   setForm(f => ({ ...f, atividadesSemana: (f.atividadesSemana ?? []).filter(a => a.wbs !== wbs) }));
                 }
                 function changeTipo(wbs: string, tipo: 'andamento' | 'proximo') {
-                  setForm(f => ({ ...f, atividadesSemana: (f.atividadesSemana ?? []).map(a => a.wbs === wbs ? { ...a, tipo } : a) }));
+                  updateAtividade(wbs, { tipo });
                 }
 
-                const sugeridoAndamento = new Set(tarefasPeriodo.map(t => t.wbs));
-                const sugeridoProximo   = new Set(tarefasProximo.map(t => t.wbs));
-
-                // Show only tasks that overlap current period + next 2 weeks
-                const limiteMs = new Date(form.periodoFim + 'T12:00:00').getTime() + 14 * 86_400_000;
-                const inicioMs = new Date(form.periodoInicio + 'T12:00:00').getTime();
-                const tarefasFiltradas = todasTarefas.filter(t => {
-                  if (sugeridoAndamento.has(t.wbs) || sugeridoProximo.has(t.wbs)) return true;
-                  if (!t.inicio && !t.fim) return false;
-                  const fimMs  = t.fim   ? new Date(t.fim   + 'T12:00:00').getTime() : Infinity;
-                  const iniMs  = t.inicio ? new Date(t.inicio + 'T12:00:00').getTime() : -Infinity;
-                  return fimMs >= inicioMs && iniMs <= limiteMs;
-                });
-
                 return (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {/* Em andamento */}
-                    {andamento.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Em andamento nesta semana</p>
-                        <div className="space-y-2">
-                          {andamento.map(t => (
-                            <div key={t.wbs} className="rounded-lg border border-ber-border bg-white px-3 py-2.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm text-ber-carbon leading-tight flex-1">{t.nome}</p>
-                                <span className="text-xs font-bold text-emerald-700 shrink-0">{t.percentualConcluido}%</span>
-                                <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/30 hover:text-red-500 shrink-0"><X size={13} /></button>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Em andamento nesta semana</p>
+                      <div className="space-y-2">
+                        {andamento.map(t => (
+                          <div key={t.wbs} className="rounded-lg border border-ber-border bg-white px-3 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                value={t.nome}
+                                onChange={e => updateAtividade(t.wbs, { nome: e.target.value })}
+                                placeholder="Ex: Concretagem laje L3"
+                                className="fi py-1.5 bg-white text-sm flex-1"
+                              />
+                              <div className="flex items-center gap-1 shrink-0">
+                                <input
+                                  type="number" min={0} max={100}
+                                  value={t.percentualConcluido}
+                                  onChange={e => updateAtividade(t.wbs, { percentualConcluido: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                                  className="fi py-1.5 bg-white text-sm w-16 text-right"
+                                />
+                                <span className="text-xs text-ber-gray">%</span>
                               </div>
-                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-ber-border overflow-hidden">
-                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${t.percentualConcluido}%` }} />
-                              </div>
-                              {t.inicio && t.fim && <p className="text-[10px] text-ber-gray mt-1">{fmt(t.inicio)} → {fmt(t.fim)}</p>}
-                              <button onClick={() => changeTipo(t.wbs, 'proximo')} className="text-[10px] text-ber-gray/50 hover:text-amber-600 mt-1">mover para próximo período</button>
+                              <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
                             </div>
-                          ))}
-                        </div>
+                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-ber-border overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${t.percentualConcluido}%` }} />
+                            </div>
+                            <button onClick={() => changeTipo(t.wbs, 'proximo')} className="text-[10px] text-ber-gray/50 hover:text-amber-600 mt-1">mover para próximo período</button>
+                          </div>
+                        ))}
                       </div>
-                    )}
+                      <button onClick={() => addAtividade('andamento')}
+                        className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-2 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                        <Plus size={13} /> Adicionar atividade em andamento
+                      </button>
+                    </div>
 
                     {/* Próximo período */}
-                    {proximo.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">Próximo período</p>
-                        <div className="space-y-1.5">
-                          {proximo.map(t => (
-                            <div key={t.wbs} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-ber-border bg-amber-50/50">
-                              <p className="text-sm text-ber-carbon flex-1">{t.nome}</p>
-                              {t.inicio && <p className="text-xs text-ber-gray shrink-0">início {fmt(t.inicio)}</p>}
-                              <button onClick={() => changeTipo(t.wbs, 'andamento')} className="text-[10px] text-ber-gray/50 hover:text-emerald-600 shrink-0">em andamento</button>
-                              <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/30 hover:text-red-500 shrink-0"><X size={13} /></button>
-                            </div>
-                          ))}
-                        </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">Próximo período</p>
+                      <div className="space-y-1.5">
+                        {proximo.map(t => (
+                          <div key={t.wbs} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-ber-border bg-amber-50/50">
+                            <input
+                              value={t.nome}
+                              onChange={e => updateAtividade(t.wbs, { nome: e.target.value })}
+                              placeholder="Ex: Início alvenaria pavimento 4"
+                              className="fi py-1.5 bg-white text-sm flex-1"
+                            />
+                            <button onClick={() => changeTipo(t.wbs, 'andamento')} className="text-[10px] text-ber-gray/50 hover:text-emerald-600 shrink-0">em andamento</button>
+                            <button onClick={() => removeAtividade(t.wbs)} className="text-ber-gray/40 hover:text-red-500 shrink-0"><X size={14} /></button>
+                          </div>
+                        ))}
                       </div>
-                    )}
+                      <button onClick={() => addAtividade('proximo')}
+                        className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium mt-2 px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
+                        <Plus size={13} /> Adicionar próximo período
+                      </button>
+                    </div>
 
                     {atividades.length === 0 && (
-                      <p className="text-sm text-ber-gray/40 italic">Nenhuma atividade selecionada. Use o botão abaixo para adicionar do cronograma.</p>
-                    )}
-
-                    {/* Picker */}
-                    <button onClick={() => setShowTarefasPicker(v => !v)}
-                      className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
-                      <Plus size={13} /> {showTarefasPicker ? 'Fechar cronograma' : 'Adicionar do cronograma'}
-                      {showTarefasPicker ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </button>
-
-                    {showTarefasPicker && todasTarefas.length > 0 && (
-                      <div className="rounded-lg border border-ber-border overflow-hidden">
-                        <div className="bg-[#F7F7F5] px-3 py-2 border-b border-ber-border">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-ber-gray">Tarefas do cronograma</p>
-                          <p className="text-[10px] text-ber-gray/60 mt-0.5">
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />em andamento no período ·
-                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mx-1" />próximo período · período atual + 2 semanas
-                          </p>
-                        </div>
-                        <div className="max-h-72 overflow-y-auto divide-y divide-ber-border bg-white">
-                          {tarefasFiltradas.map(t => {
-                            const jaSelecionada = selecionadas.has(t.wbs);
-                            const isAndamento = sugeridoAndamento.has(t.wbs);
-                            const isProximo   = sugeridoProximo.has(t.wbs);
-                            return (
-                              <div key={t.wbs} className={`flex items-center gap-2 px-3 py-2 ${jaSelecionada ? 'opacity-30' : 'hover:bg-[#F7F7F5]'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAndamento ? 'bg-emerald-400' : isProximo ? 'bg-amber-400' : 'bg-transparent'}`} />
-                                <p className="text-xs text-ber-carbon flex-1 leading-tight">{t.nome}</p>
-                                <span className="text-[10px] text-ber-gray/50 shrink-0">{t.percentualConcluido}%</span>
-                                {!jaSelecionada && (
-                                  <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => addAtividade(t, 'andamento')}
-                                      className="text-[10px] px-2 py-0.5 rounded border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium">
-                                      Andamento
-                                    </button>
-                                    <button onClick={() => addAtividade(t, 'proximo')}
-                                      className="text-[10px] px-2 py-0.5 rounded border border-amber-200 text-amber-700 hover:bg-amber-50 font-medium">
-                                      Próximo
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {showTarefasPicker && tarefasFiltradas.length === 0 && (
-                      <p className="text-xs text-ber-gray/50 italic">{todasTarefas.length === 0 ? 'Nenhum cronograma encontrado.' : 'Nenhuma tarefa nos próximos 14 dias.'}</p>
+                      <p className="text-sm text-ber-gray/40 italic">Nenhuma atividade ainda. Use os botões acima para listar as atividades realizadas e as próximas.</p>
                     )}
                   </div>
                 );
