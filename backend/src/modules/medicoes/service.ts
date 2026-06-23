@@ -20,12 +20,32 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 };
 
 export async function listByObra(obraId: string) {
-  return prisma.medicao.findMany({
-    where: { obraId },
-    orderBy: { numero: 'asc' },
-    include: {
-      _count: { select: { itens: true } },
-    },
+  const [medicoes, valoresPorMedicao, pagamentosPorMedicao] = await Promise.all([
+    prisma.medicao.findMany({
+      where: { obraId },
+      orderBy: { numero: 'asc' },
+      include: { _count: { select: { itens: true } } },
+    }),
+    prisma.medicaoItem.groupBy({
+      by: ['medicaoId'],
+      where: { medicao: { obraId } },
+      _sum: { valorQuinzena: true },
+    }),
+    prisma.medicaoPagamentoDireto.groupBy({
+      by: ['medicaoId'],
+      where: { medicao: { obraId } },
+      _sum: { valor: true },
+    }),
+  ]);
+
+  const brutoMap = new Map(valoresPorMedicao.map(v => [v.medicaoId, Number(v._sum.valorQuinzena ?? 0)]));
+  const pagoMap  = new Map(pagamentosPorMedicao.map(p => [p.medicaoId, Number(p._sum.valor ?? 0)]));
+
+  return medicoes.map(m => {
+    const bruto   = brutoMap.get(m.id) ?? 0;
+    const pago    = pagoMap.get(m.id) ?? 0;
+    const liquido = Math.max(0, bruto - pago);
+    return { ...m, valorTotalBruto: bruto, totalPagoDireto: pago, valorTotalLiquido: liquido };
   });
 }
 
