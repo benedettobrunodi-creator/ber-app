@@ -3,8 +3,19 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, Download, X } from 'lucide-react';
 import api from '@/lib/api';
+
+async function baixarPdf(medicaoId: string) {
+  try {
+    const res = await api.get(`/medicoes/${medicaoId}/pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    window.open(url, '_blank');
+    setTimeout(() => window.URL.revokeObjectURL(url), 10_000);
+  } catch (err) {
+    alert(err instanceof Error ? err.message : 'Erro ao gerar PDF');
+  }
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -228,7 +239,13 @@ export default function MedicaoDetailPage() {
             {fmtDate(med.periodoInicio)} – {fmtDate(med.periodoFim)} · {obra.client ?? obra.name}
           </p>
         </div>
-        <StatusActions med={med} onChange={fetchAll} onDeleted={() => router.push(`/obras/${obraId}/medicao`)} />
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button onClick={() => baixarPdf(med.id)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-ber-gray/30 px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:bg-ber-bg">
+            <Download size={13} /> Baixar PDF
+          </button>
+          <StatusActions med={med} onChange={fetchAll} onDeleted={() => router.push(`/obras/${obraId}/medicao`)} />
+        </div>
       </div>
 
       {/* KPIs */}

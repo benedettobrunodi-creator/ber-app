@@ -31,6 +31,10 @@ async function resolveObraIdFromMedicao(req: Request, _res: Response, next: Next
 }
 
 medicoesRouter.get('/:id', w(ctrl.getDetail));
+medicoesRouter.get('/:id/pdf', w(async (req, res) => {
+  const { downloadPdf } = await import('./pdf.controller');
+  return downloadPdf(req, res);
+}));
 medicoesRouter.patch('/:id', resolveObraIdFromMedicao, obraMemberOnly, validate(updateMedicaoSchema), w(ctrl.update));
 medicoesRouter.delete('/:id', resolveObraIdFromMedicao, obraMemberOnly, w(ctrl.remove));
 medicoesRouter.post('/:id/transition', resolveObraIdFromMedicao, obraMemberOnly, validate(transitionSchema), w(ctrl.transition));
