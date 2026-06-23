@@ -242,6 +242,41 @@ app.use('/v1/contratacao-plano', ...perm('contratacaoPlano'), planoRouter);
 import { obraHistogramaRouter } from './modules/histograma/routes';
 app.use('/v1/obras/:obraId/histograma', ...perm('histograma'), obraHistogramaRouter);
 
+// ── MEDIÇÃO FINANCEIRA (migração ber-medicao — Fase 2) ──────────────────────
+import { obraEtapasRouter, etapasRouter } from './modules/medicao-etapas/routes';
+app.use('/v1/obras/:obraId/medicao-etapas', ...perm('obras'), obraEtapasRouter);
+app.use('/v1/medicao-etapas', ...perm('obras'), etapasRouter);
+
+import {
+  obraFornecedoresRouter,
+  fornecedoresRouter,
+  etapaQuickAddRouter,
+  etapaFornecedoresRouter,
+} from './modules/medicao-fornecedores/routes';
+app.use('/v1/obras/:obraId/medicao-fornecedores', ...perm('obras'), obraFornecedoresRouter);
+app.use('/v1/medicao-fornecedores', ...perm('obras'), fornecedoresRouter);
+app.use('/v1/medicao-etapas/:etapaId/fornecedores', ...perm('obras'), etapaQuickAddRouter);
+app.use('/v1/medicao-etapa-fornecedores', ...perm('obras'), etapaFornecedoresRouter);
+
+import {
+  obraMedicoesRouter,
+  medicoesRouter,
+  medicaoItensRouter,
+} from './modules/medicoes/routes';
+app.use('/v1/obras/:obraId/medicoes', ...perm('obras'), obraMedicoesRouter);
+app.use('/v1/medicoes', ...perm('obras'), medicoesRouter);
+app.use('/v1/medicao-itens', ...perm('obras'), medicaoItensRouter);
+
+import {
+  obraClienteAcessoRouter,
+  clienteAcessoRouter,
+  publicoClienteRouter,
+} from './modules/cliente-acesso/routes';
+app.use('/v1/obras/:obraId/cliente-acesso', ...perm('obras'), obraClienteAcessoRouter);
+app.use('/v1/cliente-acesso', ...perm('obras'), clienteAcessoRouter);
+// Portal cliente — SEM auth (rate-limit aplicado)
+app.use('/v1/cliente', limiter, publicoClienteRouter);
+
 // — Módulo: alocações (usa perm configuracoes) —
 app.use('/v1/alocacoes', ...perm('configuracoes'), alocacoesRoutes);
 
