@@ -95,6 +95,7 @@ model User {
   orgChartUpdates         OrgChart[]
   temperaturasPreenchidas ObraTemperatura[]       @relation("TemperaturaCreator")
   medicaoTransicoes       MedicaoTransicao[]      @relation("MedicaoTransicaoUser")
+  ataTopicosResponsavel   ObraAtaTopico[]         @relation("AtaTopicoResponsavel")
 
   @@map("users")
 }
@@ -194,7 +195,8 @@ model Obra {
   aditivos           ObraAditivo[]
   contratacoes       ObraContratacao[]
   ordensCompra       ObraOrdemCompra[]
-  atas               ObraAta[]
+  ataTopicos         ObraAtaTopico[]
+  ataReunioes        ObraAtaReuniao[]
   documentos         ObraDocumento[]
   stakeholders       ObraStakeholder[]
   kickoff            ObraKickoff?
@@ -923,16 +925,13 @@ model PunchListItem {
 
   // ─── Origem (Sprint 1.4) ─── alimenta o módulo Pendências unificado
   origem      String    @default("livre") @db.VarChar(20)
-  // livre | ata | diario | vistoria
-  ataOrigemId String?   @map("ata_origem_id") @db.Uuid
+  // livre | diario | vistoria
   prazo       DateTime? @db.Date
 
   punchList   PunchList @relation(fields: [punchListId], references: [id], onDelete: Cascade)
   responsible User?     @relation("PunchListResponsible", fields: [responsibleId], references: [id])
-  ataOrigem   ObraAta?  @relation("AtaPendencias", fields: [ataOrigemId], references: [id], onDelete: SetNull)
 
   @@index([punchListId])
-  @@index([ataOrigemId])
   @@map("punch_list_items")
 }
 
@@ -2233,26 +2232,64 @@ model ObraTemperatura {
   @@map("obra_temperatura")
 }
 
-// ─── ObraAta (atas de reuniões internas e externas) ─────────────────────
-model ObraAta {
-  id            String   @id @default(uuid()) @db.Uuid
-  obraId        String   @map("obra_id") @db.Uuid
-  tipo          String   @db.VarChar(10) // "interna" | "externa"
-  numero        String   @db.VarChar(20)
-  data          DateTime @db.Date
-  local         String?  @db.VarChar(255)
-  participantes Json     @default("[]") // [{ nome, papel }]
-  pauta         String
-  decisoes      String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+// ─── ObraAta — "Ata Corrida" (formato planilha por obra) ────────────────
+// Estrutura: tópicos perenes (linhas) × reuniões (colunas). Notas vivem
+// na junção topico×reuniao.
+model ObraAtaTopico {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  ordem         Int       @default(0)
+  status        String    @default("em_andamento") @db.VarChar(20)
+  // concluido | em_andamento | atrasado
+  impacto       String    @default("sem_impacto") @db.VarChar(20)
+  // sem_impacto | custo | cronograma | projeto
+  changeOrder   Boolean   @default(false) @map("change_order")
+  tema          String?
+  area          String?   @db.VarChar(150)
+  responsavelId String?   @map("responsavel_id") @db.Uuid
+  dataInfo      DateTime? @map("data_info") @db.Date
+  dataAlvo      DateTime? @map("data_alvo") @db.Date
+  dataFinal     DateTime? @map("data_final") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra       Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  pendencias PunchListItem[] @relation("AtaPendencias")
+  obra        Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel User?         @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
+  notas       ObraAtaNota[]
 
   @@index([obraId])
-  @@index([tipo])
-  @@map("obra_atas")
+  @@map("obra_ata_topicos")
+}
+
+model ObraAtaReuniao {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @map("obra_id") @db.Uuid
+  data      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  obra  Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  notas ObraAtaNota[]
+
+  @@unique([obraId, data])
+  @@index([obraId])
+  @@map("obra_ata_reunioes")
+}
+
+model ObraAtaNota {
+  id        String   @id @default(uuid()) @db.Uuid
+  topicoId  String   @map("topico_id") @db.Uuid
+  reuniaoId String   @map("reuniao_id") @db.Uuid
+  texto     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  topico  ObraAtaTopico  @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  reuniao ObraAtaReuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+
+  @@unique([topicoId, reuniaoId])
+  @@index([topicoId])
+  @@index([reuniaoId])
+  @@map("obra_ata_notas")
 }
 
 // ─── ObraContratacao (formaliza contrato com fornecedor) ─────────────────

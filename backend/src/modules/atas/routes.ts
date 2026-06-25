@@ -1,32 +1,33 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../../middleware/validate';
 import { obraMemberOnly } from '../../middleware/obraMemberOnly';
-import { createAtaSchema, updateAtaSchema, addPendenciaSchema } from './types';
+import {
+  createTopicoSchema,
+  updateTopicoSchema,
+  reorderTopicosSchema,
+  createReuniaoSchema,
+  upsertNotaSchema,
+} from './types';
 import * as ctrl from './controller';
 
 const w = (fn: (req: Request, res: Response) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req, res).catch(next);
 
+// Rotas montadas sob /obras/:obraId/atas
 export const obraAtasRouter = Router({ mergeParams: true });
-export const atasRouter = Router();
 
-obraAtasRouter.get('/', w(ctrl.list));
-obraAtasRouter.post('/', obraMemberOnly, validate(createAtaSchema), w(ctrl.create));
+// Documento completo da ata corrida da obra
+obraAtasRouter.get('/', w(ctrl.getAta));
 
-async function resolveObraId(req: Request, _res: Response, next: NextFunction) {
-  try {
-    const { prisma } = await import('../../config/database');
-    const a = await prisma.obraAta.findUnique({
-      where: { id: req.params.id },
-      select: { obraId: true },
-    });
-    if (!a) return next(new Error('Ata não encontrada'));
-    req.params.obraId = a.obraId;
-    next();
-  } catch (err) { next(err); }
-}
+// Tópicos (linhas)
+obraAtasRouter.post('/topicos', obraMemberOnly, validate(createTopicoSchema), w(ctrl.createTopico));
+obraAtasRouter.patch('/topicos/reorder', obraMemberOnly, validate(reorderTopicosSchema), w(ctrl.reorderTopicos));
+obraAtasRouter.patch('/topicos/:topicoId', obraMemberOnly, validate(updateTopicoSchema), w(ctrl.updateTopico));
+obraAtasRouter.delete('/topicos/:topicoId', obraMemberOnly, w(ctrl.removeTopico));
 
-atasRouter.get('/:id', w(ctrl.getOne));
-atasRouter.patch('/:id', resolveObraId, obraMemberOnly, validate(updateAtaSchema), w(ctrl.update));
-atasRouter.post('/:id/pendencias', resolveObraId, obraMemberOnly, validate(addPendenciaSchema), w(ctrl.addPendencia));
-atasRouter.delete('/:id', resolveObraId, obraMemberOnly, w(ctrl.remove));
+// Reuniões (colunas)
+obraAtasRouter.post('/reunioes', obraMemberOnly, validate(createReuniaoSchema), w(ctrl.createReuniao));
+obraAtasRouter.delete('/reunioes/:reuniaoId', obraMemberOnly, w(ctrl.removeReuniao));
+
+// Notas (células)
+obraAtasRouter.put('/notas', obraMemberOnly, validate(upsertNotaSchema), w(ctrl.upsertNota));

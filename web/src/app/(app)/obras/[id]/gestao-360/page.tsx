@@ -11,7 +11,6 @@ import {
 import api from '@/lib/api';
 import CronogramaPanel from '@/components/obras/CronogramaPanel';
 import StakeholderFormModal from '@/components/obras/StakeholderFormModal';
-import AtaFormModal, { type Ata as AtaFull, type UserOption } from '@/components/obras/AtaFormModal';
 import AditivoFormModal from '@/components/obras/AditivoFormModal';
 import { ContratacaoFormModal, OcFormModal, type Contratacao as ContratacaoFull, type Oc as OcFull } from '@/components/obras/ContratacaoFormModal';
 import KickoffFormModal, { type Kickoff as KickoffFull } from '@/components/obras/KickoffFormModal';
@@ -46,7 +45,10 @@ interface ContratacoesResp { contratacoes: Contratacao[]; totals: { total: numbe
 interface Oc { id: string; numero: string; fornecedor: string; descricao: string; valor: string; status: string; dataPrevistaEntrega: string | null }
 interface OcsResp { ocs: Oc[]; totals: { total: number; byStatus: Record<string, number> } }
 interface PlanoLite { id: string; pacote: string; dataLimite: string | null; statusEfetivo: string }
-type Ata = AtaFull;
+interface AtaCorridaSummary {
+  topicos: { id: string; status: string; dataAlvo: string | null; dataFinal: string | null }[];
+  reunioes: { id: string; data: string }[];
+}
 interface Kickoff { id: string; dataRealizada: string | null; participantes: { nome: string; papel?: string | null }[]; decisoes: string | null }
 interface Documento { id: string; tipo: string; nome: string; status: string; dataEmissao: string | null }
 interface DocumentosResp { documentos: Documento[]; totals: { byStatus: Record<string, number> } }
@@ -67,20 +69,18 @@ export default function Gestao360Page() {
   const [tab, setTab] = useState<TabKey>('visao');
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | true | null>(null);
-  const [editingAta, setEditingAta] = useState<Ata | true | null>(null);
   const [showNewAditivo, setShowNewAditivo] = useState(false);
   const [editingContratacao, setEditingContratacao] = useState<ContratacaoFull | true | null>(null);
   const [editingOc, setEditingOc] = useState<OcFull | true | null>(null);
   const [showKickoff, setShowKickoff] = useState(false);
   const [novaRaciAtividade, setNovaRaciAtividade] = useState('');
   const [savingRaci, setSavingRaci] = useState(false);
-  const [users, setUsers] = useState<UserOption[]>([]);
   const [compras, setCompras] = useState<ComprasSummary | null>(null);
   const [aditivos, setAditivos] = useState<AditivosResp | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
   const [ocs, setOcs] = useState<OcsResp | null>(null);
   const [planos, setPlanos] = useState<PlanoLite[]>([]);
-  const [atas, setAtas] = useState<Ata[]>([]);
+  const [ata, setAta] = useState<AtaCorridaSummary | null>(null);
   const [kickoff, setKickoff] = useState<Kickoff | null>(null);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [raci, setRaci] = useState<RaciItem[]>([]);
@@ -103,7 +103,7 @@ export default function Gestao360Page() {
         contratosRes,
         ocsRes,
         planosRes,
-        atasRes,
+        ataRes,
         kickoffRes,
         stakeRes,
         raciRes,
@@ -111,7 +111,6 @@ export default function Gestao360Page() {
         histRes,
         punchRes,
         cronRes,
-        usersRes,
       ] = await Promise.all([
         safeGet<ObraInfo>(`/obras/${obraId}`),
         safeGet<{ totais: ComprasSummary }>(`/compras-dashboard/summary`, { obraId }).then(r => r ? r.totais ?? null : null).catch(() => null) as Promise<ComprasSummary | null>,
@@ -119,7 +118,7 @@ export default function Gestao360Page() {
         safeGet<ContratacoesResp>(`/obras/${obraId}/contratacoes`),
         safeGet<OcsResp>(`/obras/${obraId}/ordens-compra`),
         safeGet<PlanoLite[]>(`/obras/${obraId}/contratacao-plano`),
-        safeGet<Ata[]>(`/obras/${obraId}/atas`),
+        safeGet<AtaCorridaSummary>(`/obras/${obraId}/atas`),
         safeGet<Kickoff>(`/obras/${obraId}/kickoff`),
         safeGet<Stakeholder[]>(`/obras/${obraId}/stakeholders`),
         safeGet<RaciItem[]>(`/obras/${obraId}/raci`),
@@ -127,7 +126,6 @@ export default function Gestao360Page() {
         safeGet<HistogramaCell[]>(`/obras/${obraId}/histograma`),
         safeGet<{ id: string; type: string; items: PunchListItemLite[] }[]>(`/obras/${obraId}/punch-lists`),
         safeGet<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null }>(`/obras/${obraId}/cronograma`),
-        api.get<{ data: UserOption[] }>('/users', { params: { limit: 200 } }).then(r => r.data.data).catch(() => [] as UserOption[]),
       ]);
 
       setObra(obraRes);
@@ -136,14 +134,13 @@ export default function Gestao360Page() {
       setContratos(contratosRes ?? null);
       setOcs(ocsRes ?? null);
       setPlanos(planosRes ?? []);
-      setAtas(atasRes ?? []);
+      setAta(ataRes ?? null);
       setKickoff(kickoffRes ?? null);
       setStakeholders(stakeRes ?? []);
       setRaci(raciRes ?? []);
       setDocumentos(docsRes ?? null);
       setHistograma(histRes ?? []);
       setCronograma(cronRes ?? null);
-      setUsers(usersRes ?? []);
 
       // Flatten all punch list items for the obra
       const allItems: PunchListItemLite[] = [];
@@ -587,52 +584,38 @@ export default function Gestao360Page() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Section
-              title={`Atas (${atas.length})`}
+              title={`Ata Corrida (${ata?.topicos.length ?? 0} tópicos)`}
               linkTo={`/obras/${obraId}/atas?from=gestao-360`}
-              onAdd={() => setEditingAta(true)}
-              addLabel="Nova ata"
             >
-              {atas.length === 0 ? <EmptyMsg msg="Nenhuma ata cadastrada — clica em 'Nova ata' pra criar." /> : (
-                <ul className="space-y-1.5 text-sm">
-                  {atas.slice(0, 6).map(a => {
-                    const abertas = a.pendencias.filter(p => p.status === 'aberto' || p.status === 'em_andamento').length;
-                    return (
-                      <li key={a.id} className="group relative border-l-2 border-ber-teal/40 pl-3 pr-14 py-0.5 rounded-r hover:bg-ber-bg/40">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-ber-carbon truncate"><strong>{a.numero}</strong> ({a.tipo}) · {fmtDate(a.data)}</p>
-                          {abertas > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{abertas} pend.</span>}
-                        </div>
-                        <p className="text-xs text-ber-gray truncate">{a.pauta}</p>
-                        <div className="absolute top-0.5 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => setEditingAta(a)}
-                            title="Editar"
-                            className="rounded p-1 text-ber-gray hover:bg-white hover:text-ber-carbon"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Excluir ata ${a.numero}? Pendências geradas continuam abertas.`)) return;
-                              try {
-                                await api.delete(`/atas/${a.id}`);
-                                fetchAll();
-                              } catch (err) {
-                                const m = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
-                                alert(typeof m === 'string' ? m : m?.message || 'Erro ao excluir');
-                              }
-                            }}
-                            title="Excluir"
-                            className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              {!ata || (ata.topicos.length === 0 && ata.reunioes.length === 0) ? (
+                <EmptyMsg msg="Nenhum tópico cadastrado — abra a Ata Corrida para começar." />
+              ) : (() => {
+                const atrasados = ata.topicos.filter(t => t.status === 'atrasado').length;
+                const emAnd = ata.topicos.filter(t => t.status === 'em_andamento').length;
+                const concl = ata.topicos.filter(t => t.status === 'concluido').length;
+                const ultima = ata.reunioes.length > 0 ? ata.reunioes[ata.reunioes.length - 1].data : null;
+                return (
+                  <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded bg-red-50 px-2 py-1.5 text-center">
+                        <p className="text-lg font-bold text-red-700">{atrasados}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-red-600">Atrasados</p>
+                      </div>
+                      <div className="rounded bg-blue-50 px-2 py-1.5 text-center">
+                        <p className="text-lg font-bold text-blue-700">{emAnd}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-blue-600">Em andamento</p>
+                      </div>
+                      <div className="rounded bg-green-50 px-2 py-1.5 text-center">
+                        <p className="text-lg font-bold text-green-700">{concl}</p>
+                        <p className="text-[10px] uppercase tracking-wide text-green-600">Concluídos</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-ber-gray">
+                      {ata.reunioes.length} reunião(ões) · última: <strong>{fmtDate(ultima)}</strong>
+                    </p>
+                  </div>
+                );
+              })()}
             </Section>
 
             <Section title={`Pendências abertas (${pendAbertas})`} linkTo={`/obras/${obraId}/punch-lists?from=gestao-360`}>
@@ -759,17 +742,6 @@ export default function Gestao360Page() {
           edit={editingStakeholder === true ? null : editingStakeholder}
           onClose={() => setEditingStakeholder(null)}
           onSaved={() => { setEditingStakeholder(null); fetchAll(); }}
-        />
-      )}
-
-      {/* ─── Modal: Ata (criar/editar) ──────────────────────────────────── */}
-      {editingAta !== null && (
-        <AtaFormModal
-          obraId={obraId}
-          users={users}
-          edit={editingAta === true ? null : editingAta}
-          onClose={() => setEditingAta(null)}
-          onSaved={() => { setEditingAta(null); fetchAll(); }}
         />
       )}
 

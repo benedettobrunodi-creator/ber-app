@@ -1,33 +1,40 @@
 import { z } from 'zod';
 
-export const ATA_TIPOS = ['interna', 'externa'] as const;
+export const ATA_STATUS = ['concluido', 'em_andamento', 'atrasado'] as const;
+export const ATA_IMPACTO = ['sem_impacto', 'custo', 'cronograma', 'projeto'] as const;
 
-const participanteSchema = z.object({
-  nome: z.string().min(1),
-  papel: z.string().optional().nullable(),
+export const createTopicoSchema = z.object({
+  status:        z.enum(ATA_STATUS).optional(),
+  impacto:       z.enum(ATA_IMPACTO).optional(),
+  changeOrder:   z.boolean().optional(),
+  tema:          z.string().optional().nullable(),
+  area:          z.string().max(150).optional().nullable(),
+  responsavelId: z.string().uuid().optional().nullable(),
+  dataInfo:      z.string().optional().nullable(),
+  dataAlvo:      z.string().optional().nullable(),
+  dataFinal:     z.string().optional().nullable(),
 });
 
-const pendenciaInputSchema = z.object({
-  descricao: z.string().min(1),
-  responsibleId: z.string().uuid().optional().nullable(),
-  prazo: z.string().optional().nullable(),
+export const updateTopicoSchema = createTopicoSchema.extend({
+  ordem: z.number().int().optional(),
 });
 
-export const createAtaSchema = z.object({
-  tipo:          z.enum(ATA_TIPOS),
-  numero:        z.string().min(1).max(20),
-  data:          z.string().min(1),
-  local:         z.string().optional().nullable(),
-  participantes: z.array(participanteSchema).default([]),
-  pauta:         z.string().min(1),
-  decisoes:      z.string().optional().nullable(),
-  pendencias:    z.array(pendenciaInputSchema).default([]),
+export const reorderTopicosSchema = z.object({
+  ordem: z.array(z.string().uuid()),
 });
 
-export const updateAtaSchema = createAtaSchema.partial();
+export const createReuniaoSchema = z.object({
+  data: z.string().min(1),
+});
 
-export const addPendenciaSchema = pendenciaInputSchema;
+export const upsertNotaSchema = z.object({
+  topicoId:  z.string().uuid(),
+  reuniaoId: z.string().uuid(),
+  texto:     z.string(),
+});
 
-export type CreateAtaInput = z.infer<typeof createAtaSchema>;
-export type UpdateAtaInput = z.infer<typeof updateAtaSchema>;
-export type AddPendenciaInput = z.infer<typeof addPendenciaSchema>;
+export type CreateTopicoInput = z.infer<typeof createTopicoSchema>;
+export type UpdateTopicoInput = z.infer<typeof updateTopicoSchema>;
+export type ReorderTopicosInput = z.infer<typeof reorderTopicosSchema>;
+export type CreateReuniaoInput = z.infer<typeof createReuniaoSchema>;
+export type UpsertNotaInput = z.infer<typeof upsertNotaSchema>;

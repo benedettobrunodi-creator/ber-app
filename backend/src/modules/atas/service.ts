@@ -1,134 +1,164 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
-import type { CreateAtaInput, UpdateAtaInput, AddPendenciaInput } from './types';
-import type { Prisma } from '@prisma/client';
+import type {
+  CreateTopicoInput,
+  UpdateTopicoInput,
+  CreateReuniaoInput,
+  UpsertNotaInput,
+} from './types';
 
-const parseDate = (d: string | null | undefined) => (d ? new Date(d) : null);
+const topicoSelect = {
+  id: true,
+  ordem: true,
+  status: true,
+  impacto: true,
+  changeOrder: true,
+  tema: true,
+  area: true,
+  responsavelId: true,
+  dataInfo: true,
+  dataAlvo: true,
+  dataFinal: true,
+  responsavel: { select: { id: true, name: true } },
+} as const;
 
-/** Lazy-cria (ou recupera) o PunchList do tipo "geral" da obra,
- *  usado pra alojar pendências unificadas (ata, diário, vistoria). */
-async function getOrCreateGeralPunchList(obraId: string, userId?: string) {
-  const existing = await prisma.punchList.findFirst({
-    where: { obraId, type: 'geral' },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-  const created = await prisma.punchList.create({
-    data: { obraId, type: 'geral', createdBy: userId },
-    select: { id: true },
-  });
-  return created.id;
-}
-
-export async function listByObra(obraId: string, tipo?: string) {
-  const where: Prisma.ObraAtaWhereInput = { obraId };
-  if (tipo) where.tipo = tipo;
-  return prisma.obraAta.findMany({
-    where,
-    include: {
-      pendencias: {
-        select: {
-          id: true,
-          descricao: true,
-          status: true,
-          prazo: true,
-          responsible: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: 'asc' },
+export async function getAtaCorrida(obraId: string) {
+  const [obra, stakeholders, topicos, reunioes, notas] = await Promise.all([
+    prisma.obra.findUnique({
+      where: { id: obraId },
+      select: {
+        id: true,
+        name: true,
+        client: true,
+        address: true,
+        arquiteturaEscritorio: true,
+        gerenciadora: true,
+        areaM2: true,
+        dataInicioObra: true,
+        dataFimObra: true,
       },
-    },
-    orderBy: { data: 'desc' },
-  });
-}
+    }),
+    prisma.obraStakeholder.findMany({
+      where: { obraId },
+      orderBy: [{ ordem: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, empresa: true, nome: true, funcao: true, email: true, telefone: true },
+    }),
+    prisma.obraAtaTopico.findMany({
+      where: { obraId },
+      orderBy: [{ ordem: 'asc' }, { createdAt: 'asc' }],
+      select: topicoSelect,
+    }),
+    prisma.obraAtaReuniao.findMany({
+      where: { obraId },
+      orderBy: { data: 'asc' },
+      select: { id: true, data: true },
+    }),
+    prisma.obraAtaNota.findMany({
+      where: { topico: { obraId } },
+      select: { topicoId: true, reuniaoId: true, texto: true },
+    }),
+  ]);
 
-export async function getOne(id: string) {
-  const a = await prisma.obraAta.findUnique({
-    where: { id },
-    include: {
-      pendencias: {
-        include: { responsible: { select: { id: true, name: true } } },
-        orderBy: { createdAt: 'asc' },
-      },
-    },
-  });
-  if (!a) throw AppError.notFound('Ata');
-  return a;
-}
-
-export async function create(obraId: string, input: CreateAtaInput, userId?: string) {
-  const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
   if (!obra) throw AppError.notFound('Obra');
 
-  const pendenciasToCreate = input.pendencias ?? [];
-  const needPunchList = pendenciasToCreate.length > 0;
-  const punchListId = needPunchList ? await getOrCreateGeralPunchList(obraId, userId) : null;
+  return { obra, stakeholders, topicos, reunioes, notas };
+}
 
-  return prisma.obraAta.create({
+export async function createTopico(obraId: string, input: CreateTopicoInput) {
+  const maxOrdem = await prisma.obraAtaTopico.aggregate({
+    where: { obraId },
+    _max: { ordem: true },
+  });
+  const ordem = (maxOrdem._max.ordem ?? 0) + 1;
+  return prisma.obraAtaTopico.create({
     data: {
       obraId,
-      tipo:          input.tipo,
-      numero:        input.numero,
-      data:          new Date(input.data),
-      local:         input.local ?? null,
-      participantes: input.participantes,
-      pauta:         input.pauta,
-      decisoes:      input.decisoes ?? null,
-      pendencias: needPunchList ? {
-        create: pendenciasToCreate.map(p => ({
-          punchListId: punchListId!,
-          descricao: p.descricao,
-          responsibleId: p.responsibleId ?? null,
-          prazo: parseDate(p.prazo),
-          origem: 'ata',
-        })),
-      } : undefined,
+      ordem,
+      status: input.status ?? 'em_andamento',
+      impacto: input.impacto ?? 'sem_impacto',
+      changeOrder: input.changeOrder ?? false,
+      tema: input.tema ?? null,
+      area: input.area ?? null,
+      responsavelId: input.responsavelId ?? null,
+      dataInfo: input.dataInfo ? new Date(input.dataInfo) : null,
+      dataAlvo: input.dataAlvo ? new Date(input.dataAlvo) : null,
+      dataFinal: input.dataFinal ? new Date(input.dataFinal) : null,
     },
-    include: {
-      pendencias: {
-        include: { responsible: { select: { id: true, name: true } } },
-      },
-    },
+    select: topicoSelect,
   });
 }
 
-export async function update(id: string, input: UpdateAtaInput) {
-  const existing = await prisma.obraAta.findUnique({ where: { id } });
-  if (!existing) throw AppError.notFound('Ata');
-  return prisma.obraAta.update({
-    where: { id },
+export async function updateTopico(topicoId: string, input: UpdateTopicoInput) {
+  return prisma.obraAtaTopico.update({
+    where: { id: topicoId },
     data: {
-      tipo:          input.tipo,
-      numero:        input.numero,
-      data:          input.data ? new Date(input.data) : undefined,
-      local:         input.local,
-      participantes: input.participantes,
-      pauta:         input.pauta,
-      decisoes:      input.decisoes,
+      ...(input.ordem !== undefined && { ordem: input.ordem }),
+      ...(input.status !== undefined && { status: input.status }),
+      ...(input.impacto !== undefined && { impacto: input.impacto }),
+      ...(input.changeOrder !== undefined && { changeOrder: input.changeOrder }),
+      ...(input.tema !== undefined && { tema: input.tema }),
+      ...(input.area !== undefined && { area: input.area }),
+      ...(input.responsavelId !== undefined && { responsavelId: input.responsavelId }),
+      ...(input.dataInfo !== undefined && { dataInfo: input.dataInfo ? new Date(input.dataInfo) : null }),
+      ...(input.dataAlvo !== undefined && { dataAlvo: input.dataAlvo ? new Date(input.dataAlvo) : null }),
+      ...(input.dataFinal !== undefined && { dataFinal: input.dataFinal ? new Date(input.dataFinal) : null }),
     },
+    select: topicoSelect,
   });
 }
 
-export async function addPendencia(ataId: string, input: AddPendenciaInput, userId?: string) {
-  const ata = await prisma.obraAta.findUnique({ where: { id: ataId }, select: { obraId: true } });
-  if (!ata) throw AppError.notFound('Ata');
-  const punchListId = await getOrCreateGeralPunchList(ata.obraId, userId);
-  return prisma.punchListItem.create({
-    data: {
-      punchListId,
-      descricao: input.descricao,
-      responsibleId: input.responsibleId ?? null,
-      prazo: parseDate(input.prazo),
-      origem: 'ata',
-      ataOrigemId: ataId,
-    },
-    include: { responsible: { select: { id: true, name: true } } },
+export async function removeTopico(topicoId: string) {
+  await prisma.obraAtaTopico.delete({ where: { id: topicoId } });
+}
+
+export async function reorderTopicos(obraId: string, ids: string[]) {
+  await prisma.$transaction(
+    ids.map((id, idx) =>
+      prisma.obraAtaTopico.update({
+        where: { id },
+        data: { ordem: idx + 1 },
+      }),
+    ),
+  );
+  return prisma.obraAtaTopico.findMany({
+    where: { obraId },
+    orderBy: { ordem: 'asc' },
+    select: topicoSelect,
   });
 }
 
-export async function remove(id: string) {
-  const existing = await prisma.obraAta.findUnique({ where: { id } });
-  if (!existing) throw AppError.notFound('Ata');
-  await prisma.attachment.deleteMany({ where: { entityType: 'ata', entityId: id } });
-  // PunchListItems com ataOrigemId apontando pra essa ata: ataOrigemId vira null (onDelete SetNull no schema)
-  await prisma.obraAta.delete({ where: { id } });
+export async function createReuniao(obraId: string, input: CreateReuniaoInput) {
+  try {
+    return await prisma.obraAtaReuniao.create({
+      data: { obraId, data: new Date(input.data) },
+      select: { id: true, data: true },
+    });
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'P2002') {
+      throw AppError.conflict('Já existe reunião nessa data');
+    }
+    throw err;
+  }
+}
+
+export async function removeReuniao(reuniaoId: string) {
+  await prisma.obraAtaReuniao.delete({ where: { id: reuniaoId } });
+}
+
+export async function upsertNota(input: UpsertNotaInput) {
+  const texto = input.texto.trim();
+  if (texto.length === 0) {
+    await prisma.obraAtaNota.deleteMany({
+      where: { topicoId: input.topicoId, reuniaoId: input.reuniaoId },
+    });
+    return null;
+  }
+  return prisma.obraAtaNota.upsert({
+    where: {
+      topicoId_reuniaoId: { topicoId: input.topicoId, reuniaoId: input.reuniaoId },
+    },
+    create: { topicoId: input.topicoId, reuniaoId: input.reuniaoId, texto },
+    update: { texto },
+    select: { topicoId: true, reuniaoId: true, texto: true },
+  });
 }
