@@ -11,19 +11,35 @@ const ALL_OFF: Record<string, boolean> = {
   contratacaoPlano: false, histograma: false, gestao360: false,
 };
 
+const ALL_ON: Record<string, boolean> = Object.fromEntries(
+  Object.keys(ALL_OFF).map(k => [k, true]),
+);
+
+/** Pacote de permissões "obra" — quem opera obras precisa de tudo isso pra
+ *  preencher RDO, atas, checklists, contratos, etc. */
+const OBRA_OPS: Record<string, boolean> = {
+  ...ALL_OFF,
+  dashboard: true, obras: true, kanban: true, checklists: true, diario: true,
+  recebimentos: true, seguranca: true, normas: true, instrucoes: true, ponto: true,
+  comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
+  documentos: true, stakeholders: true, kickoff: true, raci: true,
+  contratacaoPlano: true, histograma: true, gestao360: true,
+};
+
 const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
-  socio:       { ...ALL_OFF, admin: true, comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
-                 documentos: true, stakeholders: true, kickoff: true, raci: true,
-                 contratacaoPlano: true, histograma: true, gestao360: true },
-  diretoria:   { ...ALL_OFF },
-  coordenacao: { ...ALL_OFF },
-  pmo:         { ...ALL_OFF },
-  engenharia:  { ...ALL_OFF },
-  financeiro:  { ...ALL_OFF },
-  gestor:      { ...ALL_OFF },
-  compras:     { ...ALL_OFF },
-  orcamentos:  { ...ALL_OFF },
-  campo:       { ...ALL_OFF },
+  socio:       { ...ALL_ON },
+  diretoria:   { ...ALL_ON },
+  coordenacao: { ...ALL_ON },
+  pmo:         { ...OBRA_OPS, organograma: true },
+  engenharia:  { ...OBRA_OPS },
+  gestor:      { ...OBRA_OPS },
+  financeiro:  { ...ALL_OFF, dashboard: true, obras: true, recebimentos: true, ponto: true, diario: true,
+                 comprasDashboard: true, aditivos: true, contratacoes: true, documentos: true, gestao360: true },
+  compras:     { ...ALL_OFF, dashboard: true, obras: true, recebimentos: true, ponto: true, diario: true,
+                 comprasDashboard: true, contratacoes: true, contratacaoPlano: true, documentos: true },
+  orcamentos:  { ...ALL_OFF, dashboard: true, orcamentos: true, ponto: true, diario: true },
+  campo:       { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true, checklists: true,
+                 atas: true, stakeholders: true, gestao360: true, seguranca: true },
 };
 
 /** Middleware that checks whether the authenticated user has permission for a given module.
