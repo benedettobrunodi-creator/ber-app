@@ -87,7 +87,7 @@ export default function Gestao360Page() {
   const [documentos, setDocumentos] = useState<DocumentosResp | null>(null);
   const [histograma, setHistograma] = useState<HistogramaCell[]>([]);
   const [pendencias, setPendencias] = useState<PunchListItemLite[]>([]);
-  const [cronograma, setCronograma] = useState<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null } | null>(null);
+  const [cronograma, setCronograma] = useState<{ progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function fetchAll() {
@@ -125,7 +125,7 @@ export default function Gestao360Page() {
         safeGet<DocumentosResp>(`/obras/${obraId}/documentos`),
         safeGet<HistogramaCell[]>(`/obras/${obraId}/histograma`),
         safeGet<{ id: string; type: string; items: PunchListItemLite[] }[]>(`/obras/${obraId}/punch-lists`),
-        safeGet<{ parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null }>(`/obras/${obraId}/cronograma`),
+        safeGet<{ progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null }>(`/obras/${obraId}/cronograma`),
       ]);
 
       setObra(obraRes);
@@ -981,66 +981,76 @@ function HistogramaResumo({ cells }: { cells: HistogramaCell[] }) {
   );
 }
 
-function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }[] } | null } | null }) {
+function CurvaSResumo({ cronograma }: { cronograma: { progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null }) {
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
   if (tarefas.length === 0) {
     return <p className="text-xs text-ber-gray italic">Cronograma ainda não cadastrado. Acesse o módulo cronograma da obra pra subir a planilha.</p>;
   }
 
-  const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  // Segunda-feira da semana de uma data
-  const weekStartKey = (date: Date) => {
-    const d = new Date(date);
-    const dow = d.getDay();
-    const diff = dow === 0 ? -6 : 1 - dow;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
-  };
-  // Acumulado de tarefas terminando até cada semana (com pct planejado e real)
-  const byWeek = new Map<string, { plan: number; real: number }>();
-  let minKey: string | null = null;
-  let maxKey: string | null = null;
-  leaf.forEach(t => {
-    const fim = t.f ?? t.fim;
-    if (!fim) return;
-    const key = weekStartKey(new Date(fim));
-    const pct = t.p ?? t.percentualConcluido ?? 0;
-    const e = byWeek.get(key) ?? { plan: 0, real: 0 };
-    e.plan += 1;
-    e.real += pct / 100;
-    byWeek.set(key, e);
-    if (!minKey || key < minKey) minKey = key;
-    if (!maxKey || key > maxKey) maxKey = key;
-  });
+  // Mesma fórmula da Curva S "oficial" (web/.../obras/[id]/page.tsx — generateCurvaS):
+  // - planejado = % linear do tempo decorrido dentro do span da tarefa-raiz
+  // - realizado = currentPct na semana atual; escalonamento proporcional nas semanas passadas
+  const tFim = (t: typeof tarefas[number]) => t.f ?? t.fim ?? null;
+  const tIni = (t: typeof tarefas[number]) => t.i ?? t.inicio ?? null;
+  const tDur = (t: typeof tarefas[number]) => t.d ?? t.duracaoDias ?? 0;
+  const tPct = (t: typeof tarefas[number]) => t.p ?? t.percentualConcluido ?? 0;
+  const isResumo = (t: typeof tarefas[number]) => !!(t.r ?? t.ehResumo);
 
-  if (!minKey || !maxKey) {
-    return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
+  const folhas = tarefas.filter(t => !isResumo(t) && tDur(t) > 0 && tIni(t) && tFim(t));
+  if (folhas.length === 0) {
+    return <p className="text-xs text-ber-gray italic">Cronograma sem tarefas com duração e datas.</p>;
+  }
+  const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
+
+  // Tenta achar a tarefa-raiz (resumo com inicio+fim); senão, deriva do min/max das folhas
+  const raiz = tarefas.find(t => isResumo(t) && tIni(t) && tFim(t));
+  const raizIni = raiz ? tIni(raiz)! : folhas.reduce((min, t) => {
+    const i = tIni(t)!; return !min || i < min ? i : min;
+  }, '' as string);
+  const raizFim = raiz ? tFim(raiz)! : folhas.reduce((max, t) => {
+    const f = tFim(t)!; return !max || f > max ? f : max;
+  }, '' as string);
+
+  const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
+  const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
+  const raizSpan    = raizEndMs - raizStartMs;
+  if (raizSpan <= 0) {
+    return <p className="text-xs text-ber-gray italic">Datas do projeto inválidas.</p>;
   }
 
-  // Gera TODAS as semanas entre min e max (mesmo sem tarefas — curva carrega acumulado)
-  const allWeeks: string[] = [];
-  const cursor = new Date(minKey);
-  const end = new Date(maxKey);
-  while (cursor <= end) {
-    allWeeks.push(cursor.toISOString().slice(0, 10));
-    cursor.setDate(cursor.getDate() + 7);
-  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // currentPct = % concluído ponderado por duração (igual ao "% concluído" do cabeçalho do cronograma)
+  const currentPct = cronograma?.progressPct ?? Math.round(
+    folhas.reduce((s, t) => s + tDur(t) * tPct(t) / 100, 0) / totalDias * 100,
+  );
+  const planTodayPct = Math.min(100, Math.max(0,
+    Math.round((today.getTime() - raizStartMs) / raizSpan * 1000) / 10,
+  ));
 
-  const totalLeaf = leaf.length || 1;
-  let acumPlan = 0, acumReal = 0;
-  const data = allWeeks.map(k => {
-    const e = byWeek.get(k);
-    if (e) { acumPlan += e.plan; acumReal += e.real; }
+  // Semanas: snap ao primeiro dia útil (segunda) antes/igual ao raizIni
+  const firstDay = new Date(raizIni + 'T00:00:00');
+  const dow = firstDay.getDay();
+  firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
+  const loopEnd = new Date(raizFim + 'T00:00:00');
+
+  const data: { key: string; label: string; planejado: number; real: number | null }[] = [];
+  const weekStart = new Date(firstDay);
+  while (weekStart <= loopEnd) {
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
+    const planejado = Math.min(100, Math.max(0,
+      Math.round((weekEnd.getTime() - raizStartMs) / raizSpan * 1000) / 10,
+    ));
+    let real: number | null;
+    const isCurrentWeek = weekStart <= today && today <= weekEnd;
+    const isPast = weekEnd.getTime() < today.getTime();
+    if (isCurrentWeek) real = currentPct;
+    else if (isPast && planTodayPct > 0) real = Math.round(planejado * currentPct / planTodayPct * 10) / 10;
+    else real = null;
+    const k = weekStart.toISOString().slice(0, 10);
     const [, m, day] = k.split('-');
-    return {
-      key: k,
-      label: `${day}/${m}`,
-      planejado: Math.round((acumPlan / totalLeaf) * 100),
-      real: Math.round((acumReal / totalLeaf) * 100),
-      hasData: !!e,
-    };
-  });
+    data.push({ key: k, label: `${day}/${m}`, planejado, real });
+    weekStart.setDate(weekStart.getDate() + 7);
+  }
 
   // Dimensões: 50px por semana com piso de 600px
   const h = 200;
@@ -1052,7 +1062,9 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
   const xAt = (i: number) => pad.l + i * xStepPx;
 
   const planPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i)} ${y(d.planejado)}`).join(' ');
-  const realPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i)} ${y(d.real)}`).join(' ');
+  // Real path só até onde tem valor (semana atual e passadas)
+  const realPts = data.map((d, i) => ({ ...d, i })).filter(d => d.real !== null);
+  const realPath = realPts.map((d, k) => `${k === 0 ? 'M' : 'L'} ${xAt(d.i)} ${y(d.real as number)}`).join(' ');
 
   return (
     <div>
@@ -1071,19 +1083,16 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
             </text>
           ))}
           <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
-          <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />
-          {data.map((d, i) => d.hasData ? (
-            <g key={`pts-${i}`}>
-              <circle cx={xAt(i)} cy={y(d.planejado)} r={3} fill="#3B82F6" />
-              <circle cx={xAt(i)} cy={y(d.real)} r={3} fill="#10B981" />
-            </g>
-          ) : null)}
+          {realPath && <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />}
+          {realPts.map(d => (
+            <circle key={`r-${d.i}`} cx={xAt(d.i)} cy={y(d.real as number)} r={3} fill="#10B981" />
+          ))}
         </svg>
       </div>
       <div className="flex items-center gap-4 text-[11px] text-ber-gray mt-1">
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#3B82F6' }} /> Planejado</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#10B981' }} /> Real</span>
-        <span className="ml-auto">{leaf.length} tarefas · {data.length} semanas</span>
+        <span className="ml-auto">{folhas.length} tarefas · {data.length} semanas</span>
       </div>
     </div>
   );

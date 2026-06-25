@@ -66,8 +66,8 @@ interface ObraInfo {
 interface Contratacao { status: string }
 interface ContratacoesResp { contratacoes: Contratacao[]; totals: { total: number; byStatus: Record<string, number> } }
 
-interface CronogramaTarefa { p?: number; percentualConcluido?: number; f?: string | null; fim?: string | null; r?: boolean; ehResumo?: boolean }
-interface Cronograma { parsedData: { tarefas?: CronogramaTarefa[] } | null }
+interface CronogramaTarefa { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }
+interface Cronograma { progressPct?: number | null; parsedData: { tarefas?: CronogramaTarefa[] } | null }
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
@@ -147,55 +147,63 @@ export default function CapaObraPage() {
     : [{ name: 'sem dados', value: 1, color: '#E5E5E5' }];
 
   // ─── Curva S do cronograma ─────────────────────────────────────────────
-  type CurvaPt = { label: string; planejado: number; real: number };
+  // Mesma fórmula da Curva S "oficial" (web/.../obras/[id]/page.tsx — generateCurvaS):
+  // planejado = % linear do tempo decorrido dentro do span da tarefa-raiz;
+  // realizado = currentPct na semana atual; proporção planejado×currentPct/planTodayPct nas passadas.
+  type CurvaPt = { label: string; planejado: number; real: number | null };
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
-  const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  const weekStartKey = (date: Date) => {
-    const d = new Date(date);
-    const dow = d.getDay();
-    const diff = dow === 0 ? -6 : 1 - dow;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
-  };
-  const byWeek = new Map<string, { count: number; r: number }>();
-  let minKey: string | null = null;
-  let maxKey: string | null = null;
-  leaf.forEach(t => {
-    const fim = t.f ?? t.fim;
-    if (!fim) return;
-    const key = weekStartKey(new Date(fim));
-    const pct = (t.p ?? t.percentualConcluido ?? 0);
-    const e = byWeek.get(key) ?? { count: 0, r: 0 };
-    e.count += 1;
-    e.r += pct;
-    byWeek.set(key, e);
-    if (!minKey || key < minKey) minKey = key;
-    if (!maxKey || key > maxKey) maxKey = key;
-  });
+  const tFim = (t: typeof tarefas[number]) => (t.f ?? t.fim) ?? null;
+  const tIni = (t: typeof tarefas[number]) => (t.i ?? t.inicio) ?? null;
+  const tDur = (t: typeof tarefas[number]) => (t.d ?? t.duracaoDias) ?? 0;
+  const tPct = (t: typeof tarefas[number]) => (t.p ?? t.percentualConcluido) ?? 0;
+  const isResumo = (t: typeof tarefas[number]) => !!(t.r ?? t.ehResumo);
 
-  // Gera TODAS as semanas entre min e max
-  const allWeeks: string[] = [];
-  if (minKey && maxKey) {
-    const cursor = new Date(minKey);
-    const end = new Date(maxKey);
-    while (cursor <= end) {
-      allWeeks.push(cursor.toISOString().slice(0, 10));
-      cursor.setDate(cursor.getDate() + 7);
+  const folhas = tarefas.filter(t => !isResumo(t) && tDur(t) > 0 && tIni(t) && tFim(t));
+  const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
+  const raiz = tarefas.find(t => isResumo(t) && tIni(t) && tFim(t));
+  const raizIni = raiz ? tIni(raiz)! : folhas.reduce((min, t) => {
+    const i = tIni(t)!; return !min || i < min ? i : min;
+  }, '' as string);
+  const raizFim = raiz ? tFim(raiz)! : folhas.reduce((max, t) => {
+    const f = tFim(t)!; return !max || f > max ? f : max;
+  }, '' as string);
+
+  const curva: CurvaPt[] = [];
+  if (folhas.length > 0 && totalDias > 0 && raizIni && raizFim) {
+    const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
+    const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
+    const raizSpan    = raizEndMs - raizStartMs;
+    if (raizSpan > 0) {
+      const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+      const currentPct = cronograma?.progressPct ?? Math.round(
+        folhas.reduce((s, t) => s + tDur(t) * tPct(t) / 100, 0) / totalDias * 100,
+      );
+      const planTodayPct = Math.min(100, Math.max(0,
+        Math.round((todayD.getTime() - raizStartMs) / raizSpan * 1000) / 10,
+      ));
+      const firstDay = new Date(raizIni + 'T00:00:00');
+      const dow = firstDay.getDay();
+      firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
+      const loopEnd = new Date(raizFim + 'T00:00:00');
+      const cursor = new Date(firstDay);
+      while (cursor <= loopEnd) {
+        const weekEnd = new Date(cursor); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
+        const planejado = Math.min(100, Math.max(0,
+          Math.round((weekEnd.getTime() - raizStartMs) / raizSpan * 1000) / 10,
+        ));
+        let real: number | null;
+        const isCurrentWeek = cursor <= todayD && todayD <= weekEnd;
+        const isPast = weekEnd.getTime() < todayD.getTime();
+        if (isCurrentWeek) real = currentPct;
+        else if (isPast && planTodayPct > 0) real = Math.round(planejado * currentPct / planTodayPct * 10) / 10;
+        else real = null;
+        const k = cursor.toISOString().slice(0, 10);
+        const [, m, day] = k.split('-');
+        curva.push({ label: `${day}/${m}`, planejado, real });
+        cursor.setDate(cursor.getDate() + 7);
+      }
     }
   }
-  const totalLeaf = leaf.length || 1;
-  let acumPlan = 0, acumReal = 0;
-  const curva: CurvaPt[] = allWeeks.map(k => {
-    const e = byWeek.get(k);
-    if (e) { acumPlan += e.count; acumReal += e.r / 100; }
-    const [, m, day] = k.split('-');
-    return {
-      label: `${day}/${m}`,
-      planejado: Math.round((acumPlan / totalLeaf) * 100),
-      real: Math.round((acumReal / totalLeaf) * 100),
-    };
-  });
 
   // ─── Temperatura (ordenada por data crescente) ─────────────────────────
   const tempOrdenadas = [...temperaturas].sort((a, b) => a.data.localeCompare(b.data));
