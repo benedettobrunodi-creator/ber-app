@@ -45,6 +45,8 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
+  const [reparsing, setReparsing] = useState(false);
+  const [reparseResult, setReparseResult] = useState<{ numTarefas: number; progressPct: number } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,6 +78,20 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
     } catch (err) {
       alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao sincronizar');
     } finally { setSyncing(false); }
+  }
+
+  async function handleReparse() {
+    if (!confirm('Reprocessar extrai as tarefas do PDF atual via IA. Pode levar 30-60s. Continuar?')) return;
+    setReparsing(true); setReparseResult(null); setSyncResult(null);
+    try {
+      const r = await api.post<{ data: { numTarefas: number; progressPct: number } }>(`/obras/${obraId}/cronograma/parse`);
+      setReparseResult(r.data.data);
+      // Refetch cronograma com parsedData atualizado
+      const cr = await api.get(`/obras/${obraId}/cronograma`);
+      setCronograma(cr.data.data);
+    } catch (err) {
+      alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao reprocessar');
+    } finally { setReparsing(false); }
   }
 
   async function patchOverride(ref: string, patch: Record<string, unknown>) {
@@ -134,6 +150,13 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
       <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Cronograma da Obra</h3>
         <div className="flex gap-2">
+          {cronograma && (
+            <button onClick={handleReparse} disabled={reparsing || uploading}
+              className="flex items-center gap-1.5 rounded-md bg-ber-teal px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-teal/90 disabled:opacity-50"
+              title="Roda o parser IA no PDF atual e atualiza as tarefas">
+              {reparsing ? 'Reprocessando…' : '🔁 Reprocessar PDF'}
+            </button>
+          )}
           {cronograma?.parsedData && (
             <button onClick={handleSync} disabled={syncing}
               className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-olive/90 disabled:opacity-50">
@@ -153,6 +176,12 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
       {syncResult && (
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           ✅ Kanban atualizado: <strong>{syncResult.created}</strong> criadas, <strong>{syncResult.updated}</strong> atualizadas · Progresso geral: <strong>{syncResult.progressoGeral}%</strong>
+        </div>
+      )}
+
+      {reparseResult && (
+        <div className="mb-4 rounded-lg border border-ber-teal/30 bg-ber-teal/5 px-4 py-3 text-sm text-ber-carbon">
+          ✅ Cronograma reprocessado: <strong>{reparseResult.numTarefas}</strong> tarefas extraídas · Progresso geral: <strong>{reparseResult.progressPct}%</strong>
         </div>
       )}
 

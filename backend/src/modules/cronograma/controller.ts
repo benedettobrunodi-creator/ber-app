@@ -43,16 +43,50 @@ export async function uploadCronograma(req: Request, res: Response) {
   return res.json({ data: cronograma });
 }
 
-export async function parseCronograma(_req: Request, res: Response) {
-  // Parser AI desativado pra zerar custo de API. O cronograma já parseado
-  // anteriormente continua disponível via GET; só o novo upload+parse foi
-  // descontinuado. Próximo passo: cadastro manual (UI + CSV).
-  return res.status(410).json({
-    error: {
-      message: 'Parser automático desativado. Cronograma deve ser cadastrado manualmente (em desenvolvimento).',
-      code: 'PARSER_DISABLED',
+export async function parseCronograma(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
+  if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma encontrado para esta obra' } });
+
+  // Baixa o PDF da R2/local pra mandar pro Gemini
+  let pdfBuffer: Buffer;
+  try {
+    if (cronograma.fileUrl.startsWith('http')) {
+      const resp = await fetch(cronograma.fileUrl);
+      if (!resp.ok) throw new Error(`Falha ao baixar PDF (${resp.status})`);
+      pdfBuffer = Buffer.from(await resp.arrayBuffer());
+    } else {
+      pdfBuffer = fs.readFileSync(path.resolve(env.uploadDir, cronograma.fileUrl.replace('/uploads/', '')));
+    }
+  } catch (err) {
+    return res.status(500).json({ error: { message: `Erro ao ler arquivo do cronograma: ${(err as Error).message}` } });
+  }
+
+  const { parseCronogramaPDF } = await import('../../services/cronograma-parser');
+  let parsed;
+  try {
+    parsed = await parseCronogramaPDF(pdfBuffer);
+  } catch (err) {
+    return res.status(500).json({ error: { message: (err as Error).message } });
+  }
+
+  // Calcula progressPct ponderado por duração
+  const leaf = parsed.tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0);
+  const totalDias = leaf.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
+  const progressPct = totalDias > 0
+    ? Math.round(leaf.reduce((s, t) => s + (t.duracaoDias ?? 0) * t.percentualConcluido / 100, 0) / totalDias * 100)
+    : 0;
+
+  const updated = await prisma.cronograma.update({
+    where: { id: cronograma.id },
+    data: {
+      parsedAt: new Date(),
+      parsedData: parsed as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      progressPct,
     },
   });
+
+  return res.json({ data: { id: updated.id, parsedAt: updated.parsedAt, progressPct, numTarefas: parsed.tarefas.length } });
 }
 
 export async function syncToKanban(req: Request, res: Response) {
