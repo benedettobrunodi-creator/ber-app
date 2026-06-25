@@ -988,7 +988,7 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
   }
 
   const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  // Agrupa por SEMANA (segunda-feira da semana onde a tarefa termina)
+  // Segunda-feira da semana de uma data
   const weekStartKey = (date: Date) => {
     const d = new Date(date);
     const dow = d.getDay();
@@ -997,68 +997,89 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
     d.setHours(0, 0, 0, 0);
     return d.toISOString().slice(0, 10);
   };
-  const byWeek = new Map<string, { plan: number; real: number; count: number }>();
+  // Acumulado de tarefas terminando até cada semana (com pct planejado e real)
+  const byWeek = new Map<string, { plan: number; real: number }>();
+  let minKey: string | null = null;
+  let maxKey: string | null = null;
   leaf.forEach(t => {
     const fim = t.f ?? t.fim;
     if (!fim) return;
     const key = weekStartKey(new Date(fim));
     const pct = t.p ?? t.percentualConcluido ?? 0;
-    const e = byWeek.get(key) ?? { plan: 0, real: 0, count: 0 };
+    const e = byWeek.get(key) ?? { plan: 0, real: 0 };
     e.plan += 1;
     e.real += pct / 100;
-    e.count += 1;
     byWeek.set(key, e);
+    if (!minKey || key < minKey) minKey = key;
+    if (!maxKey || key > maxKey) maxKey = key;
   });
-  const sortedKeys = [...byWeek.keys()].sort();
-  let acumPlan = 0, acumReal = 0;
+
+  if (!minKey || !maxKey) {
+    return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
+  }
+
+  // Gera TODAS as semanas entre min e max (mesmo sem tarefas — curva carrega acumulado)
+  const allWeeks: string[] = [];
+  const cursor = new Date(minKey);
+  const end = new Date(maxKey);
+  while (cursor <= end) {
+    allWeeks.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
   const totalLeaf = leaf.length || 1;
-  const data = sortedKeys.map(k => {
-    const e = byWeek.get(k)!;
-    acumPlan += e.plan;
-    acumReal += e.real;
+  let acumPlan = 0, acumReal = 0;
+  const data = allWeeks.map(k => {
+    const e = byWeek.get(k);
+    if (e) { acumPlan += e.plan; acumReal += e.real; }
     const [, m, day] = k.split('-');
     return {
+      key: k,
       label: `${day}/${m}`,
       planejado: Math.round((acumPlan / totalLeaf) * 100),
       real: Math.round((acumReal / totalLeaf) * 100),
+      hasData: !!e,
     };
   });
 
-  if (data.length === 0) return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
+  // Dimensões: 50px por semana com piso de 600px
+  const h = 200;
+  const pad = { l: 36, r: 10, t: 10, b: 30 };
+  const xStepPx = 50;
+  const innerW = Math.max(560, (data.length - 1) * xStepPx);
+  const w = innerW + pad.l + pad.r;
+  const y = (v: number) => h - pad.b - (v / 100) * (h - pad.t - pad.b);
+  const xAt = (i: number) => pad.l + i * xStepPx;
 
-  const max = 100;
-  const w = 600, h = 180, pad = { l: 30, r: 10, t: 10, b: 25 };
-  const xStep = (w - pad.l - pad.r) / Math.max(1, data.length - 1);
-  const y = (v: number) => h - pad.b - (v / max) * (h - pad.t - pad.b);
-  const planPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${pad.l + i * xStep} ${y(d.planejado)}`).join(' ');
-  const realPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${pad.l + i * xStep} ${y(d.real)}`).join(' ');
+  const planPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i)} ${y(d.planejado)}`).join(' ');
+  const realPath = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i)} ${y(d.real)}`).join(' ');
 
   return (
     <div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
-        {[0, 25, 50, 75, 100].map(v => (
-          <g key={v}>
-            <line x1={pad.l} x2={w - pad.r} y1={y(v)} y2={y(v)} stroke="#EEE" strokeDasharray="2 2" />
-            <text x={pad.l - 4} y={y(v)} fontSize={9} textAnchor="end" fill="#999" dy={3}>{v}%</text>
-          </g>
-        ))}
-        {(() => {
-          const stride = Math.max(1, Math.ceil(data.length / 12));
-          return data.map((d, i) => (
-            i === 0 || i === data.length - 1 || i % stride === 0 ? (
-              <text key={i} x={pad.l + i * xStep} y={h - 8} fontSize={9} textAnchor="middle" fill="#666">{d.label}</text>
-            ) : null
-          ));
-        })()}
-        <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
-        <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />
-        {data.map((d, i) => (
-          <g key={`pts-${i}`}>
-            <circle cx={pad.l + i * xStep} cy={y(d.planejado)} r={3} fill="#3B82F6" />
-            <circle cx={pad.l + i * xStep} cy={y(d.real)} r={3} fill="#10B981" />
-          </g>
-        ))}
-      </svg>
+      <div className="overflow-x-auto">
+        <svg width={w} height={h} className="block">
+          {[0, 25, 50, 75, 100].map(v => (
+            <g key={v}>
+              <line x1={pad.l} x2={w - pad.r} y1={y(v)} y2={y(v)} stroke="#EEE" strokeDasharray="2 2" />
+              <text x={pad.l - 4} y={y(v)} fontSize={10} textAnchor="end" fill="#999" dy={3}>{v}%</text>
+            </g>
+          ))}
+          {data.map((d, i) => (
+            <text key={`lbl-${i}`} x={xAt(i)} y={h - 10} fontSize={9} textAnchor="middle" fill="#666"
+              transform={`rotate(-45 ${xAt(i)} ${h - 10})`}>
+              {d.label}
+            </text>
+          ))}
+          <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
+          <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />
+          {data.map((d, i) => d.hasData ? (
+            <g key={`pts-${i}`}>
+              <circle cx={xAt(i)} cy={y(d.planejado)} r={3} fill="#3B82F6" />
+              <circle cx={xAt(i)} cy={y(d.real)} r={3} fill="#10B981" />
+            </g>
+          ) : null)}
+        </svg>
+      </div>
       <div className="flex items-center gap-4 text-[11px] text-ber-gray mt-1">
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#3B82F6' }} /> Planejado</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#10B981' }} /> Real</span>

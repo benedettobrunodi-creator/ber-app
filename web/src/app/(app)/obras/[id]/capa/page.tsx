@@ -150,7 +150,6 @@ export default function CapaObraPage() {
   type CurvaPt = { label: string; planejado: number; real: number };
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
   const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  // Agrupa por SEMANA (segunda-feira da semana onde a tarefa termina)
   const weekStartKey = (date: Date) => {
     const d = new Date(date);
     const dow = d.getDay();
@@ -159,25 +158,37 @@ export default function CapaObraPage() {
     d.setHours(0, 0, 0, 0);
     return d.toISOString().slice(0, 10);
   };
-  const byWeek = new Map<string, { p: number; r: number; count: number }>();
+  const byWeek = new Map<string, { count: number; r: number }>();
+  let minKey: string | null = null;
+  let maxKey: string | null = null;
   leaf.forEach(t => {
     const fim = t.f ?? t.fim;
     if (!fim) return;
     const key = weekStartKey(new Date(fim));
     const pct = (t.p ?? t.percentualConcluido ?? 0);
-    const e = byWeek.get(key) ?? { p: 0, r: 0, count: 0 };
-    e.p += 100;
-    e.r += pct;
+    const e = byWeek.get(key) ?? { count: 0, r: 0 };
     e.count += 1;
+    e.r += pct;
     byWeek.set(key, e);
+    if (!minKey || key < minKey) minKey = key;
+    if (!maxKey || key > maxKey) maxKey = key;
   });
-  const sortedKeys = [...byWeek.keys()].sort();
-  let acumPlan = 0, acumReal = 0;
+
+  // Gera TODAS as semanas entre min e max
+  const allWeeks: string[] = [];
+  if (minKey && maxKey) {
+    const cursor = new Date(minKey);
+    const end = new Date(maxKey);
+    while (cursor <= end) {
+      allWeeks.push(cursor.toISOString().slice(0, 10));
+      cursor.setDate(cursor.getDate() + 7);
+    }
+  }
   const totalLeaf = leaf.length || 1;
-  const curva: CurvaPt[] = sortedKeys.map(k => {
-    const e = byWeek.get(k)!;
-    acumPlan += e.count;
-    acumReal += e.r / 100;
+  let acumPlan = 0, acumReal = 0;
+  const curva: CurvaPt[] = allWeeks.map(k => {
+    const e = byWeek.get(k);
+    if (e) { acumPlan += e.count; acumReal += e.r / 100; }
     const [, m, day] = k.split('-');
     return {
       label: `${day}/${m}`,
@@ -419,17 +430,19 @@ export default function CapaObraPage() {
             Sem cronograma parseado pra essa obra ainda — a curva S aparece aqui assim que o cronograma tiver tarefas cadastradas.
           </div>
         ) : (
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={curva}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
-                <Tooltip formatter={(v) => `${v}%`} />
-                <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="Planejado" />
-                <Line type="monotone" dataKey="real" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Real" />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <div className="h-[280px]" style={{ width: Math.max(600, curva.length * 50) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={curva}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={50} />
+                  <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
+                  <Tooltip formatter={(v) => `${v}%`} />
+                  <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="Planejado" />
+                  <Line type="monotone" dataKey="real" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Real" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
       </div>
