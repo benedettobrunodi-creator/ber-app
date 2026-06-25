@@ -41,17 +41,30 @@ export async function parseCronogramaPDF(
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32000 },
-  });
 
-  const result = await model.generateContent([
-    { inlineData: { mimeType: 'application/pdf', data: pdfBuffer.toString('base64') } },
-    { text: PROMPT },
-  ]);
-
-  const text = result.response.text();
+  // Tenta modelos em ordem (1.5-flash tem free tier mais generoso que 2.0-flash)
+  const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+  let text = '';
+  let lastErr: Error | null = null;
+  for (const modelName of MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32000 },
+      });
+      const result = await model.generateContent([
+        { inlineData: { mimeType: 'application/pdf', data: pdfBuffer.toString('base64') } },
+        { text: PROMPT },
+      ]);
+      text = result.response.text();
+      console.log(`[CRONOGRAMA PARSE] modelo ${modelName} OK`);
+      break;
+    } catch (err) {
+      lastErr = err as Error;
+      console.warn(`[CRONOGRAMA PARSE] modelo ${modelName} falhou: ${lastErr.message.slice(0, 200)}`);
+    }
+  }
+  if (!text) throw lastErr ?? new Error('Todos os modelos Gemini falharam');
   console.log('[CRONOGRAMA PARSE] resposta (primeiros 300):', text.slice(0, 300));
 
   // Gemini com responseMimeType=application/json devolve JSON puro, mas tolera
