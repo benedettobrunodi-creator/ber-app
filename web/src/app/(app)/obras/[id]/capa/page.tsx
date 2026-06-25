@@ -160,11 +160,14 @@ export default function CapaObraPage() {
 
   const folhas = tarefas.filter(t => !isResumo(t) && tDur(t) > 0 && tIni(t) && tFim(t));
   const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
-  const raiz = tarefas.find(t => isResumo(t) && tIni(t) && tFim(t));
-  const raizIni = raiz ? tIni(raiz)! : folhas.reduce((min, t) => {
+  // Span do projeto = min/max entre TODAS as tarefas com data (resumo + folha).
+  // Não confia em "achar a raiz" — parsers podem não marcar a linha 0 como
+  // ehResumo, ou pegar um sub-pacote que termina antes do projeto real.
+  const comDatas = tarefas.filter(t => tIni(t) && tFim(t));
+  const raizIni = comDatas.reduce((min, t) => {
     const i = tIni(t)!; return !min || i < min ? i : min;
   }, '' as string);
-  const raizFim = raiz ? tFim(raiz)! : folhas.reduce((max, t) => {
+  const raizFim = comDatas.reduce((max, t) => {
     const f = tFim(t)!; return !max || f > max ? f : max;
   }, '' as string);
 

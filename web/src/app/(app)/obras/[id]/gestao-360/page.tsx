@@ -1002,19 +1002,25 @@ function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: n
   }
   const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
 
-  // Tenta achar a tarefa-raiz (resumo com inicio+fim); senão, deriva do min/max das folhas
-  const raiz = tarefas.find(t => isResumo(t) && tIni(t) && tFim(t));
-  const raizIni = raiz ? tIni(raiz)! : folhas.reduce((min, t) => {
+  // Span do projeto = min(inicio) e max(fim) entre TODAS as tarefas com data.
+  // Não confiamos em achar "a tarefa-raiz" porque alguns parsers não marcam
+  // a linha 0 como ehResumo, ou marcam resumos de sub-pacotes que terminam
+  // antes do projeto real (causaria curva truncada).
+  const comDatas = tarefas.filter(t => tIni(t) && tFim(t));
+  const raizIni = comDatas.reduce((min, t) => {
     const i = tIni(t)!; return !min || i < min ? i : min;
   }, '' as string);
-  const raizFim = raiz ? tFim(raiz)! : folhas.reduce((max, t) => {
+  const raizFim = comDatas.reduce((max, t) => {
     const f = tFim(t)!; return !max || f > max ? f : max;
   }, '' as string);
 
+  if (!raizIni || !raizFim) {
+    return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
+  }
   const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
   const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
   const raizSpan    = raizEndMs - raizStartMs;
-  if (raizSpan <= 0) {
+  if (raizSpan <= 0 || isNaN(raizSpan)) {
     return <p className="text-xs text-ber-gray italic">Datas do projeto inválidas.</p>;
   }
 
