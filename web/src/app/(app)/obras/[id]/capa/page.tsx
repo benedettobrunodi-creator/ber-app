@@ -175,15 +175,31 @@ export default function CapaObraPage() {
   if (folhas.length > 0 && totalDias > 0 && raizIni && raizFim) {
     const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
     const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
-    const raizSpan    = raizEndMs - raizStartMs;
-    if (raizSpan > 0) {
+    if (raizEndMs > raizStartMs) {
+      // Pré-computa inicio/fim/duracao em ms pra cada folha
+      const folhasMs = folhas.map(t => ({
+        iniMs: new Date(tIni(t)! + 'T00:00:00').getTime(),
+        fimMs: new Date(tFim(t)! + 'T00:00:00').getTime(),
+        dur:   tDur(t),
+      }));
+      // % planejado de uma folha numa data (= coluna "% Planejado" do MS Project)
+      const leafPlanAt = (ms: number, iniMs: number, fimMs: number) => {
+        if (ms >= fimMs) return 1;
+        if (ms <= iniMs) return 0;
+        return (ms - iniMs) / (fimMs - iniMs);
+      };
+      const planAt = (ms: number) => {
+        const acc = folhasMs.reduce((s, f) => s + f.dur * leafPlanAt(ms, f.iniMs, f.fimMs), 0);
+        return acc / totalDias * 100;
+      };
+
       const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+      const todayMs = todayD.getTime();
       const currentPct = cronograma?.progressPct ?? Math.round(
         folhas.reduce((s, t) => s + tDur(t) * tPct(t) / 100, 0) / totalDias * 100,
       );
-      const planTodayPct = Math.min(100, Math.max(0,
-        Math.round((todayD.getTime() - raizStartMs) / raizSpan * 1000) / 10,
-      ));
+      const planTodayPct = planAt(todayMs);
+
       const firstDay = new Date(raizIni + 'T00:00:00');
       const dow = firstDay.getDay();
       firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
@@ -191,12 +207,10 @@ export default function CapaObraPage() {
       const cursor = new Date(firstDay);
       while (cursor <= loopEnd) {
         const weekEnd = new Date(cursor); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
-        const planejado = Math.min(100, Math.max(0,
-          Math.round((weekEnd.getTime() - raizStartMs) / raizSpan * 1000) / 10,
-        ));
+        const planejado = Math.round(planAt(weekEnd.getTime()) * 10) / 10;
         let real: number | null;
         const isCurrentWeek = cursor <= todayD && todayD <= weekEnd;
-        const isPast = weekEnd.getTime() < todayD.getTime();
+        const isPast = weekEnd.getTime() < todayMs;
         if (isCurrentWeek) real = currentPct;
         else if (isPast && planTodayPct > 0) real = Math.round(planejado * currentPct / planTodayPct * 10) / 10;
         else real = null;

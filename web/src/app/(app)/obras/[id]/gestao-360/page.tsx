@@ -1019,19 +1019,41 @@ function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: n
   }
   const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
   const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
-  const raizSpan    = raizEndMs - raizStartMs;
-  if (raizSpan <= 0 || isNaN(raizSpan)) {
+  if (raizEndMs <= raizStartMs || isNaN(raizEndMs - raizStartMs)) {
     return <p className="text-xs text-ber-gray italic">Datas do projeto inválidas.</p>;
   }
 
+  // Pré-computa inicio/fim em ms pra cada folha (perf)
+  const folhasMs = folhas.map(t => ({
+    iniMs: new Date(tIni(t)! + 'T00:00:00').getTime(),
+    fimMs: new Date(tFim(t)! + 'T00:00:00').getTime(),
+    dur:   tDur(t),
+    pct:   tPct(t),
+  }));
+
+  // % planejado de uma folha numa data — igual à coluna "% Planejado" do MS Project:
+  // - 100% se a folha já terminou
+  // - 0% se ainda não começou
+  // - progresso linear dentro do span da folha
+  const leafPlanAt = (ms: number, iniMs: number, fimMs: number) => {
+    if (ms >= fimMs) return 1;
+    if (ms <= iniMs) return 0;
+    return (ms - iniMs) / (fimMs - iniMs);
+  };
+
+  // planejado agregado num timestamp = média ponderada por duração das folhas
+  const planAt = (ms: number) => {
+    const acc = folhasMs.reduce((s, f) => s + f.dur * leafPlanAt(ms, f.iniMs, f.fimMs), 0);
+    return acc / totalDias * 100;
+  };
+
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  // currentPct = % concluído ponderado por duração (igual ao "% concluído" do cabeçalho do cronograma)
+  const todayMs = today.getTime();
+  // currentPct = % concluído ponderado por duração (= "% concluído" do cabeçalho do cronograma)
   const currentPct = cronograma?.progressPct ?? Math.round(
     folhas.reduce((s, t) => s + tDur(t) * tPct(t) / 100, 0) / totalDias * 100,
   );
-  const planTodayPct = Math.min(100, Math.max(0,
-    Math.round((today.getTime() - raizStartMs) / raizSpan * 1000) / 10,
-  ));
+  const planTodayPct = planAt(todayMs);
 
   // Semanas: snap ao primeiro dia útil (segunda) antes/igual ao raizIni
   const firstDay = new Date(raizIni + 'T00:00:00');
@@ -1043,12 +1065,10 @@ function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: n
   const weekStart = new Date(firstDay);
   while (weekStart <= loopEnd) {
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
-    const planejado = Math.min(100, Math.max(0,
-      Math.round((weekEnd.getTime() - raizStartMs) / raizSpan * 1000) / 10,
-    ));
+    const planejado = Math.round(planAt(weekEnd.getTime()) * 10) / 10;
     let real: number | null;
     const isCurrentWeek = weekStart <= today && today <= weekEnd;
-    const isPast = weekEnd.getTime() < today.getTime();
+    const isPast = weekEnd.getTime() < todayMs;
     if (isCurrentWeek) real = currentPct;
     else if (isPast && planTodayPct > 0) real = Math.round(planejado * currentPct / planTodayPct * 10) / 10;
     else real = null;
