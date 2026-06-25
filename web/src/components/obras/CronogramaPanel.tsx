@@ -86,11 +86,19 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
     try {
       const r = await api.post<{ data: { numTarefas: number; progressPct: number } }>(`/obras/${obraId}/cronograma/parse`);
       setReparseResult(r.data.data);
-      // Refetch cronograma com parsedData atualizado
       const cr = await api.get(`/obras/${obraId}/cronograma`);
       setCronograma(cr.data.data);
     } catch (err) {
-      alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao reprocessar');
+      const resp = (err as { response?: { status?: number; data?: unknown }; message?: string });
+      const data = resp?.response?.data as { error?: { message?: string; code?: string } | string } | undefined;
+      const msg = typeof data?.error === 'string'
+        ? data.error
+        : data?.error?.message
+        ?? (data ? JSON.stringify(data) : null)
+        ?? resp?.message
+        ?? 'Erro ao reprocessar';
+      console.error('[reparse] erro:', err);
+      alert(`Erro ao reprocessar (HTTP ${resp?.response?.status ?? '?'}):\n${msg}`);
     } finally { setReparsing(false); }
   }
 

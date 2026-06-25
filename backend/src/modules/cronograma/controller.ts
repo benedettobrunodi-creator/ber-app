@@ -45,32 +45,39 @@ export async function uploadCronograma(req: Request, res: Response) {
 
 export async function parseCronograma(req: Request, res: Response) {
   const { id: obraId } = req.params;
+  console.log(`[PARSE] start obra=${obraId}`);
   const cronograma = await prisma.cronograma.findFirst({ where: { obraId } });
-  if (!cronograma) return res.status(404).json({ error: { message: 'Nenhum cronograma encontrado para esta obra' } });
+  if (!cronograma) {
+    console.log(`[PARSE] sem cronograma obra=${obraId}`);
+    return res.status(404).json({ error: { message: 'Nenhum cronograma encontrado para esta obra' } });
+  }
+  console.log(`[PARSE] obra=${obraId} fileUrl=${cronograma.fileUrl.slice(0, 80)}`);
 
-  // Baixa o PDF da R2/local pra mandar pro Gemini
   let pdfBuffer: Buffer;
   try {
     if (cronograma.fileUrl.startsWith('http')) {
       const resp = await fetch(cronograma.fileUrl);
       if (!resp.ok) throw new Error(`Falha ao baixar PDF (${resp.status})`);
       pdfBuffer = Buffer.from(await resp.arrayBuffer());
+      console.log(`[PARSE] PDF baixado: ${pdfBuffer.length} bytes`);
     } else {
       pdfBuffer = fs.readFileSync(path.resolve(env.uploadDir, cronograma.fileUrl.replace('/uploads/', '')));
     }
   } catch (err) {
-    return res.status(500).json({ error: { message: `Erro ao ler arquivo do cronograma: ${(err as Error).message}` } });
+    console.error(`[PARSE] erro download:`, err);
+    return res.status(500).json({ error: { message: `Erro ao baixar PDF: ${(err as Error).message}` } });
   }
 
   const { parseCronogramaPDF } = await import('../../services/cronograma-parser');
   let parsed;
   try {
     parsed = await parseCronogramaPDF(pdfBuffer);
+    console.log(`[PARSE] Gemini OK: ${parsed.tarefas.length} tarefas`);
   } catch (err) {
+    console.error(`[PARSE] erro Gemini:`, err);
     return res.status(500).json({ error: { message: (err as Error).message } });
   }
 
-  // Calcula progressPct ponderado por duração
   const leaf = parsed.tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0);
   const totalDias = leaf.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
   const progressPct = totalDias > 0
@@ -85,6 +92,7 @@ export async function parseCronograma(req: Request, res: Response) {
       progressPct,
     },
   });
+  console.log(`[PARSE] OK obra=${obraId} pct=${progressPct} tarefas=${parsed.tarefas.length}`);
 
   return res.json({ data: { id: updated.id, parsedAt: updated.parsedAt, progressPct, numTarefas: parsed.tarefas.length } });
 }
