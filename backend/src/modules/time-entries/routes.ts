@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
-import { requireRole } from '../../middleware/rbac';
+import { requireRole, requireAnyRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
 import { checkinSchema, checkoutSchema } from './types';
 
@@ -16,7 +16,7 @@ router.get('/me', controller.getMyEntries);
 router.get('/me/status', controller.getMyStatus);
 
 // Export route
-router.get('/export', requireRole('coordenacao'), controller.exportToExcel);
+router.get('/export', requireAnyRole('socio', 'diretoria', 'coordenacao', 'financeiro'), controller.exportToExcel);
 
 // Admin routes
 router.get('/active', requireRole('coordenacao'), controller.getActiveWorkers);

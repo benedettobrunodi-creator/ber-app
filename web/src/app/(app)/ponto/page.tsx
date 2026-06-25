@@ -125,7 +125,7 @@ export default function ApontamentoPage() {
   const [loadingObras, setLoadingObras] = useState(false);
 
   // Export state
-  const canExport = user?.role === 'diretoria' || user?.role === 'coordenacao';
+  const canExport = user ? ['socio', 'diretoria', 'coordenacao', 'financeiro'].includes(user.role) : false;
   const [exportUsers, setExportUsers] = useState<ExportUser[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [exportStartDate, setExportStartDate] = useState(() => {
