@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -32,6 +32,8 @@ const TABS: { key: TabKey; label: string; icon: typeof LayoutDashboard }[] = [
 interface ObraInfo {
   id: string; name: string; client: string | null; address: string | null;
   startDate: string | null; expectedEndDate: string | null;
+  dataInicioObra: string | null; dataFimObra: string | null;
+  dataInicioProjeto: string | null; dataFimProjeto: string | null;
   progressPercent: number; status: string;
   valorContrato: number | null; arquiteturaEscritorio: string | null;
   gerenciadora: string | null; areaM2: number | null;
@@ -696,7 +698,7 @@ export default function Gestao360Page() {
       {tab === 'cronograma' && (
         <div className="space-y-4">
           <Section title="Curva S — % planejado vs real" linkTo={null}>
-            <CurvaSResumo cronograma={cronograma} onRefresh={fetchAll} />
+            <CurvaSResumo cronograma={cronograma} obra={obra} onRefresh={fetchAll} />
           </Section>
 
           <Section title="Cronograma completo" linkTo={null}>
@@ -981,7 +983,7 @@ function HistogramaResumo({ cells }: { cells: HistogramaCell[] }) {
   );
 }
 
-function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null; onRefresh?: () => void | Promise<void> }) {
+function CurvaSResumo({ cronograma, obra, onRefresh }: { cronograma: { progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null; obra: ObraInfo | null; onRefresh?: () => void | Promise<void> }) {
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
   if (tarefas.length === 0) {
     return <p className="text-xs text-ber-gray italic">Cronograma ainda não cadastrado. Acesse o módulo cronograma da obra pra subir a planilha.</p>;
@@ -1002,17 +1004,24 @@ function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: n
   }
   const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
 
-  // Span do projeto = min(inicio) e max(fim) entre TODAS as tarefas com data.
-  // Não confiamos em achar "a tarefa-raiz" porque alguns parsers não marcam
-  // a linha 0 como ehResumo, ou marcam resumos de sub-pacotes que terminam
-  // antes do projeto real (causaria curva truncada).
+  // Span do projeto: combina min/max das tarefas COM as datas oficiais da
+  // obra (dataInicioObra/dataFimObra). Algumas obras tem cronograma parcial
+  // ou parser que pula a linha-raiz — usar as datas da obra como fallback
+  // garante que a curva cobre o projeto inteiro.
   const comDatas = tarefas.filter(t => tIni(t) && tFim(t));
-  const raizIni = comDatas.reduce((min, t) => {
+  const tarefaMinIni = comDatas.reduce((min, t) => {
     const i = tIni(t)!; return !min || i < min ? i : min;
   }, '' as string);
-  const raizFim = comDatas.reduce((max, t) => {
+  const tarefaMaxFim = comDatas.reduce((max, t) => {
     const f = tFim(t)!; return !max || f > max ? f : max;
   }, '' as string);
+  const obraIni = (obra?.dataInicioObra ?? obra?.dataInicioProjeto ?? obra?.startDate ?? '').slice(0, 10);
+  const obraFim = (obra?.dataFimObra ?? obra?.dataFimProjeto ?? obra?.expectedEndDate ?? '').slice(0, 10);
+  // raizIni = a MENOR entre tarefa e obra; raizFim = a MAIOR entre tarefa e obra
+  const minStr = (a: string, b: string) => (!a ? b : !b ? a : (a < b ? a : b));
+  const maxStr = (a: string, b: string) => (!a ? b : !b ? a : (a > b ? a : b));
+  const raizIni = minStr(tarefaMinIni, obraIni);
+  const raizFim = maxStr(tarefaMaxFim, obraFim);
 
   if (!raizIni || !raizFim) {
     return <p className="text-xs text-ber-gray italic">Cronograma sem datas válidas.</p>;
@@ -1114,7 +1123,22 @@ function CurvaSResumoSVG({
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
   const h2 = data[hover ?? -1];
+
+  // Índice da semana atual (última com real !== null = a semana de hoje)
+  const todayIdx = useMemo(() => {
+    for (let i = data.length - 1; i >= 0; i--) if (data[i].real !== null) return i;
+    return -1;
+  }, [data]);
+
+  // Auto-scroll inicial: posicionar a semana atual ~1/3 da janela visível
+  useEffect(() => {
+    if (!scrollerRef.current || todayIdx < 0) return;
+    const container = scrollerRef.current;
+    const targetX = xAt(todayIdx) - container.clientWidth / 3;
+    container.scrollLeft = Math.max(0, targetX);
+  }, [todayIdx, xAt]);
 
   async function handleRefresh() {
     if (!onRefresh || refreshing) return;
@@ -1124,7 +1148,7 @@ function CurvaSResumoSVG({
 
   return (
     <div>
-      <div className="relative overflow-x-auto">
+      <div ref={scrollerRef} className="relative overflow-x-auto">
         <svg width={w} height={h} className="block">
           {[0, 25, 50, 75, 100].map(v => (
             <g key={v}>
@@ -1138,13 +1162,22 @@ function CurvaSResumoSVG({
               {d.label}
             </text>
           ))}
+          {/* Marcador da semana atual (HOJE) */}
+          {todayIdx >= 0 && (
+            <g>
+              <line x1={xAt(todayIdx)} x2={xAt(todayIdx)} y1={pad.t} y2={h - pad.b}
+                stroke="#EF4444" strokeWidth={1.5} strokeDasharray="4 2" opacity={0.7} />
+              <text x={xAt(todayIdx)} y={pad.t + 9} fontSize={9} textAnchor="middle"
+                fill="#EF4444" fontWeight="bold">HOJE</text>
+            </g>
+          )}
           <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
           {realPath && <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />}
           {realPts.map(d => (
             <circle key={`r-${d.i}`} cx={xAt(d.i)} cy={y(d.real as number)} r={3} fill="#10B981" />
           ))}
           {/* Linha vertical destacando semana sob hover */}
-          {hover !== null && (
+          {hover !== null && hover !== todayIdx && (
             <line x1={xAt(hover)} x2={xAt(hover)} y1={pad.t} y2={h - pad.b}
               stroke="#9CA3AF" strokeDasharray="3 3" strokeWidth={1} />
           )}

@@ -160,16 +160,22 @@ export default function CapaObraPage() {
 
   const folhas = tarefas.filter(t => !isResumo(t) && tDur(t) > 0 && tIni(t) && tFim(t));
   const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
-  // Span do projeto = min/max entre TODAS as tarefas com data (resumo + folha).
-  // Não confia em "achar a raiz" — parsers podem não marcar a linha 0 como
-  // ehResumo, ou pegar um sub-pacote que termina antes do projeto real.
+  // Span do projeto: combina min/max das tarefas COM as datas oficiais da
+  // obra como fallback (garante que a curva cobre o projeto inteiro mesmo
+  // quando o cronograma é parcial).
   const comDatas = tarefas.filter(t => tIni(t) && tFim(t));
-  const raizIni = comDatas.reduce((min, t) => {
+  const tarefaMinIni = comDatas.reduce((min, t) => {
     const i = tIni(t)!; return !min || i < min ? i : min;
   }, '' as string);
-  const raizFim = comDatas.reduce((max, t) => {
+  const tarefaMaxFim = comDatas.reduce((max, t) => {
     const f = tFim(t)!; return !max || f > max ? f : max;
   }, '' as string);
+  const obraIni = (obra.dataInicioObra ?? obra.dataInicioProjeto ?? obra.startDate ?? '').slice(0, 10);
+  const obraFim = (obra.dataFimObra ?? obra.dataFimProjeto ?? obra.expectedEndDate ?? '').slice(0, 10);
+  const minStr = (a: string, b: string) => (!a ? b : !b ? a : (a < b ? a : b));
+  const maxStr = (a: string, b: string) => (!a ? b : !b ? a : (a > b ? a : b));
+  const raizIni = minStr(tarefaMinIni, obraIni);
+  const raizFim = maxStr(tarefaMaxFim, obraFim);
 
   const curva: CurvaPt[] = [];
   if (folhas.length > 0 && totalDias > 0 && raizIni && raizFim) {
