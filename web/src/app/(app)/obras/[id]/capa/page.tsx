@@ -150,28 +150,37 @@ export default function CapaObraPage() {
   type CurvaPt = { label: string; planejado: number; real: number };
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
   const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  // Agrupa por mês
-  const byMonth = new Map<string, { p: number; r: number; count: number }>();
+  // Agrupa por SEMANA (segunda-feira da semana onde a tarefa termina)
+  const weekStartKey = (date: Date) => {
+    const d = new Date(date);
+    const dow = d.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  };
+  const byWeek = new Map<string, { p: number; r: number; count: number }>();
   leaf.forEach(t => {
     const fim = t.f ?? t.fim;
     if (!fim) return;
-    const d = new Date(fim);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const key = weekStartKey(new Date(fim));
     const pct = (t.p ?? t.percentualConcluido ?? 0);
-    const e = byMonth.get(key) ?? { p: 0, r: 0, count: 0 };
-    e.p += 100; // planejado = 100% até esta data
+    const e = byWeek.get(key) ?? { p: 0, r: 0, count: 0 };
+    e.p += 100;
     e.r += pct;
     e.count += 1;
-    byMonth.set(key, e);
+    byWeek.set(key, e);
   });
-  const sortedKeys = [...byMonth.keys()].sort();
-  let acumPlan = 0, acumReal = 0, totalLeaf = leaf.length || 1;
+  const sortedKeys = [...byWeek.keys()].sort();
+  let acumPlan = 0, acumReal = 0;
+  const totalLeaf = leaf.length || 1;
   const curva: CurvaPt[] = sortedKeys.map(k => {
-    const e = byMonth.get(k)!;
+    const e = byWeek.get(k)!;
     acumPlan += e.count;
     acumReal += e.r / 100;
+    const [, m, day] = k.split('-');
     return {
-      label: k.slice(2),
+      label: `${day}/${m}`,
       planejado: Math.round((acumPlan / totalLeaf) * 100),
       real: Math.round((acumReal / totalLeaf) * 100),
     };

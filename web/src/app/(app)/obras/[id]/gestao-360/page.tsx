@@ -988,28 +988,37 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
   }
 
   const leaf = tarefas.filter(t => !(t.r ?? t.ehResumo) && (t.f ?? t.fim));
-  const byMonth = new Map<string, { plan: number; real: number; count: number }>();
+  // Agrupa por SEMANA (segunda-feira da semana onde a tarefa termina)
+  const weekStartKey = (date: Date) => {
+    const d = new Date(date);
+    const dow = d.getDay();
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  };
+  const byWeek = new Map<string, { plan: number; real: number; count: number }>();
   leaf.forEach(t => {
     const fim = t.f ?? t.fim;
     if (!fim) return;
-    const d = new Date(fim);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const key = weekStartKey(new Date(fim));
     const pct = t.p ?? t.percentualConcluido ?? 0;
-    const e = byMonth.get(key) ?? { plan: 0, real: 0, count: 0 };
+    const e = byWeek.get(key) ?? { plan: 0, real: 0, count: 0 };
     e.plan += 1;
     e.real += pct / 100;
     e.count += 1;
-    byMonth.set(key, e);
+    byWeek.set(key, e);
   });
-  const sortedKeys = [...byMonth.keys()].sort();
+  const sortedKeys = [...byWeek.keys()].sort();
   let acumPlan = 0, acumReal = 0;
   const totalLeaf = leaf.length || 1;
   const data = sortedKeys.map(k => {
-    const e = byMonth.get(k)!;
+    const e = byWeek.get(k)!;
     acumPlan += e.plan;
     acumReal += e.real;
+    const [, m, day] = k.split('-');
     return {
-      label: k.slice(2),
+      label: `${day}/${m}`,
       planejado: Math.round((acumPlan / totalLeaf) * 100),
       real: Math.round((acumReal / totalLeaf) * 100),
     };
@@ -1033,9 +1042,14 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
             <text x={pad.l - 4} y={y(v)} fontSize={9} textAnchor="end" fill="#999" dy={3}>{v}%</text>
           </g>
         ))}
-        {data.map((d, i) => (
-          <text key={i} x={pad.l + i * xStep} y={h - 8} fontSize={9} textAnchor="middle" fill="#666">{d.label}</text>
-        ))}
+        {(() => {
+          const stride = Math.max(1, Math.ceil(data.length / 12));
+          return data.map((d, i) => (
+            i === 0 || i === data.length - 1 || i % stride === 0 ? (
+              <text key={i} x={pad.l + i * xStep} y={h - 8} fontSize={9} textAnchor="middle" fill="#666">{d.label}</text>
+            ) : null
+          ));
+        })()}
         <path d={planPath} fill="none" stroke="#3B82F6" strokeWidth={2} />
         <path d={realPath} fill="none" stroke="#10B981" strokeWidth={2} />
         {data.map((d, i) => (
@@ -1048,7 +1062,7 @@ function CurvaSResumo({ cronograma }: { cronograma: { parsedData: { tarefas?: { 
       <div className="flex items-center gap-4 text-[11px] text-ber-gray mt-1">
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#3B82F6' }} /> Planejado</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#10B981' }} /> Real</span>
-        <span className="ml-auto">{leaf.length} tarefas · {data.length} meses</span>
+        <span className="ml-auto">{leaf.length} tarefas · {data.length} semanas</span>
       </div>
     </div>
   );
