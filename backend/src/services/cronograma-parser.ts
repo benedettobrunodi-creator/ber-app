@@ -89,8 +89,21 @@ export async function parseCronogramaPDF(
   try {
     raw = JSON.parse(clean);
   } catch {
-    console.error('[CRONOGRAMA PARSE] JSON inválido:', clean.slice(0, 500));
-    throw new Error('Gemini não retornou JSON válido — tente subir o PDF novamente ou simplifique o cronograma.');
+    // Salvamento: JSON pode ter sido truncado (maxOutputTokens) — extrai
+    // progresso_geral via regex + cada objeto-tarefa que conseguir
+    console.warn('[CRONOGRAMA PARSE] JSON inválido — tentando recuperação parcial');
+    const pgMatch = clean.match(/"progresso_geral"\s*:\s*(\d+)/);
+    const progressoGeral = pgMatch ? parseInt(pgMatch[1]) : 0;
+    const taskMatches = [...clean.matchAll(/\{[^{}]*"(?:n|nome)"\s*:\s*"[^"]*"[^{}]*\}/g)];
+    if (taskMatches.length === 0) {
+      console.error('[CRONOGRAMA PARSE] sem tarefas recuperáveis:', clean.slice(0, 500));
+      throw new Error('Gemini retornou JSON inválido e sem tarefas recuperáveis — tente subir o PDF novamente.');
+    }
+    const recovered = taskMatches
+      .map(m => { try { return JSON.parse(m[0]) as RawTask; } catch { return null; } })
+      .filter((t): t is RawTask => t !== null);
+    console.log(`[CRONOGRAMA PARSE] recuperadas ${recovered.length}/${taskMatches.length} tarefas do JSON truncado`);
+    raw = { progresso_geral: progressoGeral, tarefas: recovered };
   }
 
   const mapTask = (t: RawTask): CronogramaTask => ({
