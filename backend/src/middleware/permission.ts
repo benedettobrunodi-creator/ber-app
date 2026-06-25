@@ -26,10 +26,16 @@ const OBRA_OPS: Record<string, boolean> = {
   contratacaoPlano: true, histograma: true, gestao360: true,
 };
 
+/** Itens sensíveis exclusivos do sócio: salários (organograma), config de
+ *  sistema, e gestão de usuários (admin). */
+const SOCIO_ONLY: Record<string, boolean> = {
+  organograma: false, configuracoes: false, admin: false,
+};
+
 const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
   socio:       { ...ALL_ON },
-  diretoria:   { ...ALL_ON },
-  coordenacao: { ...ALL_ON },
+  diretoria:   { ...ALL_ON, ...SOCIO_ONLY },
+  coordenacao: { ...ALL_ON, ...SOCIO_ONLY },
   pmo:         { ...OBRA_OPS, organograma: true },
   engenharia:  { ...OBRA_OPS },
   gestor:      { ...OBRA_OPS },
