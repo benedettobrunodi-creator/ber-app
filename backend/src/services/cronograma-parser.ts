@@ -42,8 +42,14 @@ export async function parseCronogramaPDF(
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Tenta modelos em ordem (1.5-flash tem free tier mais generoso que 2.0-flash)
-  const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+  // Tenta modelos modernos em ordem de preferência (free tier)
+  const MODELS = [
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+  ];
   let text = '';
   let lastErr: Error | null = null;
   for (const modelName of MODELS) {
