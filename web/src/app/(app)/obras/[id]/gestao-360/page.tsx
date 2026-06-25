@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, LayoutDashboard, Users, ShoppingCart, FileSearch, FileText, Activity,
   TrendingUp, TrendingDown, AlertTriangle, ArrowRight, CalendarClock, FileSignature,
-  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil, X,
+  ShoppingBag, AlertCircle, Rocket, Network, CheckCircle2, Clock, Pencil, X, RefreshCw,
 } from 'lucide-react';
 import api from '@/lib/api';
 import CronogramaPanel from '@/components/obras/CronogramaPanel';
@@ -696,7 +696,7 @@ export default function Gestao360Page() {
       {tab === 'cronograma' && (
         <div className="space-y-4">
           <Section title="Curva S — % planejado vs real" linkTo={null}>
-            <CurvaSResumo cronograma={cronograma} />
+            <CurvaSResumo cronograma={cronograma} onRefresh={fetchAll} />
           </Section>
 
           <Section title="Cronograma completo" linkTo={null}>
@@ -981,7 +981,7 @@ function HistogramaResumo({ cells }: { cells: HistogramaCell[] }) {
   );
 }
 
-function CurvaSResumo({ cronograma }: { cronograma: { progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null }) {
+function CurvaSResumo({ cronograma, onRefresh }: { cronograma: { progressPct?: number | null; parsedData: { tarefas?: { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }[] } | null } | null; onRefresh?: () => void | Promise<void> }) {
   const tarefas = cronograma?.parsedData?.tarefas ?? [];
   if (tarefas.length === 0) {
     return <p className="text-xs text-ber-gray italic">Cronograma ainda não cadastrado. Acesse o módulo cronograma da obra pra subir a planilha.</p>;
@@ -1066,9 +1066,39 @@ function CurvaSResumo({ cronograma }: { cronograma: { progressPct?: number | nul
   const realPts = data.map((d, i) => ({ ...d, i })).filter(d => d.real !== null);
   const realPath = realPts.map((d, k) => `${k === 0 ? 'M' : 'L'} ${xAt(d.i)} ${y(d.real as number)}`).join(' ');
 
+  return <CurvaSResumoSVG
+    data={data} w={w} h={h} pad={pad} xStepPx={xStepPx}
+    xAt={xAt} y={y} planPath={planPath} realPath={realPath} realPts={realPts}
+    folhasCount={folhas.length} onRefresh={onRefresh}
+  />;
+}
+
+function CurvaSResumoSVG({
+  data, w, h, pad, xStepPx, xAt, y, planPath, realPath, realPts, folhasCount, onRefresh,
+}: {
+  data: { key: string; label: string; planejado: number; real: number | null }[];
+  w: number; h: number; pad: { l: number; r: number; t: number; b: number };
+  xStepPx: number;
+  xAt: (i: number) => number;
+  y: (v: number) => number;
+  planPath: string; realPath: string;
+  realPts: { i: number; real: number | null; label: string }[];
+  folhasCount: number;
+  onRefresh?: () => void | Promise<void>;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const h2 = data[hover ?? -1];
+
+  async function handleRefresh() {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try { await onRefresh(); } finally { setRefreshing(false); }
+  }
+
   return (
     <div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <svg width={w} height={h} className="block">
           {[0, 25, 50, 75, 100].map(v => (
             <g key={v}>
@@ -1087,12 +1117,58 @@ function CurvaSResumo({ cronograma }: { cronograma: { progressPct?: number | nul
           {realPts.map(d => (
             <circle key={`r-${d.i}`} cx={xAt(d.i)} cy={y(d.real as number)} r={3} fill="#10B981" />
           ))}
+          {/* Linha vertical destacando semana sob hover */}
+          {hover !== null && (
+            <line x1={xAt(hover)} x2={xAt(hover)} y1={pad.t} y2={h - pad.b}
+              stroke="#9CA3AF" strokeDasharray="3 3" strokeWidth={1} />
+          )}
+          {/* Camadas invisíveis pra captar hover por semana */}
+          {data.map((_, i) => (
+            <rect key={`hv-${i}`}
+              x={xAt(i) - xStepPx / 2} y={pad.t}
+              width={xStepPx} height={h - pad.t - pad.b}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)} />
+          ))}
         </svg>
+        {/* Tooltip */}
+        {hover !== null && h2 && (
+          <div className="pointer-events-none absolute z-10 rounded-md border border-ber-gray/20 bg-white px-3 py-2 text-[11px] shadow-md"
+            style={{
+              left: Math.min(w - 180, Math.max(0, xAt(hover) + 10)),
+              top: 8,
+              minWidth: 140,
+            }}>
+            <div className="font-semibold text-ber-carbon mb-1">Semana {h2.label}</div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 text-ber-gray">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#3B82F6' }} /> Planejado
+              </span>
+              <span className="font-mono font-semibold text-blue-700">{h2.planejado.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-0.5">
+              <span className="flex items-center gap-1.5 text-ber-gray">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#10B981' }} /> Real
+              </span>
+              <span className="font-mono font-semibold text-green-700">
+                {h2.real !== null ? `${h2.real.toFixed(1)}%` : '—'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-4 text-[11px] text-ber-gray mt-1">
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#3B82F6' }} /> Planejado</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block rounded-full" style={{ background: '#10B981' }} /> Real</span>
-        <span className="ml-auto">{folhas.length} tarefas · {data.length} semanas</span>
+        {onRefresh && (
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="ml-2 flex items-center gap-1 rounded border border-ber-gray/30 px-2 py-0.5 text-[10px] font-medium text-ber-carbon hover:bg-ber-bg disabled:opacity-50">
+            <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Atualizando…' : 'Atualizar'}
+          </button>
+        )}
+        <span className="ml-auto">{folhasCount} tarefas · {data.length} semanas</span>
       </div>
     </div>
   );

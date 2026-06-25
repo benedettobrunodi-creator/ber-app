@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Printer, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Printer, Plus, Trash2, X, RefreshCw } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
@@ -432,7 +432,13 @@ export default function CapaObraPage() {
 
       {/* ─── LINHA DO TEMPO / CRONOGRAMA ────────────────────────────────── */}
       <div className="border border-ber-gray/20 p-4 bg-white">
-        <h3 className="text-lg font-black text-ber-carbon mb-3">LINHA DO TEMPO / CRONOGRAMA</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-black text-ber-carbon">LINHA DO TEMPO / CRONOGRAMA</h3>
+          <button onClick={load}
+            className="flex items-center gap-1 rounded border border-ber-gray/30 px-2 py-1 text-xs font-medium text-ber-carbon hover:bg-ber-bg print:hidden">
+            <RefreshCw size={12} /> Atualizar
+          </button>
+        </div>
         {curva.length === 0 ? (
           <div className="py-12 text-center text-sm text-ber-gray italic">
             Sem cronograma parseado pra essa obra ainda — a curva S aparece aqui assim que o cronograma tiver tarefas cadastradas.
@@ -445,7 +451,13 @@ export default function CapaObraPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={50} />
                   <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip formatter={(v) => `${v}%`} />
+                  <Tooltip
+                    formatter={((v: unknown, name: unknown) => [
+                      `${typeof v === 'number' ? v.toFixed(1) : String(v)}%`,
+                      name === 'planejado' ? 'Planejado' : 'Real',
+                    ]) as never}
+                    labelFormatter={(l) => `Semana ${l}`}
+                    contentStyle={{ fontSize: 11, padding: '6px 10px' }} />
                   <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="Planejado" />
                   <Line type="monotone" dataKey="real" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Real" />
                 </LineChart>
