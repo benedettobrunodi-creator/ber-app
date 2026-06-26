@@ -67,9 +67,13 @@ export function requirePermission(moduleKey: string) {
       if (!user) return next(AppError.unauthorized());
 
       const customPerms = user.permissions as Record<string, boolean> | null;
+      const baseDefaults = DEFAULT_PERMS[user.role] ?? ALL_OFF;
+      // Merge: defaults da role + customs (customs vencem onde existem).
+      // Garante que módulos NOVOS (atas, stakeholders etc.) não fiquem
+      // bloqueados pra usuários que tem permissions custom legadas.
       const perms = customPerms && Object.keys(customPerms).length > 0
-        ? customPerms
-        : DEFAULT_PERMS[user.role] ?? ALL_OFF;
+        ? { ...baseDefaults, ...customPerms }
+        : baseDefaults;
 
       if (perms[moduleKey] === true) return next();
 

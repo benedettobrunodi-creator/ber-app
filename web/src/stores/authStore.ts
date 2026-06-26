@@ -61,11 +61,16 @@ const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
                  atas: true, stakeholders: true, gestao360: true, seguranca: true },
 };
 
-/** Returns the user's explicit permissions, or the cargo defaults if none are set */
+/** Returns merged permissions: role defaults + user customs (customs vencem).
+ *  Garante que módulos novos não fiquem bloqueados pra users com permissions
+ *  custom legadas. */
 export function getUserPermissions(user: User | null): Record<string, boolean> {
   if (!user) return {};
-  if (user.permissions && Object.keys(user.permissions).length > 0) return user.permissions;
-  return DEFAULT_PERMS[user.role] ?? DEFAULT_PERMS['campo'];
+  const baseDefaults = DEFAULT_PERMS[user.role] ?? DEFAULT_PERMS['campo'];
+  if (user.permissions && Object.keys(user.permissions).length > 0) {
+    return { ...baseDefaults, ...user.permissions };
+  }
+  return baseDefaults;
 }
 
 interface AuthState {
