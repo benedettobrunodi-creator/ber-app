@@ -68,15 +68,14 @@ export function requirePermission(moduleKey: string) {
 
       const customPerms = user.permissions as Record<string, boolean> | null;
       const baseDefaults = DEFAULT_PERMS[user.role] ?? ALL_OFF;
-      // Merge: defaults da role + customs (customs vencem onde existem).
-      // Garante que módulos NOVOS (atas, stakeholders etc.) não fiquem
-      // bloqueados pra usuários que tem permissions custom legadas.
       const perms = customPerms && Object.keys(customPerms).length > 0
         ? { ...baseDefaults, ...customPerms }
         : baseDefaults;
 
       if (perms[moduleKey] === true) return next();
 
+      // Log diagnóstico — quando algo dá 403, queremos saber o porquê
+      console.warn(`[PERM 403] user=${req.user.userId} role=${user.role} module=${moduleKey} value=${perms[moduleKey]} hasCustom=${!!customPerms && Object.keys(customPerms ?? {}).length > 0}`);
       return next(AppError.forbidden('Sem permissão para acessar este módulo'));
     } catch (err) {
       next(err);
