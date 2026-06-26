@@ -17,6 +17,9 @@ interface OrgNode {
   colorKey: ColorKey;
   salario?: number;
   isGroup?: boolean;
+  /** Quando true, este grupo aparece como filho de TODOS os gestores (clone visual).
+   *  Só faz sentido em nós com isGroup=true. */
+  shared?: boolean;
   children: OrgNode[];
 }
 
@@ -93,13 +96,32 @@ function updateNodeInTree(root: OrgNode, updated: OrgNode): OrgNode {
   return { ...root, children: root.children.map(c => updateNodeInTree(c, updated)) };
 }
 
+/** Remove o nó alvo e PROMOVE os filhos dele pro avô (não deleta em cascata). */
 function deleteNodeFromTree(root: OrgNode, id: string): OrgNode {
-  return {
-    ...root,
-    children: root.children
-      .filter(c => c.id !== id)
-      .map(c => deleteNodeFromTree(c, id)),
-  };
+  function recurse(node: OrgNode): OrgNode {
+    const newChildren: OrgNode[] = [];
+    for (const c of node.children) {
+      if (c.id === id) {
+        // pula o nó alvo e sobe seus filhos pro avô (= node atual)
+        for (const grandChild of c.children) newChildren.push(recurse(grandChild));
+      } else {
+        newChildren.push(recurse(c));
+      }
+    }
+    return { ...node, children: newChildren };
+  }
+  return recurse(root);
+}
+
+/** Coleta todos os grupos marcados como shared (em qualquer profundidade). */
+function collectSharedGroups(root: OrgNode): OrgNode[] {
+  const out: OrgNode[] = [];
+  function walk(node: OrgNode) {
+    if (node.isGroup && node.shared) out.push(node);
+    for (const c of node.children) walk(c);
+  }
+  walk(root);
+  return out;
 }
 
 const CUSTO_DIRETO_KEYS: ColorKey[] = ['gestor', 'campo'];
@@ -238,6 +260,7 @@ function GroupBox({
   onEdit,
   onAddMember,
   onDelete,
+  isClone = false,
 }: {
   node: OrgNode;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -245,19 +268,22 @@ function GroupBox({
   onEdit: (n: OrgNode) => void;
   onAddMember: (parentId: string) => void;
   onDelete: (id: string) => void;
+  isClone?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: `drop-${node.id}`, disabled: true });
 
   const ref = useCallback((el: HTMLDivElement | null) => {
     setNodeRef(el);
-    if (el) cardRefs.current.set(node.id, el);
-  }, [node.id]);
+    // Clones não capturam ref (evita conflito de chave no cardRefs)
+    if (el && !isClone) cardRefs.current.set(node.id, el);
+  }, [node.id, isClone]);
 
   return (
     <div ref={ref} className="flex flex-col items-center">
-      <div className="rounded-lg border-2 border-dashed border-ber-gray/40 px-4 py-3 min-w-[160px]">
+      <div className={`rounded-lg border-2 border-dashed px-4 py-3 min-w-[160px] ${node.shared ? 'border-ber-teal/60 bg-ber-teal/5' : 'border-ber-gray/40'}`}>
         <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-wide text-ber-gray">
           {node.nome}
+          {node.shared && <span className="ml-1 text-ber-teal" title="Grupo compartilhado entre todos os gestores">🔗</span>}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           {node.children.map(member => {
@@ -278,27 +304,30 @@ function GroupBox({
                     </p>
                   )}
                 </div>
-                {/* Member actions */}
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => onEdit(member)}
-                    className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
-                  >
-                    <Pencil size={8} />
-                  </button>
-                  <button
-                    onClick={() => onDelete(member.id)}
-                    className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
-                  >
-                    <Trash2 size={8} />
-                  </button>
-                </div>
+                {/* Member actions (somente na instância canônica, não nos clones) */}
+                {!isClone && (
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => onEdit(member)}
+                      className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+                    >
+                      <Pencil size={8} />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm(`Excluir ${member.nome}?`)) onDelete(member.id); }}
+                      className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
+                    >
+                      <Trash2 size={8} />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </div>
-      {/* Group actions */}
+      {/* Group actions (somente na instância canônica) */}
+      {!isClone && (
       <div className="mt-1 flex items-center gap-1">
         <button
           onClick={() => onEdit(node)}
@@ -315,13 +344,14 @@ function GroupBox({
           <Plus size={9} />
         </button>
         <button
-          onClick={() => onDelete(node.id)}
+          onClick={() => { if (confirm(`Excluir grupo "${node.nome}" e todos os ${node.children.length} membros?`)) onDelete(node.id); }}
           title="Excluir grupo"
           className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
         >
           <Trash2 size={9} />
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -336,6 +366,8 @@ function OrgSubtree({
   onAddChild,
   onDelete,
   isRoot,
+  sharedGroups,
+  isClone = false,
 }: {
   node: OrgNode;
   cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -344,6 +376,10 @@ function OrgSubtree({
   onAddChild: (parentId: string) => void;
   onDelete: (id: string) => void;
   isRoot?: boolean;
+  sharedGroups?: OrgNode[];
+  /** Quando true, este nó é um clone visual (de um shared group renderizado
+   *  sob um gestor). Não captura cardRefs, não duplica eventos. */
+  isClone?: boolean;
 }) {
   if (node.isGroup) {
     return (
@@ -354,51 +390,64 @@ function OrgSubtree({
         onEdit={onEdit}
         onAddMember={onAddChild}
         onDelete={onDelete}
+        isClone={isClone}
       />
     );
   }
 
-  const hasChildren = node.children.length > 0;
-  const canDelete = !hasChildren && !isRoot;
+  const isGestor = node.colorKey === 'gestor';
+  // Esconde shared groups do filhos normais (eles serão renderizados em todos
+  // os gestores como clone). Resultado: o pool aparece embaixo de cada gestor.
+  const normalChildren = node.children.filter(c => !(c.isGroup && c.shared));
+  const sharedChildrenForGestor = isGestor && !isClone ? (sharedGroups ?? []) : [];
+  const hasChildren = normalChildren.length + sharedChildrenForGestor.length > 0;
+  const canDelete = !isRoot && !isClone;
 
   return (
     <div className="inline-flex flex-col items-center">
       <NodeCard
         node={node}
-        cardRefs={cardRefs}
+        cardRefs={isClone ? undefined : cardRefs}
         showSalarios={showSalarios}
       />
 
-      {/* Action buttons — always visible */}
-      <div className="flex items-center gap-1 mt-1">
-        <button
-          onClick={() => onEdit(node)}
-          title="Editar"
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
-        >
-          <Pencil size={9} />
-        </button>
-        <button
-          onClick={() => onAddChild(node.id)}
-          title="Adicionar subordinado"
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
-        >
-          <Plus size={9} />
-        </button>
-        {canDelete && (
+      {/* Action buttons — always visible (exceto em clone) */}
+      {!isClone && (
+        <div className="flex items-center gap-1 mt-1">
           <button
-            onClick={() => onDelete(node.id)}
-            title="Excluir"
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
+            onClick={() => onEdit(node)}
+            title="Editar"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
           >
-            <Trash2 size={9} />
+            <Pencil size={9} />
           </button>
-        )}
-      </div>
+          <button
+            onClick={() => onAddChild(node.id)}
+            title="Adicionar subordinado"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
+          >
+            <Plus size={9} />
+          </button>
+          {canDelete && (
+            <button
+              onClick={() => {
+                const msg = node.children.length > 0
+                  ? `Excluir ${node.nome}? Os ${node.children.length} subordinado(s) sobem 1 nível.`
+                  : `Excluir ${node.nome}?`;
+                if (confirm(msg)) onDelete(node.id);
+              }}
+              title="Excluir"
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-red-500"
+            >
+              <Trash2 size={9} />
+            </button>
+          )}
+        </div>
+      )}
 
       {hasChildren && (
         <div className="flex items-start gap-8 pt-8">
-          {node.children.map(child => (
+          {normalChildren.map(child => (
             <OrgSubtree
               key={child.id}
               node={child}
@@ -407,6 +456,20 @@ function OrgSubtree({
               onEdit={onEdit}
               onAddChild={onAddChild}
               onDelete={onDelete}
+              sharedGroups={sharedGroups}
+              isClone={isClone}
+            />
+          ))}
+          {sharedChildrenForGestor.map(group => (
+            <OrgSubtree
+              key={`shared-${node.id}-${group.id}`}
+              node={group}
+              cardRefs={cardRefs}
+              showSalarios={showSalarios}
+              onEdit={onEdit}
+              onAddChild={onAddChild}
+              onDelete={onDelete}
+              isClone={true}
             />
           ))}
         </div>
@@ -430,11 +493,19 @@ function EditModal({
   const [cargo, setCargo] = useState(node.cargo);
   const [colorKey, setColorKey] = useState<ColorKey>(node.colorKey);
   const [salario, setSalario] = useState(node.salario != null ? String(node.salario) : '');
+  const [shared, setShared] = useState(!!node.shared);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const salNum = salario.replace(/\D/g, '');
-    onSave({ ...node, nome, cargo, colorKey, salario: salNum ? Number(salNum) : undefined });
+    onSave({
+      ...node,
+      nome,
+      cargo,
+      colorKey,
+      salario: salNum ? Number(salNum) : undefined,
+      ...(node.isGroup ? { shared } : {}),
+    });
   }
 
   return (
@@ -475,6 +546,20 @@ function EditModal({
                 className="w-full rounded-md border border-ber-border px-3 py-2 text-sm text-ber-carbon focus:border-ber-teal focus:outline-none"
               />
             </div>
+          )}
+          {node.isGroup && (
+            <label className="flex items-center gap-2 rounded-md border border-ber-border bg-ber-bg/30 px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={shared}
+                onChange={e => setShared(e.target.checked)}
+                className="h-4 w-4 rounded accent-ber-teal"
+              />
+              <div>
+                <p className="text-xs font-semibold text-ber-carbon">Compartilhar com todos os gestores</p>
+                <p className="text-[10px] text-ber-gray">Este grupo aparece como filho de cada Gestor de Obra/Contrato</p>
+              </div>
+            </label>
           )}
           <div>
             <label className="block text-xs font-semibold text-ber-gray mb-1">Cor</label>
@@ -774,6 +859,7 @@ export default function OrganogramaPage() {
                 onAddChild={handleAddChild}
                 onDelete={handleDelete}
                 isRoot
+                sharedGroups={collectSharedGroups(tree)}
               />
             </div>
           </div>
