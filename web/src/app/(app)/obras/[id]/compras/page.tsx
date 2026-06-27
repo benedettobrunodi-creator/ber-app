@@ -402,6 +402,15 @@ export default function ComprasPage() {
         const compradosRatio = onlyItems.length > 0 ? itemsComComprado.length / onlyItems.length : 0;
         const showProjection = compradosRatio >= 0.10;
         const savingProjected = totalVenda * (cleanSavingPct / 100);
+        // Taxa de Administração: linha(s) do orçamento com "taxa" + "administra"
+        // em categoria ou descritivo. Usa o valor de VENDA (entrada do orçamento).
+        const isTaxaAdmin = (i: CompraItem) => {
+          const blob = `${i.categoria} ${i.descritivo ?? ''}`.toLowerCase();
+          return blob.includes('taxa') && (blob.includes('administra') || blob.includes(' adm'));
+        };
+        const taxaAdminTotal = items.filter(isTaxaAdmin).reduce((s, i) => s + i.venda, 0);
+        // Indicador combinado pedido pelo Bruno: saving final estimado + taxa adm
+        const savingMaisTaxa = (showProjection ? savingProjected : okSaving) + taxaAdminTotal;
         return (
         <div className="mb-4 space-y-3">
           {/* Cards principais */}
@@ -447,6 +456,22 @@ export default function ComprasPage() {
               </div>
             )}
           </div>
+
+          {/* Indicador combinado: Saving Final + Taxa de Administração */}
+          {taxaAdminTotal > 0 && (
+            <div className="rounded-xl p-5 shadow-sm border bg-ber-olive/5 border-ber-olive/30">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-ber-olive">💼 Saving Final + Taxa de Administração</p>
+                  <p className="mt-2 text-2xl font-black text-ber-olive">{fmtBRL(savingMaisTaxa)}</p>
+                </div>
+                <div className="text-right text-xs text-ber-gray">
+                  <p>Saving {showProjection ? 'projetado' : 'realizado'}: <strong>{fmtBRL(showProjection ? savingProjected : okSaving)}</strong></p>
+                  <p>Taxa de Administração: <strong>{fmtBRL(taxaAdminTotal)}</strong></p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Linha de referência */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
