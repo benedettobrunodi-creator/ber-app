@@ -703,33 +703,50 @@ export default function OrganogramaPage() {
     if (!containerRef.current) return;
     setExporting(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(containerRef.current, { backgroundColor: '#FFFFFF', scale: 2, useCORS: true, logging: false });
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(containerRef.current, {
+        backgroundColor: '#FFFFFF',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
       const link = document.createElement('a');
       link.download = 'organograma-ber.png';
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
-    } catch { alert('Erro ao exportar PNG.'); }
-    finally { setExporting(false); }
+    } catch (err) {
+      console.error('[export PNG]', err);
+      alert(`Erro ao exportar PNG: ${(err as Error)?.message ?? err}`);
+    } finally { setExporting(false); }
   }
 
   async function handleExportPDF() {
     if (!containerRef.current) return;
     setExporting(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
+      const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(containerRef.current, { backgroundColor: '#FFFFFF', scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2],
+      const dataUrl = await toPng(containerRef.current, {
+        backgroundColor: '#FFFFFF',
+        pixelRatio: 2,
+        cacheBust: true,
       });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      // Carrega imagem pra extrair dimensões reais
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('Falha ao carregar imagem gerada')); });
+      const w = img.naturalWidth / 2;
+      const h = img.naturalHeight / 2;
+      const pdf = new jsPDF({
+        orientation: w > h ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [w, h],
+      });
+      pdf.addImage(dataUrl, 'PNG', 0, 0, w, h);
       pdf.save('organograma-ber.pdf');
-    } catch { alert('Erro ao exportar PDF.'); }
-    finally { setExporting(false); }
+    } catch (err) {
+      console.error('[export PDF]', err);
+      alert(`Erro ao exportar PDF: ${(err as Error)?.message ?? err}`);
+    } finally { setExporting(false); }
   }
 
   const activeNode = activeId ? (tree ? findNode(tree, activeId.replace('drag-', '')) : null) : null;
