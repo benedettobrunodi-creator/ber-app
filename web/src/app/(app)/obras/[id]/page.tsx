@@ -1075,6 +1075,13 @@ export default function ObraDetailPage() {
         >
           📋 Atas
         </Link>
+        {/* Medição — hub unificado (migrado do ber-medicao) */}
+        <Link
+          href={`/obras/${params.id}/medicao`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
+        >
+          💰 Medição
+        </Link>
         <Link href={`/obras/${params.id}/documentos`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
           📄 Docs
         </Link>
