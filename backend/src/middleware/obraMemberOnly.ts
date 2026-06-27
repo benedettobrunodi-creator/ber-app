@@ -22,6 +22,10 @@ export async function obraMemberOnly(req: Request, _res: Response, next: NextFun
     });
     if (!fresh) return next(AppError.unauthorized());
 
+    // Bypass para roles de gestão da empresa (visão global, não precisam
+    // estar listados como membro/coordenador de cada obra individual).
+    if (fresh.role === 'diretoria' || fresh.role === 'coordenacao') return next();
+
     const perms = (fresh.permissions as Record<string, boolean> | null) ?? {};
     if (perms.admin === true) return next();
 
