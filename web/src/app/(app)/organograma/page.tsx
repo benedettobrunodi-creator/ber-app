@@ -223,6 +223,7 @@ function NodeCard({
       {!node.isGroup && !isDragOverlay && (
         <div
           {...listeners}
+          data-export-hide="true"
           className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab text-white/40 hover:text-white/80 z-10 touch-none"
         >
           <GripVertical size={14} />
@@ -306,7 +307,7 @@ function GroupBox({
                 </div>
                 {/* Member actions (somente na instância canônica, não nos clones) */}
                 {!isClone && (
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0.5" data-export-hide="true">
                     <button
                       onClick={() => onEdit(member)}
                       className="flex h-4 w-4 items-center justify-center rounded-full bg-ber-offwhite text-ber-gray hover:bg-white hover:text-ber-teal"
@@ -328,7 +329,7 @@ function GroupBox({
       </div>
       {/* Group actions (somente na instância canônica) */}
       {!isClone && (
-      <div className="mt-1 flex items-center gap-1">
+      <div className="mt-1 flex items-center gap-1" data-export-hide="true">
         <button
           onClick={() => onEdit(node)}
           title="Editar grupo"
@@ -411,9 +412,10 @@ function OrgSubtree({
         showSalarios={showSalarios}
       />
 
-      {/* Action buttons — always visible (exceto em clone) */}
+      {/* Action buttons — always visible (exceto em clone). data-export-hide
+          esconde nos PNG/PDF gerados via html-to-image filter. */}
       {!isClone && (
-        <div className="flex items-center gap-1 mt-1">
+        <div className="flex items-center gap-1 mt-1" data-export-hide="true">
           <button
             onClick={() => onEdit(node)}
             title="Editar"
@@ -708,6 +710,7 @@ export default function OrganogramaPage() {
         backgroundColor: '#FFFFFF',
         pixelRatio: 2,
         cacheBust: true,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.exportHide === 'true'),
       });
       const link = document.createElement('a');
       link.download = 'organograma-ber.png';
@@ -729,6 +732,7 @@ export default function OrganogramaPage() {
         backgroundColor: '#FFFFFF',
         pixelRatio: 2,
         cacheBust: true,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.exportHide === 'true'),
       });
       // Carrega imagem pra extrair dimensões reais
       const img = new Image();
