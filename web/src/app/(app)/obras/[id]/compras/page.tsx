@@ -408,7 +408,9 @@ export default function ComprasPage() {
           const blob = `${i.categoria} ${i.descritivo ?? ''}`.toLowerCase();
           return blob.includes('taxa') && (blob.includes('administra') || blob.includes(' adm'));
         };
-        const taxaAdminTotal = items.filter(isTaxaAdmin).reduce((s, i) => s + i.venda, 0);
+        // Filtra onlyItems (exclui etapa/co) pra não duplicar quando a etapa
+        // tem o mesmo nome do item
+        const taxaAdminTotal = onlyItems.filter(isTaxaAdmin).reduce((s, i) => s + i.venda, 0);
         // Indicador combinado pedido pelo Bruno: saving final estimado + taxa adm
         const savingMaisTaxa = (showProjection ? savingProjected : okSaving) + taxaAdminTotal;
         return (
