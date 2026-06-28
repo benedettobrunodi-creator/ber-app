@@ -235,9 +235,12 @@ export default function MedicaoDetailPage() {
             {STATUS_LABEL[med.status]}
           </span>
           <h1 className="text-2xl font-black text-ber-carbon">{labelMedicao(med.numero)}</h1>
-          <p className="text-xs text-ber-gray mt-1">
-            {fmtDate(med.periodoInicio)} – {fmtDate(med.periodoFim)} · {obra.client ?? obra.name}
-          </p>
+          <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-ber-gray">
+            <PeriodoEdit medicaoId={med.id} field="periodoInicio" value={med.periodoInicio} onSaved={fetchAll} />
+            <span>–</span>
+            <PeriodoEdit medicaoId={med.id} field="periodoFim" value={med.periodoFim} onSaved={fetchAll} />
+            <span>· {obra.client ?? obra.name}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button onClick={() => baixarPdf(med.id)}
@@ -641,5 +644,44 @@ function StatusActions({ med, onChange, onDeleted }: { med: MedicaoDetail; onCha
         </div>
       )}
     </div>
+  );
+}
+
+// Edita data da medição (periodoInicio ou periodoFim) inline.
+// Salva ao perder foco / Enter, refaz fetch pra refletir.
+function PeriodoEdit({ medicaoId, field, value, onSaved }: {
+  medicaoId: string;
+  field: 'periodoInicio' | 'periodoFim';
+  value: string;
+  onSaved: () => void;
+}) {
+  const [draft, setDraft] = useState(value.slice(0, 10));
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setDraft(value.slice(0, 10)), [value]);
+
+  async function commit() {
+    const next = draft;
+    if (!next || next === value.slice(0, 10)) return;
+    setSaving(true);
+    try {
+      await api.patch(`/medicoes/${medicaoId}`, { [field]: next });
+      onSaved();
+    } catch (err: any) {
+      alert(err?.response?.data?.error?.message ?? 'Erro ao salvar data');
+      setDraft(value.slice(0, 10));
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <input
+      type="date"
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }}
+      disabled={saving}
+      className="rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-ber-carbon hover:border-ber-gray/30 focus:border-ber-teal focus:outline-none disabled:opacity-50"
+      title="Clique pra editar a data"
+    />
   );
 }

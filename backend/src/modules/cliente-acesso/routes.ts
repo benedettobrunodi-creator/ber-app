@@ -29,5 +29,6 @@ clienteAcessoRouter.delete('/:id', resolveObraIdFromAcesso, obraMemberOnly, w(ct
 // Router público — SEM auth (rate-limit aplicado no mount em app.ts)
 export const publicoClienteRouter = Router();
 publicoClienteRouter.get('/medicao/:token', w(ctrl.getPortal));
+publicoClienteRouter.get('/medicao/:token/consolidado', w(ctrl.getConsolidado));
 publicoClienteRouter.post('/medicao/:token/aprovar', validate(aprovarSchema), w(ctrl.aprovar));
 publicoClienteRouter.post('/medicao/:token/contestar', validate(contestarSchema), w(ctrl.contestar));

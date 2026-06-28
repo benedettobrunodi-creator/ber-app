@@ -17,6 +17,10 @@ export async function getPortal(req: Request, res: Response) {
   const data = await service.getMedicaoPorToken(req.params.token);
   res.json({ data });
 }
+export async function getConsolidado(req: Request, res: Response) {
+  const data = await service.getConsolidadoPorToken(req.params.token);
+  res.json({ data });
+}
 export async function aprovar(req: Request, res: Response) {
   const data = await service.clienteAprovar(req.params.token, req.body);
   res.json({ data });
