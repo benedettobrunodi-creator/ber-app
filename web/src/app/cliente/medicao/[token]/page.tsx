@@ -5,8 +5,10 @@ import { useParams } from 'next/navigation';
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 
 // Endpoint público — não usa o api client (que joga JWT). Faz fetch direto.
-const API_BASE =
-  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || '/api';
+// NEXT_PUBLIC_API_URL já inclui /v1 (e às vezes \n no fim, sanitizar).
+const API_BASE = (
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || '/api/v1'
+).trim().replace(/\\n$/, '').replace(/\/$/, '');
 
 type Status = 'rascunho' | 'enviada' | 'aprovada' | 'contestada' | 'nf_emitida' | 'paga';
 type Tipo = 'terceiro_ber_paga' | 'terceiro_fatura_direto' | 'miscelaneos_ber';
@@ -82,8 +84,8 @@ export default function ClientePortalPage() {
     setError(null);
     try {
       const [resMed, resCons] = await Promise.all([
-        fetch(`${API_BASE}/v1/cliente/medicao/${token}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
-        fetch(`${API_BASE}/v1/cliente/medicao/${token}/consolidado`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`${API_BASE}/cliente/medicao/${token}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`${API_BASE}/cliente/medicao/${token}/consolidado`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
       ]);
       if (!resMed.ok) {
         const data = await resMed.json().catch(() => ({}));
@@ -106,7 +108,7 @@ export default function ClientePortalPage() {
     if (!confirm('Aprovar esta medição? A ação não pode ser desfeita.')) return;
     startTransition(async () => {
       try {
-        const res = await fetch(`${API_BASE}/v1/cliente/medicao/${token}/aprovar`, {
+        const res = await fetch(`${API_BASE}/cliente/medicao/${token}/aprovar`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
         });
         if (!res.ok) throw new Error('Falha ao aprovar');
@@ -122,7 +124,7 @@ export default function ClientePortalPage() {
     if (!comentario.trim()) return;
     startTransition(async () => {
       try {
-        const res = await fetch(`${API_BASE}/v1/cliente/medicao/${token}/contestar`, {
+        const res = await fetch(`${API_BASE}/cliente/medicao/${token}/contestar`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ comentario: comentario.trim() }),
         });
