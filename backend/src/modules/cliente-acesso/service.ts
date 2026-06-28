@@ -72,10 +72,18 @@ export async function getConsolidadoPorToken(token: string) {
     select: { obraId: true },
   });
   if (!m) throw AppError.notFound('Medição');
+  return getConsolidadoPorObra(m.obraId, { soEnviadas: true });
+}
 
+/**
+ * Mesma visão consolidada exposta no portal cliente, mas indexada por
+ * obraId (uso interno: hub /obras/:id/medicao). Quando soEnviadas=true
+ * filtra medições rascunho — espelhando o que o cliente vê.
+ */
+export async function getConsolidadoPorObra(obraId: string, opts: { soEnviadas?: boolean } = {}) {
   const [obra, etapaFornecedores, medicoes] = await Promise.all([
     prisma.obra.findUnique({
-      where: { id: m.obraId },
+      where: { id: obraId },
       select: {
         id: true, name: true, client: true,
         valorContrato: true, prazoPagamentoDias: true,
@@ -83,14 +91,14 @@ export async function getConsolidadoPorToken(token: string) {
       },
     }),
     prisma.etapaFornecedor.findMany({
-      where: { etapa: { obraId: m.obraId } },
+      where: { etapa: { obraId } },
       include: {
         etapa: { select: { id: true, ordem: true, nome: true } },
         fornecedor: { select: { id: true, razaoSocial: true } },
       },
     }),
     prisma.medicao.findMany({
-      where: { obraId: m.obraId, NOT: { status: 'rascunho' } },
+      where: opts.soEnviadas ? { obraId, NOT: { status: 'rascunho' } } : { obraId },
       orderBy: { numero: 'asc' },
       include: {
         itens: { select: { etapaFornecedorId: true, valorQuinzena: true } },

@@ -7,6 +7,7 @@ import {
   ArrowLeft, Plus, X, ChevronRight, Trash2,
 } from 'lucide-react';
 import api from '@/lib/api';
+import VisaoFinanceiraContrato, { type ConsolidadoData } from '@/components/medicao/VisaoFinanceiraContrato';
 
 interface Obra {
   id: string;
@@ -87,6 +88,7 @@ export default function MedicaoHubPage() {
   const [obra, setObra] = useState<Obra | null>(null);
   const [etapas, setEtapas] = useState<Etapa[]>([]);
   const [medicoes, setMedicoes] = useState<Medicao[]>([]);
+  const [consolidado, setConsolidado] = useState<ConsolidadoData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [showNovaEtapa, setShowNovaEtapa] = useState(false);
@@ -95,14 +97,16 @@ export default function MedicaoHubPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, e, m] = await Promise.all([
+      const [o, e, m, c] = await Promise.all([
         api.get<{ data: Obra }>(`/obras/${obraId}`),
         api.get<{ data: Etapa[] }>(`/obras/${obraId}/medicao-etapas`),
         api.get<{ data: Medicao[] }>(`/obras/${obraId}/medicoes`),
+        api.get<{ data: ConsolidadoData }>(`/obras/${obraId}/medicoes/consolidado`).catch(() => null),
       ]);
       setObra(o.data.data);
       setEtapas(e.data.data);
       setMedicoes(m.data.data);
+      setConsolidado(c?.data?.data ?? null);
     } finally { setLoading(false); }
   }, [obraId]);
 
@@ -161,6 +165,13 @@ export default function MedicaoHubPage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> A receber</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300" /> Não medido</span>
           </div>
+        </div>
+      )}
+
+      {/* Visão Financeira do Contrato — empresa principal + terceiros */}
+      {consolidado && consolidado.empresas.length > 0 && (
+        <div className="mb-6">
+          <VisaoFinanceiraContrato data={consolidado} />
         </div>
       )}
 

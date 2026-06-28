@@ -19,6 +19,12 @@ export const medicaoItensRouter = Router();
 
 obraMedicoesRouter.get('/', w(ctrl.list));
 obraMedicoesRouter.post('/', obraMemberOnly, validate(createMedicaoSchema), w(ctrl.create));
+// Consolidado interno (hub /obras/:id/medicao) — mesma visão do portal cliente
+obraMedicoesRouter.get('/consolidado', w(async (req, res) => {
+  const { getConsolidadoPorObra } = await import('../cliente-acesso/service');
+  const data = await getConsolidadoPorObra(req.params.obraId);
+  res.json({ data });
+}));
 
 async function resolveObraIdFromMedicao(req: Request, _res: Response, next: NextFunction) {
   try {
