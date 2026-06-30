@@ -354,7 +354,7 @@ export default function RelatorioImpressao() {
                   {items.map((a, i) => (
                     <div key={i} className="flex items-start gap-2 mb-1">
                       <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${tipo === 'andamento' ? 'bg-blue-500' : 'bg-amber-400'}`} />
-                      <p className="text-xs text-gray-700">{a.wbs ? `[${a.wbs}] ` : ''}{a.nome}</p>
+                      <p className="text-xs text-gray-700">{a.nome}</p>
                     </div>
                   ))}
                 </div>

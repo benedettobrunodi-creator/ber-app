@@ -266,10 +266,10 @@ ${atividades.length > 0 && sec('atividades') ? `
   ${sectionTitle('Atividades da semana')}
   ${andamento.length > 0 ? `
     <p style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9ca3af;margin-bottom:4px;">Em andamento</p>
-    ${andamento.map(a => bullet(`${a.wbs ? `[${a.wbs}] ` : ''}${a.nome}`, '#3b82f6')).join('')}` : ''}
+    ${andamento.map(a => bullet(a.nome, '#3b82f6')).join('')}` : ''}
   ${proximos.length > 0 ? `
     <p style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9ca3af;margin-top:8px;margin-bottom:4px;">Próximos</p>
-    ${proximos.map(a => bullet(`${a.wbs ? `[${a.wbs}] ` : ''}${a.nome}`, '#f59e0b')).join('')}` : ''}
+    ${proximos.map(a => bullet(a.nome, '#f59e0b')).join('')}` : ''}
 </div>` : ''}
 
 <!-- PONTOS DE ATENÇÃO -->
