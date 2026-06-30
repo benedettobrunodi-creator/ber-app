@@ -462,7 +462,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         ...formWithoutFotos,
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
-        efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
+        efetivoMedio: (() => {
+          const soma = (form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0);
+          return soma > 0 ? soma : null;
+        })(),
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
         ocorrencias:  form.ocorrencias.filter(o => (o.descricao ?? '').trim() && o.data).map(({ data, descricao, acaoTomada, responsavel, status, ordem }) => ({ data, descricao, acaoTomada: acaoTomada || null, responsavel: responsavel || null, status, ordem })),
@@ -517,7 +520,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         ...formWithoutFotos,
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
-        efetivoMedio: form.efetivoMedio != null ? +form.efetivoMedio : null,
+        efetivoMedio: (() => {
+          const soma = (form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0);
+          return soma > 0 ? soma : null;
+        })(),
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
         ocorrencias:  form.ocorrencias.filter(o => (o.descricao ?? '').trim() && o.data).map(({ data, descricao, acaoTomada, responsavel, status, ordem }) => ({ data, descricao, acaoTomada: acaoTomada || null, responsavel: responsavel || null, status, ordem })),
@@ -1262,7 +1268,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
             <FormSection title="Equipe e dias" desc="Dados de produtividade da semana.">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Dias trabalhados">
                   <input type="number" min={0} max={7} value={form.diasTrabalhados ?? ''}
                     onChange={e => setForm(f => ({ ...f, diasTrabalhados: e.target.value ? +e.target.value : null }))}
@@ -1273,12 +1279,10 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     onChange={e => setForm(f => ({ ...f, diasUteis: e.target.value ? +e.target.value : null }))}
                     placeholder="5" className="fi text-center" />
                 </Field>
-                <Field label="Média pessoas/dia">
-                  <input type="number" min={0} step={0.5} value={form.efetivoMedio ?? ''}
-                    onChange={e => setForm(f => ({ ...f, efetivoMedio: e.target.value ? +e.target.value : null }))}
-                    placeholder="12" className="fi text-center" />
-                </Field>
               </div>
+              <p className="text-xs text-ber-gray mt-3">
+                A média de pessoas/dia é calculada automaticamente a partir do histograma de efetivos abaixo.
+              </p>
             </FormSection>
 
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
@@ -1314,17 +1318,11 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     {/* Summary row */}
                     <div className="flex items-center gap-6 px-3 py-2 bg-[#F7F7F5] border-t border-ber-border">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-ber-gray">Efetivo total:</span>
+                        <span className="text-xs text-ber-gray">Efetivo médio/dia:</span>
                         <span className="text-sm font-bold text-ber-carbon">
                           {(form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0)} pessoas
                         </span>
                       </div>
-                      {form.efetivoMedio != null && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-ber-gray">Média/dia:</span>
-                          <span className="text-sm font-bold text-ber-carbon">{form.efetivoMedio} pessoas</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
