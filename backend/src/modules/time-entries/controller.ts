@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import * as timeEntryService from './service';
+import { prisma } from '../../config/database';
 import { sendSuccess, sendCreated, sendNoContent, sendPaginated, parsePagination, buildPagination } from '../../utils/response';
 
 export async function checkin(req: Request, res: Response) {
@@ -23,6 +24,17 @@ export async function getMyEntries(req: Request, res: Response) {
 export async function getMyStatus(req: Request, res: Response) {
   const status = await timeEntryService.getMyStatus(req.user!.userId);
   sendSuccess(res, status);
+}
+
+/** Lista de obras disponíveis pra seleção no modal de ponto. Não exige a
+ *  permissão 'obras' (muitos usuários têm ponto sem ter acesso a obras). */
+export async function getObrasDisponiveis(_req: Request, res: Response) {
+  const obras = await prisma.obra.findMany({
+    where: { status: { not: 'cancelada' } },
+    select: { id: true, name: true, client: true, status: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  sendSuccess(res, obras);
 }
 
 export async function getAllEntries(req: Request, res: Response) {

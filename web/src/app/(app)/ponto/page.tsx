@@ -123,6 +123,7 @@ export default function ApontamentoPage() {
   const [showObraModal, setShowObraModal] = useState(false);
   const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(false);
+  const [obrasError, setObrasError] = useState<string | null>(null);
 
   // Export state
   const canExport = user ? ['socio', 'diretoria', 'coordenacao', 'financeiro'].includes(user.role) : false;
@@ -258,12 +259,19 @@ export default function ApontamentoPage() {
       // Checkin — open obra selection modal
 
       setLoadingObras(true);
+      setObrasError(null);
       setShowObraModal(true);
       try {
-        const res = await api.get('/obras', { params: { limit: 200 } });
-        setObras(res.data.data);
-      } catch {
+        // Endpoint dedicado da tela de ponto — não exige a perm 'obras'.
+        const res = await api.get('/time-entries/obras-disponiveis');
+        const lista = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setObras(lista);
+      } catch (err: any) {
+        const httpStatus = err?.response?.status;
+        const apiMsg = err?.response?.data?.error?.message;
         setObras([]);
+        setObrasError(`Erro ao buscar obras${httpStatus ? ` (HTTP ${httpStatus})` : ''}: ${apiMsg ?? err?.message ?? 'desconhecido'}`);
+        console.error('[ponto/obras] fetch falhou:', err);
       } finally {
         setLoadingObras(false);
       }
@@ -533,7 +541,10 @@ export default function ApontamentoPage() {
               <div className="py-6 text-center text-sm text-ber-gray">Carregando obras...</div>
             ) : obras.length === 0 ? (
               <div className="py-4 text-center">
-                <p className="text-sm text-ber-gray">Nenhuma obra em andamento.</p>
+                <p className="text-sm text-ber-gray">Nenhuma obra disponível pra seleção.</p>
+                {obrasError && (
+                  <p className="mt-2 text-xs text-red-600 px-3 break-words">{obrasError}</p>
+                )}
               </div>
             ) : (
               <div className="max-h-64 space-y-1 overflow-y-auto">

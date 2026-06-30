@@ -14,6 +14,7 @@ router.post('/checkin', validate(checkinSchema), controller.checkin);
 router.post('/checkout', validate(checkoutSchema), controller.checkout);
 router.get('/me', controller.getMyEntries);
 router.get('/me/status', controller.getMyStatus);
+router.get('/obras-disponiveis', controller.getObrasDisponiveis);
 
 // Export route
 router.get('/export', requireAnyRole('socio', 'diretoria', 'coordenacao', 'financeiro'), controller.exportToExcel);
