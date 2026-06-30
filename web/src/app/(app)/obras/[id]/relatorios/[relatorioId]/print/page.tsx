@@ -499,29 +499,22 @@ export default function RelatorioImpressao() {
                 return (
                   <div key={anguloId} className="mb-5 break-inside-avoid">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">{nome}</p>
-                    {(() => {
-                      const totalSlots = fotos.length + (prevFoto ? 1 : 0);
-                      const cols = totalSlots === 1 ? 'grid-cols-1' : 'grid-cols-2';
-                      const imgH = totalSlots === 1 ? '240px' : '180px';
-                      return (
-                        <div className={`grid ${cols} gap-2`}>
-                          {fotos.map((ft) => (
-                            <div key={ft.id}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={ft.url} alt="" className="w-full rounded object-cover" style={{ height: imgH }} />
-                              {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
-                            </div>
-                          ))}
-                          {prevFoto && (
-                            <div className="opacity-60">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={prevFoto.url} alt="" className="w-full rounded object-cover" style={{ height: imgH }} />
-                              <p className="text-[9px] text-gray-400 mt-0.5">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
-                            </div>
-                          )}
+                    <div className="grid grid-cols-3 gap-2">
+                      {fotos.map((ft) => (
+                        <div key={ft.id}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={ft.url} alt="" className="w-full aspect-square rounded object-cover" />
+                          {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
                         </div>
-                      );
-                    })()}
+                      ))}
+                      {prevFoto && (
+                        <div className="opacity-60">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={prevFoto.url} alt="" className="w-full aspect-square rounded object-cover" />
+                          <p className="text-[9px] text-gray-400 mt-0.5">RT-{String(relatorio.numero - 1).padStart(3, '0')} (anterior)</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -532,7 +525,7 @@ export default function RelatorioImpressao() {
                     {semAngulo.map(ft => (
                       <div key={ft.id} className="rounded overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full object-cover" style={{ height: '120px' }} />
+                        <img src={ft.url} alt={ft.legenda ?? ''} className="w-full aspect-square object-cover" />
                         {ft.legenda && <p className="text-[9px] text-gray-400 mt-0.5">{ft.legenda}</p>}
                       </div>
                     ))}
