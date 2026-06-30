@@ -559,31 +559,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         </button>
       </div>
 
-      {/* Curva S chart — visível na lista */}
-      {curvaS.length >= 1 && !showForm && (
-        <div className="rounded-xl border border-ber-border bg-white px-4 py-3">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-ber-gray mb-3">Curva S — Planejado vs. Realizado</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={curvaSChartData} margin={{ top: 4, right: 12, bottom: 20, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
-              <Tooltip
-                formatter={(v: any) => `${v}%`}
-                labelFormatter={(label: any, payload: any) => {
-                  const semana = payload?.[0]?.payload?.semana;
-                  return semana ? `${label} (${fmtFull(semana)})` : label;
-                }}
-              />
-              <Legend verticalAlign="top" wrapperStyle={{ fontSize: 10, paddingBottom: 8 }} />
-              <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência" connectNulls />
-              <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado" connectNulls />
-              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado" connectNulls />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
       {/* Empty state */}
       {relatorios.length === 0 && !showForm && (
         <div className="rounded-xl border border-ber-border bg-white px-6 py-10 text-center">
