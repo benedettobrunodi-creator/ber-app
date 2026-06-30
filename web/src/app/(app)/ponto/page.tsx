@@ -324,13 +324,11 @@ export default function ApontamentoPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Apontamento de Horas</h1>
+      <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Controle de gestão de Alocação de horas nos Projetos / Obras</h1>
 
-      {/* ── Banner jurídico (Harvey recomendação) ── */}
-      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 items-start">
-        <span className="text-amber-500 mt-0.5 shrink-0 text-base">⚖️</span>
-        <p className="text-xs text-amber-800 leading-relaxed">
-          <strong>Aviso:</strong> Os lançamentos de horas neste aplicativo têm finalidade exclusiva de apuração de honorários e emissão de nota fiscal pelos prestadores de serviço. Não constituem controle de jornada de trabalho, nem implicam reconhecimento de vínculo empregatício.
+      <div className="mt-4 rounded-lg border border-ber-border bg-white px-4 py-3">
+        <p className="text-xs text-ber-gray leading-relaxed">
+          Precisamos das informações das horas nos projetos para poder fazer o lançamento para o centro de custo de cada obra/projeto.
         </p>
       </div>
 
@@ -377,8 +375,8 @@ export default function ApontamentoPage() {
             {submitting
               ? 'Registrando...'
               : isCheckedIn
-                ? 'Fim do Serviço'
-                : 'Início do Serviço'}
+                ? 'Saída'
+                : 'Entrada'}
           </button>
 
           {/* Location note */}
