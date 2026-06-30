@@ -236,13 +236,20 @@ export default function RelatorioImpressao() {
           <div className="flex-1 rounded-lg border border-gray-200 px-4 py-3">
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Previsão de conclusão</p>
             <p className="text-base font-black text-gray-900">
-              {obra.expectedEndDate ? fmt(obra.expectedEndDate) : '—'}
+              {(() => {
+                const prev = relatorio.dataPrevistaTermino ?? obra.expectedEndDate;
+                return prev ? fmt(prev) : '—';
+              })()}
             </p>
-            {dias != null && (
-              <p className="text-xs mt-0.5" style={{ color: dias < 0 ? '#DC2626' : dias <= 14 ? '#D97706' : '#6B7280' }}>
-                {dias < 0 ? `${Math.abs(dias)} dias em atraso` : `${dias} dias restantes`}
-              </p>
-            )}
+            {(() => {
+              const prev = relatorio.dataPrevistaTermino ?? obra.expectedEndDate;
+              const diasEff = prev ? diasRestantes(prev) : null;
+              return diasEff != null ? (
+                <p className="text-xs mt-0.5" style={{ color: diasEff < 0 ? '#DC2626' : diasEff <= 14 ? '#D97706' : '#6B7280' }}>
+                  {diasEff < 0 ? `${Math.abs(diasEff)} dias em atraso` : `${diasEff} dias restantes`}
+                </p>
+              ) : null;
+            })()}
             {relatorio.dataContrato && obra.expectedEndDate && (() => {
               const varDias = Math.round((new Date(obra.expectedEndDate).getTime() - new Date(relatorio.dataContrato).getTime()) / 86_400_000);
               return varDias !== 0 ? (

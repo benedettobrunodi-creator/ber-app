@@ -93,7 +93,8 @@ function buildHtml(
     return rel.secoesPdf[key] !== false;
   };
   const st = STATUS_MAP[rel.status] ?? STATUS_MAP.no_prazo;
-  const dias = diasRestantes(obra.expectedEndDate);
+  const prevTerminoEff: string | Date | null = rel.dataPrevistaTermino ?? obra.expectedEndDate;
+  const dias = diasRestantes(prevTerminoEff);
   const avanco = parseFloat(rel.avancoPct ?? 0);
   const delta = rel.avancoDelta != null ? parseFloat(rel.avancoDelta) : null;
 
@@ -211,7 +212,7 @@ ${(rel.dataInicioObra || rel.dataPrevistaTermino || rel.dataRealTermino) ? `
   </div>
   <div style="flex:1;border-radius:6px;border:1px solid #e5e7eb;padding:10px;">
     <p style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9ca3af;margin-bottom:2px;">Previsão de conclusão</p>
-    <p style="font-size:14px;font-weight:900;color:#111827;">${obra.expectedEndDate ? fmt(obra.expectedEndDate) : '—'}</p>
+    <p style="font-size:14px;font-weight:900;color:#111827;">${prevTerminoEff ? fmt(prevTerminoEff) : '—'}</p>
     ${dias != null ? `<p style="font-size:9px;margin-top:2px;color:${dias < 0 ? '#DC2626' : dias <= 14 ? '#D97706' : '#6b7280'};">${dias < 0 ? `${Math.abs(dias)} dias em atraso` : `${dias} dias restantes`}</p>` : ''}
   </div>
 </div>
