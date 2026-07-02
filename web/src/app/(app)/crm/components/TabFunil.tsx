@@ -80,7 +80,6 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
   }[]>([]);
   const [pipelineAtivo, setPipelineAtivo] = useState<Record<number, number>>({});
   const [winRateApi, setWinRateApi] = useState<{ rate: number; ganho: number; perdido: number } | null>(null);
-  const [vistaGrafico, setVistaGrafico] = useState<'forecast' | 'acumulado'>('acumulado');
 
   useEffect(() => {
     // Chamadas críticas — falha de uma não derruba as outras
@@ -189,8 +188,6 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     };
   });
 
-  const pipelineChartData = vistaGrafico === 'forecast' ? pipelineForecastData : pipelineNecessarioData;
-
   // Funil de conversão por etapa (excluindo terminais para as barras)
   const funilAtivo = funilConversao.filter((f) => !TERMINAL.includes(f.etapa));
   const funilMax = Math.max(...funilAtivo.map((f) => f.count), 1);
@@ -221,21 +218,6 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     return { key, label, pct, color, count: ops.length, valor, ops };
   });
   const totalPipelineTodo = pipelineAtivos.reduce((s, o) => s + Number(o.valor ?? 0), 0);
-
-  // Deals "escorregados" — previsão de fechamento venceu e ainda estão ativos
-  const hojeTs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
-  const dealsEscorregados = oportunidades
-    .filter((o) =>
-      o.dataFechamentoPrevisto &&
-      !TERMINAL.includes(o.etapa) &&
-      new Date(o.dataFechamentoPrevisto).getTime() < hojeTs
-    )
-    .map((o) => ({
-      ...o,
-      diasAtraso: Math.floor((hojeTs - new Date(o.dataFechamentoPrevisto!).getTime()) / 86_400_000),
-    }))
-    .sort((a, b) => b.diasAtraso - a.diasAtraso);
-  const valorEscorregado = dealsEscorregados.reduce((s, o) => s + Number(o.valor ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -388,48 +370,49 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
         )}
       </div>
 
-      {/* ── Pipeline Ativo vs Pipeline Necessário ────────────────── */}
+      {/* ── Pipeline Ativo vs Pipeline Necessário — dois gráficos ─── */}
       {Object.keys(pipelineAtivo).length > 0 && (
-        <div className="bg-white border border-ber-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-ber-carbon">Pipeline Ativo vs Necessário — {ano}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-semibold border border-ber-border rounded-lg p-0.5">
-              <button
-                type="button"
-                onClick={() => setVistaGrafico('forecast')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${vistaGrafico === 'forecast' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}
-              >
-                Forecast
-              </button>
-              <button
-                type="button"
-                onClick={() => setVistaGrafico('acumulado')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${vistaGrafico === 'acumulado' ? 'bg-ber-teal text-white' : 'text-ber-gray hover:bg-ber-surface'}`}
-              >
-                Acumulado
-              </button>
-            </div>
+        <div className="bg-white border border-ber-border rounded-xl p-5 space-y-6">
+          <div>
+            <h3 className="font-bold text-ber-carbon">Pipeline Acumulado vs Necessário — {ano}</h3>
+            <p className="text-xs text-ber-gray mb-3">
+              Barras = pipeline ativo com fechamento previsto até aquele mês (deal de junho continua contando em julho) ·
+              Linha = pipeline necessário = meta ÷ taxa de conversão ({Math.round(winRateEfetivo * 100)}% — valor ganho ÷ total proposto)
+            </p>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={pipelineNecessarioData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="pipeline" name="Pipeline Acumulado" fill="#5A7A7A" opacity={0.5} radius={[3, 3, 0, 0]} />
+                <Line type="monotone" dataKey="necessario" name="Pipeline Necessário" stroke="#F59E0B" strokeWidth={2.5} strokeDasharray="5 3" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
           </div>
-          <p className="text-xs text-ber-gray mb-4">
-            {vistaGrafico === 'forecast'
-              ? <>Barras = valor previsto para fechar em cada mês (cada deal conta só no mês da sua previsão)</>
-              : <>Barras = pipeline ativo com fechamento previsto até aquele mês (deal de junho continua contando em julho)</>
-            }
-            {' · '}Linha = pipeline necessário = meta ÷ taxa de conversão ({Math.round(winRateEfetivo * 100)}% — valor ganho ÷ total proposto)
-          </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={pipelineChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v) => fmt(Number(v))} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="pipeline" name="Pipeline Ativo" fill="#5A7A7A" opacity={0.5} radius={[3, 3, 0, 0]} />
-              <Line type="monotone" dataKey="necessario" name="Pipeline Necessário" stroke="#F59E0B" strokeWidth={2.5} strokeDasharray="5 3" dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
+
+          <div className="border-t border-ber-border pt-5">
+            <h3 className="font-bold text-ber-carbon">Pipeline Forecast (por mês previsto) — {ano}</h3>
+            <p className="text-xs text-ber-gray mb-3">
+              Cada deal aparece só no mês da sua data de fechamento previsto (sem repetir de um mês pro outro) ·
+              Linha = mesmo pipeline necessário do gráfico de cima
+            </p>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={pipelineForecastData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="pipeline" name="Pipeline Forecast" fill="#3D9E5F" opacity={0.5} radius={[3, 3, 0, 0]} />
+                <Line type="monotone" dataKey="necessario" name="Pipeline Necessário" stroke="#F59E0B" strokeWidth={2.5} strokeDasharray="5 3" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
           {coverageRatio !== null && (
-            <div className="mt-3 flex items-center gap-2 text-xs border-t border-ber-border pt-3">
+            <div className="flex items-center gap-2 text-xs border-t border-ber-border pt-3">
               <span className={`font-bold ${coverageRatio >= 3 ? 'text-ber-green' : coverageRatio >= 1.5 ? 'text-yellow-600' : 'text-ber-red'}`}>
                 {coverageRatio.toFixed(1)}× cobertura hoje
               </span>
@@ -437,55 +420,6 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
               <span className="ml-auto text-ber-gray/60">Benchmark: 3–5×</span>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Escorregado ──────────────────────────────────────────── */}
-      {dealsEscorregados.length > 0 && (
-        <div className="bg-white border border-ber-border rounded-xl p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-ber-carbon">Escorregado</h3>
-              <p className="text-xs text-ber-gray mt-0.5">
-                Deals com previsão de fechamento vencida e ainda em aberto — precisam de update de forecast ou reclassificação
-              </p>
-            </div>
-            <div className="text-right shrink-0 ml-4">
-              <p className="text-xl font-bold text-ber-red">{fmt(valorEscorregado)}</p>
-              <p className="text-xs text-ber-gray">{dealsEscorregados.length} deal{dealsEscorregados.length !== 1 ? 's' : ''}</p>
-            </div>
-          </div>
-          <div className="border-t border-ber-border">
-            <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-ber-gray uppercase py-2 border-b border-ber-border">
-              <span className="col-span-5">Deal</span>
-              <span className="col-span-2">Etapa</span>
-              <span className="col-span-2 text-right">Valor</span>
-              <span className="col-span-2 text-right">Previsão</span>
-              <span className="col-span-1 text-right">Atraso</span>
-            </div>
-            <div className="max-h-96 overflow-y-auto divide-y divide-ber-border">
-              {dealsEscorregados.map((o) => (
-                <div
-                  key={o.id}
-                  className="grid grid-cols-12 gap-2 text-xs py-2 hover:bg-ber-surface cursor-pointer items-center"
-                  onClick={() => openDrill(o.titulo, [o])}
-                >
-                  <div className="col-span-5 min-w-0">
-                    <p className="font-semibold text-ber-carbon truncate">{o.titulo}</p>
-                    {o.empresa?.razaoSocial && (
-                      <p className="text-[10px] text-ber-gray truncate">{o.empresa.razaoSocial}</p>
-                    )}
-                  </div>
-                  <span className="col-span-2 text-ber-gray truncate">{ETAPA_LABELS[o.etapa] ?? o.etapa}</span>
-                  <span className="col-span-2 text-right text-ber-carbon font-semibold">{fmt(Number(o.valor ?? 0))}</span>
-                  <span className="col-span-2 text-right text-ber-gray">
-                    {new Date(o.dataFechamentoPrevisto!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                  </span>
-                  <span className="col-span-1 text-right font-bold text-ber-red">{o.diasAtraso}d</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
