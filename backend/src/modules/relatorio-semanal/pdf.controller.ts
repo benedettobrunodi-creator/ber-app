@@ -94,7 +94,7 @@ function buildHtml(
   };
   const st = STATUS_MAP[rel.status] ?? STATUS_MAP.no_prazo;
   const prevTerminoEff: string | Date | null = rel.dataPrevistaTermino ?? obra.expectedEndDate;
-  const dias = diasRestantes(prevTerminoEff);
+  const dias = diasRestantes(prevTerminoEff ? new Date(prevTerminoEff) : null);
   const avanco = parseFloat(rel.avancoPct ?? 0);
   const delta = rel.avancoDelta != null ? parseFloat(rel.avancoDelta) : null;
 
