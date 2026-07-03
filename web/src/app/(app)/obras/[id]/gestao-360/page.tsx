@@ -38,7 +38,7 @@ interface ObraInfo {
   valorContrato: number | null; arquiteturaEscritorio: string | null;
   gerenciadora: string | null; areaM2: number | null;
 }
-interface ComprasSummary { okSaving: number; okSavingPct: number; okSavingMeta: number; projecaoSaving: number | null; itensComprados: number; itensPendentes: number; totalComprado: number }
+interface ComprasSummary { okSaving: number; okSavingPct: number; okSavingMeta: number; projecaoSaving: number | null; itensComprados: number; itensPendentes: number; totalComprado: number; totalNetCO?: number }
 interface AditivoLite { id: string; numero: string; descricao: string; valor: string; tipo: 'credito' | 'debito'; status: string; dataAbertura: string }
 interface AditivosResp { aditivos: AditivoLite[]; totals: { total: number; byStatus: Record<string, number> } }
 interface Stakeholder { id: string; empresa: string; nome: string; cargo: string | null; email: string | null; telefone: string | null; funcao: string | null }
@@ -237,10 +237,24 @@ export default function Gestao360Page() {
       {tab === 'visao' && (
         <div className="space-y-5">
           {/* KPI cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
             <KpiCard label="% Concluído" big={`${obra.progressPercent ?? 0}%`} sub="progresso físico" />
             <KpiCard label="Prazo" big={prazo ? `${prazo.remaining} dias` : '—'} sub={prazo ? `${prazo.pctElapsed.toFixed(0)}% decorrido` : ''} accent={prazo && prazo.remaining < 0 ? 'red' : prazo && prazo.remaining < 30 ? 'amber' : undefined} />
             <KpiCard label="Valor contrato" big={obra.valorContrato ? fmtBRLcompact(Number(obra.valorContrato)) : '—'} sub="base do projeto" />
+            {(() => {
+              const base = obra.valorContrato ? Number(obra.valorContrato) : 0;
+              const netCO = compras?.totalNetCO ?? 0;
+              const total = base + netCO;
+              const hasCO = netCO !== 0;
+              return (
+                <KpiCard
+                  label="Valor Total"
+                  big={obra.valorContrato ? fmtBRLcompact(total) : '—'}
+                  sub={hasCO ? `contrato ${netCO >= 0 ? '+' : ''}${fmtBRLcompact(netCO)} CO` : 'sem change orders'}
+                  accent={hasCO && netCO >= 0 ? 'green' : hasCO ? 'red' : undefined}
+                />
+              );
+            })()}
             <KpiCard label="Saving consolidado" big={compras ? fmtBRLcompact(compras.okSaving) : '—'} sub={compras ? `${compras.okSavingPct.toFixed(1)}%` : ''} accent={compras && compras.okSaving >= 0 ? 'green' : 'red'} />
             <KpiCard label="Aditivos líquidos" big={fmtBRLcompact(aditivosLiq)} sub={`${aditivos?.aditivos.length ?? 0} aditivos`} accent={aditivosLiq >= 0 ? 'green' : 'red'} />
             <KpiCard label="Pendências abertas" big={String(pendAbertas)} sub={`${pendencias.length} totais`} accent={pendAbertas > 5 ? 'red' : pendAbertas > 0 ? 'amber' : 'green'} />
