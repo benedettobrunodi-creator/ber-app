@@ -31,7 +31,6 @@ interface TotaisConsolidados {
   pendMeta: number;
   potencialSaving: number;
   projecaoSaving: number;
-  totalNetCO: number;
 }
 
 // GET /v1/compras-dashboard/summary?status=em_andamento,planejamento&obraId=<uuid>
@@ -60,7 +59,7 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
 
     const obraIds = obras.map(o => o.id);
 
-    const [metas, splitsAgg, coSplitsAgg, configs] = await Promise.all([
+    const [metas, splitsAgg, configs] = await Promise.all([
       prisma.comprasMeta.findMany({
         where: { obraId: { in: obraIds } },
         select: {
@@ -73,36 +72,11 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
         _sum: { valor: true },
         where: { comprasMeta: { obraId: { in: obraIds } } },
       }),
-      // Splits de Change Orders (crédito/débito) — usado pra somar netCO por obra
-      prisma.comprasSplit.groupBy({
-        by: ['comprasMetaId', 'coTipo'],
-        _sum: { valor: true },
-        where: {
-          comprasMeta: { obraId: { in: obraIds }, tipo: 'co' },
-          coTipo: { not: null },
-        },
-      }),
       prisma.comprasConfig.findMany({
         where: { obraId: { in: obraIds } },
         select: { obraId: true, comissao: true },
       }),
     ]);
-
-    // netCO por meta = Σ créditos − Σ débitos
-    const netCoByMeta = new Map<string, number>();
-    for (const s of coSplitsAgg) {
-      const v = Number(s._sum.valor ?? 0);
-      const signed = s.coTipo === 'credito' ? v : -v;
-      netCoByMeta.set(s.comprasMetaId, (netCoByMeta.get(s.comprasMetaId) ?? 0) + signed);
-    }
-    // netCO por obra = Σ netCO dos itens 'co' daquela obra
-    const netCoByObra = new Map<string, number>();
-    for (const m of metas) {
-      if (m.tipo === 'co') {
-        const net = netCoByMeta.get(m.id) ?? Number(m.venda); // se CO sem splits, usa venda direto
-        netCoByObra.set(m.obraId, (netCoByObra.get(m.obraId) ?? 0) + net);
-      }
-    }
 
     const splitsByMeta = new Map<string, number>();
     for (const s of splitsAgg) {
@@ -154,7 +128,6 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
       acc.pendMeta += i.pendMeta;
       acc.potencialSaving += i.potencialSaving;
       acc.projecaoSaving += i.projecaoSaving ?? 0;
-      acc.totalNetCO += netCoByObra.get(o.obraId) ?? 0;
       return acc;
     }, emptyTotais());
 
@@ -191,6 +164,5 @@ function emptyTotais(): TotaisConsolidados {
     pendMeta: 0,
     potencialSaving: 0,
     projecaoSaving: 0,
-    totalNetCO: 0,
   };
 }
