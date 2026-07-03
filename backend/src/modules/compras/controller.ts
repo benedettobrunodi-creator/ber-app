@@ -62,10 +62,14 @@ function mapItem(row: any, splits: any[] = []) {
     compradoOk: row.comprado_ok,
     splits: splits.map(s => ({
       id: s.id,
+      descricao: s.descricao ?? null,
       fornecedor: s.fornecedor,
       faturamento: s.faturamento,
       valor: Number(s.valor),
       coTipo: s.co_tipo ?? null,
+      pctMeta: s.pct_meta !== undefined && s.pct_meta !== null ? Number(s.pct_meta) : 0.2,
+      comprado: s.comprado !== undefined && s.comprado !== null ? Number(s.comprado) : 0,
+      compradoOk: !!s.comprado_ok,
     })),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -229,9 +233,19 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
     if (!item) throw AppError.notFound('Item não encontrado');
     const coTipo = req.body.coTipo ?? null;
     const split = await prisma.comprasSplit.create({
-      data: { comprasMetaId: itemId, fornecedor: null, faturamento: null, valor: 0, coTipo },
+      data: { comprasMetaId: itemId, descricao: null, fornecedor: null, faturamento: null, valor: 0, coTipo },
     });
-    res.json({ data: { id: split.id, fornecedor: null, faturamento: null, valor: 0, coTipo } });
+    res.json({ data: {
+      id: split.id,
+      descricao: null,
+      fornecedor: null,
+      faturamento: null,
+      valor: 0,
+      coTipo,
+      pctMeta: Number(split.pctMeta),
+      comprado: Number(split.comprado),
+      compradoOk: split.compradoOk,
+    }});
   } catch (err) { next(err); }
 }
 
@@ -239,17 +253,31 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
 export async function updateSplit(req: Request, res: Response, next: NextFunction) {
   try {
     const { splitId } = req.params;
-    const { fornecedor, faturamento, valor, coTipo } = req.body;
+    const { descricao, fornecedor, faturamento, valor, coTipo, pctMeta, comprado, compradoOk } = req.body;
     const split = await prisma.comprasSplit.update({
       where: { id: splitId },
       data: {
+        ...(descricao !== undefined && { descricao: descricao || null }),
         ...(fornecedor !== undefined && { fornecedor: fornecedor || null }),
         ...(faturamento !== undefined && { faturamento: faturamento || null }),
         ...(valor !== undefined && { valor: Number(valor) }),
         ...(coTipo !== undefined && { coTipo: coTipo || null }),
+        ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
+        ...(comprado !== undefined && { comprado: Number(comprado) }),
+        ...(compradoOk !== undefined && { compradoOk: !!compradoOk }),
       },
     });
-    res.json({ data: { id: split.id, fornecedor: split.fornecedor, faturamento: split.faturamento, valor: Number(split.valor), coTipo: split.coTipo ?? null } });
+    res.json({ data: {
+      id: split.id,
+      descricao: split.descricao ?? null,
+      fornecedor: split.fornecedor,
+      faturamento: split.faturamento,
+      valor: Number(split.valor),
+      coTipo: split.coTipo ?? null,
+      pctMeta: Number(split.pctMeta),
+      comprado: Number(split.comprado),
+      compradoOk: split.compradoOk,
+    }});
   } catch (err) { next(err); }
 }
 

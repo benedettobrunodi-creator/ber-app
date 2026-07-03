@@ -7,10 +7,14 @@ import api from '@/lib/api';
 
 interface ComprasSplit {
   id: string;
+  descricao: string | null;
   fornecedor: string | null;
   faturamento: string | null;
   valor: number;
   coTipo: 'credito' | 'debito' | null;
+  pctMeta: number;
+  comprado: number;
+  compradoOk: boolean;
 }
 
 interface CompraItem {
@@ -794,32 +798,85 @@ export default function ComprasPage() {
                         </td>
                       </tr>
                       {item.splits.map(sp => sp.coTipo !== null ? (
-                        // Crédito / Débito sub-line
-                        <tr key={sp.id} className={`border-l-2 ${sp.coTipo === 'credito' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}>
-                          <td />
+                        // Crédito / Débito sub-line — item de compra completo
+                        (() => {
+                          // Defensivos: se o backend não devolver os novos campos (deploy desalinhado),
+                          // usa defaults locais pra UI não quebrar com NaN/undefined.
+                          const spPctMeta = typeof sp.pctMeta === 'number' && !isNaN(sp.pctMeta) ? sp.pctMeta : 0.2;
+                          const spComprado = typeof sp.comprado === 'number' && !isNaN(sp.comprado) ? sp.comprado : 0;
+                          const spCompradoOk = !!sp.compradoOk;
+                          // descricao pode vir null pra dados legado — usa fornecedor como fallback (era onde a descrição ficava)
+                          const spDescricao = sp.descricao ?? '';
+                          const spMeta = sp.valor * (1 - spPctMeta);
+                          const spSavOrç = sp.valor - spComprado;
+                          const spSavMeta = spMeta - spComprado;
+                          const borderCol = sp.coTipo === 'credito' ? 'border-green-300 focus:border-green-500' : 'border-red-300 focus:border-red-500';
+                          const bgCol = sp.coTipo === 'credito' ? 'bg-green-50' : 'bg-red-50';
+                          return (
+                        <tr key={sp.id} className={`border-l-2 ${sp.coTipo === 'credito' ? 'bg-green-50/60 border-green-400' : 'bg-red-50/60 border-red-400'} ${spCompradoOk ? 'opacity-60' : ''}`}>
+                          <td className="px-3 py-1.5 text-center">
+                            <input type="checkbox" checked={spCompradoOk}
+                              onChange={e => saveSplit(item.id, sp.id, { compradoOk: e.target.checked })}
+                              className={`w-4 h-4 cursor-pointer ${sp.coTipo === 'credito' ? 'accent-green-500' : 'accent-red-500'}`} />
+                          </td>
                           <td className="px-3 py-1.5 text-center">
                             <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${sp.coTipo === 'credito' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
                               {sp.coTipo === 'credito' ? 'C' : 'D'}
                             </span>
                           </td>
-                          <td colSpan={3} className="px-3 py-1.5">
-                            <input type="text" value={sp.fornecedor || ''}
+                          <td />
+                          <td colSpan={2} className="px-3 py-1.5">
+                            <input type="text" value={spDescricao}
                               placeholder="Descrição do item..."
-                              onChange={e => saveSplit(item.id, sp.id, { fornecedor: e.target.value })}
-                              className={`w-full rounded border px-1 py-0.5 text-xs focus:outline-none ${sp.coTipo === 'credito' ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-red-300 bg-red-50 focus:border-red-500'}`} />
+                              onChange={e => saveSplit(item.id, sp.id, { descricao: e.target.value })}
+                              className={`w-full rounded border px-1 py-0.5 text-xs focus:outline-none ${borderCol} ${bgCol}`} />
                           </td>
                           <td className="px-3 py-1.5">
-                            <input {...valorInputProps(`split_${sp.id}`, sp.valor, v => saveSplit(item.id, sp.id, { valor: v }))}
+                            <input {...valorInputProps(`splitv_${sp.id}`, sp.valor, v => saveSplit(item.id, sp.id, { valor: v }))}
                               placeholder="Valor"
-                              className={`w-full rounded border px-1 py-0.5 text-right text-xs tabular-nums focus:outline-none ${sp.coTipo === 'credito' ? 'border-green-300 bg-green-50 focus:border-green-500' : 'border-red-300 bg-red-50 focus:border-red-500'}`} />
+                              className={`w-full rounded border px-1 py-0.5 text-right text-xs tabular-nums focus:outline-none ${borderCol} ${bgCol}`} />
                           </td>
-                          <td colSpan={7} />
+                          <td className="px-3 py-1.5 text-center">
+                            <input type="number" min={0} max={100} step={1}
+                              value={Math.round(spPctMeta * 100)}
+                              onChange={e => saveSplit(item.id, sp.id, { pctMeta: Math.max(0, Math.min(100, Number(e.target.value))) / 100 })}
+                              className={`w-16 rounded border px-1 py-0.5 text-center text-xs focus:outline-none ${borderCol}`} />
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-xs tabular-nums text-ber-teal font-medium">{fmtBRL(spMeta)}</td>
+                          <td className="px-3 py-1.5">
+                            <input {...valorInputProps(`splitc_${sp.id}`, spComprado, v => saveSplit(item.id, sp.id, { comprado: v }))}
+                              placeholder="0"
+                              className={`w-full rounded border px-1 py-0.5 text-right text-xs tabular-nums focus:outline-none ${borderCol} ${bgCol}`} />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input type="text" value={sp.fornecedor || ''}
+                              placeholder="Fornecedor..."
+                              onChange={e => saveSplit(item.id, sp.id, { fornecedor: e.target.value })}
+                              className={`w-full rounded border px-1 py-0.5 text-xs focus:outline-none ${borderCol} ${bgCol}`} />
+                          </td>
+                          <td className="px-3 py-1.5 text-center">
+                            <select value={sp.faturamento || ''}
+                              onChange={e => saveSplit(item.id, sp.id, { faturamento: e.target.value || null })}
+                              className={`w-full rounded border px-1 py-0.5 text-xs focus:outline-none ${borderCol} ${bgCol}`}>
+                              <option value="">—</option>
+                              <option value="BER">BER</option>
+                              <option value="Fornecedor">Fornecedor</option>
+                            </select>
+                          </td>
+                          <td className={`px-3 py-1.5 text-right text-xs tabular-nums font-medium ${spSavOrç >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {fmtBRL(Math.abs(spSavOrç))}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right text-xs tabular-nums font-medium ${spSavMeta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {fmtBRL(spSavMeta)}
+                          </td>
                           <td className="px-3 py-1.5 text-center">
                             <button onClick={() => deleteSplit(item.id, sp.id)} className="text-red-400 hover:text-red-600">
                               <X size={12} />
                             </button>
                           </td>
                         </tr>
+                          );
+                        })()
                       ) : (
                         // Split legado (comprado)
                         <tr key={sp.id} className="bg-amber-50 border-l-2 border-amber-400/40">

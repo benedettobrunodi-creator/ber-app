@@ -245,10 +245,14 @@ model ComprasConfig {
 model ComprasSplit {
   id            String   @id @default(uuid()) @db.Uuid
   comprasMetaId String   @map("compras_meta_id") @db.Uuid
+  descricao     String?
   fornecedor    String?
   faturamento   String?
   valor         Float    @default(0)
   coTipo        String?  @map("co_tipo") @db.VarChar(10)
+  pctMeta       Float    @default(0.2) @map("pct_meta")
+  comprado      Float    @default(0)
+  compradoOk    Boolean  @default(false) @map("comprado_ok")
   createdAt     DateTime @default(now()) @map("created_at")
 
   comprasMeta ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)
