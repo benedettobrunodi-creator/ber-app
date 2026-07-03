@@ -254,6 +254,17 @@ export default function ComprasPage() {
   const totalVenda = onlyItems.reduce((s, i) => s + baseItem(i), 0);
   const totalMeta = onlyItems.reduce((s, i) => s + metaItem(i), 0);
   const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
+
+  // Contrato principal (só itens normais) vs Change Orders (líquido: créditos − débitos)
+  const contratoPrincipal = onlyItems.filter(i => i.tipo !== 'co').reduce((s, i) => s + i.venda, 0);
+  const netCO = onlyItems.filter(i => i.tipo === 'co').reduce((s, co) => {
+    const coSplits = co.splits.filter(sp => sp.coTipo !== null);
+    const net = coSplits.length > 0
+      ? coSplits.reduce((sum, sp) => sum + (sp.coTipo === 'credito' ? sp.valor : -sp.valor), 0)
+      : co.venda;
+    return s + net;
+  }, 0);
+  const contratoTotal = contratoPrincipal + netCO;
   const savingTotal = totalVenda - totalComprado;
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
@@ -478,6 +489,28 @@ export default function ComprasPage() {
               </div>
             </div>
           )}
+
+          {/* Card Contrato Total (principal + Change Orders) */}
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">💼 Contrato Total (Principal + Change Orders)</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-emerald-900">{fmtBRL(contratoTotal)}</p>
+              </div>
+              <div className="flex flex-col items-end gap-0.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-700">Contrato principal:</span>
+                  <span className="font-bold text-emerald-900 tabular-nums">{fmtBRL(contratoPrincipal)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-700">+ Change Orders:</span>
+                  <span className={`font-bold tabular-nums ${netCO >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                    {netCO >= 0 ? '+' : ''}{fmtBRL(netCO)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Linha de referência */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
