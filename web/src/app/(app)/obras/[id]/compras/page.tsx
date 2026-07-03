@@ -230,11 +230,36 @@ export default function ComprasPage() {
     setConfirmClear(false);
   };
 
+  // Change Order: venda efetiva = net(créditos − débitos) dos splits; comprado = soma dos splits.comprado
+  const effectiveVendaItem = (item: CompraItem): number => {
+    if (item.tipo === 'co') {
+      const coSplits = item.splits.filter(sp => sp.coTipo !== null);
+      if (coSplits.length > 0) {
+        return coSplits.reduce((s, sp) => s + (sp.coTipo === 'credito' ? sp.valor : -sp.valor), 0);
+      }
+    }
+    return item.venda;
+  };
+  const effectiveCompradoItem = (item: CompraItem): number => {
+    if (item.tipo === 'co') {
+      const coSplits = item.splits.filter(sp => sp.coTipo !== null);
+      if (coSplits.length > 0) {
+        const sum = coSplits.reduce((s, sp) => s + (sp.comprado || 0), 0);
+        return sum > 0 ? sum : item.comprado;
+      }
+    }
+    if (item.splits.length > 0) {
+      // split legado (coTipo=null) — soma valor dos splits
+      return item.splits.reduce((s, sp) => s + sp.valor, 0);
+    }
+    return item.comprado;
+  };
+
   // Comissão — desconto proporcional sobre itens elegíveis (exceto taxa/imposto)
-  const totalVendaElegivel = items.filter(isElegivelComissao).reduce((s, i) => s + i.venda, 0);
+  const totalVendaElegivel = items.filter(isElegivelComissao).reduce((s, i) => s + effectiveVendaItem(i), 0);
   const pctComissao = totalVendaElegivel > 0 ? comissao / totalVendaElegivel : 0;
   const baseItem = (item: CompraItem) =>
-    isElegivelComissao(item) ? item.venda * (1 - pctComissao) : item.venda;
+    isElegivelComissao(item) ? effectiveVendaItem(item) * (1 - pctComissao) : effectiveVendaItem(item);
   const metaItem = (item: CompraItem) => baseItem(item) * (1 - item.pctMeta);
 
   const saveComissao = (val: number) => {
@@ -250,10 +275,10 @@ export default function ComprasPage() {
   const itemsOk = onlyItems.filter(i => i.compradoOk);
   const itemsPend = onlyItems.filter(i => !i.compradoOk);
 
-  const totalVendaBruta = onlyItems.reduce((s, i) => s + i.venda, 0);
+  const totalVendaBruta = onlyItems.reduce((s, i) => s + effectiveVendaItem(i), 0);
   const totalVenda = onlyItems.reduce((s, i) => s + baseItem(i), 0);
   const totalMeta = onlyItems.reduce((s, i) => s + metaItem(i), 0);
-  const totalComprado = onlyItems.reduce((s, i) => s + i.comprado, 0);
+  const totalComprado = onlyItems.reduce((s, i) => s + effectiveCompradoItem(i), 0);
 
   // Contrato principal (só itens normais) vs Change Orders (líquido: créditos − débitos)
   const contratoPrincipal = onlyItems.filter(i => i.tipo !== 'co').reduce((s, i) => s + i.venda, 0);
@@ -269,10 +294,10 @@ export default function ComprasPage() {
   const savingPct = totalVenda > 0 ? (savingTotal / totalVenda) * 100 : 0;
 
   // Itens com valor lançado (comprado > 0) — base para saving realizado
-  const itemsComComprado = onlyItems.filter(i => i.comprado > 0);
+  const itemsComComprado = onlyItems.filter(i => effectiveCompradoItem(i) > 0);
   const okVenda = itemsComComprado.reduce((s, i) => s + baseItem(i), 0);
   const okMeta = itemsComComprado.reduce((s, i) => s + metaItem(i), 0);
-  const okComprado = itemsComComprado.reduce((s, i) => s + i.comprado, 0);
+  const okComprado = itemsComComprado.reduce((s, i) => s + effectiveCompradoItem(i), 0);
   const okSaving = okVenda - okComprado;
   const okSavingPct = okVenda > 0 ? (okSaving / okVenda) * 100 : 0;
   const okSavingMeta = okMeta - okComprado;
@@ -286,7 +311,7 @@ export default function ComprasPage() {
   // não devem extrapolar pra obra inteira.
   const { cleanSavingPct, cleanCount, outlierCount } = (() => {
     const pcts = itemsComComprado
-      .map(i => ({ item: i, pct: baseItem(i) > 0 ? (baseItem(i) - i.comprado) / baseItem(i) : 0 }))
+      .map(i => ({ item: i, pct: baseItem(i) > 0 ? (baseItem(i) - effectiveCompradoItem(i)) / baseItem(i) : 0 }))
       .sort((a, b) => a.pct - b.pct);
     if (pcts.length < 4) {
       return { cleanSavingPct: okSavingPct, cleanCount: pcts.length, outlierCount: 0 };
@@ -300,7 +325,7 @@ export default function ComprasPage() {
     const lower = q1 - 1.5 * iqr, upper = q3 + 1.5 * iqr;
     const clean = pcts.filter(p => p.pct >= lower && p.pct <= upper);
     const cleanVenda = clean.reduce((s, { item }) => s + baseItem(item), 0);
-    const cleanSaving = clean.reduce((s, { item }) => s + (baseItem(item) - item.comprado), 0);
+    const cleanSaving = clean.reduce((s, { item }) => s + (baseItem(item) - effectiveCompradoItem(item)), 0);
     return {
       cleanSavingPct: cleanVenda > 0 ? (cleanSaving / cleanVenda) * 100 : 0,
       cleanCount: clean.length,
