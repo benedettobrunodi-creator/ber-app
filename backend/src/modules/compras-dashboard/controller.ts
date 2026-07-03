@@ -60,7 +60,7 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
 
     const obraIds = obras.map(o => o.id);
 
-    const [metas, splitsAgg, coSplitsAgg, configs] = await Promise.all([
+    const [metas, splitsAgg, coSplitsAgg, coCompradoAgg, configs] = await Promise.all([
       prisma.comprasMeta.findMany({
         where: { obraId: { in: obraIds } },
         select: {
@@ -68,15 +68,25 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
           venda: true, pctMeta: true, comprado: true, compradoOk: true,
         },
       }),
+      // Splits legado (sem coTipo) — soma o valor (=comprado real do item pai)
       prisma.comprasSplit.groupBy({
         by: ['comprasMetaId'],
         _sum: { valor: true },
-        where: { comprasMeta: { obraId: { in: obraIds } } },
+        where: { comprasMeta: { obraId: { in: obraIds } }, coTipo: null },
       }),
-      // Splits de Change Orders (crédito/débito) — usado pra somar netCO por obra
+      // Splits de Change Orders (crédito/débito) — soma valor por coTipo pra netCO
       prisma.comprasSplit.groupBy({
         by: ['comprasMetaId', 'coTipo'],
         _sum: { valor: true },
+        where: {
+          comprasMeta: { obraId: { in: obraIds }, tipo: 'co' },
+          coTipo: { not: null },
+        },
+      }),
+      // Comprado dos splits de CO (soma por meta)
+      prisma.comprasSplit.groupBy({
+        by: ['comprasMetaId'],
+        _sum: { comprado: true },
         where: {
           comprasMeta: { obraId: { in: obraIds }, tipo: 'co' },
           coTipo: { not: null },
@@ -95,6 +105,11 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
       const signed = s.coTipo === 'credito' ? v : -v;
       netCoByMeta.set(s.comprasMetaId, (netCoByMeta.get(s.comprasMetaId) ?? 0) + signed);
     }
+    // Comprado dos splits de CO por meta
+    const coCompradoByMeta = new Map<string, number>();
+    for (const s of coCompradoAgg) {
+      coCompradoByMeta.set(s.comprasMetaId, Number(s._sum.comprado ?? 0));
+    }
     // netCO por obra = Σ netCO dos itens 'co' daquela obra
     const netCoByObra = new Map<string, number>();
     for (const m of metas) {
@@ -104,10 +119,11 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
       }
     }
 
-    const splitsByMeta = new Map<string, number>();
+    // splits legado (item normal com pagamentos parciais) — comprado = soma valor
+    const splitsLegadoByMeta = new Map<string, number>();
     for (const s of splitsAgg) {
       if (s._sum.valor !== null && s._sum.valor !== undefined) {
-        splitsByMeta.set(s.comprasMetaId, Number(s._sum.valor));
+        splitsLegadoByMeta.set(s.comprasMetaId, Number(s._sum.valor));
       }
     }
 
@@ -116,13 +132,24 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
 
     const itemsByObra = new Map<string, RawItem[]>();
     for (const m of metas) {
-      const splitSum = splitsByMeta.get(m.id);
-      const compradoEfetivo = splitSum !== undefined ? splitSum : Number(m.comprado);
+      let vendaEfetiva: number;
+      let compradoEfetivo: number;
+      if (m.tipo === 'co') {
+        // CO: venda = netCO (créditos − débitos), comprado = Σ comprado dos splits C/D
+        vendaEfetiva = netCoByMeta.get(m.id) ?? Number(m.venda);
+        const coComp = coCompradoByMeta.get(m.id) ?? 0;
+        compradoEfetivo = coComp > 0 ? coComp : Number(m.comprado);
+      } else {
+        // Item normal: venda = m.venda; comprado = split legado se houver, senão m.comprado
+        vendaEfetiva = Number(m.venda);
+        const splitSum = splitsLegadoByMeta.get(m.id);
+        compradoEfetivo = splitSum !== undefined ? splitSum : Number(m.comprado);
+      }
       const item: RawItem = {
         id: m.id,
         tipo: m.tipo ?? 'item',
         categoria: m.categoria,
-        venda: Number(m.venda),
+        venda: vendaEfetiva,
         pctMeta: Number(m.pctMeta),
         comprado: compradoEfetivo,
         compradoOk: m.compradoOk,
