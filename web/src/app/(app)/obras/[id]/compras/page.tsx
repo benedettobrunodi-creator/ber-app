@@ -451,8 +451,10 @@ export default function ComprasPage() {
         // Filtra onlyItems (exclui etapa/co) pra não duplicar quando a etapa
         // tem o mesmo nome do item
         const taxaAdminTotal = onlyItems.filter(isTaxaAdmin).reduce((s, i) => s + i.venda, 0);
-        // Indicador combinado pedido pelo Bruno: saving final estimado + taxa adm
-        const savingMaisTaxa = (showProjection ? savingProjected : okSaving) + taxaAdminTotal;
+        // Bruno: Saving Final = só o que foi realmente comprado até agora (okSaving) + taxa adm.
+        // Antes usava savingProjected (projeção estatística sobre TODA a venda), o que inflava o
+        // número — assumia que os itens não comprados teriam o mesmo % de saving. Removido.
+        const savingMaisTaxa = okSaving + taxaAdminTotal;
         return (
         <div className="mb-4 space-y-3">
           {/* Cards principais */}
@@ -508,7 +510,7 @@ export default function ComprasPage() {
                   <p className="mt-2 text-2xl font-black text-ber-olive">{fmtBRL(savingMaisTaxa)}</p>
                 </div>
                 <div className="text-right text-xs text-ber-gray">
-                  <p>Saving {showProjection ? 'projetado' : 'realizado'}: <strong>{fmtBRL(showProjection ? savingProjected : okSaving)}</strong></p>
+                  <p>Saving realizado: <strong>{fmtBRL(okSaving)}</strong></p>
                   <p>Taxa de Administração: <strong>{fmtBRL(taxaAdminTotal)}</strong></p>
                 </div>
               </div>
