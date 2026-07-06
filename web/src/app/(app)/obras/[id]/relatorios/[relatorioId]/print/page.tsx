@@ -299,8 +299,10 @@ export default function RelatorioImpressao() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 9, paddingTop: 8 }} verticalAlign="top" align="right" iconSize={10} />
-              <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado acumulado" connectNulls />
-              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={3} dot={{ r: 4, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado acumulado" connectNulls />
+              <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={{ r: 2, fill: '#3B82F6' }} name="Planejado acumulado" connectNulls
+                label={{ position: 'top', fontSize: 9, fill: '#3B82F6', formatter: (v: any) => v != null ? `${Math.round(v)}%` : '' }} />
+              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={3} dot={{ r: 4, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado acumulado" connectNulls
+                label={{ position: 'bottom', fontSize: 9, fill: '#16A34A', formatter: (v: any) => v != null ? `${Math.round(v)}%` : '' }} />
             </LineChart>
           </Section>
         )}

@@ -53,13 +53,14 @@ function buildCurvaSvg(
   const xLabels: { x: number; label: string }[] = [];
   sorted.forEach(p => {
     const ms = new Date(p.semana).getTime();
-    const wk = startDate ? Math.round((ms - startDate.getTime()) / (7 * 86_400_000)) + 1 : xLabels.length + 1;
+    // Sem. 1 = dias 0-6, Sem. 2 = dias 7-13, ... → usa floor (não round).
+    const wk = startDate ? Math.floor((ms - startDate.getTime()) / (7 * 86_400_000)) + 1 : xLabels.length + 1;
     const x = toX(ms);
     if (!xLabels.length || x - xLabels[xLabels.length - 1].x > 50) xLabels.push({ x, label: `Sem. ${wk}` });
   });
   if (endDate) {
     const x = toX(endDate.getTime());
-    const wk = startDate ? Math.round((endDate.getTime() - startDate.getTime()) / (7 * 86_400_000)) + 1 : '?';
+    const wk = startDate ? Math.floor((endDate.getTime() - startDate.getTime()) / (7 * 86_400_000)) + 1 : '?';
     if (!xLabels.length || x - xLabels[xLabels.length - 1].x > 50) xLabels.push({ x, label: `Sem. ${wk}` });
   }
 
@@ -72,6 +73,13 @@ function buildCurvaSvg(
   ${pla.length >= 2 ? `<path d="${path(pla)}" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="5 2"/>` : ''}
   ${rea.length >= 2 ? `<path d="${path(rea)}" fill="none" stroke="#22c55e" stroke-width="2.4"/>` : ''}
   ${rea.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#22c55e"/>`).join('')}
+  ${sorted.map(p => {
+    const x = toX(new Date(p.semana).getTime());
+    const parts: string[] = [];
+    if (p.planejadoPct != null) parts.push(`<text x="${x.toFixed(1)}" y="${(toY(p.planejadoPct) - 6).toFixed(1)}" text-anchor="middle" fill="#3b82f6" font-size="7" font-weight="bold">${Math.round(p.planejadoPct)}%</text>`);
+    if (p.realizadoPct != null) parts.push(`<text x="${x.toFixed(1)}" y="${(toY(p.realizadoPct) + 12).toFixed(1)}" text-anchor="middle" fill="#16a34a" font-size="7" font-weight="bold">${Math.round(p.realizadoPct)}%</text>`);
+    return parts.join('');
+  }).join('')}
   <g transform="translate(${W - PAD.right - 220},8)">
     <line x1="0" y1="0" x2="12" y2="0" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="4 2"/><text x="15" y="3" fill="#6b7280" font-size="7">Planejado acumulado</text>
     <line x1="110" y1="0" x2="122" y2="0" stroke="#22c55e" stroke-width="2.4"/><text x="125" y="3" fill="#6b7280" font-size="7">Realizado acumulado</text>

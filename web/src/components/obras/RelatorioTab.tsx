@@ -177,7 +177,8 @@ function semanaLabel(iso: string, startDate: string | null): string {
   const startMs = new Date(startDate + 'T12:00:00').getTime();
   const pointMs = new Date(iso + 'T12:00:00').getTime();
   if (pointMs < startMs) return fmt(iso);
-  const wk = Math.round((pointMs - startMs) / (7 * 86400000)) + 1;
+  // Sem. 1 = dias 0-6, Sem. 2 = dias 7-13, ... → usa floor (não round).
+  const wk = Math.floor((pointMs - startMs) / (7 * 86400000)) + 1;
   return `Sem. ${wk}`;
 }
 
