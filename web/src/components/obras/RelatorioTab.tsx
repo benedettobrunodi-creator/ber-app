@@ -596,7 +596,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                 <button onClick={() => deleteRelatorio(r.id)} className="text-ber-gray/40 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
               </div>
             </div>
-            <div className="px-4 py-3 grid grid-cols-4 gap-4 text-center">
+            <div className="px-4 py-3 grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-lg font-black text-ber-carbon">{+r.avancoPct}%</p>
                 <p className="text-[9px] text-ber-gray uppercase tracking-wide">Avanço acumulado</p>
@@ -604,12 +604,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
               <div>
                 <p className="text-lg font-black text-ber-carbon">{r.avancoDelta != null ? `+${+r.avancoDelta}%` : '—'}</p>
                 <p className="text-[9px] text-ber-gray uppercase tracking-wide">Na semana</p>
-              </div>
-              <div>
-                <p className="text-lg font-black text-ber-carbon">
-                  {r.diasTrabalhados != null && r.diasUteis != null ? `${r.diasTrabalhados}/${r.diasUteis}` : '—'}
-                </p>
-                <p className="text-[9px] text-ber-gray uppercase tracking-wide">Dias trabalhados</p>
               </div>
               <div>
                 <p className="text-lg font-black text-ber-carbon">{r.efetivoMedio != null ? +r.efetivoMedio : '—'}</p>
@@ -1268,24 +1262,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
             </FormSection>
 
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
-            <FormSection title="Equipe e dias" desc="Dados de produtividade da semana.">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Dias trabalhados">
-                  <input type="number" min={0} max={7} value={form.diasTrabalhados ?? ''}
-                    onChange={e => setForm(f => ({ ...f, diasTrabalhados: e.target.value ? +e.target.value : null }))}
-                    placeholder="4" className="fi text-center" />
-                </Field>
-                <Field label="Dias úteis">
-                  <input type="number" min={0} max={7} value={form.diasUteis ?? ''}
-                    onChange={e => setForm(f => ({ ...f, diasUteis: e.target.value ? +e.target.value : null }))}
-                    placeholder="5" className="fi text-center" />
-                </Field>
-              </div>
-              <p className="text-xs text-ber-gray mt-3">
-                A média de pessoas/dia é calculada automaticamente a partir do histograma de efetivos abaixo.
-              </p>
-            </FormSection>
-
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
             <FormSection title="Histograma de efetivos" desc="Efetivos por disciplina e histograma diário do período.">
               {/* Disciplines table */}

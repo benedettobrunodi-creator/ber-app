@@ -263,14 +263,9 @@ export default function RelatorioImpressao() {
 
         {/* AVANÇO FÍSICO */}
         <Section title="Avanço Físico">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <Kpi label="Acumulado" value={`${+relatorio.avancoPct}%`} big />
             <Kpi label="Na semana" value={relatorio.avancoDelta != null ? `+${+relatorio.avancoDelta}%` : '—'} />
-            <Kpi label="Dias trab. / úteis" value={
-              relatorio.diasTrabalhados != null && relatorio.diasUteis != null
-                ? `${relatorio.diasTrabalhados}/${relatorio.diasUteis}`
-                : '—'
-            } />
             <Kpi label="Efetivo médio/dia" value={relatorio.efetivoMedio != null ? String(+relatorio.efetivoMedio) : '—'} />
           </div>
           <div className="mt-1">

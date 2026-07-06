@@ -225,10 +225,9 @@ ${(rel.dataInicioObra || rel.dataPrevistaTermino || rel.dataRealTermino) ? `
 <!-- AVANÇO FÍSICO -->
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Avanço Físico')}
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
     ${kpi('Acumulado', `${avanco}%`, true)}
     ${kpi('Na semana', delta != null ? `+${delta}%` : '—')}
-    ${kpi('Dias trab. / úteis', rel.diasTrabalhados != null && rel.diasUteis != null ? `${rel.diasTrabalhados}/${rel.diasUteis}` : '—')}
     ${kpi('Efetivo médio/dia', rel.efetivoMedio != null ? String(parseFloat(rel.efetivoMedio)) : '—')}
   </div>
   <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
