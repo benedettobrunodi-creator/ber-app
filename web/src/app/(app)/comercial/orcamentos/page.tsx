@@ -712,11 +712,12 @@ interface GanttRowProps {
   barWidth: number;
   barBg: string;
   isOutline: boolean;
+  weekendSpans: Array<{ left: number; width: number }>;
   onClickItem: (o: Orcamento) => void;
   onTooltip: (orc: Orcamento | null, e?: React.MouseEvent) => void;
 }
 
-function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg, isOutline, onClickItem, onTooltip }: GanttRowProps) {
+function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg, isOutline, weekendSpans, onClickItem, onTooltip }: GanttRowProps) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: orc.id });
 
   return (
@@ -755,6 +756,10 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg
 
       {/* Bar area */}
       <div className="relative" style={{ width: totalW, height: ROW_H }}>
+        {weekendSpans.map((w, i) => (
+          <div key={`wk-row-${i}`} className="absolute top-0 bottom-0 bg-slate-100/50 pointer-events-none"
+            style={{ left: w.left, width: w.width }} />
+        ))}
         <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-40" style={{ left: todayOffset }} />
         <div
           className="absolute rounded cursor-pointer flex items-center px-2 transition-opacity hover:opacity-90"
@@ -814,11 +819,33 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     }
   }
 
-  const dayTicks: Array<{ label: string; left: number; isToday: boolean; isFirst: boolean }> = [];
+  const dayTicks: Array<{ label: string; left: number; isToday: boolean; isFirst: boolean; isWeekend: boolean }> = [];
   if (zoom === 'dia') {
     for (let d = 0; d < totalDays; d++) {
       const date = addDays(start, d);
-      dayTicks.push({ label: String(date.getDate()), left: d * pxPerDay, isToday: date.toDateString() === today.toDateString(), isFirst: date.getDate() === 1 });
+      const dow = date.getDay();
+      dayTicks.push({
+        label: String(date.getDate()),
+        left: d * pxPerDay,
+        isToday: date.toDateString() === today.toDateString(),
+        isFirst: date.getDate() === 1,
+        isWeekend: dow === 0 || dow === 6,
+      });
+    }
+  }
+
+  // Bandas verticais pros finais de semana (só faz sentido no zoom "dia")
+  const weekendSpans: Array<{ left: number; width: number }> = [];
+  if (zoom === 'dia') {
+    let i = 0;
+    while (i < dayTicks.length) {
+      if (dayTicks[i].isWeekend) {
+        const startI = i;
+        while (i < dayTicks.length && dayTicks[i].isWeekend) i++;
+        weekendSpans.push({ left: dayTicks[startI].left, width: (i - startI) * pxPerDay });
+      } else {
+        i++;
+      }
     }
   }
 
@@ -905,6 +932,10 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
               <div className="flex">
                 <div style={{ width: LABEL_W, minWidth: LABEL_W, height: zoom === 'mes' ? 28 : 20 }} className="shrink-0 sticky left-0 z-20 border-r border-gray-200 bg-gray-50" />
                 <div className="relative" style={{ width: totalW, height: zoom === 'mes' ? 28 : 20 }}>
+                  {weekendSpans.map((w, i) => (
+                    <div key={`wk-mo-${i}`} className="absolute top-0 bottom-0 bg-slate-100/60 pointer-events-none"
+                      style={{ left: w.left, width: w.width }} />
+                  ))}
                   {monthSpans.map(m => (
                     <div key={m.label} className="absolute top-0 border-r border-gray-100 flex items-center px-2"
                       style={{ left: m.left, width: m.width, height: zoom === 'mes' ? 28 : 20 }}>
@@ -920,9 +951,9 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                   <div className="relative" style={{ width: totalW, height: 28 }}>
                     {zoom === 'dia' && dayTicks.map(d => (
                       <div key={d.left}
-                        className={`absolute top-0 flex items-center justify-center border-r ${d.isFirst ? 'border-r-gray-300' : 'border-r-gray-100'} ${d.isToday ? 'bg-red-50' : ''}`}
+                        className={`absolute top-0 flex items-center justify-center border-r ${d.isFirst ? 'border-r-gray-300' : 'border-r-gray-100'} ${d.isToday ? 'bg-red-50' : d.isWeekend ? 'bg-slate-100' : ''}`}
                         style={{ left: d.left, width: pxPerDay, height: 28 }}>
-                        <span className={`text-[10px] font-semibold ${d.isToday ? 'text-red-500' : d.isFirst ? 'text-gray-700' : 'text-gray-400'}`}>{d.label}</span>
+                        <span className={`text-[10px] font-semibold ${d.isToday ? 'text-red-500' : d.isFirst ? 'text-gray-700' : d.isWeekend ? 'text-slate-500' : 'text-gray-400'}`}>{d.label}</span>
                       </div>
                     ))}
                     {zoom === 'semana' && weekSpans.map((w, i) => (
@@ -951,6 +982,10 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                       <span className="ml-auto text-[10px] text-gray-400">{catItems.length}</span>
                     </div>
                     <div className="relative" style={{ width: totalW, height: 30 }}>
+                      {weekendSpans.map((w, i) => (
+                        <div key={`wk-cat-${i}`} className="absolute top-0 bottom-0 bg-slate-100/60 pointer-events-none"
+                          style={{ left: w.left, width: w.width }} />
+                      ))}
                       <div className="absolute top-0 bottom-0 w-px bg-red-400 opacity-30" style={{ left: todayOffset }} />
                     </div>
                   </div>
@@ -970,6 +1005,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                             barWidth={barWidth}
                             barBg={GANTT_BAR_BG[orc.status] ?? '#9CA3AF'}
                             isOutline={orc.status === 'A_INICIAR'}
+                            weekendSpans={weekendSpans}
                             onClickItem={onClickItem}
                             onTooltip={handleTooltip}
                           />
