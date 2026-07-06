@@ -26,8 +26,8 @@ function buildCurvaSvg(
   startDate: Date | null,
   endDate: Date | null,
 ): string {
-  const W = 560, H = 140;
-  const PAD = { top: 8, right: 16, bottom: 28, left: 36 };
+  const W = 560, H = 150;
+  const PAD = { top: 18, right: 16, bottom: 20, left: 36 };
   const cW = W - PAD.left - PAD.right;
   const cH = H - PAD.top - PAD.bottom;
 
@@ -46,7 +46,6 @@ function buildCurvaSvg(
   const sorted = [...pontos].sort((a, b) => new Date(a.semana).getTime() - new Date(b.semana).getTime());
   const pla = sorted.filter(p => p.planejadoPct != null).map(p => ({ x: toX(new Date(p.semana).getTime()), y: toY(p.planejadoPct!) }));
   const rea = sorted.filter(p => p.realizadoPct != null).map(p => ({ x: toX(new Date(p.semana).getTime()), y: toY(p.realizadoPct!) }));
-  const ten = startDate && endDate ? [{ x: toX(startDate.getTime()), y: toY(0) }, { x: toX(endDate.getTime()), y: toY(100) }] : [];
 
   const path = (pts: { x: number; y: number }[]) => pts.length < 2 ? '' : `M ${pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`;
 
@@ -70,14 +69,12 @@ function buildCurvaSvg(
   ${yLines.map(pct => `<line x1="${PAD.left}" y1="${toY(pct).toFixed(1)}" x2="${W - PAD.right}" y2="${toY(pct).toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`).join('')}
   ${yLines.map(pct => `<text x="${PAD.left - 3}" y="${(toY(pct) + 3).toFixed(1)}" text-anchor="end" fill="#9ca3af" font-size="7">${pct}%</text>`).join('')}
   ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="#9ca3af" font-size="7">${l.label}</text>`).join('')}
-  ${ten.length >= 2 ? `<path d="${path(ten)}" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="4 4"/>` : ''}
-  ${pla.length >= 2 ? `<path d="${path(pla)}" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5 2"/>` : ''}
-  ${rea.length >= 2 ? `<path d="${path(rea)}" fill="none" stroke="#22c55e" stroke-width="2"/>` : ''}
-  ${rea.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="#22c55e"/>`).join('')}
-  <g transform="translate(${PAD.left},${H - 6})">
-    <line x1="0" y1="-1" x2="12" y2="-1" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 2"/><text x="15" y="2" fill="#6b7280" font-size="7">Planejado acumulado</text>
-    <line x1="100" y1="-1" x2="112" y2="-1" stroke="#22c55e" stroke-width="1.5"/><text x="115" y="2" fill="#6b7280" font-size="7">Realizado acumulado</text>
-    <line x1="210" y1="-1" x2="222" y2="-1" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="3 3"/><text x="225" y="2" fill="#6b7280" font-size="7">Tendência linear</text>
+  ${pla.length >= 2 ? `<path d="${path(pla)}" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="5 2"/>` : ''}
+  ${rea.length >= 2 ? `<path d="${path(rea)}" fill="none" stroke="#22c55e" stroke-width="2.4"/>` : ''}
+  ${rea.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#22c55e"/>`).join('')}
+  <g transform="translate(${W - PAD.right - 220},8)">
+    <line x1="0" y1="0" x2="12" y2="0" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="4 2"/><text x="15" y="3" fill="#6b7280" font-size="7">Planejado acumulado</text>
+    <line x1="110" y1="0" x2="122" y2="0" stroke="#22c55e" stroke-width="2.4"/><text x="125" y="3" fill="#6b7280" font-size="7">Realizado acumulado</text>
   </g>
 </svg>`;
 }

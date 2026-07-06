@@ -287,7 +287,7 @@ export default function RelatorioImpressao() {
         {/* CURVA S */}
         {rawCurvaS.length >= 1 && (
           <Section title="Curva S — Planejado vs. Realizado (acumulado)">
-            <LineChart width={660} height={160} data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            <LineChart width={660} height={190} data={curvaSChartData} margin={{ top: 4, right: 8, bottom: 20, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="label" tick={{ fontSize: 9 }} />
               <YAxis tick={{ fontSize: 9 }} domain={[0, 100]} tickFormatter={v => `${v}%`} />
@@ -298,10 +298,9 @@ export default function RelatorioImpressao() {
                   return semana ? `${label} (${fmt(semana + 'T12:00:00')})` : label;
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: 9 }} />
-              <Line type="monotone" dataKey="tendencia" stroke="#D1D5DB" strokeDasharray="2 4" strokeWidth={1.5} dot={false} name="Tendência linear" connectNulls />
+              <Legend wrapperStyle={{ fontSize: 9, paddingTop: 8 }} verticalAlign="top" align="right" iconSize={10} />
               <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2} dot={false} name="Planejado acumulado" connectNulls />
-              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} name="Realizado acumulado" connectNulls />
+              <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={3} dot={{ r: 4, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado acumulado" connectNulls />
             </LineChart>
           </Section>
         )}
