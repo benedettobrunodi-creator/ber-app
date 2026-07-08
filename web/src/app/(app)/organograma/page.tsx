@@ -91,6 +91,34 @@ function reparentNode(root: OrgNode, draggedId: string, targetId: string): OrgNo
   return addToTarget(withoutDragged);
 }
 
+/** Move o nó pra ficar como irmão do target, antes ou depois dele. */
+function reorderSibling(
+  root: OrgNode,
+  draggedId: string,
+  targetId: string,
+  side: 'before' | 'after',
+): OrgNode {
+  if (draggedId === targetId) return root;
+  const dragged = findNode(root, draggedId);
+  if (!dragged) return root;
+  if (isDescendant(dragged, targetId)) return root;
+  const { tree: withoutDragged } = removeNode(root, draggedId);
+  function insertNear(node: OrgNode): OrgNode {
+    const idx = node.children.findIndex(c => c.id === targetId);
+    if (idx >= 0) {
+      const insertAt = side === 'before' ? idx : idx + 1;
+      const newChildren = [
+        ...node.children.slice(0, insertAt),
+        dragged!,
+        ...node.children.slice(insertAt),
+      ];
+      return { ...node, children: newChildren };
+    }
+    return { ...node, children: node.children.map(insertNear) };
+  }
+  return insertNear(withoutDragged);
+}
+
 function updateNodeInTree(root: OrgNode, updated: OrgNode): OrgNode {
   if (root.id === updated.id) return updated;
   return { ...root, children: root.children.map(c => updateNodeInTree(c, updated)) };
@@ -670,6 +698,26 @@ export default function OrganogramaPage() {
     const draggedId = String(active.id).replace('drag-', '');
     const targetId = String(over.id).replace('drop-', '');
     if (draggedId === targetId) return;
+
+    // Se o card foi solto claramente à esquerda ou à direita do target, reordena
+    // como irmão (mesmo pai) em vez de reparentar. Threshold = 40% da largura
+    // do target, então soltar por cima (± centro) continua fazendo reparent.
+    const activeRect = active.rect.current.translated;
+    const overRect = over.rect;
+    if (activeRect && overRect) {
+      const activeCenter = activeRect.left + activeRect.width / 2;
+      const overCenter = overRect.left + overRect.width / 2;
+      const dx = activeCenter - overCenter;
+      const threshold = overRect.width * 0.4;
+      if (dx < -threshold) {
+        applyChange(reorderSibling(tree, draggedId, targetId, 'before'));
+        return;
+      }
+      if (dx > threshold) {
+        applyChange(reorderSibling(tree, draggedId, targetId, 'after'));
+        return;
+      }
+    }
     applyChange(reparentNode(tree, draggedId, targetId));
   }
 
