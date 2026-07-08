@@ -1,8 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { DndContext, DragEndEvent, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { DndContext, DragEndEvent, DragMoveEvent, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+
+type DropSide = 'left' | 'right' | 'center';
+const DropSideContext = createContext<DropSide | null>(null);
 import { GripVertical, Pencil, Plus, Trash2, Download, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
@@ -273,11 +276,24 @@ function NodeCard({
         )}
       </div>
 
-      {isOver && !isDragOverlay && !node.isGroup && (
-        <div className="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-ber-olive" />
-      )}
+      {isOver && !isDragOverlay && !node.isGroup && <OverIndicator />}
     </div>
   );
+}
+
+function OverIndicator() {
+  const side = useContext(DropSideContext);
+  if (side === 'left') {
+    return (
+      <div className="pointer-events-none absolute -left-2 top-0 bottom-0 w-1 rounded bg-ber-olive shadow-[0_0_6px_rgba(181,184,32,0.6)]" />
+    );
+  }
+  if (side === 'right') {
+    return (
+      <div className="pointer-events-none absolute -right-2 top-0 bottom-0 w-1 rounded bg-ber-olive shadow-[0_0_6px_rgba(181,184,32,0.6)]" />
+    );
+  }
+  return <div className="pointer-events-none absolute inset-0 rounded-lg ring-2 ring-ber-olive" />;
 }
 
 /* ─── Group box (decorative, not draggable) ─── */
@@ -645,6 +661,20 @@ export default function OrganogramaPage() {
   const [editNode, setEditNode] = useState<OrgNode | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [dropSide, setDropSide] = useState<DropSide | null>(null);
+
+  function computeDropSide(event: DragMoveEvent | DragEndEvent): DropSide | null {
+    const activeRect = event.active.rect.current.translated;
+    const overRect = event.over?.rect;
+    if (!activeRect || !overRect) return null;
+    const activeCenter = activeRect.left + activeRect.width / 2;
+    const overCenter = overRect.left + overRect.width / 2;
+    const dx = activeCenter - overCenter;
+    const threshold = overRect.width * 0.4;
+    if (dx < -threshold) return 'left';
+    if (dx > threshold) return 'right';
+    return 'center';
+  }
   const [lines, setLines] = useState<Line[]>([]);
   const [exporting, setExporting] = useState(false);
   const [showSalarios, setShowSalarios] = useState(false);
@@ -694,29 +724,20 @@ export default function OrganogramaPage() {
     const { active, over } = event;
     setActiveId(null);
     setOverId(null);
+    setDropSide(null);
     if (!over || !tree) return;
     const draggedId = String(active.id).replace('drag-', '');
     const targetId = String(over.id).replace('drop-', '');
     if (draggedId === targetId) return;
 
-    // Se o card foi solto claramente à esquerda ou à direita do target, reordena
-    // como irmão (mesmo pai) em vez de reparentar. Threshold = 40% da largura
-    // do target, então soltar por cima (± centro) continua fazendo reparent.
-    const activeRect = active.rect.current.translated;
-    const overRect = over.rect;
-    if (activeRect && overRect) {
-      const activeCenter = activeRect.left + activeRect.width / 2;
-      const overCenter = overRect.left + overRect.width / 2;
-      const dx = activeCenter - overCenter;
-      const threshold = overRect.width * 0.4;
-      if (dx < -threshold) {
-        applyChange(reorderSibling(tree, draggedId, targetId, 'before'));
-        return;
-      }
-      if (dx > threshold) {
-        applyChange(reorderSibling(tree, draggedId, targetId, 'after'));
-        return;
-      }
+    const side = computeDropSide(event);
+    if (side === 'left') {
+      applyChange(reorderSibling(tree, draggedId, targetId, 'before'));
+      return;
+    }
+    if (side === 'right') {
+      applyChange(reorderSibling(tree, draggedId, targetId, 'after'));
+      return;
     }
     applyChange(reparentNode(tree, draggedId, targetId));
   }
@@ -903,10 +924,15 @@ export default function OrganogramaPage() {
         <DndContext
           sensors={sensors}
           onDragStart={e => setActiveId(String(e.active.id))}
-          onDragOver={e => setOverId(e.over ? String(e.over.id) : null)}
+          onDragOver={e => {
+            setOverId(e.over ? String(e.over.id) : null);
+            if (!e.over) setDropSide(null);
+          }}
+          onDragMove={e => setDropSide(computeDropSide(e))}
           onDragEnd={handleDragEnd}
-          onDragCancel={() => { setActiveId(null); setOverId(null); }}
+          onDragCancel={() => { setActiveId(null); setOverId(null); setDropSide(null); }}
         >
+         <DropSideContext.Provider value={dropSide}>
           <div ref={containerRef} className="relative inline-block min-w-full">
             {/* SVG connector lines */}
             <svg
@@ -936,6 +962,7 @@ export default function OrganogramaPage() {
           <DragOverlay dropAnimation={null}>
             {activeNode && <NodeCard node={activeNode} isDragOverlay />}
           </DragOverlay>
+         </DropSideContext.Provider>
         </DndContext>
       </div>
 
