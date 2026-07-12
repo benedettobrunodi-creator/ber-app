@@ -48,8 +48,13 @@ interface Oc { id: string; numero: string; fornecedor: string; descricao: string
 interface OcsResp { ocs: Oc[]; totals: { total: number; byStatus: Record<string, number> } }
 interface PlanoLite { id: string; pacote: string; dataLimite: string | null; statusEfetivo: string }
 interface AtaCorridaSummary {
-  topicos: { id: string; status: string; dataAlvo: string | null; dataFinal: string | null }[];
-  reunioes: { id: string; data: string }[];
+  topicos: {
+    id: string;
+    status: string;
+    dataAlvo: string | null;
+    dataFinal: string | null;
+    atualizacoes: { id: string; data: string; texto: string }[];
+  }[];
 }
 interface Kickoff { id: string; dataRealizada: string | null; participantes: { nome: string; papel?: string | null }[]; decisoes: string | null }
 interface Documento { id: string; tipo: string; nome: string; status: string; dataEmissao: string | null }
@@ -603,13 +608,18 @@ export default function Gestao360Page() {
               title={`Ata Corrida (${ata?.topicos.length ?? 0} tópicos)`}
               linkTo={`/obras/${obraId}/atas?from=gestao-360`}
             >
-              {!ata || (ata.topicos.length === 0 && ata.reunioes.length === 0) ? (
+              {!ata || ata.topicos.length === 0 ? (
                 <EmptyMsg msg="Nenhum tópico cadastrado — abra a Ata Corrida para começar." />
               ) : (() => {
                 const atrasados = ata.topicos.filter(t => t.status === 'atrasado').length;
                 const emAnd = ata.topicos.filter(t => t.status === 'em_andamento').length;
                 const concl = ata.topicos.filter(t => t.status === 'concluido').length;
-                const ultima = ata.reunioes.length > 0 ? ata.reunioes[ata.reunioes.length - 1].data : null;
+                const todasAtualizacoes = ata.topicos.flatMap(t => t.atualizacoes ?? []);
+                const totalAtualizacoes = todasAtualizacoes.length;
+                const ultima = todasAtualizacoes
+                  .map(a => a.data)
+                  .sort()
+                  .pop() ?? null;
                 return (
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-3 gap-2">
@@ -627,7 +637,7 @@ export default function Gestao360Page() {
                       </div>
                     </div>
                     <p className="text-xs text-ber-gray">
-                      {ata.reunioes.length} reunião(ões) · última: <strong>{fmtDate(ultima)}</strong>
+                      {totalAtualizacoes} atualização(ões) no histórico · última: <strong>{fmtDate(ultima)}</strong>
                     </p>
                   </div>
                 );
