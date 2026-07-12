@@ -5,8 +5,8 @@ import {
   createTopicoSchema,
   updateTopicoSchema,
   reorderTopicosSchema,
-  createReuniaoSchema,
-  upsertNotaSchema,
+  createAtualizacaoSchema,
+  updateAtualizacaoSchema,
 } from './types';
 import * as ctrl from './controller';
 
@@ -25,9 +25,7 @@ obraAtasRouter.patch('/topicos/reorder', obraMemberOnly, validate(reorderTopicos
 obraAtasRouter.patch('/topicos/:topicoId', obraMemberOnly, validate(updateTopicoSchema), w(ctrl.updateTopico));
 obraAtasRouter.delete('/topicos/:topicoId', obraMemberOnly, w(ctrl.removeTopico));
 
-// Reuniões (colunas)
-obraAtasRouter.post('/reunioes', obraMemberOnly, validate(createReuniaoSchema), w(ctrl.createReuniao));
-obraAtasRouter.delete('/reunioes/:reuniaoId', obraMemberOnly, w(ctrl.removeReuniao));
-
-// Notas (células)
-obraAtasRouter.put('/notas', obraMemberOnly, validate(upsertNotaSchema), w(ctrl.upsertNota));
+// Atualizações do tópico (timeline interna)
+obraAtasRouter.post('/topicos/:topicoId/atualizacoes', obraMemberOnly, validate(createAtualizacaoSchema), w(ctrl.addAtualizacao));
+obraAtasRouter.patch('/atualizacoes/:atualizacaoId', obraMemberOnly, validate(updateAtualizacaoSchema), w(ctrl.updateAtualizacao));
+obraAtasRouter.delete('/atualizacoes/:atualizacaoId', obraMemberOnly, w(ctrl.removeAtualizacao));

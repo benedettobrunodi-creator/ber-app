@@ -81,6 +81,8 @@ model User {
   customRoleId            String?                 @map("custom_role_id") @db.Uuid
   orcamentosResponsavel   Orcamento[]             @relation("OrcResp")
   orcamentosCriados       Orcamento[]             @relation("OrcCriador")
+  quantitativosCriados    Quantitativo[]          @relation("QuantCriador")
+  quantitativoItensRevs   QuantitativoItem[]      @relation("QuantItemRevisor")
   apiKeys                 ApiKey[]                @relation("ApiKeyCreator")
   diariosCriados          DiarioObra[]            @relation("DiarioCriadoPor")
   diariosFechados         DiarioObra[]            @relation("DiarioFechadoPor")
@@ -147,8 +149,8 @@ model Obra {
   areaM2                Float?  @map("area_m2")
 
   // — Medição financeira (migração ber-medicao 2026-06-22) —
-  prazoPagamentoDias   Int      @default(30) @map("prazo_pagamento_dias")
-  retencaoPercentual   Decimal  @default(0)  @map("retencao_percentual") @db.Decimal(5, 2)
+  prazoPagamentoDias Int     @default(30) @map("prazo_pagamento_dias")
+  retencaoPercentual Decimal @default(0) @map("retencao_percentual") @db.Decimal(5, 2)
 
   // Relations
   coordinator        User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
@@ -196,7 +198,6 @@ model Obra {
   contratacoes       ObraContratacao[]
   ordensCompra       ObraOrdemCompra[]
   ataTopicos         ObraAtaTopico[]
-  ataReunioes        ObraAtaReuniao[]
   documentos         ObraDocumento[]
   stakeholders       ObraStakeholder[]
   kickoff            ObraKickoff?
@@ -928,9 +929,9 @@ model PunchListItem {
   createdAt     DateTime  @default(now()) @map("created_at")
 
   // ─── Origem (Sprint 1.4) ─── alimenta o módulo Pendências unificado
-  origem      String    @default("livre") @db.VarChar(20)
+  origem String    @default("livre") @db.VarChar(20)
   // livre | diario | vistoria
-  prazo       DateTime? @db.Date
+  prazo  DateTime? @db.Date
 
   punchList   PunchList @relation(fields: [punchListId], references: [id], onDelete: Cascade)
   responsible User?     @relation("PunchListResponsible", fields: [responsibleId], references: [id])
@@ -1245,14 +1246,14 @@ enum NfStatus {
 }
 
 model Etapa {
-  id                    String   @id @default(uuid()) @db.Uuid
-  obraId                String   @map("obra_id") @db.Uuid
+  id                    String  @id @default(uuid()) @db.Uuid
+  obraId                String  @map("obra_id") @db.Uuid
   ordem                 Int
   nome                  String
   descricao             String?
-  contratoValor         Decimal  @map("contrato_valor") @db.Decimal(14, 2)
-  fornecedoresCompletos Boolean  @default(false) @map("fornecedores_completos")
-  excelLinha            Int?     @map("excel_linha")
+  contratoValor         Decimal @map("contrato_valor") @db.Decimal(14, 2)
+  fornecedoresCompletos Boolean @default(false) @map("fornecedores_completos")
+  excelLinha            Int?    @map("excel_linha")
 
   obra              Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
   etapaFornecedores EtapaFornecedor[]
@@ -1306,7 +1307,7 @@ model Medicao {
   dataPagamentoRealizado DateTime?     @map("data_pagamento_realizado") @db.Date
   createdAt              DateTime      @default(now()) @map("created_at")
 
-  obra               Obra                @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  obra               Obra                     @relation(fields: [obraId], references: [id], onDelete: Cascade)
   itens              MedicaoItem[]
   evidencias         MedicaoEvidencia[]
   transicoes         MedicaoTransicao[]
@@ -1564,18 +1565,69 @@ model Orcamento {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  responsavel  User?                @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
-  createdBy    User                 @relation("OrcCriador", fields: [createdById], references: [id])
-  pai          Orcamento?           @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
-  filhos       Orcamento[]          @relation("CO")
-  historico    OrcamentoHistorico[]
-  obra         Obra?                @relation("ObraOrcamento")
-  oportunidade CrmOportunidade?     @relation("OportOrcamento")
+  responsavel   User?                @relation("OrcResp", fields: [responsavelId], references: [id], onDelete: SetNull)
+  createdBy     User                 @relation("OrcCriador", fields: [createdById], references: [id])
+  pai           Orcamento?           @relation("CO", fields: [changeOrderDe], references: [id], onDelete: SetNull)
+  filhos        Orcamento[]          @relation("CO")
+  historico     OrcamentoHistorico[]
+  obra          Obra?                @relation("ObraOrcamento")
+  oportunidade  CrmOportunidade?     @relation("OportOrcamento")
+  quantitativos Quantitativo[]
 
   @@index([status])
   @@index([categoria])
   @@index([dataInicio, dataFim])
   @@map("orcamentos")
+}
+
+// Levantamento de quantitativos a partir de PDFs de projeto (arquitetura, elétrica,
+// hidráulica, layout). O usuário faz upload dos PDFs — IA extrai áreas, contagens
+// e escopos textuais por ambiente, gera itens quantificados. Bruna revisa/edita.
+model Quantitativo {
+  id            String    @id @default(uuid()) @db.Uuid
+  orcamentoId   String    @map("orcamento_id") @db.Uuid
+  status        String    @default("pendente") @db.VarChar(20)
+  // notas do orçamentista sobre o levantamento
+  observacoes   String?   @db.Text
+  // erro do processamento IA (se status='erro')
+  errorMsg      String?   @map("error_msg") @db.Text
+  // JSON bruto retornado pela IA (histórico/debug — os itens estruturados vão em quantitativo_itens)
+  resultadoJson Json?     @map("resultado_json")
+  createdById   String?   @map("created_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  processadoEm  DateTime? @map("processado_em")
+
+  orcamento Orcamento          @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  createdBy User?              @relation("QuantCriador", fields: [createdById], references: [id])
+  itens     QuantitativoItem[]
+
+  @@index([orcamentoId])
+  @@map("quantitativos")
+}
+
+model QuantitativoItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  quantitativoId String    @map("quantitativo_id") @db.Uuid
+  // Etapa da estrutura padrão do orçamento (ex: "REVESTIMENTOS E PISOS", "INSTALAÇÕES ELÉTRICAS")
+  etapa          String    @db.VarChar(100)
+  descricao      String    @db.Text
+  unidade        String    @db.VarChar(10)
+  quantidade     Float
+  // Onde a IA achou esse item (nome/link da prancha, ambiente)
+  origem         String?   @db.Text
+  // 0-1: mede o quão confiante a IA está — abaixo de 0.7 sinaliza revisão
+  confianca      Float?
+  // Se o item foi confirmado/editado por humano
+  revisadoPorId  String?   @map("revisado_por_id") @db.Uuid
+  revisadoEm     DateTime? @map("revisado_em")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  quantitativo Quantitativo @relation(fields: [quantitativoId], references: [id], onDelete: Cascade)
+  revisadoPor  User?        @relation("QuantItemRevisor", fields: [revisadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([quantitativoId])
+  @@map("quantitativo_itens")
 }
 
 model OrcamentoHistorico {
@@ -2248,8 +2300,9 @@ model ObraAtaTopico {
   impacto       String    @default("sem_impacto") @db.VarChar(20)
   // sem_impacto | custo | cronograma | projeto
   changeOrder   Boolean   @default(false) @map("change_order")
+  disciplina    String?   @db.VarChar(150)
   tema          String?
-  area          String?   @db.VarChar(150)
+  observacoes   String?
   responsavelId String?   @map("responsavel_id") @db.Uuid
   dataInfo      DateTime? @map("data_info") @db.Date
   dataAlvo      DateTime? @map("data_alvo") @db.Date
@@ -2257,43 +2310,25 @@ model ObraAtaTopico {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra        Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  responsavel User?         @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
-  notas       ObraAtaNota[]
+  obra          Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel   User?                      @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
+  atualizacoes  ObraAtaTopicoAtualizacao[]
 
   @@index([obraId])
   @@map("obra_ata_topicos")
 }
 
-model ObraAtaReuniao {
-  id        String   @id @default(uuid()) @db.Uuid
-  obraId    String   @map("obra_id") @db.Uuid
-  data      DateTime @db.Date
-  createdAt DateTime @default(now()) @map("created_at")
-
-  obra  Obra          @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  notas ObraAtaNota[]
-
-  @@unique([obraId, data])
-  @@index([obraId])
-  @@map("obra_ata_reunioes")
-}
-
-model ObraAtaNota {
+model ObraAtaTopicoAtualizacao {
   id        String   @id @default(uuid()) @db.Uuid
   topicoId  String   @map("topico_id") @db.Uuid
-  reuniaoId String   @map("reuniao_id") @db.Uuid
+  data      DateTime @db.Date
   texto     String
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  topico  ObraAtaTopico  @relation(fields: [topicoId], references: [id], onDelete: Cascade)
-  reuniao ObraAtaReuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  topico ObraAtaTopico @relation(fields: [topicoId], references: [id], onDelete: Cascade)
 
-  @@unique([topicoId, reuniaoId])
-  @@index([topicoId])
-  @@index([reuniaoId])
-  @@map("obra_ata_notas")
+  @@index([topicoId, data])
+  @@map("obra_ata_topico_atualizacoes")
 }
 
 // ─── ObraContratacao (formaliza contrato com fornecedor) ─────────────────

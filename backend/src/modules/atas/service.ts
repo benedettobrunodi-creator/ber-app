@@ -3,8 +3,7 @@ import { AppError } from '../../utils/errors';
 import type {
   CreateTopicoInput,
   UpdateTopicoInput,
-  CreateReuniaoInput,
-  UpsertNotaInput,
+  CreateAtualizacaoInput,
 } from './types';
 
 const topicoSelect = {
@@ -13,17 +12,22 @@ const topicoSelect = {
   status: true,
   impacto: true,
   changeOrder: true,
+  disciplina: true,
   tema: true,
-  area: true,
+  observacoes: true,
   responsavelId: true,
   dataInfo: true,
   dataAlvo: true,
   dataFinal: true,
   responsavel: { select: { id: true, name: true } },
+  atualizacoes: {
+    orderBy: { data: 'desc' as const },
+    select: { id: true, data: true, texto: true, createdAt: true },
+  },
 } as const;
 
 export async function getAtaCorrida(obraId: string) {
-  const [obra, stakeholders, topicos, reunioes, notas] = await Promise.all([
+  const [obra, stakeholders, topicos] = await Promise.all([
     prisma.obra.findUnique({
       where: { id: obraId },
       select: {
@@ -48,20 +52,11 @@ export async function getAtaCorrida(obraId: string) {
       orderBy: [{ ordem: 'asc' }, { createdAt: 'asc' }],
       select: topicoSelect,
     }),
-    prisma.obraAtaReuniao.findMany({
-      where: { obraId },
-      orderBy: { data: 'asc' },
-      select: { id: true, data: true },
-    }),
-    prisma.obraAtaNota.findMany({
-      where: { topico: { obraId } },
-      select: { topicoId: true, reuniaoId: true, texto: true },
-    }),
   ]);
 
   if (!obra) throw AppError.notFound('Obra');
 
-  return { obra, stakeholders, topicos, reunioes, notas };
+  return { obra, stakeholders, topicos };
 }
 
 export async function createTopico(obraId: string, input: CreateTopicoInput) {
@@ -77,8 +72,9 @@ export async function createTopico(obraId: string, input: CreateTopicoInput) {
       status: input.status ?? 'em_andamento',
       impacto: input.impacto ?? 'sem_impacto',
       changeOrder: input.changeOrder ?? false,
+      disciplina: input.disciplina ?? null,
       tema: input.tema ?? null,
-      area: input.area ?? null,
+      observacoes: input.observacoes ?? null,
       responsavelId: input.responsavelId ?? null,
       dataInfo: input.dataInfo ? new Date(input.dataInfo) : null,
       dataAlvo: input.dataAlvo ? new Date(input.dataAlvo) : null,
@@ -96,8 +92,9 @@ export async function updateTopico(topicoId: string, input: UpdateTopicoInput) {
       ...(input.status !== undefined && { status: input.status }),
       ...(input.impacto !== undefined && { impacto: input.impacto }),
       ...(input.changeOrder !== undefined && { changeOrder: input.changeOrder }),
+      ...(input.disciplina !== undefined && { disciplina: input.disciplina }),
       ...(input.tema !== undefined && { tema: input.tema }),
-      ...(input.area !== undefined && { area: input.area }),
+      ...(input.observacoes !== undefined && { observacoes: input.observacoes }),
       ...(input.responsavelId !== undefined && { responsavelId: input.responsavelId }),
       ...(input.dataInfo !== undefined && { dataInfo: input.dataInfo ? new Date(input.dataInfo) : null }),
       ...(input.dataAlvo !== undefined && { dataAlvo: input.dataAlvo ? new Date(input.dataAlvo) : null }),
@@ -127,38 +124,26 @@ export async function reorderTopicos(obraId: string, ids: string[]) {
   });
 }
 
-export async function createReuniao(obraId: string, input: CreateReuniaoInput) {
-  try {
-    return await prisma.obraAtaReuniao.create({
-      data: { obraId, data: new Date(input.data) },
-      select: { id: true, data: true },
-    });
-  } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'P2002') {
-      throw AppError.conflict('Já existe reunião nessa data');
-    }
-    throw err;
-  }
-}
-
-export async function removeReuniao(reuniaoId: string) {
-  await prisma.obraAtaReuniao.delete({ where: { id: reuniaoId } });
-}
-
-export async function upsertNota(input: UpsertNotaInput) {
+export async function addAtualizacao(topicoId: string, input: CreateAtualizacaoInput) {
   const texto = input.texto.trim();
-  if (texto.length === 0) {
-    await prisma.obraAtaNota.deleteMany({
-      where: { topicoId: input.topicoId, reuniaoId: input.reuniaoId },
-    });
-    return null;
-  }
-  return prisma.obraAtaNota.upsert({
-    where: {
-      topicoId_reuniaoId: { topicoId: input.topicoId, reuniaoId: input.reuniaoId },
-    },
-    create: { topicoId: input.topicoId, reuniaoId: input.reuniaoId, texto },
-    update: { texto },
-    select: { topicoId: true, reuniaoId: true, texto: true },
+  if (!texto) throw AppError.badRequest('Texto da atualização é obrigatório');
+  return prisma.obraAtaTopicoAtualizacao.create({
+    data: { topicoId, data: new Date(input.data), texto },
+    select: { id: true, data: true, texto: true, createdAt: true },
   });
+}
+
+export async function updateAtualizacao(atualizacaoId: string, input: Partial<CreateAtualizacaoInput>) {
+  return prisma.obraAtaTopicoAtualizacao.update({
+    where: { id: atualizacaoId },
+    data: {
+      ...(input.data !== undefined && { data: new Date(input.data) }),
+      ...(input.texto !== undefined && { texto: input.texto.trim() }),
+    },
+    select: { id: true, data: true, texto: true, createdAt: true },
+  });
+}
+
+export async function removeAtualizacao(atualizacaoId: string) {
+  await prisma.obraAtaTopicoAtualizacao.delete({ where: { id: atualizacaoId } });
 }

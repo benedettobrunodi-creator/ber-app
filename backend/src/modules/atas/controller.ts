@@ -26,17 +26,17 @@ export async function reorderTopicos(req: Request, res: Response) {
   res.json({ data });
 }
 
-export async function createReuniao(req: Request, res: Response) {
-  const data = await service.createReuniao(req.params.obraId, req.body);
+export async function addAtualizacao(req: Request, res: Response) {
+  const data = await service.addAtualizacao(req.params.topicoId, req.body);
   res.status(201).json({ data });
 }
 
-export async function removeReuniao(req: Request, res: Response) {
-  await service.removeReuniao(req.params.reuniaoId);
-  res.status(204).end();
+export async function updateAtualizacao(req: Request, res: Response) {
+  const data = await service.updateAtualizacao(req.params.atualizacaoId, req.body);
+  res.json({ data });
 }
 
-export async function upsertNota(req: Request, res: Response) {
-  const data = await service.upsertNota(req.body);
-  res.json({ data });
+export async function removeAtualizacao(req: Request, res: Response) {
+  await service.removeAtualizacao(req.params.atualizacaoId);
+  res.status(204).end();
 }

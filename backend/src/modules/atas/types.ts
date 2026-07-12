@@ -7,8 +7,9 @@ export const createTopicoSchema = z.object({
   status:        z.enum(ATA_STATUS).optional(),
   impacto:       z.enum(ATA_IMPACTO).optional(),
   changeOrder:   z.boolean().optional(),
+  disciplina:    z.string().max(150).optional().nullable(),
   tema:          z.string().optional().nullable(),
-  area:          z.string().max(150).optional().nullable(),
+  observacoes:   z.string().optional().nullable(),
   responsavelId: z.string().uuid().optional().nullable(),
   dataInfo:      z.string().optional().nullable(),
   dataAlvo:      z.string().optional().nullable(),
@@ -23,18 +24,14 @@ export const reorderTopicosSchema = z.object({
   ordem: z.array(z.string().uuid()),
 });
 
-export const createReuniaoSchema = z.object({
-  data: z.string().min(1),
+export const createAtualizacaoSchema = z.object({
+  data:  z.string().min(1),
+  texto: z.string().min(1),
 });
 
-export const upsertNotaSchema = z.object({
-  topicoId:  z.string().uuid(),
-  reuniaoId: z.string().uuid(),
-  texto:     z.string(),
-});
+export const updateAtualizacaoSchema = createAtualizacaoSchema.partial();
 
 export type CreateTopicoInput = z.infer<typeof createTopicoSchema>;
 export type UpdateTopicoInput = z.infer<typeof updateTopicoSchema>;
 export type ReorderTopicosInput = z.infer<typeof reorderTopicosSchema>;
-export type CreateReuniaoInput = z.infer<typeof createReuniaoSchema>;
-export type UpsertNotaInput = z.infer<typeof upsertNotaSchema>;
+export type CreateAtualizacaoInput = z.infer<typeof createAtualizacaoSchema>;
