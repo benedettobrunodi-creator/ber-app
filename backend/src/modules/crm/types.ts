@@ -151,6 +151,8 @@ export const createOportunidadeSchema = z.object({
   dataGanho: dateOrNull,
   motivoPerda: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
+  estrela: z.boolean().optional(),
+  notasEstrategia: z.string().optional().nullable(),
   orcamentoId: z.string().uuid().optional().nullable(),
 });
 export const updateOportunidadeSchema = createOportunidadeSchema.partial();

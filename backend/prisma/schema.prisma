@@ -1928,6 +1928,8 @@ model CrmOportunidade {
   dataGanho              DateTime? @map("data_ganho") @db.Date
   motivoPerda            String?   @map("motivo_perda")
   observacoes            String?
+  estrela                Boolean   @default(false)
+  notasEstrategia        String?   @map("notas_estrategia")
   orcamentoId            String?   @unique @map("orcamento_id") @db.Uuid
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")

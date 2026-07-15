@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat, Star } from 'lucide-react';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
@@ -40,9 +40,11 @@ interface Props {
 function CardOportunidade({
   op,
   onClick,
+  onToggleEstrela,
 }: {
   op: Oportunidade;
   onClick: () => void;
+  onToggleEstrela: (id: string, novo: boolean) => void;
 }) {
   const proximaAtividade = op.atividades?.[0];
   const vencida = proximaAtividade && new Date(proximaAtividade.dataHora) < new Date();
@@ -50,11 +52,29 @@ function CardOportunidade({
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-ber-border rounded-lg p-3 cursor-pointer hover:shadow-md hover:border-ber-teal/40 transition-all group"
+      className={`bg-white border rounded-lg p-3 cursor-pointer hover:shadow-md transition-all group ${
+        op.estrela
+          ? 'border-amber-400 shadow-[0_0_0_1px_rgba(245,158,11,0.35)] hover:border-amber-500'
+          : 'border-ber-border hover:border-ber-teal/40'
+      }`}
     >
-      <p className="text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
-        {op.titulo}
-      </p>
+      <div className="flex items-start gap-2">
+        <p className="flex-1 text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
+          {op.titulo}
+        </p>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleEstrela(op.id, !op.estrela); }}
+          className={`shrink-0 -mr-1 -mt-1 rounded p-1 transition-colors ${
+            op.estrela
+              ? 'text-amber-500 hover:text-amber-600'
+              : 'text-ber-gray/30 hover:text-amber-400'
+          }`}
+          title={op.estrela ? 'Remover marca de projeto estratégico' : 'Marcar como projeto estratégico'}
+        >
+          <Star size={16} fill={op.estrela ? 'currentColor' : 'none'} />
+        </button>
+      </div>
       <div className="mt-1 flex items-center gap-1.5 min-w-0">
         {op.empresa && (
           <p className="text-xs text-ber-gray truncate">{op.empresa.razaoSocial}</p>
@@ -136,6 +156,8 @@ function OportunidadeDrawer({
     dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
     motivoPerda: op?.motivoPerda ?? '',
     observacoes: op?.observacoes ?? '',
+    estrela: op?.estrela ?? false,
+    notasEstrategia: op?.notasEstrategia ?? '',
     segmento: op?.empresa?.segmento ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -239,6 +261,8 @@ function OportunidadeDrawer({
         dataGanho: form.dataGanho || null,
         motivoPerda: isPerdido ? (form.motivoPerda.trim() || null) : null,
         observacoes: form.observacoes || null,
+        estrela: form.estrela,
+        notasEstrategia: form.notasEstrategia || null,
       };
       if (isNew) {
         await api.post('/crm/oportunidades', payload);
@@ -269,7 +293,17 @@ function OportunidadeDrawer({
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-white shadow-xl flex flex-col h-full overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-ber-border">
-          <h2 className="font-bold text-ber-carbon">{isNew ? 'Nova Oportunidade' : 'Editar Oportunidade'}</h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, estrela: !f.estrela }))}
+              className={`rounded p-1 transition-colors ${form.estrela ? 'text-amber-500 hover:text-amber-600' : 'text-ber-gray/40 hover:text-amber-400'}`}
+              title={form.estrela ? 'Remover marca de projeto estratégico' : 'Marcar como projeto estratégico'}
+            >
+              <Star size={18} fill={form.estrela ? 'currentColor' : 'none'} />
+            </button>
+            <h2 className="font-bold text-ber-carbon">{isNew ? 'Nova Oportunidade' : 'Editar Oportunidade'}</h2>
+          </div>
           <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
         </div>
         <div className="flex-1 p-4 space-y-4">
@@ -427,6 +461,21 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
             />
           </div>
+          {form.estrela && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                <Star size={12} fill="currentColor" />
+                Estratégia — orçamento + engenharia
+              </label>
+              <textarea
+                className="w-full border border-amber-300 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"
+                rows={3}
+                placeholder="Qual é a jogada aqui? Ex: cliente prefere solução técnica embutida, entrar com engenharia junto do orçamento…"
+                value={form.notasEstrategia}
+                onChange={(e) => setForm((f) => ({ ...f, notasEstrategia: e.target.value }))}
+              />
+            </div>
+          )}
           {!isNew && (
             <div className="rounded-lg border border-ber-border bg-ber-surface p-3 space-y-2">
               <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Orçamento</p>
@@ -644,6 +693,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   const [sortCol, setSortCol] = useState<SortCol>('etapa');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filters, setFilters] = useState<Filters>({ search: '', etapas: [], responsavelIds: [], probabilidades: [] });
+  const [soEstrategicos, setSoEstrategicos] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [etapaDropOpen, setEtapaDropOpen] = useState(false);
   const [respDropOpen, setRespDropOpen] = useState(false);
@@ -679,24 +729,25 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
     if (filters.etapas.length > 0) ops = ops.filter(o => filters.etapas.includes(o.etapa));
     if (filters.responsavelIds.length > 0) ops = ops.filter(o => filters.responsavelIds.includes(o.responsavel?.id ?? ''));
     if (filters.probabilidades.length > 0) ops = ops.filter(o => filters.probabilidades.includes(o.probabilidade ?? ''));
+    if (soEstrategicos) ops = ops.filter(o => o.estrela);
     return ops;
-  }, [oportunidades, filters]);
+  }, [oportunidades, filters, soEstrategicos]);
 
   const activeFilterCount = [filters.etapas.length > 0, filters.responsavelIds.length > 0, filters.probabilidades.length > 0].filter(Boolean).length;
 
   const grouped = useCallback(() => {
     const map: Record<string, Oportunidade[]> = {};
     for (const e of KANBAN_ETAPAS) map[e.value] = [];
-    for (const op of oportunidades) {
+    for (const op of filteredOps) {
       if (map[op.etapa]) map[op.etapa].push(op);
       else if (!TERMINAL_ETAPAS.includes(op.etapa)) map['lead'].push(op);
     }
     return map;
-  }, [oportunidades]);
+  }, [filteredOps]);
 
   const byEtapa = grouped();
   const byTerminal = (etapa: string) =>
-    oportunidades
+    filteredOps
       .filter((o) => o.etapa === etapa)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
@@ -708,6 +759,15 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   const handleMoveEtapa = async (opId: string, etapa: string) => {
     await api.patch(`/crm/oportunidades/${opId}`, { etapa });
     onRefresh();
+  };
+
+  const handleToggleEstrela = async (opId: string, novo: boolean) => {
+    try {
+      await api.patch(`/crm/oportunidades/${opId}`, { estrela: novo });
+      onRefresh();
+    } catch (err) {
+      console.error('Erro ao alternar estrela', err);
+    }
   };
 
   return (
@@ -723,6 +783,14 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSoEstrategicos(v => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${soEstrategicos ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-ber-border bg-white text-ber-gray hover:text-ber-carbon'}`}
+            title="Mostrar só oportunidades marcadas como estratégicas"
+          >
+            <Star size={13} fill={soEstrategicos ? 'currentColor' : 'none'} />
+            Estratégicos
+          </button>
           {viewMode === 'lista' && (
             <button
               onClick={() => setShowFilters(v => !v)}
@@ -1026,7 +1094,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
               )}
               <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
                 {cards.map((op) => (
-                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
                 ))}
                 {cards.length === 0 && (
                   <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
@@ -1048,7 +1116,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-green-50/50 border border-green-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {ganhos.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
             ))}
             {ganhos.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1071,7 +1139,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-red-50/50 border border-red-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {perdidos.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
             ))}
             {perdidos.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1091,7 +1159,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-orange-50/50 border border-orange-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {declinados.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
             ))}
             {declinados.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1111,7 +1179,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-gray-50/50 border border-gray-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {cancelados.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
             ))}
             {cancelados.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>

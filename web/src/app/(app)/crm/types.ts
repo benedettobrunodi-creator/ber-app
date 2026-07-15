@@ -113,6 +113,8 @@ export interface Oportunidade {
   dataGanho: string | null;
   motivoPerda: string | null;
   observacoes: string | null;
+  estrela: boolean;
+  notasEstrategia: string | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
   contato: { id: string; nome: string; cargo: string | null } | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;
