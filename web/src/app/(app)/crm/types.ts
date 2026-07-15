@@ -115,6 +115,14 @@ export interface Oportunidade {
   observacoes: string | null;
   estrela: boolean;
   notasEstrategia: string | null;
+  icpEstrategico: boolean;
+  icpLocalizacao: boolean;
+  icpTicket: boolean;
+  icpCiclo: boolean;
+  bantBudget: boolean;
+  bantAuthority: boolean;
+  bantNeed: boolean;
+  bantTimeline: boolean;
   empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
   contato: { id: string; nome: string; cargo: string | null } | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;

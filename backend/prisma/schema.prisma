@@ -1930,6 +1930,16 @@ model CrmOportunidade {
   observacoes            String?
   estrela                Boolean   @default(false)
   notasEstrategia        String?   @map("notas_estrategia")
+  // ICP — perfil ideal de cliente (checklist)
+  icpEstrategico         Boolean   @default(false) @map("icp_estrategico")
+  icpLocalizacao         Boolean   @default(false) @map("icp_localizacao")
+  icpTicket              Boolean   @default(false) @map("icp_ticket")
+  icpCiclo               Boolean   @default(false) @map("icp_ciclo")
+  // BANT — qualificação de venda
+  bantBudget             Boolean   @default(false) @map("bant_budget")
+  bantAuthority          Boolean   @default(false) @map("bant_authority")
+  bantNeed               Boolean   @default(false) @map("bant_need")
+  bantTimeline           Boolean   @default(false) @map("bant_timeline")
   orcamentoId            String?   @unique @map("orcamento_id") @db.Uuid
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")

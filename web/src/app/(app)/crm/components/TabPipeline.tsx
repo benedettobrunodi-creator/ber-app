@@ -37,6 +37,25 @@ interface Props {
   onRefresh: () => void;
 }
 
+function countTrue(bools: boolean[]): number {
+  return bools.filter(Boolean).length;
+}
+
+function QualifBadge({ label, score }: { label: string; score: number }) {
+  // 0 = cinza, 1-2 = âmbar, 3 = azul, 4 = verde
+  const cls =
+    score === 4 ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
+    : score >= 3 ? 'bg-blue-100 text-blue-700 ring-blue-200'
+    : score >= 1 ? 'bg-amber-100 text-amber-700 ring-amber-200'
+    : 'bg-ber-surface text-ber-gray/70 ring-ber-border';
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${cls}`}>
+      <span className="opacity-80">{label}</span>
+      <span className="tabular-nums">{score}/4</span>
+    </span>
+  );
+}
+
 function CardOportunidade({
   op,
   onClick,
@@ -96,6 +115,10 @@ function CardOportunidade({
             {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
           </span>
         )}
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <QualifBadge label="ICP" score={countTrue([op.icpEstrategico, op.icpLocalizacao, op.icpTicket, op.icpCiclo])} />
+        <QualifBadge label="BANT" score={countTrue([op.bantBudget, op.bantAuthority, op.bantNeed, op.bantTimeline])} />
       </div>
       {proximaAtividade && (
         <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
@@ -158,6 +181,14 @@ function OportunidadeDrawer({
     observacoes: op?.observacoes ?? '',
     estrela: op?.estrela ?? false,
     notasEstrategia: op?.notasEstrategia ?? '',
+    icpEstrategico: op?.icpEstrategico ?? false,
+    icpLocalizacao: op?.icpLocalizacao ?? false,
+    icpTicket: op?.icpTicket ?? false,
+    icpCiclo: op?.icpCiclo ?? false,
+    bantBudget: op?.bantBudget ?? false,
+    bantAuthority: op?.bantAuthority ?? false,
+    bantNeed: op?.bantNeed ?? false,
+    bantTimeline: op?.bantTimeline ?? false,
     segmento: op?.empresa?.segmento ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -263,6 +294,14 @@ function OportunidadeDrawer({
         observacoes: form.observacoes || null,
         estrela: form.estrela,
         notasEstrategia: form.notasEstrategia || null,
+        icpEstrategico: form.icpEstrategico,
+        icpLocalizacao: form.icpLocalizacao,
+        icpTicket: form.icpTicket,
+        icpCiclo: form.icpCiclo,
+        bantBudget: form.bantBudget,
+        bantAuthority: form.bantAuthority,
+        bantNeed: form.bantNeed,
+        bantTimeline: form.bantTimeline,
       };
       if (isNew) {
         await api.post('/crm/oportunidades', payload);
@@ -461,6 +500,59 @@ function OportunidadeDrawer({
               onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
             />
           </div>
+
+          {/* ICP */}
+          <div className="rounded-lg border border-ber-border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">ICP — Perfil ideal de cliente</p>
+              <span className="text-[11px] font-bold text-ber-carbon tabular-nums">
+                {[form.icpEstrategico, form.icpLocalizacao, form.icpTicket, form.icpCiclo].filter(Boolean).length}/4
+              </span>
+            </div>
+            {[
+              { key: 'icpEstrategico', label: 'Cliente estratégico (recorrência / portfólio)' },
+              { key: 'icpLocalizacao', label: 'Localização (São Paulo)' },
+              { key: 'icpTicket',      label: 'Ticket compatível (~R$1MM)' },
+              { key: 'icpCiclo',       label: 'Ciclo compatível (~90 dias)' },
+            ].map((it) => (
+              <label key={it.key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(form as unknown as Record<string, boolean>)[it.key]}
+                  onChange={(e) => setForm((f) => ({ ...f, [it.key]: e.target.checked }))}
+                  className="h-4 w-4 accent-ber-teal"
+                />
+                <span className="text-xs text-ber-carbon">{it.label}</span>
+              </label>
+            ))}
+          </div>
+
+          {/* BANT */}
+          <div className="rounded-lg border border-ber-border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">BANT — Qualificação de venda</p>
+              <span className="text-[11px] font-bold text-ber-carbon tabular-nums">
+                {[form.bantBudget, form.bantAuthority, form.bantNeed, form.bantTimeline].filter(Boolean).length}/4
+              </span>
+            </div>
+            {[
+              { key: 'bantBudget',    label: 'Budget — tem verba' },
+              { key: 'bantAuthority', label: 'Authority — falo com quem decide' },
+              { key: 'bantNeed',      label: 'Need — dor / necessidade clara' },
+              { key: 'bantTimeline',  label: 'Timeline — quando vai comprar' },
+            ].map((it) => (
+              <label key={it.key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(form as unknown as Record<string, boolean>)[it.key]}
+                  onChange={(e) => setForm((f) => ({ ...f, [it.key]: e.target.checked }))}
+                  className="h-4 w-4 accent-ber-teal"
+                />
+                <span className="text-xs text-ber-carbon">{it.label}</span>
+              </label>
+            ))}
+          </div>
+
           {form.estrela && (
             <div className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-2">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 uppercase tracking-wide">

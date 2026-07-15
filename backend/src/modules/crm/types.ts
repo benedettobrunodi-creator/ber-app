@@ -153,6 +153,14 @@ export const createOportunidadeSchema = z.object({
   observacoes: z.string().optional().nullable(),
   estrela: z.boolean().optional(),
   notasEstrategia: z.string().optional().nullable(),
+  icpEstrategico: z.boolean().optional(),
+  icpLocalizacao: z.boolean().optional(),
+  icpTicket: z.boolean().optional(),
+  icpCiclo: z.boolean().optional(),
+  bantBudget: z.boolean().optional(),
+  bantAuthority: z.boolean().optional(),
+  bantNeed: z.boolean().optional(),
+  bantTimeline: z.boolean().optional(),
   orcamentoId: z.string().uuid().optional().nullable(),
 });
 export const updateOportunidadeSchema = createOportunidadeSchema.partial();
