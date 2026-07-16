@@ -1865,6 +1865,10 @@ model CrmContato {
   principal           Boolean   @default(false)
   agendorId           String?   @unique @map("agendor_id") @db.VarChar(50)
   nutricao            Boolean   @default(false)
+  // Papel no processo de decisão
+  papel               String?   @db.VarChar(20)
+  // decisor | influenciador | neutro
+  estrela             Boolean   @default(false)
   // Funil de nutrição
   perfil              String?   @db.VarChar(30)
   // cliente_direto | arquitetura | gerenciadora | broker | incorporadora | fundo

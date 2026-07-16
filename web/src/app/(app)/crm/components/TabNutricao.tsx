@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState, Fragment } from 'react';
 import api from '@/lib/api';
 import {
   Plus, X, Copy, Check, Pencil, Trash2, GripVertical,
-  Filter, Search, MessageSquare, ThermometerSun, Settings2, AlertCircle,
+  Filter, Search, MessageSquare, ThermometerSun, Settings2, AlertCircle, Star,
 } from 'lucide-react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closestCorners, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Contato, User, NutricaoEtapa, NutricaoPerfil, NutricaoPotencial, NutricaoCanal, NutricaoTemplate, CampanhaNutricao,
-  NUTRICAO_ETAPAS, NUTRICAO_PERFIS, NUTRICAO_POTENCIAIS, NUTRICAO_CANAIS,
+  Contato, User, NutricaoEtapa, NutricaoPerfil, NutricaoPotencial, NutricaoCanal, NutricaoTemplate, CampanhaNutricao, PapelContato,
+  NUTRICAO_ETAPAS, NUTRICAO_PERFIS, NUTRICAO_POTENCIAIS, NUTRICAO_CANAIS, PAPEIS_CONTATO,
 } from '../types';
 
 type Segmento = 'todos' | NutricaoPerfil;
@@ -42,24 +42,41 @@ function CardContato({
   onOpenTouchpoints,
   onEdit,
   onRemove,
+  onToggleEstrela,
 }: {
   contato: Contato;
   onOpenTouchpoints: () => void;
   onEdit: () => void;
   onRemove: () => void;
+  onToggleEstrela: () => void;
 }) {
   const potCfg = potencialConfig(contato.potencial);
+  const papelCfg = PAPEIS_CONTATO.find(p => p.value === contato.papel);
   return (
-    <div className="bg-white border border-ber-border rounded-lg p-3 shadow-sm">
+    <div className={`bg-white border rounded-lg p-3 shadow-sm ${contato.estrela ? 'border-amber-400 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]' : 'border-ber-border'}`}>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ber-carbon leading-tight truncate">{contato.nome}</p>
-          {contato.cargo && <p className="text-[11px] text-ber-gray truncate">{contato.cargo}</p>}
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-semibold text-ber-carbon leading-tight truncate">{contato.nome}</p>
+          </div>
+          {contato.cargo && <p className="text-[11px] text-ber-carbon truncate font-medium">{contato.cargo}</p>}
           {contato.empresa && <p className="text-[11px] text-ber-gray truncate mt-0.5">{contato.empresa.razaoSocial}</p>}
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleEstrela(); }}
+          className={`shrink-0 rounded p-0.5 transition-colors ${contato.estrela ? 'text-amber-500 hover:text-amber-600' : 'text-ber-gray/30 hover:text-amber-400'}`}
+          title={contato.estrela ? 'Remover estrela' : 'Marcar como VIP (eventos/brindes)'}
+        >
+          <Star size={14} fill={contato.estrela ? 'currentColor' : 'none'} />
+        </button>
       </div>
 
       <div className="mt-2 flex items-center gap-1 flex-wrap">
+        {papelCfg && (
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${papelCfg.cls}`}>
+            {papelCfg.label}
+          </span>
+        )}
         {contato.perfil && (
           <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded">
             {perfilLabel(contato.perfil)}
@@ -111,6 +128,7 @@ function SortableCard(props: {
   onOpenTouchpoints: () => void;
   onEdit: () => void;
   onRemove: () => void;
+  onToggleEstrela: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.contato.id,
@@ -166,6 +184,7 @@ function EditContatoModal({
 }) {
   const [perfil, setPerfil] = useState<NutricaoPerfil | ''>(contato.perfil ?? '');
   const [potencial, setPotencial] = useState<NutricaoPotencial | ''>(contato.potencial ?? '');
+  const [papel, setPapel] = useState<PapelContato | ''>(contato.papel ?? '');
   const [etapa, setEtapa] = useState<NutricaoEtapa>(contato.etapaNutricao ?? 'descoberta');
   const [saving, setSaving] = useState(false);
 
@@ -175,6 +194,7 @@ function EditContatoModal({
       await api.patch(`/crm/contatos/${contato.id}`, {
         perfil: perfil || null,
         potencial: potencial || null,
+        papel: papel || null,
         etapaNutricao: etapa,
       });
       onSaved();
@@ -206,6 +226,15 @@ function EditContatoModal({
             className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm">
             <option value="">—</option>
             {NUTRICAO_POTENCIAIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Papel na decisão</label>
+          <select value={papel} onChange={e => setPapel(e.target.value as PapelContato)}
+            className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm">
+            <option value="">—</option>
+            {PAPEIS_CONTATO.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
 
@@ -710,6 +739,8 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
   const [segmento, setSegmento] = useState<Segmento>('todos');
   const [search, setSearch] = useState('');
   const [potencialFilter, setPotencialFilter] = useState<NutricaoPotencial | ''>('');
+  const [papelFilter, setPapelFilter] = useState<PapelContato | ''>('');
+  const [soEstrelas, setSoEstrelas] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -729,9 +760,11 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
       }
       if (segmento !== 'todos' && c.perfil !== segmento) return false;
       if (potencialFilter && c.potencial !== potencialFilter) return false;
+      if (papelFilter && c.papel !== papelFilter) return false;
+      if (soEstrelas && !c.estrela) return false;
       return true;
     });
-  }, [contatos, search, segmento, potencialFilter]);
+  }, [contatos, search, segmento, potencialFilter, papelFilter, soEstrelas]);
 
   // Contadores por segmento (pra mostrar nas sub-abas)
   const contadoresSegmento = useMemo(() => {
@@ -755,6 +788,17 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
     }
     return m;
   }, [filtered]);
+
+  async function handleToggleEstrela(contato: Contato) {
+    const novo = !contato.estrela;
+    setLocalContatos(prev => prev.map(c => c.id === contato.id ? { ...c, estrela: novo } : c));
+    try {
+      await api.patch(`/crm/contatos/${contato.id}`, { estrela: novo });
+    } catch (err) {
+      console.error('Erro ao alternar estrela', err);
+      onRefresh();
+    }
+  }
 
   async function handleRemoverContato(contato: Contato) {
     const confirm1 = confirm(`Excluir ${contato.nome} do CRM? Esta ação é permanente.`);
@@ -831,6 +875,21 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
             <option value="">Todos potenciais</option>
             {NUTRICAO_POTENCIAIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
+          <select value={papelFilter} onChange={e => setPapelFilter(e.target.value as PapelContato)}
+            className="text-xs border border-ber-border rounded-lg px-2 py-1.5">
+            <option value="">Todos papéis</option>
+            {PAPEIS_CONTATO.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <button
+            onClick={() => setSoEstrelas(v => !v)}
+            className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              soEstrelas ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-ber-border text-ber-gray hover:text-ber-carbon'
+            }`}
+            title="Mostrar só contatos marcados como VIP"
+          >
+            <Star size={12} fill={soEstrelas ? 'currentColor' : 'none'} />
+            VIP
+          </button>
           <button onClick={() => setShowCampanhas(true)}
             className="flex items-center gap-1.5 rounded-lg bg-ber-teal text-white px-3 py-1.5 text-xs font-semibold hover:bg-ber-teal/80">
             <Filter size={12} /> Campanhas
@@ -890,6 +949,7 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
                         onOpenTouchpoints={() => setTouchpointFor(c)}
                         onEdit={() => setEditContato(c)}
                         onRemove={() => handleRemoverContato(c)}
+                        onToggleEstrela={() => handleToggleEstrela(c)}
                       />
                     ))}
                     {cards.length === 0 && (

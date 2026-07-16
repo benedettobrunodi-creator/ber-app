@@ -65,6 +65,8 @@ export interface Contato {
   empresaId: string | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null } | null;
   nutricao: boolean;
+  papel: PapelContato | null;
+  estrela: boolean;
   perfil: NutricaoPerfil | null;
   potencial: NutricaoPotencial | null;
   etapaNutricao: NutricaoEtapa | null;
@@ -76,6 +78,7 @@ export interface Contato {
   endereco: string | null;
 }
 
+export type PapelContato    = 'decisor' | 'influenciador' | 'neutro';
 export type NutricaoEtapa    = 'descoberta' | 'consciencia' | 'engajamento' | 'consideracao' | 'ativo' | 'pos_venda';
 export type NutricaoPerfil   = 'cliente_direto' | 'arquitetura' | 'gerenciadora' | 'broker' | 'incorporadora' | 'fundo';
 export type NutricaoPotencial = 'estrategico' | 'padrao' | 'prospect';
@@ -103,6 +106,12 @@ export const NUTRICAO_POTENCIAIS: { value: NutricaoPotencial; label: string; cls
   { value: 'estrategico', label: 'Estratégico', cls: 'bg-amber-100 text-amber-700' },
   { value: 'padrao',      label: 'Padrão',      cls: 'bg-blue-100 text-blue-700' },
   { value: 'prospect',    label: 'Prospect',    cls: 'bg-neutral-200 text-neutral-600' },
+];
+
+export const PAPEIS_CONTATO: { value: PapelContato; label: string; cls: string }[] = [
+  { value: 'decisor',       label: 'Decisor',       cls: 'bg-red-100 text-red-700' },
+  { value: 'influenciador', label: 'Influenciador', cls: 'bg-purple-100 text-purple-700' },
+  { value: 'neutro',        label: 'Neutro',        cls: 'bg-neutral-200 text-neutral-600' },
 ];
 
 export const NUTRICAO_CANAIS: { value: NutricaoCanal; label: string; icon: string }[] = [

@@ -114,6 +114,8 @@ export const createContatoSchema = z.object({
   principal: z.boolean().default(false),
   agendorId: z.string().max(50).optional().nullable(),
   nutricao: z.boolean().optional(),
+  papel: z.enum(['decisor','influenciador','neutro']).optional().nullable(),
+  estrela: z.boolean().optional(),
   perfil: z.enum(['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo']).optional().nullable(),
   potencial: z.enum(['estrategico','padrao','prospect']).optional().nullable(),
   etapaNutricao: z.enum(['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda']).optional().nullable(),
