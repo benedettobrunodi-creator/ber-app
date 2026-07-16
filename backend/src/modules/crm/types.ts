@@ -73,6 +73,12 @@ export const CRM_CLASSIFICACOES = [
   'Fornecedor',
 ] as const;
 
+// ── Nutrição enums (usados por vários schemas abaixo) ───────────────────────
+export const NUTRICAO_ETAPAS      = ['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda'] as const;
+export const NUTRICAO_PERFIS      = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo'] as const;
+export const NUTRICAO_POTENCIAIS  = ['estrategico','padrao','prospect'] as const;
+export const NUTRICAO_CANAIS      = ['linkedin','email','whatsapp','ligacao','reuniao'] as const;
+
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const dateOrNull = z
@@ -128,6 +134,13 @@ export const createCampanhaSchema = z.object({
   nome: z.string().min(1).max(255),
   descricao: z.string().optional().nullable(),
   responsavelId: z.string().uuid().optional().nullable(),
+  perfilAlvo: z.enum(NUTRICAO_PERFIS).optional().nullable(),
+  potencialAlvo: z.enum(NUTRICAO_POTENCIAIS).optional().nullable(),
+  etapaAlvo: z.enum(NUTRICAO_ETAPAS).optional().nullable(),
+  canal: z.enum(NUTRICAO_CANAIS).optional().nullable(),
+  templateId: z.string().uuid().optional().nullable(),
+  modo: z.enum(['snapshot','ao_vivo']).optional(),
+  status: z.enum(['rascunho','ativa','pausada','concluida']).optional(),
 });
 export const updateCampanhaSchema = createCampanhaSchema.partial();
 export const addCampanhaContatoSchema = z.object({
@@ -201,12 +214,7 @@ export const upsertMetasAnuaisSchema = z.object({
 });
 export type UpsertMetasAnuaisInput = z.infer<typeof upsertMetasAnuaisSchema>;
 
-// ── Nutrição ─────────────────────────────────────────────────────────────────
-
-export const NUTRICAO_ETAPAS   = ['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda'] as const;
-export const NUTRICAO_PERFIS   = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo'] as const;
-export const NUTRICAO_POTENCIAIS = ['estrategico','padrao','prospect'] as const;
-export const NUTRICAO_CANAIS   = ['linkedin','email','whatsapp','ligacao','reuniao'] as const;
+// ── Nutrição — templates ────────────────────────────────────────────────────
 
 export const createNutricaoTemplateSchema = z.object({
   etapa: z.enum(NUTRICAO_ETAPAS),

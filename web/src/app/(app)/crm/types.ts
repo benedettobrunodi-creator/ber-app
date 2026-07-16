@@ -124,6 +124,22 @@ export interface NutricaoTemplate {
   ativo: boolean;
 }
 
+export interface CampanhaNutricao {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  perfilAlvo: NutricaoPerfil | null;
+  potencialAlvo: NutricaoPotencial | null;
+  etapaAlvo: NutricaoEtapa | null;
+  canal: NutricaoCanal | null;
+  templateId: string | null;
+  modo: 'snapshot' | 'ao_vivo';
+  status: 'rascunho' | 'ativa' | 'pausada' | 'concluida';
+  responsavel: { id: string; name: string; avatarUrl: string | null } | null;
+  createdAt: string;
+  _count?: { contatos: number };
+}
+
 export const CAMPANHA_STATUSES = [
   { value: 'pendente',     label: 'Pendente',     color: 'bg-gray-100 text-gray-600' },
   { value: 'enviado',      label: 'Enviado',       color: 'bg-blue-100 text-blue-700' },

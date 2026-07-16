@@ -10,9 +10,11 @@ import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors, closest
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Contato, User, NutricaoEtapa, NutricaoPerfil, NutricaoPotencial, NutricaoCanal, NutricaoTemplate,
+  Contato, User, NutricaoEtapa, NutricaoPerfil, NutricaoPotencial, NutricaoCanal, NutricaoTemplate, CampanhaNutricao,
   NUTRICAO_ETAPAS, NUTRICAO_PERFIS, NUTRICAO_POTENCIAIS, NUTRICAO_CANAIS,
 } from '../types';
+
+type Segmento = 'todos' | NutricaoPerfil;
 
 interface Props {
   contatos: Contato[];
@@ -441,6 +443,242 @@ function TemplatesModal({
   );
 }
 
+// ── Modal Campanhas (lista + criação por segmento) ───────────────────────────
+
+function CampanhasModal({
+  segmento,
+  templates,
+  onClose,
+}: {
+  segmento: Segmento;
+  templates: NutricaoTemplate[];
+  onClose: () => void;
+}) {
+  const [campanhas, setCampanhas] = useState<CampanhaNutricao[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<Partial<CampanhaNutricao>>({
+    nome: '', descricao: '',
+    perfilAlvo: segmento === 'todos' ? null : (segmento as NutricaoPerfil),
+    potencialAlvo: null, etapaAlvo: null, canal: null,
+    templateId: null, modo: 'snapshot',
+  });
+  const [alvoCount, setAlvoCount] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = {};
+      if (segmento !== 'todos') params.perfilAlvo = segmento;
+      const res = await api.get<CampanhaNutricao[]>('/crm/campanhas', { params });
+      setCampanhas(res.data);
+    } finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, [segmento]);
+
+  // Preview de contatos alvo
+  useEffect(() => {
+    if (!showForm) return;
+    const params: Record<string, string> = {};
+    if (form.perfilAlvo)    params.perfilAlvo = form.perfilAlvo;
+    if (form.potencialAlvo) params.potencialAlvo = form.potencialAlvo;
+    if (form.etapaAlvo)     params.etapaAlvo = form.etapaAlvo;
+    api.get<{ total: number }>('/crm/campanhas/contatos-alvo', { params })
+      .then(r => setAlvoCount(r.data.total)).catch(() => setAlvoCount(null));
+  }, [showForm, form.perfilAlvo, form.potencialAlvo, form.etapaAlvo]);
+
+  async function save() {
+    if (!form.nome) return;
+    setSaving(true);
+    try {
+      await api.post('/crm/campanhas', form);
+      setShowForm(false);
+      setForm({ nome: '', descricao: '', perfilAlvo: segmento === 'todos' ? null : (segmento as NutricaoPerfil), potencialAlvo: null, etapaAlvo: null, canal: null, templateId: null, modo: 'snapshot' });
+      load();
+    } finally { setSaving(false); }
+  }
+
+  async function ativar(id: string) {
+    await api.post(`/crm/campanhas/${id}/ativar`);
+    load();
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Excluir esta campanha?')) return;
+    await api.delete(`/crm/campanhas/${id}`);
+    load();
+  }
+
+  const templatesDoCanal = form.canal ? templates.filter(t => t.canal === form.canal) : templates;
+  const segLabel = segmento === 'todos' ? 'Todos' : NUTRICAO_PERFIS.find(p => p.value === segmento)?.label;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+      <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-xl flex flex-col shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b border-ber-border">
+          <div>
+            <h2 className="font-bold text-ber-carbon">Campanhas · {segLabel}</h2>
+            <p className="text-xs text-ber-gray mt-0.5">Disparos táticos por segmento</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowForm(true)}
+              className="flex items-center gap-1 rounded-lg bg-ber-teal text-white text-xs font-semibold px-3 py-1.5 hover:bg-ber-teal/80">
+              <Plus size={12} /> Nova campanha
+            </button>
+            <button onClick={onClose}><X size={16} /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {showForm && (
+            <div className="border-2 border-ber-teal/40 rounded-lg p-3 bg-ber-teal/5 space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-ber-gray uppercase">Nome</label>
+                <input value={form.nome ?? ''} onChange={e => setForm({ ...form, nome: e.target.value })}
+                  placeholder="Ex: Broker Q3 · Reengajamento"
+                  className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-ber-gray uppercase">Descrição</label>
+                <input value={form.descricao ?? ''} onChange={e => setForm({ ...form, descricao: e.target.value })}
+                  placeholder="Opcional"
+                  className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-ber-gray uppercase">Perfil</label>
+                  <select value={form.perfilAlvo ?? ''}
+                    onChange={e => setForm({ ...form, perfilAlvo: (e.target.value || null) as NutricaoPerfil | null })}
+                    className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
+                    <option value="">Todos</option>
+                    {NUTRICAO_PERFIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-ber-gray uppercase">Potencial</label>
+                  <select value={form.potencialAlvo ?? ''}
+                    onChange={e => setForm({ ...form, potencialAlvo: (e.target.value || null) as NutricaoPotencial | null })}
+                    className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
+                    <option value="">Todos</option>
+                    {NUTRICAO_POTENCIAIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-ber-gray uppercase">Etapa</label>
+                  <select value={form.etapaAlvo ?? ''}
+                    onChange={e => setForm({ ...form, etapaAlvo: (e.target.value || null) as NutricaoEtapa | null })}
+                    className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
+                    <option value="">Todas</option>
+                    {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-ber-gray uppercase">Canal</label>
+                  <select value={form.canal ?? ''}
+                    onChange={e => setForm({ ...form, canal: (e.target.value || null) as NutricaoCanal | null, templateId: null })}
+                    className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
+                    <option value="">—</option>
+                    {NUTRICAO_CANAIS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-ber-gray uppercase">Template</label>
+                  <select value={form.templateId ?? ''}
+                    onChange={e => setForm({ ...form, templateId: e.target.value || null })}
+                    className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
+                    <option value="">—</option>
+                    {templatesDoCanal.map(t => <option key={t.id} value={t.id}>{t.titulo}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-ber-gray uppercase">Modo</label>
+                <div className="mt-1 flex gap-3">
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <input type="radio" checked={form.modo === 'snapshot'} onChange={() => setForm({ ...form, modo: 'snapshot' })} />
+                    Foto (congela lista ao ativar)
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <input type="radio" checked={form.modo === 'ao_vivo'} onChange={() => setForm({ ...form, modo: 'ao_vivo' })} />
+                    Ao vivo (recalcula sempre)
+                  </label>
+                </div>
+              </div>
+              {alvoCount !== null && (
+                <p className="text-xs text-ber-teal font-medium">
+                  Vai atingir <strong>{alvoCount}</strong> contatos com esses filtros.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowForm(false)} className="text-xs text-ber-gray hover:text-ber-carbon px-2">Cancelar</button>
+                <button onClick={save} disabled={saving || !form.nome}
+                  className="text-xs font-semibold bg-ber-teal text-white rounded px-3 py-1 hover:bg-ber-teal/80 disabled:opacity-50">
+                  Salvar rascunho
+                </button>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="text-center text-sm text-ber-gray py-8">Carregando…</p>
+          ) : campanhas.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle size={28} className="mx-auto mb-2 text-ber-gray/40" />
+              <p className="text-sm text-ber-gray">Nenhuma campanha ainda pra {segLabel}.</p>
+            </div>
+          ) : (
+            campanhas.map(c => {
+              const perfilLab = c.perfilAlvo && NUTRICAO_PERFIS.find(p => p.value === c.perfilAlvo)?.label;
+              const potencialLab = c.potencialAlvo && NUTRICAO_POTENCIAIS.find(p => p.value === c.potencialAlvo)?.label;
+              const canalLab = c.canal && NUTRICAO_CANAIS.find(x => x.value === c.canal)?.label;
+              return (
+                <div key={c.id} className="border border-ber-border rounded-lg p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-ber-carbon">{c.nome}</p>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${c.status === 'ativa' ? 'bg-green-100 text-green-700' : c.status === 'rascunho' ? 'bg-gray-100 text-gray-600' : c.status === 'pausada' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {c.status}
+                        </span>
+                      </div>
+                      {c.descricao && <p className="text-[11px] text-ber-gray mt-0.5">{c.descricao}</p>}
+                      <div className="mt-1 flex items-center gap-1 flex-wrap">
+                        {perfilLab && <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded">Perfil: {perfilLab}</span>}
+                        {potencialLab && <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded">Potencial: {potencialLab}</span>}
+                        {canalLab && <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded">Canal: {canalLab}</span>}
+                        <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded">
+                          {c.modo === 'ao_vivo' ? 'Ao vivo' : 'Foto'}
+                        </span>
+                        {c._count && (
+                          <span className="text-[10px] text-ber-teal font-semibold">{c._count.contatos} contatos</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {c.status === 'rascunho' && (
+                        <button onClick={() => ativar(c.id)}
+                          className="text-[11px] font-semibold bg-ber-teal text-white rounded px-2 py-1 hover:bg-ber-teal/80">
+                          Ativar
+                        </button>
+                      )}
+                      <button onClick={() => remove(c.id)} className="text-ber-gray hover:text-red-600 p-1">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props) {
@@ -450,11 +688,12 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
 
   const [templates, setTemplates] = useState<NutricaoTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showCampanhas, setShowCampanhas] = useState(false);
   const [touchpointFor, setTouchpointFor] = useState<Contato | null>(null);
   const [editContato, setEditContato] = useState<Contato | null>(null);
 
+  const [segmento, setSegmento] = useState<Segmento>('todos');
   const [search, setSearch] = useState('');
-  const [perfilFilter, setPerfilFilter] = useState<NutricaoPerfil | ''>('');
   const [potencialFilter, setPotencialFilter] = useState<NutricaoPotencial | ''>('');
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -473,11 +712,22 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
         const q = search.toLowerCase();
         if (!c.nome.toLowerCase().includes(q) && !(c.empresa?.razaoSocial ?? '').toLowerCase().includes(q)) return false;
       }
-      if (perfilFilter && c.perfil !== perfilFilter) return false;
+      if (segmento !== 'todos' && c.perfil !== segmento) return false;
       if (potencialFilter && c.potencial !== potencialFilter) return false;
       return true;
     });
-  }, [contatos, search, perfilFilter, potencialFilter]);
+  }, [contatos, search, segmento, potencialFilter]);
+
+  // Contadores por segmento (pra mostrar nas sub-abas)
+  const contadoresSegmento = useMemo(() => {
+    const c: Record<Segmento, number> = { todos: 0, cliente_direto: 0, arquitetura: 0, gerenciadora: 0, broker: 0, incorporadora: 0, fundo: 0 };
+    for (const ct of contatos) {
+      if (!ct.nutricao) continue;
+      c.todos++;
+      if (ct.perfil) c[ct.perfil]++;
+    }
+    return c;
+  }, [contatos]);
 
   // Agrupamento por etapa
   const byEtapa = useMemo(() => {
@@ -532,7 +782,7 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
   return (
     <div className="flex-1 min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <ThermometerSun size={18} className="text-ber-teal" />
           <h2 className="font-bold text-ber-carbon">Funil de Nutrição</h2>
@@ -547,21 +797,47 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
               placeholder="Buscar..."
               className="pl-7 pr-3 py-1.5 text-xs border border-ber-border rounded-lg w-40 focus:outline-none focus:border-ber-teal" />
           </div>
-          <select value={perfilFilter} onChange={e => setPerfilFilter(e.target.value as NutricaoPerfil)}
-            className="text-xs border border-ber-border rounded-lg px-2 py-1.5">
-            <option value="">Todos perfis</option>
-            {NUTRICAO_PERFIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-          </select>
           <select value={potencialFilter} onChange={e => setPotencialFilter(e.target.value as NutricaoPotencial)}
             className="text-xs border border-ber-border rounded-lg px-2 py-1.5">
             <option value="">Todos potenciais</option>
             {NUTRICAO_POTENCIAIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
+          <button onClick={() => setShowCampanhas(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-ber-teal text-white px-3 py-1.5 text-xs font-semibold hover:bg-ber-teal/80">
+            <Filter size={12} /> Campanhas
+          </button>
           <button onClick={() => setShowTemplates(true)}
             className="flex items-center gap-1.5 rounded-lg border border-ber-border px-3 py-1.5 text-xs font-semibold hover:bg-ber-surface">
             <Settings2 size={12} /> Templates
           </button>
         </div>
+      </div>
+
+      {/* Sub-abas por segmento (canal de vendas) */}
+      <div className="flex gap-1 mb-4 overflow-x-auto border-b border-ber-border">
+        {([
+          { value: 'todos' as Segmento, label: 'Todos' },
+          ...NUTRICAO_PERFIS.map(p => ({ value: p.value as Segmento, label: p.label })),
+        ]).map(s => {
+          const count = contadoresSegmento[s.value] ?? 0;
+          const active = segmento === s.value;
+          return (
+            <button
+              key={s.value}
+              onClick={() => setSegmento(s.value)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                active
+                  ? 'border-ber-teal text-ber-teal'
+                  : 'border-transparent text-ber-gray hover:text-ber-carbon'
+              }`}
+            >
+              {s.label}
+              <span className={`text-[10px] rounded-full px-1.5 ${active ? 'bg-ber-teal/10' : 'bg-ber-surface'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Kanban */}
@@ -605,6 +881,9 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
       )}
       {showTemplates && (
         <TemplatesModal templates={templates} onClose={() => setShowTemplates(false)} onRefresh={loadTemplates} />
+      )}
+      {showCampanhas && (
+        <CampanhasModal segmento={segmento} templates={templates} onClose={() => setShowCampanhas(false)} />
       )}
     </div>
   );

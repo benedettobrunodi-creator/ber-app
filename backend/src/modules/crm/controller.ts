@@ -391,7 +391,25 @@ export async function registrarInteracao(req: Request, res: Response, next: Next
 // ── Campanhas ─────────────────────────────────────────────────────────────────
 
 export async function listCampanhas(req: Request, res: Response, next: NextFunction) {
-  try { res.json(await svc.listCampanhas()); } catch (e) { next(e); }
+  try {
+    const perfilAlvo = typeof req.query.perfilAlvo === 'string' ? req.query.perfilAlvo : undefined;
+    res.json(await svc.listCampanhas({ perfilAlvo }));
+  } catch (e) { next(e); }
+}
+
+export async function calcularContatosAlvo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await svc.calcularContatosAlvo({
+      perfilAlvo: typeof req.query.perfilAlvo === 'string' ? req.query.perfilAlvo : null,
+      potencialAlvo: typeof req.query.potencialAlvo === 'string' ? req.query.potencialAlvo : null,
+      etapaAlvo: typeof req.query.etapaAlvo === 'string' ? req.query.etapaAlvo : null,
+    });
+    res.json({ total: data.length, contatos: data });
+  } catch (e) { next(e); }
+}
+
+export async function ativarCampanha(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.ativarCampanha(req.params.id)); } catch (e) { next(e); }
 }
 
 export async function getCampanha(req: Request, res: Response, next: NextFunction) {

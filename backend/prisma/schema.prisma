@@ -1916,6 +1916,15 @@ model CrmCampanha {
   id            String   @id @default(uuid()) @db.Uuid
   nome          String   @db.VarChar(255)
   descricao     String?
+  perfilAlvo    String?  @map("perfil_alvo") @db.VarChar(30)
+  potencialAlvo String?  @map("potencial_alvo") @db.VarChar(20)
+  etapaAlvo     String?  @map("etapa_alvo") @db.VarChar(30)
+  canal         String?  @db.VarChar(20)
+  templateId    String?  @map("template_id") @db.Uuid
+  modo          String   @default("snapshot") @db.VarChar(20)
+  // snapshot | ao_vivo
+  status        String   @default("rascunho") @db.VarChar(20)
+  // rascunho | ativa | pausada | concluida
   responsavelId String?  @map("responsavel_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
@@ -1923,6 +1932,7 @@ model CrmCampanha {
   responsavel User?                @relation("CrmCampanhaResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   contatos    CrmCampanhaContato[]
 
+  @@index([perfilAlvo])
   @@map("crm_campanhas")
 }
 

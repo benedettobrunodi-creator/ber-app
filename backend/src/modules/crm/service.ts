@@ -244,11 +244,50 @@ const campanhaInclude = {
   _count: { select: { contatos: true } },
 } as const;
 
-export async function listCampanhas() {
+export async function listCampanhas(opts: { perfilAlvo?: string } = {}) {
   return prisma.crmCampanha.findMany({
+    where: opts.perfilAlvo ? { perfilAlvo: opts.perfilAlvo } : undefined,
     include: campanhaInclude,
     orderBy: { createdAt: 'desc' },
   });
+}
+
+/** Retorna a lista de contatos que batem nos filtros de uma campanha. */
+export async function calcularContatosAlvo(filtros: {
+  perfilAlvo?: string | null;
+  potencialAlvo?: string | null;
+  etapaAlvo?: string | null;
+}) {
+  const where: Record<string, unknown> = { nutricao: true };
+  if (filtros.perfilAlvo)    where.perfil        = filtros.perfilAlvo;
+  if (filtros.potencialAlvo) where.potencial     = filtros.potencialAlvo;
+  if (filtros.etapaAlvo)     where.etapaNutricao = filtros.etapaAlvo;
+  return prisma.crmContato.findMany({
+    where,
+    select: {
+      id: true, nome: true, cargo: true, email: true, whatsapp: true, linkedin: true,
+      perfil: true, potencial: true, etapaNutricao: true,
+      empresa: { select: { id: true, razaoSocial: true } },
+    },
+    orderBy: { nome: 'asc' },
+  });
+}
+
+/** Materializa contatos alvo em CrmCampanhaContato. Idempotente. */
+export async function ativarCampanha(campanhaId: string) {
+  const camp = await prisma.crmCampanha.findUnique({ where: { id: campanhaId } });
+  if (!camp) throw new Error('Campanha não encontrada');
+  const alvo = await calcularContatosAlvo({
+    perfilAlvo: camp.perfilAlvo,
+    potencialAlvo: camp.potencialAlvo,
+    etapaAlvo: camp.etapaAlvo,
+  });
+  await prisma.crmCampanhaContato.createMany({
+    data: alvo.map(c => ({ campanhaId, contatoId: c.id })),
+    skipDuplicates: true,
+  });
+  await prisma.crmCampanha.update({ where: { id: campanhaId }, data: { status: 'ativa' } });
+  return getCampanha(campanhaId);
 }
 
 export async function getCampanha(id: string) {

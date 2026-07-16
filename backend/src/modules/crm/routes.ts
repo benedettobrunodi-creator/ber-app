@@ -54,7 +54,9 @@ router.delete('/nutricao/templates/:id', admin, ctrl.deleteNutricaoTemplate);
 
 // ── Campanhas
 router.get('/campanhas', read, ctrl.listCampanhas);
+router.get('/campanhas/contatos-alvo', read, ctrl.calcularContatosAlvo);
 router.get('/campanhas/:id', read, ctrl.getCampanha);
+router.post('/campanhas/:id/ativar', write, ctrl.ativarCampanha);
 router.post('/campanhas', write, ctrl.createCampanha);
 router.patch('/campanhas/:id', write, ctrl.updateCampanha);
 router.delete('/campanhas/:id', write, ctrl.deleteCampanha);
