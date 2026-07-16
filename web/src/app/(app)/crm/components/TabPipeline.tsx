@@ -73,11 +73,8 @@ function QualifRow({
     : score >= 1 ? 'text-amber-700'
     : 'text-ber-gray/70';
   return (
-    <div className="flex items-center gap-1.5">
-      <span className={`text-[10px] font-bold w-9 tabular-nums ${scoreCls}`}>
-        {label}
-        <span className="opacity-60 font-medium ml-1">{score}/4</span>
-      </span>
+    <div className="flex items-center gap-2">
+      <span className={`text-[10px] font-bold w-10 shrink-0 ${scoreCls}`}>{label}</span>
       <div className="flex items-center gap-1">
         {items.map((it) => {
           const checked = (op as unknown as Record<string, boolean>)[it.key];
@@ -98,6 +95,7 @@ function QualifRow({
           );
         })}
       </div>
+      <span className={`text-[10px] font-medium tabular-nums ml-auto ${scoreCls}`}>{score}/4</span>
     </div>
   );
 }
