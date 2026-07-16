@@ -41,25 +41,22 @@ function CardContato({
   contato,
   onOpenTouchpoints,
   onEdit,
+  onRemove,
 }: {
   contato: Contato;
   onOpenTouchpoints: () => void;
   onEdit: () => void;
+  onRemove: () => void;
 }) {
   const potCfg = potencialConfig(contato.potencial);
   return (
-    <div className="bg-white border border-ber-border rounded-lg p-3 shadow-sm group/card">
+    <div className="bg-white border border-ber-border rounded-lg p-3 shadow-sm">
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ber-carbon leading-tight truncate">{contato.nome}</p>
           {contato.cargo && <p className="text-[11px] text-ber-gray truncate">{contato.cargo}</p>}
           {contato.empresa && <p className="text-[11px] text-ber-gray truncate mt-0.5">{contato.empresa.razaoSocial}</p>}
         </div>
-        <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="opacity-0 group-hover/card:opacity-100 rounded p-0.5 text-ber-gray/50 hover:text-ber-carbon"
-          title="Editar segmentação">
-          <Pencil size={11} />
-        </button>
       </div>
 
       <div className="mt-2 flex items-center gap-1 flex-wrap">
@@ -80,12 +77,29 @@ function CardContato({
         {contato.proximoContato && <span>próximo: {fmtDias(contato.proximoContato)}</span>}
       </div>
 
-      <button
-        onClick={onOpenTouchpoints}
-        className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-md bg-ber-teal/10 text-ber-teal text-[11px] font-semibold py-1.5 hover:bg-ber-teal/20"
-      >
-        <MessageSquare size={11} /> Executar touchpoint
-      </button>
+      <div className="mt-2 flex items-center gap-1.5">
+        <button
+          onClick={onOpenTouchpoints}
+          className="flex-1 flex items-center justify-center gap-1.5 rounded-md bg-ber-teal/10 text-ber-teal text-[11px] font-semibold py-1.5 hover:bg-ber-teal/20"
+          title="Executar touchpoint (mensagem pronta)"
+        >
+          <MessageSquare size={11} /> Touchpoint
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="rounded-md border border-ber-border text-ber-gray hover:text-ber-carbon hover:bg-ber-surface p-1.5"
+          title="Editar segmentação (perfil/potencial/etapa)"
+        >
+          <Pencil size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="rounded-md border border-ber-border text-ber-gray hover:text-red-600 hover:bg-red-50 p-1.5"
+          title="Excluir contato do CRM"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -96,6 +110,7 @@ function SortableCard(props: {
   contato: Contato;
   onOpenTouchpoints: () => void;
   onEdit: () => void;
+  onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.contato.id,
@@ -741,6 +756,20 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
     return m;
   }, [filtered]);
 
+  async function handleRemoverContato(contato: Contato) {
+    const confirm1 = confirm(`Excluir ${contato.nome} do CRM? Esta ação é permanente.`);
+    if (!confirm1) return;
+    // Update local otimista pra sumir do kanban imediatamente
+    setLocalContatos(prev => prev.filter(c => c.id !== contato.id));
+    try {
+      await api.delete(`/crm/contatos/${contato.id}`);
+    } catch (err) {
+      console.error('Erro ao excluir', err);
+      alert('Erro ao excluir. Recarregando lista.');
+      onRefresh();
+    }
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -860,6 +889,7 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
                         contato={c}
                         onOpenTouchpoints={() => setTouchpointFor(c)}
                         onEdit={() => setEditContato(c)}
+                        onRemove={() => handleRemoverContato(c)}
                       />
                     ))}
                     {cards.length === 0 && (
