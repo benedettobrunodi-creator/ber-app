@@ -73,6 +73,36 @@ export const CRM_CLASSIFICACOES = [
   'Fornecedor',
 ] as const;
 
+/** Setores de mercado da empresa cliente. */
+export const CRM_SETORES = [
+  'Financeiro',
+  'Advocacia',
+  'Consultoria',
+  'Auditoria / Contabilidade',
+  'Publicidade / Marketing',
+  'Tech / SaaS / Software',
+  'Telecom',
+  'Mídia / Entretenimento',
+  'Saúde',
+  'Farmacêutico',
+  'Educação',
+  'Varejo / E-commerce',
+  'Moda / Beleza / Cosméticos',
+  'Alimentício / Bebidas',
+  'Restaurantes / Food service',
+  'Turismo / Hotelaria',
+  'Industrial / Manufatura',
+  'Automotivo',
+  'Construção / Real Estate',
+  'Agronegócio',
+  'Energia',
+  'Óleo & Gás',
+  'Logística / Transporte',
+  'Governo',
+  'Terceiro Setor / ONG',
+  'Outros',
+] as const;
+
 // ── Nutrição enums (usados por vários schemas abaixo) ───────────────────────
 export const NUTRICAO_ETAPAS      = ['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda'] as const;
 export const NUTRICAO_PERFIS      = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo'] as const;
@@ -92,6 +122,7 @@ export const createEmpresaSchema = z.object({
   cnpj: z.string().max(18).optional().nullable(),
   segmento: z.enum(CRM_SEGMENTOS).optional().nullable(),
   classificacao: z.enum(CRM_CLASSIFICACOES).optional().nullable(),
+  setor: z.enum(CRM_SETORES).optional().nullable(),
   cidade: z.string().max(100).optional().nullable(),
   site: z.string().max(255).optional().nullable(),
   nutricao: z.boolean().default(false),

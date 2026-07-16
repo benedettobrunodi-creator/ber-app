@@ -83,7 +83,7 @@ export async function listContatos(opts?: { empresaId?: string; search?: string 
   return prisma.crmContato.findMany({
     where,
     orderBy: [{ principal: 'desc' }, { nome: 'asc' }],
-    include: { empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } } },
+    include: { empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true, setor: true } } },
   });
 }
 
@@ -103,7 +103,7 @@ export async function listNutricao() {
   return prisma.crmContato.findMany({
     where: { nutricao: true },
     include: {
-      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } },
+      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true, setor: true } },
     },
     orderBy: [{ proximoContato: 'asc' }, { ultimoContato: 'asc' }, { nome: 'asc' }],
   });
@@ -153,7 +153,7 @@ export async function getNutricaoAgenda() {
   const contatos = await prisma.crmContato.findMany({
     where: { nutricao: true },
     include: {
-      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true } },
+      empresa: { select: { id: true, razaoSocial: true, segmento: true, classificacao: true, setor: true } },
     },
     orderBy: [{ proximoContato: 'asc' }, { nome: 'asc' }],
   });

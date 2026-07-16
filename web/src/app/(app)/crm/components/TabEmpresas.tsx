@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import api from '@/lib/api';
 import { Plus, Search, Building2, X, AlertCircle, UserPlus, Trash2, Check } from 'lucide-react';
-import { SEGMENTOS, CLASSIFICACOES, Empresa, Contato, diasAtras } from '../types';
+import { SEGMENTOS, CLASSIFICACOES, CRM_SETORES, Empresa, Contato, diasAtras } from '../types';
 
 function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
   const [lista, setLista] = useState<Contato[]>(contatos);
@@ -88,6 +88,7 @@ function EmpresaDrawer({
     cnpj: empresa?.cnpj ?? '',
     segmento: empresa?.segmento ?? '',
     classificacao: empresa?.classificacao ?? '',
+    setor: empresa?.setor ?? '',
     cidade: empresa?.cidade ?? '',
     nutricao: empresa?.nutricao ?? false,
     observacoes: '',
@@ -100,7 +101,7 @@ function EmpresaDrawer({
     if (!form.razaoSocial.trim()) { setErr('Razão social obrigatória'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, cnpj: form.cnpj || null, segmento: form.segmento || null, classificacao: form.classificacao || null, cidade: form.cidade || null };
+      const payload = { ...form, cnpj: form.cnpj || null, segmento: form.segmento || null, classificacao: form.classificacao || null, setor: form.setor || null, cidade: form.cidade || null };
       if (isNew) {
         const res = await api.post('/crm/empresas', payload);
         if (newContato.nome.trim()) {
@@ -156,6 +157,13 @@ function EmpresaDrawer({
                 {CLASSIFICACOES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Setor de mercado</label>
+            <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.setor} onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))}>
+              <option value="">--</option>
+              {CRM_SETORES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="nutricao" checked={form.nutricao} onChange={(e) => setForm((f) => ({ ...f, nutricao: e.target.checked }))} className="w-4 h-4" />

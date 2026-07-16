@@ -11,7 +11,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import {
   Contato, User, NutricaoEtapa, NutricaoPerfil, NutricaoPotencial, NutricaoCanal, NutricaoTemplate, CampanhaNutricao, PapelContato,
-  NUTRICAO_ETAPAS, NUTRICAO_PERFIS, NUTRICAO_POTENCIAIS, NUTRICAO_CANAIS, PAPEIS_CONTATO,
+  NUTRICAO_ETAPAS, NUTRICAO_PERFIS, NUTRICAO_POTENCIAIS, NUTRICAO_CANAIS, PAPEIS_CONTATO, CRM_SETORES,
 } from '../types';
 
 type Segmento = 'todos' | NutricaoPerfil;
@@ -60,7 +60,14 @@ function CardContato({
             <p className="text-sm font-semibold text-ber-carbon leading-tight truncate">{contato.nome}</p>
           </div>
           {contato.cargo && <p className="text-[11px] text-ber-carbon truncate font-medium">{contato.cargo}</p>}
-          {contato.empresa && <p className="text-[11px] text-ber-gray truncate mt-0.5">{contato.empresa.razaoSocial}</p>}
+          {contato.empresa && (
+            <div className="mt-0.5">
+              <p className="text-[11px] text-ber-gray truncate">{contato.empresa.razaoSocial}</p>
+              {contato.empresa.setor && (
+                <span className="inline-block text-[9px] text-ber-teal bg-ber-teal/10 px-1 rounded mt-0.5">{contato.empresa.setor}</span>
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleEstrela(); }}
@@ -740,6 +747,7 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
   const [search, setSearch] = useState('');
   const [potencialFilter, setPotencialFilter] = useState<NutricaoPotencial | ''>('');
   const [papelFilter, setPapelFilter] = useState<PapelContato | ''>('');
+  const [setorFilter, setSetorFilter] = useState<string>('');
   const [soEstrelas, setSoEstrelas] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -761,10 +769,11 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
       if (segmento !== 'todos' && c.perfil !== segmento) return false;
       if (potencialFilter && c.potencial !== potencialFilter) return false;
       if (papelFilter && c.papel !== papelFilter) return false;
+      if (setorFilter && c.empresa?.setor !== setorFilter) return false;
       if (soEstrelas && !c.estrela) return false;
       return true;
     });
-  }, [contatos, search, segmento, potencialFilter, papelFilter, soEstrelas]);
+  }, [contatos, search, segmento, potencialFilter, papelFilter, setorFilter, soEstrelas]);
 
   // Contadores por segmento (pra mostrar nas sub-abas)
   const contadoresSegmento = useMemo(() => {
@@ -879,6 +888,11 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
             className="text-xs border border-ber-border rounded-lg px-2 py-1.5">
             <option value="">Todos papéis</option>
             {PAPEIS_CONTATO.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <select value={setorFilter} onChange={e => setSetorFilter(e.target.value)}
+            className="text-xs border border-ber-border rounded-lg px-2 py-1.5">
+            <option value="">Todos setores</option>
+            {CRM_SETORES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <button
             onClick={() => setSoEstrelas(v => !v)}

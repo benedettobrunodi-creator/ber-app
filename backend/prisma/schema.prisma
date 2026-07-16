@@ -1836,6 +1836,7 @@ model CrmEmpresa {
   cnpj          String?   @unique @db.VarChar(18)
   segmento      String?   @db.VarChar(50)
   classificacao String?   @db.VarChar(50)
+  setor         String?   @db.VarChar(60)
   cidade        String?   @db.VarChar(100)
   site          String?   @db.VarChar(255)
   nutricao      Boolean   @default(false)

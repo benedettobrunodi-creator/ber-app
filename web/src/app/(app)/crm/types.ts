@@ -39,12 +39,43 @@ export const TIPOS_ATIVIDADE = [
 export const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
 export const CLASSIFICACOES = ['Gerenciadora', 'Arquitetura', 'Broker', 'Incorporadora', 'End User', 'Fundo', 'Fornecedor'] as const;
 
+/** Setores de mercado da empresa cliente. */
+export const CRM_SETORES = [
+  'Financeiro',
+  'Advocacia',
+  'Consultoria',
+  'Auditoria / Contabilidade',
+  'Publicidade / Marketing',
+  'Tech / SaaS / Software',
+  'Telecom',
+  'Mídia / Entretenimento',
+  'Saúde',
+  'Farmacêutico',
+  'Educação',
+  'Varejo / E-commerce',
+  'Moda / Beleza / Cosméticos',
+  'Alimentício / Bebidas',
+  'Restaurantes / Food service',
+  'Turismo / Hotelaria',
+  'Industrial / Manufatura',
+  'Automotivo',
+  'Construção / Real Estate',
+  'Agronegócio',
+  'Energia',
+  'Óleo & Gás',
+  'Logística / Transporte',
+  'Governo',
+  'Terceiro Setor / ONG',
+  'Outros',
+] as const;
+
 export interface Empresa {
   id: string;
   razaoSocial: string;
   cnpj: string | null;
   segmento: string | null;
   classificacao: string | null;
+  setor: string | null;
   cidade: string | null;
   nutricao: boolean;
   ultimoContato: string | null;
@@ -63,7 +94,7 @@ export interface Contato {
   aniversario: string | null;
   principal: boolean;
   empresaId: string | null;
-  empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null } | null;
+  empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null; setor: string | null } | null;
   nutricao: boolean;
   papel: PapelContato | null;
   estrela: boolean;
