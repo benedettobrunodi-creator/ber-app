@@ -41,18 +41,64 @@ function countTrue(bools: boolean[]): number {
   return bools.filter(Boolean).length;
 }
 
-function QualifBadge({ label, score }: { label: string; score: number }) {
-  // 0 = cinza, 1-2 = âmbar, 3 = azul, 4 = verde
-  const cls =
-    score === 4 ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
-    : score >= 3 ? 'bg-blue-100 text-blue-700 ring-blue-200'
-    : score >= 1 ? 'bg-amber-100 text-amber-700 ring-amber-200'
-    : 'bg-ber-surface text-ber-gray/70 ring-ber-border';
+const ICP_ITEMS = [
+  { key: 'icpEstrategico', letter: 'E', label: 'Cliente estratégico (recorrência / portfólio)' },
+  { key: 'icpLocalizacao', letter: 'L', label: 'Localização (São Paulo)' },
+  { key: 'icpTicket',      letter: 'T', label: 'Ticket compatível (~R$1MM)' },
+  { key: 'icpCiclo',       letter: 'C', label: 'Ciclo compatível (~90 dias)' },
+] as const;
+
+const BANT_ITEMS = [
+  { key: 'bantBudget',    letter: 'B', label: 'Budget — tem verba' },
+  { key: 'bantAuthority', letter: 'A', label: 'Authority — falo com quem decide' },
+  { key: 'bantNeed',      letter: 'N', label: 'Need — dor / necessidade clara' },
+  { key: 'bantTimeline',  letter: 'T', label: 'Timeline — quando vai comprar' },
+] as const;
+
+function QualifRow({
+  label,
+  items,
+  op,
+  onToggle,
+}: {
+  label: string;
+  items: readonly { key: string; letter: string; label: string }[];
+  op: Oportunidade;
+  onToggle: (field: string, value: boolean) => void;
+}) {
+  const score = countTrue(items.map(it => (op as unknown as Record<string, boolean>)[it.key]));
+  const scoreCls =
+    score === 4 ? 'text-emerald-700'
+    : score >= 3 ? 'text-blue-700'
+    : score >= 1 ? 'text-amber-700'
+    : 'text-ber-gray/70';
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${cls}`}>
-      <span className="opacity-80">{label}</span>
-      <span className="tabular-nums">{score}/4</span>
-    </span>
+    <div className="flex items-center gap-1.5">
+      <span className={`text-[10px] font-bold w-9 tabular-nums ${scoreCls}`}>
+        {label}
+        <span className="opacity-60 font-medium ml-1">{score}/4</span>
+      </span>
+      <div className="flex items-center gap-1">
+        {items.map((it) => {
+          const checked = (op as unknown as Record<string, boolean>)[it.key];
+          return (
+            <button
+              key={it.key}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggle(it.key, !checked); }}
+              className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold border transition-colors ${
+                checked
+                  ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
+                  : 'bg-white border-ber-border text-ber-gray/60 hover:border-emerald-400 hover:text-ber-carbon'
+              }`}
+              title={`${it.label} ${checked ? '✓' : ''}`}
+            >
+              {it.letter}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -60,10 +106,12 @@ function CardOportunidade({
   op,
   onClick,
   onToggleEstrela,
+  onToggleCheck,
 }: {
   op: Oportunidade;
   onClick: () => void;
   onToggleEstrela: (id: string, novo: boolean) => void;
+  onToggleCheck: (id: string, field: string, value: boolean) => void;
 }) {
   const proximaAtividade = op.atividades?.[0];
   const vencida = proximaAtividade && new Date(proximaAtividade.dataHora) < new Date();
@@ -116,9 +164,9 @@ function CardOportunidade({
           </span>
         )}
       </div>
-      <div className="mt-2 flex items-center gap-1.5">
-        <QualifBadge label="ICP" score={countTrue([op.icpEstrategico, op.icpLocalizacao, op.icpTicket, op.icpCiclo])} />
-        <QualifBadge label="BANT" score={countTrue([op.bantBudget, op.bantAuthority, op.bantNeed, op.bantTimeline])} />
+      <div className="mt-2 space-y-1">
+        <QualifRow label="ICP"  items={ICP_ITEMS}  op={op} onToggle={(f, v) => onToggleCheck(op.id, f, v)} />
+        <QualifRow label="BANT" items={BANT_ITEMS} op={op} onToggle={(f, v) => onToggleCheck(op.id, f, v)} />
       </div>
       {proximaAtividade && (
         <div className={`mt-2 flex items-center gap-1 text-[11px] ${vencida ? 'text-ber-red' : 'text-ber-gray'}`}>
@@ -862,6 +910,15 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
     }
   };
 
+  const handleToggleCheck = async (opId: string, field: string, value: boolean) => {
+    try {
+      await api.patch(`/crm/oportunidades/${opId}`, { [field]: value });
+      onRefresh();
+    } catch (err) {
+      console.error('Erro ao alternar checkpoint', err);
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0">
       <div className="flex items-center justify-between mb-4">
@@ -1186,7 +1243,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
               )}
               <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
                 {cards.map((op) => (
-                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
+                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
                 ))}
                 {cards.length === 0 && (
                   <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
@@ -1208,7 +1265,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-green-50/50 border border-green-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {ganhos.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
             ))}
             {ganhos.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1231,7 +1288,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-red-50/50 border border-red-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {perdidos.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
             ))}
             {perdidos.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1251,7 +1308,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-orange-50/50 border border-orange-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {declinados.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
             ))}
             {declinados.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
@@ -1271,7 +1328,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           )}
           <div className="flex-1 bg-gray-50/50 border border-gray-200/40 rounded-xl p-2 space-y-2 overflow-y-auto">
             {cancelados.map((op) => (
-              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} />
+              <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
             ))}
             {cancelados.length === 0 && (
               <p className="text-center text-xs text-ber-gray/50 py-4">Nenhum</p>
