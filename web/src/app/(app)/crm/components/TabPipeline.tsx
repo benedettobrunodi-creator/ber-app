@@ -41,6 +41,21 @@ function countTrue(bools: boolean[]): number {
   return bools.filter(Boolean).length;
 }
 
+type ClassifKey = 'quente' | 'qualificado' | 'oportunidade' | 'frio';
+
+function classificarOportunidade(op: Oportunidade): { key: ClassifKey; label: string; cls: string } | null {
+  const icp = countTrue([op.icpEstrategico, op.icpLocalizacao, op.icpTicket, op.icpCiclo]);
+  const bant = countTrue([op.bantBudget, op.bantAuthority, op.bantNeed, op.bantTimeline]);
+  // Só classifica quando pelo menos um dos dois foi tocado — evita "FRIO" pra lead ainda não avaliado
+  if (icp === 0 && bant === 0) return null;
+  const icpAlto = icp >= 3;
+  const bantAlto = bant >= 3;
+  if (icpAlto && bantAlto)   return { key: 'quente',       label: 'QUENTE',       cls: 'bg-red-100 text-red-700 ring-red-200' };
+  if (icpAlto && !bantAlto)  return { key: 'qualificado',  label: 'QUALIFICADO',  cls: 'bg-blue-100 text-blue-700 ring-blue-200' };
+  if (!icpAlto && bantAlto)  return { key: 'oportunidade', label: 'OPORTUNIDADE', cls: 'bg-amber-100 text-amber-700 ring-amber-200' };
+  return { key: 'frio', label: 'FRIO', cls: 'bg-neutral-200 text-neutral-600 ring-neutral-300' };
+}
+
 const ICP_ITEMS = [
   { key: 'icpEstrategico', letter: 'E', label: 'Cliente estratégico (recorrência / portfólio)' },
   { key: 'icpLocalizacao', letter: 'L', label: 'Localização (São Paulo)' },
@@ -95,7 +110,6 @@ function QualifRow({
           );
         })}
       </div>
-      <span className={`text-[10px] font-medium tabular-nums ml-auto ${scoreCls}`}>{score}/4</span>
     </div>
   );
 }
@@ -127,6 +141,17 @@ function CardOportunidade({
         <p className="flex-1 text-sm font-semibold text-ber-carbon leading-tight line-clamp-2 group-hover:text-ber-teal">
           {op.titulo}
         </p>
+        {(() => {
+          const classif = classificarOportunidade(op);
+          return classif ? (
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide ring-1 ${classif.cls}`}
+              title={`Classificação baseada em ICP + BANT: ${classif.label}`}
+            >
+              {classif.label}
+            </span>
+          ) : null;
+        })()}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleEstrela(op.id, !op.estrela); }}
