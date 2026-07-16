@@ -135,6 +135,20 @@ export async function deleteOportunidade(req: Request, res: Response, next: Next
   } catch (e) { next(e); }
 }
 
+export async function reorderOportunidades(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = req.body as { ids?: unknown; etapa?: unknown };
+    if (!Array.isArray(body.ids) || body.ids.some(id => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'ids must be a string array' });
+    }
+    await svc.reorderOportunidades({
+      ids: body.ids as string[],
+      etapa: typeof body.etapa === 'string' ? body.etapa : undefined,
+    });
+    res.status(204).end();
+  } catch (e) { next(e); }
+}
+
 // ── Atividades ────────────────────────────────────────────────────────────────
 
 export async function listAtividades(req: Request, res: Response, next: NextFunction) {

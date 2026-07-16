@@ -3,7 +3,10 @@
 import { useState, useCallback, useEffect, useRef, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat, Star } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat, Star, GripVertical } from 'lucide-react';
+import { DndContext, DragEndEvent, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, useDroppable } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
@@ -110,6 +113,52 @@ function QualifRow({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function SortableCardOportunidade(props: {
+  op: Oportunidade;
+  onClick: () => void;
+  onToggleEstrela: (id: string, novo: boolean) => void;
+  onToggleCheck: (id: string, field: string, value: boolean) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.op.id,
+    data: { etapa: props.op.etapa },
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="relative group/card">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="absolute -left-1 top-2 z-10 rounded p-0.5 text-ber-gray/30 opacity-0 group-hover/card:opacity-100 hover:text-ber-carbon cursor-grab active:cursor-grabbing touch-none"
+        title="Arrastar para reordenar"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical size={12} />
+      </button>
+      <CardOportunidade {...props} />
+    </div>
+  );
+}
+
+function DroppableColumn({ etapa, children }: { etapa: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `col-${etapa}`, data: { etapa, isColumn: true } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 rounded-xl p-2 space-y-2 overflow-y-auto transition-colors ${
+        isOver ? 'bg-ber-teal/10 ring-2 ring-ber-teal/40' : 'bg-ber-surface'
+      }`}
+    >
+      {children}
     </div>
   );
 }
@@ -850,7 +899,11 @@ interface Filters {
   probabilidades: string[];
 }
 
-export default function TabPipeline({ oportunidades, users, onRefresh }: Props) {
+export default function TabPipeline({ oportunidades: oportunidadesProp, users, onRefresh }: Props) {
+  const [localOps, setLocalOps] = useState<Oportunidade[]>(oportunidadesProp);
+  useEffect(() => { setLocalOps(oportunidadesProp); }, [oportunidadesProp]);
+  const oportunidades = localOps;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [drawerOp, setDrawerOp] = useState<Oportunidade | null | 'new'>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [sortCol, setSortCol] = useState<SortCol>('etapa');
@@ -934,11 +987,68 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
   };
 
   const handleToggleCheck = async (opId: string, field: string, value: boolean) => {
+    // Atualiza local pra não subir o card ao topo enquanto o refresh não chega.
+    setLocalOps(prev => prev.map(o => o.id === opId ? { ...o, [field]: value } : o));
     try {
       await api.patch(`/crm/oportunidades/${opId}`, { [field]: value });
-      onRefresh();
     } catch (err) {
       console.error('Erro ao alternar checkpoint', err);
+      onRefresh();
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    if (activeId === overId) return;
+
+    const activeOp = localOps.find(o => o.id === activeId);
+    if (!activeOp) return;
+
+    // Descobre a coluna destino: pode ser um card (data.etapa) ou uma coluna vazia (data.etapa da coluna).
+    const overData = over.data.current as { etapa?: string; isColumn?: boolean } | null;
+    const destEtapa = overData?.etapa ?? activeOp.etapa;
+    const sourceEtapa = activeOp.etapa;
+
+    let newLocalOps: Oportunidade[];
+    if (sourceEtapa === destEtapa) {
+      // Reordenação dentro da mesma coluna
+      const idsNaColuna = localOps.filter(o => o.etapa === sourceEtapa).map(o => o.id);
+      const oldIdx = idsNaColuna.indexOf(activeId);
+      const newIdx = idsNaColuna.indexOf(overId);
+      if (oldIdx < 0 || newIdx < 0) return;
+      const reordered = arrayMove(idsNaColuna, oldIdx, newIdx);
+      // Aplica no localOps
+      const opsForaDaColuna = localOps.filter(o => o.etapa !== sourceEtapa);
+      const opsNaColuna = reordered.map(id => localOps.find(o => o.id === id)!);
+      newLocalOps = [...opsForaDaColuna, ...opsNaColuna];
+      setLocalOps(newLocalOps);
+      try {
+        await api.patch('/crm/oportunidades/reorder', { ids: reordered });
+      } catch (err) {
+        console.error('Erro ao reordenar', err);
+        onRefresh();
+      }
+    } else {
+      // Movimentação entre colunas — troca etapa e coloca no fim da destino
+      // (se solto em cima de um card específico, insere na posição dele)
+      const idsDest = localOps.filter(o => o.etapa === destEtapa).map(o => o.id);
+      const insertIdx = overData?.isColumn ? idsDest.length : idsDest.indexOf(overId);
+      const finalDestIds = [...idsDest.slice(0, insertIdx), activeId, ...idsDest.slice(insertIdx)];
+      const updatedOp = { ...activeOp, etapa: destEtapa };
+      const opsOutras = localOps.filter(o => o.id !== activeId && o.etapa !== destEtapa);
+      const opsDest = finalDestIds.map(id => id === activeId ? updatedOp : localOps.find(o => o.id === id)!);
+      newLocalOps = [...opsOutras, ...opsDest];
+      setLocalOps(newLocalOps);
+      try {
+        await api.patch('/crm/oportunidades/reorder', { ids: finalDestIds, etapa: destEtapa });
+        onRefresh();
+      } catch (err) {
+        console.error('Erro ao mover entre colunas', err);
+        onRefresh();
+      }
     }
   };
 
@@ -1250,6 +1360,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
         </>
       )}
 
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className={`flex gap-3 overflow-x-auto pb-4 ${viewMode === 'lista' ? 'hidden' : ''}`} style={{ minHeight: '70vh' }}>
         {KANBAN_ETAPAS.map((etapa) => {
           const cards = byEtapa[etapa.value] ?? [];
@@ -1264,14 +1375,16 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
               {totalValor > 0 && (
                 <p className="text-[11px] text-ber-gray px-1 mb-2">{fmt(totalValor)}</p>
               )}
-              <div className="flex-1 bg-ber-surface rounded-xl p-2 space-y-2 overflow-y-auto">
-                {cards.map((op) => (
-                  <CardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
-                ))}
-                {cards.length === 0 && (
-                  <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
-                )}
-              </div>
+              <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                <DroppableColumn etapa={etapa.value}>
+                  {cards.map((op) => (
+                    <SortableCardOportunidade key={op.id} op={op} onClick={() => setDrawerOp(op)} onToggleEstrela={handleToggleEstrela} onToggleCheck={handleToggleCheck} />
+                  ))}
+                  {cards.length === 0 && (
+                    <p className="text-center text-xs text-ber-gray/50 py-4">Vazio</p>
+                  )}
+                </DroppableColumn>
+              </SortableContext>
             </div>
           );
         })}
@@ -1359,6 +1472,7 @@ export default function TabPipeline({ oportunidades, users, onRefresh }: Props) 
           </div>
         </div>
       </div>
+      </DndContext>
 
       {drawerOp !== null && (
         <DrawerBoundary onClose={() => setDrawerOp(null)}>

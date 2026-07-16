@@ -123,6 +123,7 @@ export interface Oportunidade {
   bantAuthority: boolean;
   bantNeed: boolean;
   bantTimeline: boolean;
+  ordem: number | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
   contato: { id: string; nome: string; cargo: string | null } | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;

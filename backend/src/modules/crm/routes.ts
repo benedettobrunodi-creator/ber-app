@@ -28,6 +28,7 @@ router.delete('/contatos/:id', write, ctrl.deleteContato);
 router.get('/oportunidades', read, ctrl.listOportunidades);
 router.get('/oportunidades/:id', read, ctrl.getOportunidade);
 router.post('/oportunidades', write, ctrl.createOportunidade);
+router.patch('/oportunidades/reorder', write, ctrl.reorderOportunidades);
 router.patch('/oportunidades/:id', write, ctrl.updateOportunidade);
 router.delete('/oportunidades/:id', admin, ctrl.deleteOportunidade);
 

@@ -356,7 +356,8 @@ export async function listOportunidades(opts: {
   }
   return prisma.crmOportunidade.findMany({
     where,
-    orderBy: { updatedAt: 'desc' },
+    // Ordem manual primeiro (nulls por último), depois updatedAt como fallback.
+    orderBy: [{ ordem: { sort: 'asc', nulls: 'last' } }, { updatedAt: 'desc' }],
     include: {
       empresa: { select: { id: true, razaoSocial: true, segmento: true } },
       contato: { select: { id: true, nome: true, cargo: true } },
@@ -370,6 +371,23 @@ export async function listOportunidades(opts: {
       obra: { select: { id: true, name: true, status: true, fase: true } },
     },
   });
+}
+
+/** Reordena oportunidades numa etapa (kanban drag & drop).
+ *  Recebe a lista completa de ids na ordem final desejada e opcionalmente
+ *  atualiza a etapa dos cards (útil quando o drop veio de outra coluna). */
+export async function reorderOportunidades(input: { ids: string[]; etapa?: string }) {
+  await prisma.$transaction(
+    input.ids.map((id, idx) =>
+      prisma.crmOportunidade.update({
+        where: { id },
+        data: {
+          ordem: (idx + 1) * 1000,
+          ...(input.etapa ? { etapa: input.etapa } : {}),
+        },
+      }),
+    ),
+  );
 }
 
 export async function getOportunidadeById(id: string) {
