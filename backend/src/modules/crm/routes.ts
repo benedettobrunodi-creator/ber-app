@@ -45,6 +45,13 @@ router.post('/contatos/:id/contatar', write, ctrl.contatarAgora);
 router.post('/contatos/:id/interacao', write, ctrl.registrarInteracao);
 router.get('/contatos/:id/historico', read, ctrl.getContatoHistorico);
 
+// ── Nutrição — funil (reorder + templates)
+router.patch('/nutricao/contatos/reorder', write, ctrl.reorderNutricaoContatos);
+router.get('/nutricao/templates', read, ctrl.listNutricaoTemplates);
+router.post('/nutricao/templates', write, ctrl.createNutricaoTemplate);
+router.patch('/nutricao/templates/:id', write, ctrl.updateNutricaoTemplate);
+router.delete('/nutricao/templates/:id', admin, ctrl.deleteNutricaoTemplate);
+
 // ── Campanhas
 router.get('/campanhas', read, ctrl.listCampanhas);
 router.get('/campanhas/:id', read, ctrl.getCampanha);

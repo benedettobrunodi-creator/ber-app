@@ -1865,6 +1865,14 @@ model CrmContato {
   principal           Boolean   @default(false)
   agendorId           String?   @unique @map("agendor_id") @db.VarChar(50)
   nutricao            Boolean   @default(false)
+  // Funil de nutrição
+  perfil              String?   @db.VarChar(30)
+  // cliente_direto | arquitetura | gerenciadora | broker | incorporadora | fundo
+  potencial           String?   @db.VarChar(20)
+  // estrategico | padrao | prospect
+  etapaNutricao       String?   @map("etapa_nutricao") @db.VarChar(30)
+  // descoberta | consciencia | engajamento | consideracao | ativo | pos_venda
+  ordemNutricao       Int?      @map("ordem_nutricao")
   proximoContato      DateTime? @map("proximo_contato")
   ultimoContato       DateTime? @map("ultimo_contato")
   notasRelacionamento String?   @map("notas_relacionamento")
@@ -1879,7 +1887,29 @@ model CrmContato {
 
   @@index([empresaId])
   @@index([nutricao])
+  @@index([etapaNutricao, ordemNutricao])
   @@map("crm_contatos")
+}
+
+/** Templates de mensagem por etapa da nutrição.
+ *  Bruno/Marco preenchem manualmente. Cada template é um "touchpoint"
+ *  que a pessoa aciona pra executar a jornada. */
+model CrmNutricaoTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  etapa       String   @db.VarChar(30)
+  canal       String   @db.VarChar(20)
+  // linkedin | email | whatsapp | ligacao | reuniao
+  titulo      String   @db.VarChar(200)
+  corpo       String
+  perfilAlvo  String?  @map("perfil_alvo") @db.VarChar(30)
+  // null = aplica a todos os perfis
+  ordem       Int      @default(0)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([etapa, canal])
+  @@map("crm_nutricao_templates")
 }
 
 model CrmCampanha {

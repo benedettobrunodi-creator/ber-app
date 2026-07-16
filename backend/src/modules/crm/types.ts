@@ -108,6 +108,10 @@ export const createContatoSchema = z.object({
   principal: z.boolean().default(false),
   agendorId: z.string().max(50).optional().nullable(),
   nutricao: z.boolean().optional(),
+  perfil: z.enum(['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo']).optional().nullable(),
+  potencial: z.enum(['estrategico','padrao','prospect']).optional().nullable(),
+  etapaNutricao: z.enum(['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda']).optional().nullable(),
+  ordemNutricao: z.number().int().optional().nullable(),
   proximoContato: z.string().optional().nullable(),
   ultimoContato: z.string().optional().nullable(),
   notasRelacionamento: z.string().optional().nullable(),
@@ -196,3 +200,29 @@ export const upsertMetasAnuaisSchema = z.object({
   metas: z.array(z.object({ mes: z.number().int().min(1).max(12), valorMeta: z.number().positive() })),
 });
 export type UpsertMetasAnuaisInput = z.infer<typeof upsertMetasAnuaisSchema>;
+
+// ── Nutrição ─────────────────────────────────────────────────────────────────
+
+export const NUTRICAO_ETAPAS   = ['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda'] as const;
+export const NUTRICAO_PERFIS   = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo'] as const;
+export const NUTRICAO_POTENCIAIS = ['estrategico','padrao','prospect'] as const;
+export const NUTRICAO_CANAIS   = ['linkedin','email','whatsapp','ligacao','reuniao'] as const;
+
+export const createNutricaoTemplateSchema = z.object({
+  etapa: z.enum(NUTRICAO_ETAPAS),
+  canal: z.enum(NUTRICAO_CANAIS),
+  titulo: z.string().min(1).max(200),
+  corpo: z.string().min(1),
+  perfilAlvo: z.enum(NUTRICAO_PERFIS).optional().nullable(),
+  ordem: z.number().int().optional(),
+  ativo: z.boolean().optional(),
+});
+export const updateNutricaoTemplateSchema = createNutricaoTemplateSchema.partial();
+export type CreateNutricaoTemplateInput = z.infer<typeof createNutricaoTemplateSchema>;
+export type UpdateNutricaoTemplateInput = z.infer<typeof updateNutricaoTemplateSchema>;
+
+export const reorderNutricaoContatosSchema = z.object({
+  ids: z.array(z.string().uuid()),
+  etapaNutricao: z.enum(NUTRICAO_ETAPAS).optional(),
+});
+export type ReorderNutricaoContatosInput = z.infer<typeof reorderNutricaoContatosSchema>;

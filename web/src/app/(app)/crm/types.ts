@@ -65,11 +65,63 @@ export interface Contato {
   empresaId: string | null;
   empresa: { id: string; razaoSocial: string; segmento: string | null; classificacao: string | null } | null;
   nutricao: boolean;
+  perfil: NutricaoPerfil | null;
+  potencial: NutricaoPotencial | null;
+  etapaNutricao: NutricaoEtapa | null;
+  ordemNutricao: number | null;
   proximoContato: string | null;
   ultimoContato: string | null;
   notasRelacionamento: string | null;
   tags: string[];
   endereco: string | null;
+}
+
+export type NutricaoEtapa    = 'descoberta' | 'consciencia' | 'engajamento' | 'consideracao' | 'ativo' | 'pos_venda';
+export type NutricaoPerfil   = 'cliente_direto' | 'arquitetura' | 'gerenciadora' | 'broker' | 'incorporadora' | 'fundo';
+export type NutricaoPotencial = 'estrategico' | 'padrao' | 'prospect';
+export type NutricaoCanal    = 'linkedin' | 'email' | 'whatsapp' | 'ligacao' | 'reuniao';
+
+export const NUTRICAO_ETAPAS: { value: NutricaoEtapa; label: string; color: string }[] = [
+  { value: 'descoberta',   label: 'Descoberta',   color: '#94A3B8' },
+  { value: 'consciencia',  label: 'Consciência',  color: '#60A5FA' },
+  { value: 'engajamento',  label: 'Engajamento',  color: '#818CF8' },
+  { value: 'consideracao', label: 'Consideração', color: '#F59E0B' },
+  { value: 'ativo',        label: 'Ativo',        color: '#10B981' },
+  { value: 'pos_venda',    label: 'Pós-venda',    color: '#EC4899' },
+];
+
+export const NUTRICAO_PERFIS: { value: NutricaoPerfil; label: string }[] = [
+  { value: 'cliente_direto', label: 'Cliente Direto' },
+  { value: 'arquitetura',    label: 'Escritório de Arquitetura' },
+  { value: 'gerenciadora',   label: 'Gerenciadora' },
+  { value: 'broker',         label: 'Broker' },
+  { value: 'incorporadora',  label: 'Incorporadora' },
+  { value: 'fundo',          label: 'Fundo' },
+];
+
+export const NUTRICAO_POTENCIAIS: { value: NutricaoPotencial; label: string; cls: string }[] = [
+  { value: 'estrategico', label: 'Estratégico', cls: 'bg-amber-100 text-amber-700' },
+  { value: 'padrao',      label: 'Padrão',      cls: 'bg-blue-100 text-blue-700' },
+  { value: 'prospect',    label: 'Prospect',    cls: 'bg-neutral-200 text-neutral-600' },
+];
+
+export const NUTRICAO_CANAIS: { value: NutricaoCanal; label: string; icon: string }[] = [
+  { value: 'linkedin', label: 'LinkedIn', icon: '🔗' },
+  { value: 'email',    label: 'E-mail',   icon: '✉️' },
+  { value: 'whatsapp', label: 'WhatsApp', icon: '💬' },
+  { value: 'ligacao',  label: 'Ligação',  icon: '📞' },
+  { value: 'reuniao',  label: 'Reunião',  icon: '🤝' },
+];
+
+export interface NutricaoTemplate {
+  id: string;
+  etapa: NutricaoEtapa;
+  canal: NutricaoCanal;
+  titulo: string;
+  corpo: string;
+  perfilAlvo: NutricaoPerfil | null;
+  ordem: number;
+  ativo: boolean;
 }
 
 export const CAMPANHA_STATUSES = [

@@ -7,6 +7,7 @@ import {
   createOportunidadeSchema, updateOportunidadeSchema,
   createAtividadeSchema, updateAtividadeSchema,
   upsertMetasAnuaisSchema,
+  createNutricaoTemplateSchema, updateNutricaoTemplateSchema,
 } from './types';
 
 // ── Empresas ──────────────────────────────────────────────────────────────────
@@ -447,4 +448,50 @@ export async function bulkUpdateCampanhaStatus(req: Request, res: Response, next
 
 export async function removeContatoCampanha(req: Request, res: Response, next: NextFunction) {
   try { await svc.removeContatoCampanha(req.params.id, req.params.contatoId); res.status(204).end(); } catch (e) { next(e); }
+}
+
+// ── Nutrição ─────────────────────────────────────────────────────────────────
+
+export async function reorderNutricaoContatos(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = req.body as { ids?: unknown; etapaNutricao?: unknown };
+    if (!Array.isArray(body.ids) || body.ids.some(id => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'ids must be a string array' });
+    }
+    await svc.reorderNutricaoContatos({
+      ids: body.ids as string[],
+      etapaNutricao: typeof body.etapaNutricao === 'string' ? body.etapaNutricao : undefined,
+    });
+    res.status(204).end();
+  } catch (e) { next(e); }
+}
+
+export async function listNutricaoTemplates(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await svc.listNutricaoTemplates();
+    res.json(data);
+  } catch (e) { next(e); }
+}
+
+export async function createNutricaoTemplate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = createNutricaoTemplateSchema.parse(req.body);
+    const data = await svc.createNutricaoTemplate(body);
+    res.status(201).json(data);
+  } catch (e) { next(e); }
+}
+
+export async function updateNutricaoTemplate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = updateNutricaoTemplateSchema.parse(req.body);
+    const data = await svc.updateNutricaoTemplate(req.params.id, body);
+    res.json(data);
+  } catch (e) { next(e); }
+}
+
+export async function deleteNutricaoTemplate(req: Request, res: Response, next: NextFunction) {
+  try {
+    await svc.deleteNutricaoTemplate(req.params.id);
+    res.status(204).end();
+  } catch (e) { next(e); }
 }

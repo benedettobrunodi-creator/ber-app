@@ -1246,3 +1246,70 @@ export async function getCohort(ano: number) {
 
   return cohort;
 }
+
+// ── Nutrição ─────────────────────────────────────────────────────────────────
+
+export async function reorderNutricaoContatos(input: { ids: string[]; etapaNutricao?: string }) {
+  await prisma.$transaction(
+    input.ids.map((id, idx) =>
+      prisma.crmContato.update({
+        where: { id },
+        data: {
+          ordemNutricao: (idx + 1) * 1000,
+          ...(input.etapaNutricao ? { etapaNutricao: input.etapaNutricao } : {}),
+        },
+      }),
+    ),
+  );
+}
+
+export async function listNutricaoTemplates() {
+  return prisma.crmNutricaoTemplate.findMany({
+    where: { ativo: true },
+    orderBy: [{ etapa: 'asc' }, { canal: 'asc' }, { ordem: 'asc' }],
+  });
+}
+
+export async function createNutricaoTemplate(data: {
+  etapa: string;
+  canal: string;
+  titulo: string;
+  corpo: string;
+  perfilAlvo?: string | null;
+  ordem?: number;
+  ativo?: boolean;
+}) {
+  return prisma.crmNutricaoTemplate.create({
+    data: {
+      etapa: data.etapa,
+      canal: data.canal,
+      titulo: data.titulo,
+      corpo: data.corpo,
+      perfilAlvo: data.perfilAlvo ?? null,
+      ordem: data.ordem ?? 0,
+      ativo: data.ativo ?? true,
+    },
+  });
+}
+
+export async function updateNutricaoTemplate(
+  id: string,
+  data: {
+    etapa?: string;
+    canal?: string;
+    titulo?: string;
+    corpo?: string;
+    perfilAlvo?: string | null;
+    ordem?: number;
+    ativo?: boolean;
+  },
+) {
+  return prisma.crmNutricaoTemplate.update({
+    where: { id },
+    data,
+  });
+}
+
+export async function deleteNutricaoTemplate(id: string) {
+  return prisma.crmNutricaoTemplate.delete({ where: { id } });
+}

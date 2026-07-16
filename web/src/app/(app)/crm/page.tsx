@@ -120,7 +120,7 @@ export default function CrmPage() {
               <TabAtividades atividades={atividades} oportunidades={oportunidades} users={users} currentUserId={currentUser?.id} onRefresh={fetchAll} />
             )}
             {tab === 'nutricao' && (
-              <TabNutricao contatos={contatos} campanhas={campanhas} users={users} onRefresh={fetchAll} />
+              <TabNutricao contatos={contatos} users={users} onRefresh={fetchAll} />
             )}
             {tab === 'relatorios' && <TabRelatorios oportunidades={oportunidades} />}
           </>
