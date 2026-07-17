@@ -63,7 +63,7 @@ const ICP_ITEMS = [
   { key: 'icpEstrategico', letter: 'E', label: 'Cliente estratégico (recorrência / portfólio)' },
   { key: 'icpLocalizacao', letter: 'L', label: 'Localização (São Paulo)' },
   { key: 'icpTicket',      letter: 'T', label: 'Ticket compatível (~R$1MM)' },
-  { key: 'icpCiclo',       letter: 'C', label: 'Ciclo compatível (~90 dias)' },
+  { key: 'icpCiclo',       letter: 'P', label: 'Prazo de pagamento aceitável (≤ 30 dias)' },
 ] as const;
 
 const BANT_ITEMS = [
@@ -633,7 +633,7 @@ function OportunidadeDrawer({
               { key: 'icpEstrategico', label: 'Cliente estratégico (recorrência / portfólio)' },
               { key: 'icpLocalizacao', label: 'Localização (São Paulo)' },
               { key: 'icpTicket',      label: 'Ticket compatível (~R$1MM)' },
-              { key: 'icpCiclo',       label: 'Ciclo compatível (~90 dias)' },
+              { key: 'icpCiclo',       label: 'Prazo de pagamento aceitável (≤ 30 dias)' },
             ].map((it) => (
               <label key={it.key} className="flex items-center gap-2 cursor-pointer">
                 <input

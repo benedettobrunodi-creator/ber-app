@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import api from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, ComposedChart, Line, LabelList,
 } from 'recharts';
 import { fmt, Oportunidade } from '../types';
 import DrilldownModal from './DrilldownModal';
@@ -149,7 +149,14 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   const allOrigens = Array.from(new Set(Object.values(pipeMes).flatMap((m) => Object.keys(m))));
   const pipeMesData = MESES.map((m, i) => {
     const row: Record<string, number | string> = { mes: m };
-    for (const o of allOrigens) row[o] = pipeMes[i + 1]?.[o] ?? 0;
+    let total = 0;
+    for (const o of allOrigens) {
+      const v = pipeMes[i + 1]?.[o] ?? 0;
+      row[o] = v;
+      total += v;
+    }
+    row._total = total;
+    row._totalMarker = 0;
     return row;
   });
 
@@ -393,16 +400,40 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         {/* Gráfico mês a mês por origem — valor de entrada */}
         <p className="text-[11px] font-semibold text-ber-gray uppercase tracking-wide mb-2">Entradas por mês</p>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={pipeMesData}>
+          <ComposedChart data={pipeMesData} margin={{ top: 24, right: 8, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
             <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
             <Tooltip formatter={(v) => fmt(Number(v))} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
             {allOrigens.map((o) => (
               <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
             ))}
-          </BarChart>
+            {/* Linha invisível seguindo o total — ancora o rótulo no topo do stack */}
+            <Line
+              dataKey="_total"
+              stroke="transparent"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              legendType="none"
+            >
+              <LabelList
+                dataKey="_total"
+                position="top"
+                offset={8}
+                formatter={(value) => {
+                  const v = Number(value);
+                  if (!v) return '';
+                  const nf = (n: number, digits = 1) =>
+                    n.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+                  if (v >= 1_000_000) return `R$${nf(v / 1_000_000)} M`;
+                  if (v >= 1_000) return `R$${nf(v / 1_000)} k`;
+                  return `R$${nf(v, 0)}`;
+                }}
+                style={{ fontSize: 10, fill: '#2A2A2A', fontWeight: 700 }}
+              />
+            </Line>
+          </ComposedChart>
         </ResponsiveContainer>
       </Section>
 

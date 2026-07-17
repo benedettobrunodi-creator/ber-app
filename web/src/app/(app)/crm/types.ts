@@ -36,7 +36,7 @@ export const TIPOS_ATIVIDADE = [
   { value: 'outro',    label: 'Outro' },
 ] as const;
 
-export const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
+export const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel'];
 export const CLASSIFICACOES = ['Gerenciadora', 'Arquitetura', 'Broker', 'Incorporadora', 'End User', 'Fundo', 'Fornecedor'] as const;
 
 /** Setores de mercado da empresa cliente. */

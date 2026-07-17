@@ -1164,13 +1164,13 @@ export async function getWinRateSegmento(ano?: number) {
   const map: Record<string, { ganho: number; perdido: number; valorGanho: number }> = {};
 
   for (const op of ganhos) {
-    const segmento = op.empresa?.segmento ?? 'Outros';
+    const segmento = op.empresa?.segmento ?? 'Residencial';
     map[segmento] ??= { ganho: 0, perdido: 0, valorGanho: 0 };
     map[segmento].ganho++;
     map[segmento].valorGanho += Number(op.valor ?? 0);
   }
   for (const op of perdas) {
-    const segmento = op.empresa?.segmento ?? 'Outros';
+    const segmento = op.empresa?.segmento ?? 'Residencial';
     map[segmento] ??= { ganho: 0, perdido: 0, valorGanho: 0 };
     map[segmento].perdido++;
   }

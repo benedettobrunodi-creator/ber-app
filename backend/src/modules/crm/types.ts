@@ -60,7 +60,6 @@ export const CRM_SEGMENTOS = [
   'Industrial',
   'Igreja',
   'Hotel',
-  'Outros',
 ] as const;
 
 export const CRM_CLASSIFICACOES = [
