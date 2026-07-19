@@ -176,24 +176,26 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   const totalValorGanho = segmentoGanhos.reduce((acc, s) => acc + s.valorGanho, 0);
   const totalCountGanho = segmentoGanhos.reduce((acc, s) => acc + s.ganho, 0);
 
-  // Origem — total de negócios e ganhos
-  const origemTotais = origemData.map((o) => ({
-    origem: Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0] ?? o.name,
-    name: o.name,
-    count: o.value,
-    valor: o.valor,
-    color: o.color,
-  }));
+  // Origem — total de negócios e ganhos (exclui "sem_origem" pra bater com o gráfico Origem dos Leads)
+  const origemTotais = origemData
+    .map((o) => ({
+      origem: Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0] ?? o.name,
+      name: o.name,
+      count: o.value,
+      valor: o.valor,
+      color: o.color,
+    }))
+    .filter((o) => o.origem !== 'sem_origem');
   const totalOrigemCount = origemTotais.reduce((acc, o) => acc + o.count, 0);
   const totalOrigemValor = origemTotais.reduce((acc, o) => acc + o.valor, 0);
 
   const origemGanhosMap: Record<string, { count: number; valor: number }> = {};
   for (const op of opsAno) {
     if (op.etapa !== 'ganho') continue;
-    const key = op.origem ?? 'sem_origem';
-    origemGanhosMap[key] ??= { count: 0, valor: 0 };
-    origemGanhosMap[key].count++;
-    origemGanhosMap[key].valor += Number(op.valor ?? 0);
+    if (!op.origem) continue; // exclui deals sem origem definida
+    origemGanhosMap[op.origem] ??= { count: 0, valor: 0 };
+    origemGanhosMap[op.origem].count++;
+    origemGanhosMap[op.origem].valor += Number(op.valor ?? 0);
   }
   const origemGanhos = Object.entries(origemGanhosMap)
     .map(([k, v]) => ({
