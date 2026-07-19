@@ -176,6 +176,37 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   const totalValorGanho = segmentoGanhos.reduce((acc, s) => acc + s.valorGanho, 0);
   const totalCountGanho = segmentoGanhos.reduce((acc, s) => acc + s.ganho, 0);
 
+  // Origem — total de negócios e ganhos
+  const origemTotais = origemData.map((o) => ({
+    origem: Object.entries(ORIGEM_LABELS).find(([, v]) => v === o.name)?.[0] ?? o.name,
+    name: o.name,
+    count: o.value,
+    valor: o.valor,
+    color: o.color,
+  }));
+  const totalOrigemCount = origemTotais.reduce((acc, o) => acc + o.count, 0);
+  const totalOrigemValor = origemTotais.reduce((acc, o) => acc + o.valor, 0);
+
+  const origemGanhosMap: Record<string, { count: number; valor: number }> = {};
+  for (const op of opsAno) {
+    if (op.etapa !== 'ganho') continue;
+    const key = op.origem ?? 'sem_origem';
+    origemGanhosMap[key] ??= { count: 0, valor: 0 };
+    origemGanhosMap[key].count++;
+    origemGanhosMap[key].valor += Number(op.valor ?? 0);
+  }
+  const origemGanhos = Object.entries(origemGanhosMap)
+    .map(([k, v]) => ({
+      origem: k,
+      name: ORIGEM_LABELS[k] ?? k,
+      count: v.count,
+      valor: v.valor,
+      color: ORIGEM_COLORS[k] ?? '#868686',
+    }))
+    .sort((a, b) => b.valor - a.valor);
+  const totalGanhoCount = origemGanhos.reduce((acc, o) => acc + o.count, 0);
+  const totalGanhoValor = origemGanhos.reduce((acc, o) => acc + o.valor, 0);
+
   // Cohort
   const cohortData = MESES.map((m, i) => {
     const c = cohort[i + 1];
@@ -329,6 +360,118 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
               </div>
             </div>
 
+          </div>
+        </Section>
+      )}
+
+      {/* ── Total de Negócios por Origem ─────────────────────────── */}
+      {origemTotais.length > 0 && (
+        <Section title="Total de Negócios por Origem" subtitle={String(ano)}>
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Volume (R$)</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={origemTotais} dataKey="valor" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
+                    {origemTotais.map((o, i) => <Cell key={i} fill={o.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => fmt(Number(v))} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Quantidade</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={origemTotais} dataKey="count" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
+                    {origemTotais.map((o, i) => <Cell key={i} fill={o.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`${v} deals`, 'Negócios']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-center pt-1">
+              <div className="space-y-1.5">
+                {origemTotais.map((o) => (
+                  <div
+                    key={o.origem}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                    onClick={() => openDrill(`Origem: ${o.name}`, opsAno.filter((op) => (op.origem ?? 'sem_origem') === o.origem))}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                    <span className="text-sm text-ber-carbon font-medium flex-1 truncate">{o.name}</span>
+                    <span className="text-xs font-bold text-ber-carbon w-6 text-center">{o.count}</span>
+                    <span className="text-xs text-ber-gray w-24 text-right">{fmt(o.valor)}</span>
+                    <span className="text-[11px] text-ber-gray/70 w-9 text-right">
+                      {totalOrigemValor > 0 ? `${Math.round((o.valor / totalOrigemValor) * 100)}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 px-2 mt-2 pt-2 border-t border-ber-border">
+                <span className="w-2.5 h-2.5 shrink-0" />
+                <span className="text-xs font-bold text-ber-gray flex-1">Total</span>
+                <span className="text-xs font-bold text-ber-carbon w-6 text-center">{totalOrigemCount}</span>
+                <span className="text-xs font-bold text-ber-carbon w-24 text-right">{fmt(totalOrigemValor)}</span>
+                <span className="text-[11px] text-ber-gray/70 w-9 text-right">100%</span>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* ── Ganhos por Origem ────────────────────────────────────── */}
+      {origemGanhos.length > 0 && (
+        <Section title="Ganhos por Origem" subtitle={String(ano)}>
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Volume (R$)</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={origemGanhos} dataKey="valor" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
+                    {origemGanhos.map((o, i) => <Cell key={i} fill={o.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => fmt(Number(v))} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Por Quantidade</p>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie data={origemGanhos} dataKey="count" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
+                    {origemGanhos.map((o, i) => <Cell key={i} fill={o.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`${v} deals`, 'Ganhos']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col justify-center pt-1">
+              <div className="space-y-1.5">
+                {origemGanhos.map((o) => (
+                  <div
+                    key={o.origem}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-ber-surface rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                    onClick={() => openDrill(`Ganhos — Origem: ${o.name}`, opsAno.filter((op) => op.etapa === 'ganho' && (op.origem ?? 'sem_origem') === o.origem))}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                    <span className="text-sm text-ber-carbon font-medium flex-1 truncate">{o.name}</span>
+                    <span className="text-xs font-bold text-ber-carbon w-6 text-center">{o.count}</span>
+                    <span className="text-xs text-ber-gray w-24 text-right">{fmt(o.valor)}</span>
+                    <span className="text-[11px] text-ber-gray/70 w-9 text-right">
+                      {totalGanhoValor > 0 ? `${Math.round((o.valor / totalGanhoValor) * 100)}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 px-2 mt-2 pt-2 border-t border-ber-border">
+                <span className="w-2.5 h-2.5 shrink-0" />
+                <span className="text-xs font-bold text-ber-gray flex-1">Total</span>
+                <span className="text-xs font-bold text-ber-carbon w-6 text-center">{totalGanhoCount}</span>
+                <span className="text-xs font-bold text-ber-carbon w-24 text-right">{fmt(totalGanhoValor)}</span>
+                <span className="text-[11px] text-ber-gray/70 w-9 text-right">100%</span>
+              </div>
+            </div>
           </div>
         </Section>
       )}
