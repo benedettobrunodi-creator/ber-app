@@ -19,6 +19,7 @@ const ORIGEM_COLORS: Record<string, string> = {
   broker:       '#E6A23C',
   arquitetura:  '#EC4899',
   recorrente:   '#3D9E5F',
+  change_order: '#0EA5E9',
   sem_origem:   '#868686',
 };
 
@@ -30,6 +31,7 @@ const ORIGEM_LABELS: Record<string, string> = {
   broker:       'Broker',
   arquitetura:  'Arquitetura',
   recorrente:   'Recorrente',
+  change_order: 'Change Order',
   sem_origem:   'Sem origem',
 };
 

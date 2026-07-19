@@ -33,6 +33,7 @@ export const CRM_ORIGENS = [
   'broker',
   'arquitetura',
   'recorrente',
+  'change_order',
 ] as const;
 export type CrmOrigem = (typeof CRM_ORIGENS)[number];
 

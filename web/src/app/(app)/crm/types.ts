@@ -13,13 +13,14 @@ export const ETAPAS = [
 export const ETAPA_MAP = Object.fromEntries(ETAPAS.map((e) => [e.value, e]));
 
 export const ORIGENS = [
-  { value: 'gerenciadora', label: 'Gerenciadora' },
-  { value: 'marketing',    label: 'Marketing' },
-  { value: 'outbound',     label: 'Outbound' },
-  { value: 'networking',   label: 'Networking' },
-  { value: 'broker',       label: 'Broker' },
-  { value: 'arquitetura',  label: 'Arquitetura' },
-  { value: 'recorrente',   label: 'Recorrente' },
+  { value: 'gerenciadora',  label: 'Gerenciadora' },
+  { value: 'marketing',     label: 'Marketing' },
+  { value: 'outbound',      label: 'Outbound' },
+  { value: 'networking',    label: 'Networking' },
+  { value: 'broker',        label: 'Broker' },
+  { value: 'arquitetura',   label: 'Arquitetura' },
+  { value: 'recorrente',    label: 'Recorrente' },
+  { value: 'change_order',  label: 'Change Order' },
 ] as const;
 
 export const PROBABILIDADES = [
