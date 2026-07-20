@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useBackToObra } from '@/hooks/useBackToObra';
+import { useTabState } from '@/hooks/useTabState';
 import Link from 'next/link';
 import { ArrowLeft, Plus, FileSignature, ShoppingBag, Trash2, X, Paperclip, Upload, Pencil } from 'lucide-react';
 import api from '@/lib/api';
@@ -91,7 +92,7 @@ export default function ContratacoesPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
   const backHref = useBackToObra();
-  const [tab, setTab] = useState<'contratos' | 'ocs'>('contratos');
+  const [tab, setTab] = useTabState<'contratos' | 'ocs'>('contratos');
   const [obraName, setObraName] = useState('');
   const [contratos, setContratos] = useState<ListContratacoesResponse['data'] | null>(null);
   const [ocs, setOcs] = useState<ListOcsResponse['data'] | null>(null);

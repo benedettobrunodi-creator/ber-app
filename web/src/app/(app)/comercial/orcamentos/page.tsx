@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
+import { useTabState } from '@/hooks/useTabState';
 import api from '@/lib/api';
 import {
   Star, StarOff, Plus, X, ChevronDown, ChevronRight, Download,
@@ -133,6 +134,17 @@ const BRL = (v: number) =>
 const fmtDate = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
 
+/**
+ * Parse "YYYY-MM-DD" (ou ISO com T00:00Z) como data LOCAL em SP.
+ * Evita o off-by-one do `new Date('2026-07-21')` que interpreta como UTC
+ * e vira 20/jul em fuso -3.
+ */
+function parseDateLocal(s: string | null): Date | null {
+  if (!s) return null;
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function initials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
@@ -179,8 +191,8 @@ function ganttRange(items: Orcamento[]) {
   }
   const times = withDates.flatMap(o => {
     const arr: number[] = [];
-    if (o.dataInicio) arr.push(new Date(o.dataInicio).getTime());
-    if (o.dataFim) arr.push(new Date(o.dataFim).getTime());
+    if (o.dataInicio) arr.push(parseDateLocal(o.dataInicio)!.getTime());
+    if (o.dataFim) arr.push(parseDateLocal(o.dataFim)!.getTime());
     return arr;
   });
   return {
@@ -867,8 +879,8 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   })).filter(g => g.items.length > 0);
 
   function barProps(o: Orcamento) {
-    const s = o.dataInicio ? new Date(o.dataInicio) : today;
-    const e2 = o.dataFim ? new Date(o.dataFim) : addDays(s, 7);
+    const s = parseDateLocal(o.dataInicio) ?? today;
+    const e2 = parseDateLocal(o.dataFim) ?? addDays(s, 7);
     return {
       left: Math.max(0, daysBetween(start, s)) * pxPerDay,
       width: Math.max(pxPerDay * 2, (daysBetween(s, e2) + 1) * pxPerDay),
@@ -1390,8 +1402,8 @@ function TabDashboard({ stats, items }: { stats: StatsData | null; items: Orcame
     week: w.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     ativos: items.filter(o => {
       if (!o.dataInicio) return false;
-      const s = new Date(o.dataInicio);
-      const e2 = o.dataFim ? new Date(o.dataFim) : new Date(s);
+      const s = parseDateLocal(o.dataInicio)!;
+      const e2 = parseDateLocal(o.dataFim) ?? new Date(s);
       e2.setDate(e2.getDate() + 30);
       return s <= w && e2 >= w;
     }).length,
@@ -1519,7 +1531,7 @@ export default function EsteiraDOrcamentosPage() {
   const perms = getUserPermissions(user);
   const canWrite = user ? !['campo'].includes(user.role) && perms.orcamentos : false;
 
-  const [tab, setTab] = useState<ActiveTab>('timeline');
+  const [tab, setTab] = useTabState<ActiveTab>('timeline');
   const [items, setItems] = useState<Orcamento[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [users, setUsers] = useState<Responsavel[]>([]);

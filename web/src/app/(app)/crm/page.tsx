@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
+import { useTabState } from '@/hooks/useTabState';
 import { Target, Kanban, Building2, Calendar, BarChart2, TrendingUp, Thermometer } from 'lucide-react';
 import TabPipeline from './components/TabPipeline';
 import TabEmpresas from './components/TabEmpresas';
@@ -27,7 +28,7 @@ const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function CrmPage() {
   const currentUser = useAuthStore((s) => s.user);
-  const [tab, setTab] = useState<Tab>('pipeline');
+  const [tab, setTab] = useTabState<Tab>('pipeline');
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [atividades, setAtividades] = useState<Atividade[]>([]);

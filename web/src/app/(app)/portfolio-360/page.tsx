@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useTabState } from '@/hooks/useTabState';
 import {
   LayoutDashboard, Users, ShoppingCart, FileSearch, FileText, Activity,
   AlertTriangle, ArrowRight, CheckCircle2, Clock, Building2, TrendingDown,
@@ -98,7 +99,7 @@ function health(o: ObraRow): 'ok' | 'risco' | 'atrasado' | null {
 
 // ─── Page ──────────────────────────────────────────────────────────────────
 export default function Portfolio360Page() {
-  const [tab, setTab] = useState<TabKey>('visao');
+  const [tab, setTab] = useTabState<TabKey>('visao');
   const [obras, setObras] = useState<ObraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [hydrating, setHydrating] = useState(false);

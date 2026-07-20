@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTabState } from '@/hooks/useTabState';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import api from '@/lib/api';
 import {
@@ -2122,7 +2123,7 @@ export default function AlocacaoPage() {
   const { user } = useAuthStore();
   const perms = getUserPermissions(user);
 
-  const [activeTab, setActiveTab] = useState<Tab>('timeline');
+  const [activeTab, setActiveTab] = useTabState<Tab>('timeline');
   const [zoom, setZoom] = useState<Zoom>('mes');
   const [viewMode, setViewMode] = useState<ViewMode>('recurso');
   const [alocacoes, setAlocacoes] = useState<Alocacao[]>([]);

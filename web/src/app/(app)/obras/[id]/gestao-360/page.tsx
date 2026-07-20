@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTabState } from '@/hooks/useTabState';
 import {
   ArrowLeft, LayoutDashboard, Users, ShoppingCart, FileSearch, FileText, Activity,
   TrendingUp, TrendingDown, AlertTriangle, ArrowRight, CalendarClock, FileSignature,
@@ -73,7 +74,7 @@ const fmtDateFull = (iso: string | null) => iso ? new Date(iso).toLocaleDateStri
 export default function Gestao360Page() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
-  const [tab, setTab] = useState<TabKey>('visao');
+  const [tab, setTab] = useTabState<TabKey>('visao');
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | true | null>(null);
   const [showNewAditivo, setShowNewAditivo] = useState(false);
