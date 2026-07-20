@@ -722,6 +722,7 @@ interface GanttRowProps {
   todayOffset: number;
   barLeft: number;
   barWidth: number;
+  entregaOffset: number | null;
   barBg: string;
   isOutline: boolean;
   weekendSpans: Array<{ left: number; width: number }>;
@@ -729,7 +730,7 @@ interface GanttRowProps {
   onTooltip: (orc: Orcamento | null, e?: React.MouseEvent) => void;
 }
 
-function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg, isOutline, weekendSpans, onClickItem, onTooltip }: GanttRowProps) {
+function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, entregaOffset, barBg, isOutline, weekendSpans, onClickItem, onTooltip }: GanttRowProps) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id: orc.id });
 
   return (
@@ -789,6 +790,15 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, barBg
             {orc.cliente}
           </span>
         </div>
+        {entregaOffset !== null && (
+          <div
+            className="absolute pointer-events-none"
+            style={{ left: entregaOffset - 7, top: (ROW_H - 14) / 2, width: 14, height: 14 }}
+            title={`Entrega: ${fmtDate(orc.dataEntrega)}`}
+          >
+            <Star size={14} className="fill-yellow-400 text-yellow-500 drop-shadow-sm" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -881,9 +891,11 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   function barProps(o: Orcamento) {
     const s = parseDateLocal(o.dataInicio) ?? today;
     const e2 = parseDateLocal(o.dataFim) ?? addDays(s, 7);
+    const entrega = parseDateLocal(o.dataEntrega);
     return {
       left: Math.max(0, daysBetween(start, s)) * pxPerDay,
       width: Math.max(pxPerDay * 2, (daysBetween(s, e2) + 1) * pxPerDay),
+      entregaOffset: entrega ? (daysBetween(start, entrega) + 0.5) * pxPerDay : null,
     };
   }
 
@@ -1005,7 +1017,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                   {!isCollapsed && (
                     <SortableContext items={catItems.map(o => o.id)} strategy={verticalListSortingStrategy}>
                       {catItems.map(orc => {
-                        const { left: barLeft, width: barWidth } = barProps(orc);
+                        const { left: barLeft, width: barWidth, entregaOffset } = barProps(orc);
                         return (
                           <GanttRow
                             key={orc.id}
@@ -1015,6 +1027,7 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
                             todayOffset={todayOffset}
                             barLeft={barLeft}
                             barWidth={barWidth}
+                            entregaOffset={entregaOffset}
                             barBg={GANTT_BAR_BG[orc.status] ?? '#9CA3AF'}
                             isOutline={orc.status === 'A_INICIAR'}
                             weekendSpans={weekendSpans}
