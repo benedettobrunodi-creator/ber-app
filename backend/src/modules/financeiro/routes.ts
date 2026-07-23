@@ -27,4 +27,8 @@ router.post('/ciclos/:cicloId/linhas/reorder', ctrl.reorderLinhas);
 // Valores
 router.put('/linhas/:linhaId/valor', ctrl.setValor);
 
+// Seed one-shot (temporário) — popula o ciclo DRE 2026 se ainda não existir.
+// Aberto via GET pra você conseguir acionar pelo browser. Idempotente.
+router.get('/seed-dre-2026', ctrl.seedDre2026);
+
 export default router;
