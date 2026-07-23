@@ -47,7 +47,6 @@ import rolesRoutes from './modules/roles/routes';
 import alocacoesRoutes from './modules/alocacoes/routes';
 import recursosExternosRoutes from './modules/recursos-externos/routes';
 import orcamentosRoutes from './modules/orcamentos/routes';
-import quantitativosRoutes, { orcamentoQuantitativoRouter } from './modules/quantitativos/routes';
 import clickupRoutes from './modules/clickup/routes';
 import apiKeysRoutes from './modules/api-keys/routes';
 import diarioRouter, { obraDiarioRouter } from './modules/diario/routes';
@@ -182,8 +181,6 @@ app.use('/v1/compras-dashboard', ...perm('comprasDashboard'), comprasDashboardRo
 app.use('/v1/proposals', ...perm('orcamentos'), proposalRoutes);
 app.use('/v1/meetings', ...perm('orcamentos'), meetingRoutes);
 app.use('/v1/orcamentos', ...perm('orcamentos'), orcamentosRoutes);
-app.use('/v1/orcamentos/:orcamentoId/quantitativos', ...perm('orcamentos'), orcamentoQuantitativoRouter);
-app.use('/v1/quantitativos', ...perm('orcamentos'), quantitativosRoutes);
 app.use('/v1/crm', ...perm('orcamentos'), crmRoutes);
 
 // — Módulo: organograma —
