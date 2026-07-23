@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react';
 import api from '@/lib/api';
-import { Plus, Trash2, Copy, Save, Settings2, X, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Copy, Save, Settings2, X, DollarSign, Sigma, Check } from 'lucide-react';
 
 interface Ciclo { id: string; nome: string; ano: number; ordem: number }
+interface CellRef { linhaId: string; mes: number }
 interface Linha {
   id: string;
   ordem: number;
@@ -14,9 +15,14 @@ interface Linha {
   isTotal: boolean;
   isHeader: boolean;
   grupoId: string | null;
-  valores: Record<number, number>;
+  valores: Record<number, number | null>;
+  formulas: Record<number, CellRef[] | undefined>;
 }
 interface Snapshot { id: string; nome: string; ano: number; linhas: Linha[] }
+interface SelectionState {
+  target: CellRef;
+  refs: CellRef[];
+}
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NUMS = [1,2,3,4,5,6,7,8,9,10,11,12];
@@ -37,24 +43,48 @@ function parseBR(s: string): number | null {
 }
 
 /** Soma valores das filhas do mesmo grupo por mês (só quando linha é total). */
-function computeTotais(linhas: Linha[]): Record<string, Record<number, number>> {
+function computeTotais(linhas: Linha[], byId: Map<string, Linha>): Record<string, Record<number, number>> {
   const out: Record<string, Record<number, number>> = {};
   for (const l of linhas) {
     if (!l.isTotal) continue;
     const filhas = linhas.filter(x => x.grupoId === l.id && !x.isTotal);
     const acc: Record<number, number> = {};
     for (const m of MES_NUMS) {
-      acc[m] = filhas.reduce((s, f) => s + (Number(f.valores?.[m]) || 0), 0);
+      acc[m] = filhas.reduce((s, f) => s + resolveValor(f, m, byId), 0);
     }
     out[l.id] = acc;
   }
   return out;
 }
 
-/** Total anual (soma dos 12 meses) — usa cálculo se for total, senão o valor bruto. */
-function totalAnual(l: Linha, totais: Record<string, Record<number, number>>): number {
-  const src = l.isTotal ? totais[l.id] ?? {} : l.valores ?? {};
-  return MES_NUMS.reduce((s, m) => s + (Number(src[m]) || 0), 0);
+/** Resolve valor de uma célula: se tiver fórmula, soma as refs (recursivo).
+ *  Se for isTotal, soma filhas. Senão retorna valor manual. Evita ciclo por visited. */
+function resolveValor(l: Linha, m: number, byId: Map<string, Linha>, visited: Set<string> = new Set()): number {
+  const key = `${l.id}:${m}`;
+  if (visited.has(key)) return 0;
+  visited.add(key);
+  if (l.isTotal) {
+    let s = 0;
+    for (const [, x] of byId) {
+      if (x.grupoId === l.id && !x.isTotal) s += resolveValor(x, m, byId, visited);
+    }
+    return s;
+  }
+  const f = l.formulas?.[m];
+  if (Array.isArray(f) && f.length > 0) {
+    return f.reduce((s, ref) => {
+      const src = byId.get(ref.linhaId);
+      if (!src) return s;
+      return s + resolveValor(src, ref.mes, byId, visited);
+    }, 0);
+  }
+  const v = l.valores?.[m];
+  return typeof v === 'number' ? v : 0;
+}
+
+/** Total anual (soma dos 12 meses resolvidos). */
+function totalAnual(l: Linha, byId: Map<string, Linha>): number {
+  return MES_NUMS.reduce((s, m) => s + resolveValor(l, m, byId), 0);
 }
 
 export default function DrePage() {
@@ -69,6 +99,7 @@ export default function DrePage() {
   const [dupForm, setDupForm] = useState({ nome: '', ano: new Date().getFullYear() });
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const saveTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [selection, setSelection] = useState<SelectionState | null>(null);
 
   // ── Load ──────────────────────────────────────────────────────────────────
   async function loadCiclos() {
@@ -94,7 +125,8 @@ export default function DrePage() {
 
   // ── Computados ────────────────────────────────────────────────────────────
   const linhas = snap?.linhas ?? [];
-  const totais = useMemo(() => computeTotais(linhas), [linhas]);
+  const linhasById = useMemo(() => new Map(linhas.map(l => [l.id, l])), [linhas]);
+  const totais = useMemo(() => computeTotais(linhas, linhasById), [linhas, linhasById]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function updateCellLocal(linhaId: string, mes: number, valor: number | null) {
@@ -103,11 +135,14 @@ export default function DrePage() {
       ...snap,
       linhas: snap.linhas.map(l => l.id !== linhaId ? l : {
         ...l,
-        valores: valor == null ? Object.fromEntries(Object.entries(l.valores).filter(([k]) => Number(k) !== mes)) : { ...l.valores, [mes]: valor },
+        // ao digitar manual: remove fórmula (célula vira input direto)
+        formulas: (() => { const f = { ...l.formulas }; delete f[mes]; return f; })(),
+        valores: valor == null
+          ? Object.fromEntries(Object.entries(l.valores).filter(([k]) => Number(k) !== mes))
+          : { ...l.valores, [mes]: valor },
       }),
     };
     setSnap(next);
-    // Debounce save
     const key = `${linhaId}:${mes}`;
     if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
     saveTimers.current[key] = setTimeout(async () => {
@@ -120,6 +155,53 @@ export default function DrePage() {
         setSavingCell(null);
       }
     }, 400);
+  }
+
+  async function salvarFormula() {
+    if (!snap || !selection || selection.refs.length === 0) return;
+    const { target, refs } = selection;
+    try {
+      await api.put(`/financeiro/linhas/${target.linhaId}/valor`, { mes: target.mes, formula: refs });
+      setSnap({
+        ...snap,
+        linhas: snap.linhas.map(l => l.id !== target.linhaId ? l : {
+          ...l,
+          valores: (() => { const v = { ...l.valores }; delete v[target.mes]; return v; })(),
+          formulas: { ...l.formulas, [target.mes]: refs },
+        }),
+      });
+      setSelection(null);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar fórmula');
+    }
+  }
+
+  function toggleRefNaSelecao(ref: CellRef) {
+    if (!selection) return;
+    // não pode referenciar a si mesmo
+    if (ref.linhaId === selection.target.linhaId && ref.mes === selection.target.mes) return;
+    const has = selection.refs.some(r => r.linhaId === ref.linhaId && r.mes === ref.mes);
+    setSelection({
+      ...selection,
+      refs: has ? selection.refs.filter(r => !(r.linhaId === ref.linhaId && r.mes === ref.mes)) : [...selection.refs, ref],
+    });
+  }
+
+  async function limparFormula(linhaId: string, mes: number) {
+    if (!snap) return;
+    try {
+      await api.put(`/financeiro/linhas/${linhaId}/valor`, { mes, valor: null });
+      setSnap({
+        ...snap,
+        linhas: snap.linhas.map(l => l.id !== linhaId ? l : {
+          ...l,
+          valores: (() => { const v = { ...l.valores }; delete v[mes]; return v; })(),
+          formulas: (() => { const f = { ...l.formulas }; delete f[mes]; return f; })(),
+        }),
+      });
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? 'Erro ao limpar');
+    }
   }
 
   async function criarCiclo() {
@@ -248,27 +330,66 @@ export default function DrePage() {
                             </td>
                           );
                         }
-                        if (isHeader) {
-                          return <td key={m} className="px-2 py-1.5" />;
+                        const hasFormula = Array.isArray(l.formulas?.[m]) && (l.formulas[m] as CellRef[]).length > 0;
+                        const inSelectionMode = !!selection;
+                        const isTargetCell = selection && selection.target.linhaId === l.id && selection.target.mes === m;
+                        const isSelected = selection?.refs.some(r => r.linhaId === l.id && r.mes === m);
+                        const cellValue = hasFormula ? resolveValor(l, m, linhasById) : (l.valores[m] ?? null);
+
+                        // Modo seleção: cada célula (exceto o próprio alvo) é clicável pra virar ref
+                        if (inSelectionMode && !isTargetCell) {
+                          return (
+                            <td key={m} className={`px-1 py-1 text-right ${isHeader ? 'bg-ber-carbon/5' : ''}`}>
+                              <button
+                                onClick={() => toggleRefNaSelecao({ linhaId: l.id, mes: m })}
+                                className={`w-24 py-1 px-1.5 text-right text-xs border rounded ${isHeader ? 'font-bold' : ''} ${isSelected ? 'bg-ber-teal/20 border-ber-teal' : 'border-transparent hover:border-ber-teal/60 hover:bg-ber-teal/5'}`}
+                              >
+                                {isSelected && '✓ '}{fmtBR(cellValue) || '—'}
+                              </button>
+                            </td>
+                          );
                         }
+
+                        // Célula normal com botão fx
                         return (
-                          <td key={m} className="px-1 py-1 text-right">
-                            <input
-                              type="text"
-                              defaultValue={l.valores[m] != null ? fmtBR(l.valores[m]) : ''}
-                              onBlur={e => {
-                                const v = parseBR(e.target.value);
-                                const cur = l.valores[m] ?? null;
-                                if (v !== cur) updateCellLocal(l.id, m, v);
+                          <td key={m} className={`group px-1 py-1 text-right relative ${isHeader ? 'bg-ber-carbon/5' : ''} ${isTargetCell ? 'bg-amber-100 ring-2 ring-amber-400 rounded' : ''}`}>
+                            {hasFormula ? (
+                              <div className={`w-24 py-1 px-1.5 text-right text-xs border rounded flex items-center justify-end gap-1 ${isHeader ? 'font-bold' : ''} bg-blue-50 border-blue-200 text-blue-900`}>
+                                <Sigma size={9} />
+                                <span>{fmtBR(cellValue)}</span>
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                defaultValue={l.valores[m] != null ? fmtBR(l.valores[m]) : ''}
+                                onBlur={e => {
+                                  const v = parseBR(e.target.value);
+                                  const cur = l.valores[m] ?? null;
+                                  if (v !== cur) updateCellLocal(l.id, m, v);
+                                }}
+                                className={`w-24 py-1 px-1.5 text-right text-xs border rounded ${isHeader ? 'font-bold' : ''} ${saving ? 'border-ber-teal' : 'border-transparent hover:border-ber-border focus:border-ber-teal focus:outline-none'}`}
+                                placeholder="—"
+                              />
+                            )}
+                            {/* Botão fx / limpar */}
+                            <button
+                              onClick={() => {
+                                if (hasFormula) {
+                                  if (confirm('Remover fórmula desta célula?')) limparFormula(l.id, m);
+                                } else {
+                                  setSelection({ target: { linhaId: l.id, mes: m }, refs: [] });
+                                }
                               }}
-                              className={`w-24 py-1 px-1.5 text-right text-xs border rounded ${saving ? 'border-ber-teal' : 'border-transparent hover:border-ber-border focus:border-ber-teal focus:outline-none'}`}
-                              placeholder="—"
-                            />
+                              className="opacity-0 group-hover:opacity-100 absolute -top-1 -right-1 h-4 w-4 rounded-full bg-ber-carbon text-white text-[9px] flex items-center justify-center hover:bg-ber-teal transition-opacity"
+                              title={hasFormula ? 'Remover fórmula' : 'Somar outras células (fórmula)'}
+                            >
+                              {hasFormula ? <X size={8} /> : <Sigma size={8} />}
+                            </button>
                           </td>
                         );
                       })}
                       <td className={`px-2 py-1.5 text-right font-semibold bg-ber-surface`}>
-                        {fmtBR(totalAnual(l, totais))}
+                        {fmtBR(totalAnual(l, linhasById))}
                       </td>
                       <td className="px-1 py-1">
                         <button onClick={() => removerLinha(l.id)} className="text-ber-gray/20 hover:text-red-500">
@@ -298,6 +419,37 @@ export default function DrePage() {
           </div>
         )}
       </div>
+
+      {/* Barra flutuante do modo seleção */}
+      {selection && (() => {
+        const targetLinha = linhasById.get(selection.target.linhaId);
+        const preview = selection.refs.reduce((s, r) => {
+          const src = linhasById.get(r.linhaId);
+          return s + (src ? resolveValor(src, r.mes, linhasById) : 0);
+        }, 0);
+        return (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-full bg-ber-carbon text-white shadow-xl px-4 py-2 text-sm">
+            <Sigma size={14} className="text-ber-teal" />
+            <span className="text-xs">
+              Selecionando células que somam em <b>{targetLinha?.rotulo}</b> · {MESES[selection.target.mes - 1]}
+              {selection.refs.length > 0 && <> · {selection.refs.length} refs · total {fmtBR(preview)}</>}
+            </span>
+            <button
+              onClick={salvarFormula}
+              disabled={selection.refs.length === 0}
+              className="text-xs font-semibold bg-ber-teal hover:bg-ber-teal/80 disabled:opacity-30 disabled:cursor-not-allowed rounded-full px-3 py-1 flex items-center gap-1"
+            >
+              <Check size={12} /> Salvar
+            </button>
+            <button
+              onClick={() => setSelection(null)}
+              className="text-xs text-white/60 hover:text-white"
+            >
+              Cancelar
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Modais */}
       {showNovoCiclo && (

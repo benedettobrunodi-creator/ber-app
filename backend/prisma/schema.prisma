@@ -2530,7 +2530,9 @@ model FinValor {
   id        String   @id @default(uuid()) @db.Uuid
   linhaId   String   @map("linha_id") @db.Uuid
   mes       Int      // 1..12
-  valor     Decimal  @db.Decimal(16, 2)
+  valor     Decimal? @db.Decimal(16, 2)
+  /** Se preenchido, célula é fórmula-soma: array de refs {linhaId, mes}. */
+  formula   Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 

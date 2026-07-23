@@ -106,10 +106,14 @@ export async function getSnapshot(req: Request, res: Response) {
     },
   });
   if (!ciclo) throw AppError.notFound('ciclo não encontrado');
-  // Reformata: cada linha vira { ..., valores: { 1: 0, 2: 0, ... } }
+  // Reformata: cada linha vira { valores: { mes: num|null }, formulas: { mes: refs[] } }
   const linhas = ciclo.linhas.map((l) => {
-    const valores: Record<number, number> = {};
-    for (const v of l.valores) valores[v.mes] = Number(v.valor);
+    const valores: Record<number, number | null> = {};
+    const formulas: Record<number, unknown> = {};
+    for (const v of l.valores) {
+      valores[v.mes] = v.valor != null ? Number(v.valor) : null;
+      if (v.formula != null) formulas[v.mes] = v.formula;
+    }
     return {
       id: l.id,
       ordem: l.ordem,
@@ -120,6 +124,7 @@ export async function getSnapshot(req: Request, res: Response) {
       isHeader: l.isHeader,
       grupoId: l.grupoId,
       valores,
+      formulas,
     };
   });
   sendSuccess(res, {
@@ -274,13 +279,33 @@ export async function seedDre2026(_req: Request, res: Response) {
   sendSuccess(res, { criado: true, cicloId: ciclo.id, linhas: DRE_2026_ROWS.length, valores: valoresCriados });
 }
 
-/** Upsert de um valor (linha × mês). Se valor for null/0 e existir, remove. */
+/** Upsert de um valor OU fórmula (linha × mês).
+ *  - Se body.formula estiver presente (array não-vazio), célula vira soma.
+ *  - Se body.valor for null/0 e sem formula, remove a linha (limpa célula).
+ *  - Se body.valor for número, salva valor manual (limpa formula).
+ */
 export async function setValor(req: Request, res: Response) {
   const { linhaId } = req.params;
-  const { mes, valor } = req.body ?? {};
+  const { mes, valor, formula } = req.body ?? {};
   const m = Number(mes);
   if (!(m >= 1 && m <= 12)) throw AppError.badRequest('mes inválido (1..12)');
-  const v = valor === null || valor === '' ? null : Number(valor);
+
+  // Fórmula: salva array de refs {linhaId, mes}, valor fica null.
+  if (Array.isArray(formula) && formula.length > 0) {
+    const refs = formula
+      .filter((r: any) => r && typeof r.linhaId === 'string' && Number.isInteger(r.mes) && r.mes >= 1 && r.mes <= 12)
+      .map((r: any) => ({ linhaId: r.linhaId as string, mes: r.mes as number }));
+    if (refs.length === 0) throw AppError.badRequest('formula sem refs válidas');
+    const up = await prisma.finValor.upsert({
+      where: { linhaId_mes: { linhaId, mes: m } },
+      update: { valor: null, formula: refs },
+      create: { linhaId, mes: m, valor: null, formula: refs },
+    });
+    sendSuccess(res, up);
+    return;
+  }
+
+  const v = valor === null || valor === undefined || valor === '' ? null : Number(valor);
   if (v === null || v === 0) {
     await prisma.finValor.deleteMany({ where: { linhaId, mes: m } });
     sendSuccess(res, { removed: true });
@@ -288,7 +313,7 @@ export async function setValor(req: Request, res: Response) {
   }
   const up = await prisma.finValor.upsert({
     where: { linhaId_mes: { linhaId, mes: m } },
-    update: { valor: v },
+    update: { valor: v, formula: null as any },
     create: { linhaId, mes: m, valor: v },
   });
   sendSuccess(res, up);
