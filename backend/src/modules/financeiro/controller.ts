@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { sendSuccess } from '../../utils/response';
 import { AppError } from '../../utils/errors';
+import DRE_2026_FORMULAS_RAW from './dre-2026-formulas.json';
 
 // ── Ciclos ──────────────────────────────────────────────────────────────────
 
@@ -244,22 +245,31 @@ const DRE_2026_ROWS: {
   { rotulo: 'Contas a receber' },
 ];
 
-export async function seedDre2026(_req: Request, res: Response) {
+// Fórmulas do DRE 2026 (parseadas do BER_DRE_2026_v2.xlsx). Chave "rowIdx:mes".
+// Refs usam rowIdx (offset no DRE_2026_ROWS) — resolvido em runtime pelo seeder.
+const DRE_2026_FORMULAS: Record<string, any[]> = DRE_2026_FORMULAS_RAW as any;
+
+export async function seedDre2026(req: Request, res: Response) {
+  const replace = req.query.replace === 'true';
   const existente = await prisma.finCiclo.findFirst({ where: { nome: 'DRE 2026' } });
-  if (existente) {
-    sendSuccess(res, { criado: false, cicloId: existente.id, motivo: 'ciclo "DRE 2026" já existe' });
+  if (existente && !replace) {
+    sendSuccess(res, { criado: false, cicloId: existente.id, motivo: 'ciclo "DRE 2026" já existe. Use ?replace=true pra recriar.' });
     return;
+  }
+  if (existente && replace) {
+    await prisma.finCiclo.delete({ where: { id: existente.id } });
   }
   const ciclo = await prisma.finCiclo.create({
     data: { nome: 'DRE 2026', ano: 2026, ordem: 0 },
   });
-  let ordem = 0;
-  let valoresCriados = 0;
-  for (const r of DRE_2026_ROWS) {
+  // Cria linhas e guarda rowIdx → linhaId
+  const rowIdxToLinhaId = new Map<number, string>();
+  for (let idx = 0; idx < DRE_2026_ROWS.length; idx++) {
+    const r = DRE_2026_ROWS[idx];
     const linha = await prisma.finLinha.create({
       data: {
         cicloId: ciclo.id,
-        ordem: ordem++,
+        ordem: idx,
         rotulo: r.rotulo,
         kpiPct: r.kpiPct ?? null,
         orcamentoAnual: r.orcamentoAnual ?? null,
@@ -267,22 +277,64 @@ export async function seedDre2026(_req: Request, res: Response) {
         isTotal: false,
       },
     });
-    if (r.valores) {
-      for (const [mesStr, valor] of Object.entries(r.valores)) {
-        await prisma.finValor.create({
-          data: { linhaId: linha.id, mes: Number(mesStr), valor },
-        });
-        valoresCriados++;
-      }
+    rowIdxToLinhaId.set(idx, linha.id);
+  }
+  // Popula valores mensais das células que NÃO tem fórmula
+  let valoresCriados = 0;
+  for (let idx = 0; idx < DRE_2026_ROWS.length; idx++) {
+    const r = DRE_2026_ROWS[idx];
+    if (!r.valores) continue;
+    const linhaId = rowIdxToLinhaId.get(idx)!;
+    for (const [mesStr, valor] of Object.entries(r.valores)) {
+      const mes = Number(mesStr);
+      const key = `${idx}:${mes}`;
+      if (DRE_2026_FORMULAS[key]) continue; // fórmula toma precedência
+      await prisma.finValor.create({
+        data: { linhaId, mes, valor },
+      });
+      valoresCriados++;
     }
   }
-  sendSuccess(res, { criado: true, cicloId: ciclo.id, linhas: DRE_2026_ROWS.length, valores: valoresCriados });
+  // Popula fórmulas (converte rowIdx → linhaId nas refs)
+  let formulasCriadas = 0;
+  for (const [key, tokens] of Object.entries(DRE_2026_FORMULAS)) {
+    const [rowIdxStr, mesStr] = key.split(':');
+    const rowIdx = Number(rowIdxStr);
+    const mes = Number(mesStr);
+    const linhaId = rowIdxToLinhaId.get(rowIdx);
+    if (!linhaId) continue;
+    // Converte refs
+    const resolvedTokens = tokens.map((t: any) => {
+      if (t.type === 'ref') {
+        const refLinhaId = rowIdxToLinhaId.get(t.rowIdx);
+        if (!refLinhaId) return null;
+        return { type: 'ref', linhaId: refLinhaId, mes: t.mes };
+      }
+      return t;
+    }).filter((t: any) => t != null);
+    if (resolvedTokens.length === 0) continue;
+    await prisma.finValor.upsert({
+      where: { linhaId_mes: { linhaId, mes } },
+      update: { valor: null, formula: { tokens: resolvedTokens } as any },
+      create: { linhaId, mes, valor: null, formula: { tokens: resolvedTokens } as any },
+    });
+    formulasCriadas++;
+  }
+  sendSuccess(res, {
+    criado: true,
+    cicloId: ciclo.id,
+    linhas: DRE_2026_ROWS.length,
+    valores: valoresCriados,
+    formulas: formulasCriadas,
+  });
 }
 
 /** Upsert de um valor OU fórmula (linha × mês).
- *  - Se body.formula estiver presente (array não-vazio), célula vira soma.
- *  - Se body.valor for null/0 e sem formula, remove a linha (limpa célula).
- *  - Se body.valor for número, salva valor manual (limpa formula).
+ *  formula pode ser:
+ *   - array de refs {linhaId, mes} → soma pura (retrocompat)
+ *   - { tokens: [...] } → expressão com precedência (+,-,*,/, refs, literais, parens)
+ *  valor null/0 sem formula → remove célula.
+ *  valor número (sem formula) → salva manual, limpa formula.
  */
 export async function setValor(req: Request, res: Response) {
   const { linhaId } = req.params;
@@ -290,16 +342,24 @@ export async function setValor(req: Request, res: Response) {
   const m = Number(mes);
   if (!(m >= 1 && m <= 12)) throw AppError.badRequest('mes inválido (1..12)');
 
-  // Fórmula: salva array de refs {linhaId, mes}, valor fica null.
-  if (Array.isArray(formula) && formula.length > 0) {
-    const refs = formula
-      .filter((r: any) => r && typeof r.linhaId === 'string' && Number.isInteger(r.mes) && r.mes >= 1 && r.mes <= 12)
-      .map((r: any) => ({ linhaId: r.linhaId as string, mes: r.mes as number }));
-    if (refs.length === 0) throw AppError.badRequest('formula sem refs válidas');
+  // Fórmula formato novo (tokens) ou antigo (array de refs)
+  if (formula && (Array.isArray(formula) || (typeof formula === 'object' && Array.isArray(formula.tokens)))) {
+    let stored: any;
+    if (Array.isArray(formula)) {
+      const refs = formula
+        .filter((r: any) => r && typeof r.linhaId === 'string' && Number.isInteger(r.mes) && r.mes >= 1 && r.mes <= 12)
+        .map((r: any) => ({ linhaId: r.linhaId as string, mes: r.mes as number }));
+      if (refs.length === 0) throw AppError.badRequest('formula sem refs válidas');
+      stored = refs;
+    } else {
+      const tokens = (formula.tokens as any[]).filter(t => t && typeof t.type === 'string');
+      if (tokens.length === 0) throw AppError.badRequest('formula sem tokens');
+      stored = { tokens };
+    }
     const up = await prisma.finValor.upsert({
       where: { linhaId_mes: { linhaId, mes: m } },
-      update: { valor: null, formula: refs },
-      create: { linhaId, mes: m, valor: null, formula: refs },
+      update: { valor: null, formula: stored },
+      create: { linhaId, mes: m, valor: null, formula: stored },
     });
     sendSuccess(res, up);
     return;

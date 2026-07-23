@@ -6,6 +6,15 @@ import { Plus, Trash2, Copy, Save, Settings2, X, DollarSign, Sigma, Check } from
 
 interface Ciclo { id: string; nome: string; ano: number; ordem: number }
 interface CellRef { linhaId: string; mes: number }
+
+/** Token de fórmula: expressão avaliada com precedência (× ÷ antes de + −), parens permitidas. */
+type Token =
+  | { type: 'ref'; linhaId: string; mes: number }
+  | { type: 'literal'; value: number }
+  | { type: 'op'; op: '+' | '-' | '*' | '/' }
+  | { type: 'paren'; paren: '(' | ')' };
+type Formula = { tokens: Token[] };
+
 interface Linha {
   id: string;
   ordem: number;
@@ -16,7 +25,8 @@ interface Linha {
   isHeader: boolean;
   grupoId: string | null;
   valores: Record<number, number | null>;
-  formulas: Record<number, CellRef[] | undefined>;
+  /** Valor armazenado pode ser: array de CellRef (soma pura, legado) ou Formula ({tokens}). */
+  formulas: Record<number, Formula | CellRef[] | undefined>;
 }
 interface Snapshot { id: string; nome: string; ano: number; linhas: Linha[] }
 interface SelectionState {
@@ -61,8 +71,65 @@ function computeTotais(linhas: Linha[], byId: Map<string, Linha>): Record<string
   return out;
 }
 
-/** Resolve valor de uma célula: se tiver fórmula, soma as refs (recursivo).
- *  Se for isTotal, soma filhas. Senão retorna valor manual. Evita ciclo por visited. */
+/** Avaliação de expressão com precedência: multiplicação/divisão antes de soma/subtração.
+ *  Implementação recursiva simples (não usa shunting-yard). Aceita parens. */
+function evalTokens(tokens: Token[], resolveRef: (r: CellRef) => number): number {
+  let i = 0;
+  function peek(): Token | null { return tokens[i] ?? null; }
+  function consume(): Token { return tokens[i++]; }
+
+  function parsePrimary(): number {
+    const t = peek();
+    if (!t) return 0;
+    if (t.type === 'paren' && t.paren === '(') {
+      consume();
+      const v = parseExpr();
+      const next = peek();
+      if (next && next.type === 'paren' && next.paren === ')') consume();
+      return v;
+    }
+    if (t.type === 'op' && (t.op === '+' || t.op === '-')) {
+      // unário
+      consume();
+      const v = parsePrimary();
+      return t.op === '-' ? -v : v;
+    }
+    if (t.type === 'literal') { consume(); return t.value; }
+    if (t.type === 'ref') { consume(); return resolveRef({ linhaId: t.linhaId, mes: t.mes }); }
+    consume();
+    return 0;
+  }
+
+  function parseTerm(): number {
+    let v = parsePrimary();
+    while (true) {
+      const t = peek();
+      if (!t || t.type !== 'op' || (t.op !== '*' && t.op !== '/')) break;
+      consume();
+      const r = parsePrimary();
+      if (t.op === '*') v *= r;
+      else v = r === 0 ? 0 : v / r;
+    }
+    return v;
+  }
+
+  function parseExpr(): number {
+    let v = parseTerm();
+    while (true) {
+      const t = peek();
+      if (!t || t.type !== 'op' || (t.op !== '+' && t.op !== '-')) break;
+      consume();
+      const r = parseTerm();
+      v = t.op === '+' ? v + r : v - r;
+    }
+    return v;
+  }
+
+  return parseExpr();
+}
+
+/** Resolve valor de uma célula: fórmula (tokens ou legado) > isTotal > valor manual > 0.
+ *  Evita ciclo por set de visitados. */
 function resolveValor(l: Linha, m: number, byId: Map<string, Linha>, visited: Set<string> = new Set()): number {
   const key = `${l.id}:${m}`;
   if (visited.has(key)) return 0;
@@ -75,12 +142,23 @@ function resolveValor(l: Linha, m: number, byId: Map<string, Linha>, visited: Se
     return s;
   }
   const f = l.formulas?.[m];
-  if (Array.isArray(f) && f.length > 0) {
-    return f.reduce((s, ref) => {
-      const src = byId.get(ref.linhaId);
-      if (!src) return s;
-      return s + resolveValor(src, ref.mes, byId, visited);
-    }, 0);
+  if (f) {
+    // Legado: array de refs = soma pura
+    if (Array.isArray(f)) {
+      return f.reduce((s, ref) => {
+        const src = byId.get(ref.linhaId);
+        if (!src) return s;
+        return s + resolveValor(src, ref.mes, byId, new Set(visited));
+      }, 0);
+    }
+    // Novo: {tokens} — expressão com precedência
+    if (typeof f === 'object' && Array.isArray((f as Formula).tokens)) {
+      return evalTokens((f as Formula).tokens, (ref) => {
+        const src = byId.get(ref.linhaId);
+        if (!src) return 0;
+        return resolveValor(src, ref.mes, byId, new Set(visited));
+      });
+    }
   }
   const v = l.valores?.[m];
   return typeof v === 'number' ? v : 0;
@@ -104,6 +182,7 @@ export default function DrePage() {
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const saveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [formulaEditor, setFormulaEditor] = useState<{ target: CellRef; tokens: Token[] } | null>(null);
 
   // ── Load ──────────────────────────────────────────────────────────────────
   async function loadCiclos() {
@@ -334,7 +413,11 @@ export default function DrePage() {
                             </td>
                           );
                         }
-                        const hasFormula = Array.isArray(l.formulas?.[m]) && (l.formulas[m] as CellRef[]).length > 0;
+                        const rawF = l.formulas?.[m];
+                        const hasFormula = !!rawF && (
+                          (Array.isArray(rawF) && rawF.length > 0) ||
+                          (!Array.isArray(rawF) && typeof rawF === 'object' && Array.isArray((rawF as Formula).tokens) && (rawF as Formula).tokens.length > 0)
+                        );
                         const inSelectionMode = !!selection;
                         const isTargetCell = selection && selection.target.linhaId === l.id && selection.target.mes === m;
                         const isSelected = selection?.refs.some(r => r.linhaId === l.id && r.mes === m);
@@ -394,19 +477,32 @@ export default function DrePage() {
                                 placeholder="—"
                               />
                             )}
-                            {/* Botão fx / limpar */}
+                            {/* Botão fx: abre editor ou remove fórmula */}
                             <button
                               onClick={() => {
                                 if (hasFormula) {
-                                  if (confirm('Remover fórmula desta célula?')) limparFormula(l.id, m);
+                                  // Se é fórmula complexa, abre editor pra editar; se é array antigo, também converte pra tokens
+                                  const existing = l.formulas[m];
+                                  let tokens: Token[];
+                                  if (Array.isArray(existing)) {
+                                    // soma pura legado → tokens ref + ref + ref
+                                    tokens = existing.flatMap((r, i) => i === 0
+                                      ? [{ type: 'ref' as const, linhaId: r.linhaId, mes: r.mes }]
+                                      : [{ type: 'op' as const, op: '+' as const }, { type: 'ref' as const, linhaId: r.linhaId, mes: r.mes }]);
+                                  } else if (existing && typeof existing === 'object' && Array.isArray((existing as Formula).tokens)) {
+                                    tokens = (existing as Formula).tokens.slice();
+                                  } else {
+                                    tokens = [];
+                                  }
+                                  setFormulaEditor({ target: { linhaId: l.id, mes: m }, tokens });
                                 } else {
-                                  setSelection({ target: { linhaId: l.id, mes: m }, refs: [] });
+                                  setFormulaEditor({ target: { linhaId: l.id, mes: m }, tokens: [] });
                                 }
                               }}
                               className="opacity-0 group-hover:opacity-100 absolute -top-1 -right-1 h-4 w-4 rounded-full bg-ber-carbon text-white text-[9px] flex items-center justify-center hover:bg-ber-teal transition-opacity"
-                              title={hasFormula ? 'Remover fórmula' : 'Somar outras células (fórmula)'}
+                              title={hasFormula ? 'Editar fórmula' : 'Criar fórmula (+ − × ÷)'}
                             >
-                              {hasFormula ? <X size={8} /> : <Sigma size={8} />}
+                              <Sigma size={8} />
                             </button>
                           </td>
                         );
@@ -473,6 +569,46 @@ export default function DrePage() {
           </div>
         );
       })()}
+
+      {/* Editor de fórmula */}
+      {formulaEditor && (
+        <FormulaEditorModal
+          target={formulaEditor.target}
+          tokens={formulaEditor.tokens}
+          linhas={linhas}
+          linhasById={linhasById}
+          onClose={() => setFormulaEditor(null)}
+          onSave={async (tokens) => {
+            const { target } = formulaEditor;
+            try {
+              if (tokens.length === 0) {
+                await api.put(`/financeiro/linhas/${target.linhaId}/valor`, { mes: target.mes, valor: null });
+                setSnap(snap => snap ? ({
+                  ...snap,
+                  linhas: snap.linhas.map(l => l.id !== target.linhaId ? l : {
+                    ...l,
+                    valores: (() => { const v = { ...l.valores }; delete v[target.mes]; return v; })(),
+                    formulas: (() => { const f = { ...l.formulas }; delete f[target.mes]; return f; })(),
+                  }),
+                }) : snap);
+              } else {
+                await api.put(`/financeiro/linhas/${target.linhaId}/valor`, { mes: target.mes, formula: { tokens } });
+                setSnap(snap => snap ? ({
+                  ...snap,
+                  linhas: snap.linhas.map(l => l.id !== target.linhaId ? l : {
+                    ...l,
+                    valores: (() => { const v = { ...l.valores }; delete v[target.mes]; return v; })(),
+                    formulas: { ...l.formulas, [target.mes]: { tokens } },
+                  }),
+                }) : snap);
+              }
+              setFormulaEditor(null);
+            } catch (e: any) {
+              alert(e?.response?.data?.error?.message ?? 'Erro ao salvar fórmula');
+            }
+          }}
+        />
+      )}
 
       {/* Modais */}
       {showNovoCiclo && (
@@ -604,5 +740,158 @@ function LinhaConfigModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+// ─── Editor de fórmula ──────────────────────────────────────────────────────
+
+function FormulaEditorModal({
+  target, tokens: initialTokens, linhas, linhasById, onClose, onSave,
+}: {
+  target: CellRef;
+  tokens: Token[];
+  linhas: Linha[];
+  linhasById: Map<string, Linha>;
+  onClose: () => void;
+  onSave: (tokens: Token[]) => Promise<void>;
+}) {
+  const [tokens, setTokens] = useState<Token[]>(initialTokens);
+  const [pickerMode, setPickerMode] = useState(false); // clicando célula pra add ref
+  const [saving, setSaving] = useState(false);
+  const targetLinha = linhasById.get(target.linhaId);
+
+  function addToken(t: Token) { setTokens(prev => [...prev, t]); }
+  function removeAt(i: number) { setTokens(prev => prev.filter((_, idx) => idx !== i)); }
+
+  const preview = (() => {
+    try {
+      return evalTokens(tokens, (r) => {
+        const src = linhasById.get(r.linhaId);
+        return src ? resolveValor(src, r.mes, linhasById) : 0;
+      });
+    } catch { return 0; }
+  })();
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl p-5 max-w-3xl w-full max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-bold text-ber-carbon">Fórmula — {targetLinha?.rotulo}</h2>
+            <p className="text-xs text-ber-gray">{MESES[target.mes - 1]} · Editor de expressão (+ − × ÷)</p>
+          </div>
+          <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon"><X size={16} /></button>
+        </div>
+
+        {/* Expressão atual */}
+        <div className="mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-ber-gray mb-1">Expressão</p>
+          <div className="min-h-[52px] rounded-lg border border-ber-border bg-ber-surface px-3 py-2 flex flex-wrap items-center gap-1">
+            {tokens.length === 0 && <span className="text-xs text-ber-gray/60 italic">vazio — use os botões abaixo pra adicionar</span>}
+            {tokens.map((t, i) => {
+              let label = '';
+              let cls = 'bg-white border-ber-border';
+              if (t.type === 'ref') {
+                const src = linhasById.get(t.linhaId);
+                label = `${src?.rotulo ?? '?'} · ${MESES[t.mes - 1]}`;
+                cls = 'bg-blue-50 border-blue-200 text-blue-900';
+              } else if (t.type === 'literal') { label = String(t.value); cls = 'bg-amber-50 border-amber-200'; }
+              else if (t.type === 'op') { label = t.op; cls = 'bg-ber-carbon text-white border-ber-carbon font-bold'; }
+              else if (t.type === 'paren') { label = t.paren; cls = 'bg-neutral-200 border-neutral-300 font-bold'; }
+              return (
+                <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 text-xs border rounded ${cls}`}>
+                  {label}
+                  <button onClick={() => removeAt(i)} className="opacity-40 hover:opacity-100"><X size={9} /></button>
+                </span>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-ber-gray/70 mt-1">Precedência: × ÷ antes de + −. Parênteses agrupam.</p>
+        </div>
+
+        {/* Preview */}
+        <div className="mb-3 rounded-lg bg-ber-teal/10 border border-ber-teal/30 px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-ber-teal">Resultado</p>
+          <p className="text-lg font-bold text-ber-carbon">{fmtBRL(preview)}</p>
+        </div>
+
+        {/* Adicionar operadores/literal */}
+        <div className="mb-3 flex flex-wrap items-center gap-1">
+          {(['+', '-', '*', '/'] as const).map(op => (
+            <button key={op} onClick={() => addToken({ type: 'op', op })}
+              className="w-9 h-9 rounded border border-ber-border bg-white hover:bg-ber-carbon hover:text-white font-bold text-sm">{op === '*' ? '×' : op === '/' ? '÷' : op}</button>
+          ))}
+          <button onClick={() => addToken({ type: 'paren', paren: '(' })}
+            className="w-9 h-9 rounded border border-ber-border bg-white hover:bg-ber-carbon hover:text-white font-bold text-sm">(</button>
+          <button onClick={() => addToken({ type: 'paren', paren: ')' })}
+            className="w-9 h-9 rounded border border-ber-border bg-white hover:bg-ber-carbon hover:text-white font-bold text-sm">)</button>
+          <div className="mx-2 h-6 border-l border-ber-border" />
+          <input type="number" step="any" placeholder="valor literal"
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                const v = Number((e.target as HTMLInputElement).value);
+                if (!Number.isNaN(v)) { addToken({ type: 'literal', value: v }); (e.target as HTMLInputElement).value = ''; }
+              }
+            }}
+            className="w-32 h-9 rounded border border-ber-border px-2 text-xs focus:border-ber-teal focus:outline-none" />
+          <span className="text-[10px] text-ber-gray/70">enter pra adicionar</span>
+          <div className="mx-2 h-6 border-l border-ber-border" />
+          <button onClick={() => setPickerMode(v => !v)}
+            className={`h-9 px-3 rounded text-xs font-semibold border ${pickerMode ? 'bg-ber-teal text-white border-ber-teal' : 'bg-white border-ber-border hover:border-ber-teal'}`}>
+            {pickerMode ? 'Clicando pra escolher célula…' : 'Adicionar referência (célula)'}
+          </button>
+        </div>
+
+        {/* Grid pra escolher célula (só aparece em pickerMode) */}
+        {pickerMode && (
+          <div className="mb-3 max-h-[300px] overflow-auto rounded border border-ber-border">
+            <table className="w-full text-[11px]">
+              <thead className="sticky top-0 bg-ber-surface">
+                <tr>
+                  <th className="text-left px-2 py-1 font-semibold">Linha</th>
+                  {MES_NUMS.map(m => <th key={m} className="text-center px-1 py-1 font-semibold">{MESES[m - 1]}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.filter(l => !l.isHeader || l.orcamentoAnual != null).map(l => (
+                  <tr key={l.id} className="border-t border-ber-border/50 hover:bg-ber-surface">
+                    <td className="px-2 py-1 truncate max-w-[240px]">{l.rotulo}</td>
+                    {MES_NUMS.map(m => {
+                      const isTarget = l.id === target.linhaId && m === target.mes;
+                      const v = resolveValor(l, m, linhasById);
+                      return (
+                        <td key={m} className="px-0.5 py-0.5">
+                          <button
+                            disabled={isTarget}
+                            onClick={() => { addToken({ type: 'ref', linhaId: l.id, mes: m }); setPickerMode(false); }}
+                            className={`w-full text-[10px] px-1 py-0.5 rounded ${isTarget ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed' : 'hover:bg-ber-teal hover:text-white'}`}
+                            title={isTarget ? 'Célula-alvo (não pode)' : `Add ${l.rotulo} · ${MESES[m - 1]}`}
+                          >
+                            {v !== 0 ? fmtBR(v) : '—'}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-between items-center pt-2 border-t border-ber-border">
+          <button onClick={() => setTokens([])} className="text-xs text-ber-gray hover:text-red-500">Limpar tudo</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="text-xs text-ber-gray hover:text-ber-carbon px-3 py-1.5">Cancelar</button>
+            <button onClick={async () => { setSaving(true); await onSave(tokens); setSaving(false); }}
+              disabled={saving}
+              className="text-xs font-semibold bg-ber-carbon text-white rounded-lg px-4 py-1.5 flex items-center gap-1 disabled:opacity-50">
+              <Save size={12} /> {saving ? 'Salvando…' : 'Salvar fórmula'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
