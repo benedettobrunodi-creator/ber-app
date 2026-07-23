@@ -24,6 +24,7 @@ export const APP_MODULES = [
   { key: 'histograma',   label: 'Histograma de MO' },
   { key: 'gestao360',    label: 'Gestão 360 (cockpit)' },
   { key: 'organograma',  label: 'Organograma' },
+  { key: 'financeiro',   label: 'Financeiro (DRE)' },
   { key: 'configuracoes', label: 'Configurações' },
   { key: 'admin',        label: 'Admin (Gestão de Usuários)' },
 ] as const;

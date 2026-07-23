@@ -67,7 +67,12 @@ interface CurvaSPonto {
   realizadoPct?: number | null;
 }
 
-interface EfetivoDisciplina { disciplina: string; quantidade: number; }
+interface EfetivoDisciplina {
+  disciplina: string;
+  porDia?: Record<string, number>;
+  /** Legacy — número único usado antes da matriz por dia. Preservado só pra leitura de relatórios antigos. */
+  quantidade?: number;
+}
 
 interface Relatorio {
   id: string;
@@ -106,8 +111,6 @@ interface AtividadeSemana { wbs: string; nome: string; inicio: string | null; fi
 interface PontoAtencao { descricao: string; severidade: 'atencao' | 'critico'; }
 interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
 interface EntregaPrevista { descricao: string; dataPrevista?: string; status: 'prevista' | 'recebida' | 'reprogramada'; observacao?: string; }
-interface EfetivosDia { data: string; total: number; }
-
 const STATUS_OPTS = [
   { value: 'no_prazo',  label: 'NO PRAZO',  color: 'bg-emerald-100 text-emerald-800' },
   { value: 'em_risco',  label: 'ATENÇÃO',   color: 'bg-amber-100  text-amber-800'   },
@@ -152,6 +155,31 @@ const AMBIENT_COLORS = [
   '#6B7280','#3B82F6','#10B981','#F59E0B','#EF4444',
   '#8B5CF6','#EC4899','#14B8A6','#F97316','#84CC16',
 ];
+
+const DISCIPLINA_COLORS = [
+  '#1a1a1a','#3B82F6','#10B981','#F59E0B','#EF4444',
+  '#8B5CF6','#EC4899','#14B8A6','#F97316','#84CC16',
+  '#6366F1','#06B6D4','#EAB308','#A855F7',
+];
+
+function datasEntre(inicio: string, fim: string): string[] {
+  if (!inicio || !fim) return [];
+  const out: string[] = [];
+  const start = new Date(inicio + 'T12:00:00');
+  const end   = new Date(fim   + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+function totalDisciplina(d: EfetivoDisciplina): number {
+  if (d.porDia) return Object.values(d.porDia).reduce((s, v) => s + (Number(v) || 0), 0);
+  return d.quantidade ?? 0;
+}
 
 function statusLabel(s: string) { return STATUS_OPTS.find(o => o.value === s) ?? STATUS_OPTS[0]; }
 function statusTemaLabel(s: string) { return STATUS_TEMA_OPTS.find(o => o.value === s) ?? STATUS_TEMA_OPTS[0]; }
@@ -229,7 +257,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
   const [uploadingFoto, setUploadingFoto] = useState<string | null>(null); // anguloId or 'geral'
   const [tarefasPeriodo, setTarefasPeriodo] = useState<TarefaCron[]>([]);
   const [tarefasProximo, setTarefasProximo] = useState<TarefaCron[]>([]);
-  const [efetivos, setEfetivos]     = useState<EfetivosDia[]>([]);
   const [curvaSLocal, setCurvaSLocal] = useState<CurvaSPonto[]>([]);
   const [showAngulosConfig, setShowAngulosConfig] = useState(false);
   const [showSecoesPdf, setShowSecoesPdf] = useState(false);
@@ -270,11 +297,19 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       });
   })();
 
-  const histogramaData = efetivos.map(e => ({
-    dia: DIAS_PT[new Date(e.data + 'T12:00:00').getDay()],
-    data: fmt(e.data.slice(0, 10)),
-    trabalhadores: e.total,
-  }));
+  const diasPeriodo = datasEntre(form.periodoInicio, form.periodoFim);
+  const disciplinasForm = form.efetivoPorDisciplina ?? [];
+  const histogramaData = diasPeriodo.map(data => {
+    const row: Record<string, string | number> = {
+      dataISO: data,
+      dia: DIAS_PT[new Date(data + 'T12:00:00').getDay()],
+      data: fmt(data),
+    };
+    disciplinasForm.forEach(d => {
+      row[d.disciplina] = d.porDia?.[data] ?? 0;
+    });
+    return row;
+  });
 
   // ─── Load ───────────────────────────────────────────────────────────────────
 
@@ -303,7 +338,6 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       const d = res.data.data;
       setTarefasPeriodo(d.tarefasPeriodo ?? []);
       setTarefasProximo(d.tarefasProximo ?? []);
-      setEfetivos(d.efetivos ?? []);
     } catch { /* ok */ }
   }
 
@@ -464,8 +498,13 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: (() => {
-          const soma = (form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0);
-          return soma > 0 ? soma : null;
+          const disciplinas = form.efetivoPorDisciplina ?? [];
+          const dias = datasEntre(form.periodoInicio, form.periodoFim);
+          if (dias.length === 0 || disciplinas.length === 0) return null;
+          const total = dias.reduce((soma, data) =>
+            soma + disciplinas.reduce((sd, d) => sd + (Number(d.porDia?.[data]) || 0), 0), 0);
+          const media = total / dias.length;
+          return media > 0 ? +media.toFixed(1) : null;
         })(),
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
@@ -522,8 +561,13 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         avancoPct:    +form.avancoPct,
         avancoDelta:  form.avancoDelta != null ? +form.avancoDelta : null,
         efetivoMedio: (() => {
-          const soma = (form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0);
-          return soma > 0 ? soma : null;
+          const disciplinas = form.efetivoPorDisciplina ?? [];
+          const dias = datasEntre(form.periodoInicio, form.periodoFim);
+          if (dias.length === 0 || disciplinas.length === 0) return null;
+          const total = dias.reduce((soma, data) =>
+            soma + disciplinas.reduce((sd, d) => sd + (Number(d.porDia?.[data]) || 0), 0), 0);
+          const media = total / dias.length;
+          return media > 0 ? +media.toFixed(1) : null;
         })(),
         pendencias:   form.pendencias.filter(p => (p.descricao ?? '').trim()).map(({ descricao, responsavel, prazo, status, categoria, ordem }) => ({ descricao, responsavel: responsavel ?? null, prazo: prazo || null, status, categoria, ordem })),
         marcos:       form.marcos.filter(m => (m.nome ?? '').trim()).map(({ nome, data, tipo }) => ({ nome, data, tipo })),
@@ -1263,56 +1307,103 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
-            <FormSection title="Histograma de efetivos" desc="Efetivos por disciplina e histograma diário do período.">
-              {/* Disciplines table */}
+            <FormSection title="Histograma de efetivos" desc="Preencha a quantidade de pessoas por disciplina em cada dia do período.">
+              {/* Matriz disciplina × dia */}
               <div className="space-y-2 mb-4">
-                {(form.efetivoPorDisciplina ?? []).length > 0 && (
-                  <div className="overflow-hidden rounded-lg border border-ber-border">
+                {disciplinasForm.length > 0 && diasPeriodo.length > 0 && (
+                  <div className="rounded-lg border border-ber-border overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-[#F7F7F5] border-b border-ber-border">
-                          <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray">Disciplina</th>
-                          <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray w-32">Qtd. pessoas</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-ber-gray sticky left-0 bg-[#F7F7F5] z-10 min-w-[140px]">Disciplina</th>
+                          {diasPeriodo.map(data => (
+                            <th key={data} className="text-center px-2 py-2 text-[11px] font-semibold text-ber-gray whitespace-nowrap">
+                              <div className="uppercase">{DIAS_PT[new Date(data + 'T12:00:00').getDay()]}</div>
+                              <div className="text-[10px] font-normal text-ber-gray/70">{fmt(data)}</div>
+                            </th>
+                          ))}
+                          <th className="text-center px-3 py-2 text-xs font-semibold text-ber-gray whitespace-nowrap">Total</th>
                           <th className="w-8" />
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-ber-border">
-                        {(form.efetivoPorDisciplina ?? []).map((d, i) => (
+                        {disciplinasForm.map((d, i) => (
                           <tr key={i} className="bg-white">
-                            <td className="px-3 py-2 font-medium text-ber-carbon">{d.disciplina}</td>
-                            <td className="px-3 py-2 text-center">
-                              <input type="number" min={0} step={1} value={d.quantidade}
-                                onChange={e => setForm(f => ({ ...f, efetivoPorDisciplina: (f.efetivoPorDisciplina ?? []).map((x, xi) => xi === i ? { ...x, quantidade: e.target.value ? +e.target.value : 0 } : x) }))}
-                                className="fi py-1.5 w-20 text-center" />
+                            <td className="px-3 py-2 font-medium text-ber-carbon sticky left-0 bg-white z-10 whitespace-nowrap">{d.disciplina}</td>
+                            {diasPeriodo.map(data => (
+                              <td key={data} className="px-1 py-1 text-center">
+                                <input
+                                  type="number" min={0} step={1}
+                                  value={d.porDia?.[data] ?? ''}
+                                  placeholder="0"
+                                  onChange={e => {
+                                    const val = e.target.value ? Math.max(0, +e.target.value) : 0;
+                                    setForm(f => ({
+                                      ...f,
+                                      efetivoPorDisciplina: (f.efetivoPorDisciplina ?? []).map((x, xi) => xi === i
+                                        ? { ...x, porDia: { ...(x.porDia ?? {}), [data]: val } }
+                                        : x),
+                                    }));
+                                  }}
+                                  className="fi py-1 w-14 text-center text-sm"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-3 py-2 text-center text-sm font-semibold text-ber-carbon">
+                              {totalDisciplina(d)}
                             </td>
                             <td className="px-2 py-2">
                               <button onClick={() => setForm(f => ({ ...f, efetivoPorDisciplina: (f.efetivoPorDisciplina ?? []).filter((_, xi) => xi !== i) }))} className="text-ber-gray/30 hover:text-red-500"><X size={14} /></button>
                             </td>
                           </tr>
                         ))}
+                        {/* Totais por dia */}
+                        <tr className="bg-[#F7F7F5] font-semibold">
+                          <td className="px-3 py-2 text-xs uppercase tracking-wider text-ber-gray sticky left-0 bg-[#F7F7F5] z-10">Total/dia</td>
+                          {diasPeriodo.map(data => (
+                            <td key={data} className="px-2 py-2 text-center text-sm text-ber-carbon">
+                              {disciplinasForm.reduce((s, d) => s + (Number(d.porDia?.[data]) || 0), 0)}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-center text-sm text-ber-carbon">
+                            {disciplinasForm.reduce((s, d) => s + totalDisciplina(d), 0)}
+                          </td>
+                          <td />
+                        </tr>
                       </tbody>
                     </table>
-                    {/* Summary row */}
                     <div className="flex items-center gap-6 px-3 py-2 bg-[#F7F7F5] border-t border-ber-border">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-ber-gray">Efetivo médio/dia:</span>
                         <span className="text-sm font-bold text-ber-carbon">
-                          {(form.efetivoPorDisciplina ?? []).reduce((s, d) => s + (d.quantidade ?? 0), 0)} pessoas
+                          {(() => {
+                            const tot = disciplinasForm.reduce((s, d) => s + totalDisciplina(d), 0);
+                            return diasPeriodo.length > 0 ? (tot / diasPeriodo.length).toFixed(1) : '0';
+                          })()} pessoas
                         </span>
                       </div>
                     </div>
                   </div>
                 )}
+                {diasPeriodo.length === 0 && (
+                  <p className="text-xs text-ber-gray">Defina o período do relatório para habilitar a matriz.</p>
+                )}
+                {/* Legacy warning */}
+                {disciplinasForm.some(d => d.quantidade != null && (!d.porDia || Object.keys(d.porDia).length === 0)) && (
+                  <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5">
+                    Este relatório foi criado no formato antigo (número único por disciplina). Os valores antigos foram preservados como total, mas para o histograma diário preencha as células por dia.
+                  </p>
+                )}
                 {/* Add discipline row */}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 pt-2">
                   <div className="flex items-center gap-2">
                     <select value={selDisciplina} onChange={e => setSelDisciplina(e.target.value)}
                       className="fi py-1.5 text-sm">
                       {DISCIPLINA_OPTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                     <button onClick={() => {
-                      if ((form.efetivoPorDisciplina ?? []).some(d => d.disciplina === selDisciplina)) return;
-                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: selDisciplina, quantidade: 0 }] }));
+                      if (disciplinasForm.some(d => d.disciplina === selDisciplina)) return;
+                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: selDisciplina, porDia: {} }] }));
                     }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
                       <Plus size={13} /> Adicionar
                     </button>
@@ -1322,15 +1413,15 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                       onKeyDown={e => {
                         if (e.key !== 'Enter') return;
                         const nome = customDisciplina.trim();
-                        if (!nome || (form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
-                        setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
+                        if (!nome || disciplinasForm.some(d => d.disciplina === nome)) return;
+                        setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, porDia: {} }] }));
                         setCustomDisciplina('');
                       }}
                       placeholder="Nova disciplina..." className="fi py-1.5 text-sm w-48" />
                     <button onClick={() => {
                       const nome = customDisciplina.trim();
-                      if (!nome || (form.efetivoPorDisciplina ?? []).some(d => d.disciplina === nome)) return;
-                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, quantidade: 0 }] }));
+                      if (!nome || disciplinasForm.some(d => d.disciplina === nome)) return;
+                      setForm(f => ({ ...f, efetivoPorDisciplina: [...(f.efetivoPorDisciplina ?? []), { disciplina: nome, porDia: {} }] }));
                       setCustomDisciplina('');
                     }} className="flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon font-medium px-3 py-1.5 rounded-lg border border-ber-border hover:border-ber-carbon/40 transition-colors">
                       <Plus size={13} /> Adicionar nova
@@ -1338,16 +1429,23 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   </div>
                 </div>
               </div>
-              {/* Daily histogram */}
-              {histogramaData.length > 0 && (
+              {/* Gráfico empilhado */}
+              {histogramaData.length > 0 && disciplinasForm.length > 0 && (
                 <div className="rounded-lg border border-ber-border bg-[#F7F7F5] px-3 pt-2 pb-1">
-                  <ResponsiveContainer width="100%" height={110}>
-                    <BarChart data={histogramaData} margin={{ top: 2, right: 8, bottom: 0, left: -28 }}>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <BarChart data={histogramaData} margin={{ top: 4, right: 8, bottom: 0, left: -28 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
                       <XAxis dataKey="dia" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip formatter={(v: any) => [`${v} pessoas`, '']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
-                      <Bar dataKey="trabalhadores" fill="#1a1a1a" radius={[3, 3, 0, 0]} />
+                      <Tooltip
+                        formatter={(v: any, name: any) => [`${v} pessoas`, name]}
+                        labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
+                      {disciplinasForm.map((d, idx) => (
+                        <Bar key={d.disciplina} dataKey={d.disciplina} stackId="a"
+                          fill={DISCIPLINA_COLORS[idx % DISCIPLINA_COLORS.length]} />
+                      ))}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

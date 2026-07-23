@@ -249,8 +249,15 @@ function EditContatoModal({
           <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Etapa no funil</label>
           <select value={etapa} onChange={e => setEtapa(e.target.value as NutricaoEtapa)}
             className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm">
-            {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+            {NUTRICAO_ETAPAS.map(e => (
+              <option key={e.value} value={e.value} title={e.descricao}>
+                {e.label} — {e.descricao}
+              </option>
+            ))}
           </select>
+          <p className="mt-1 text-[11px] text-ber-gray/80">
+            {NUTRICAO_ETAPAS.find(e => e.value === etapa)?.descricao}
+          </p>
         </div>
 
         <div className="flex justify-end gap-2">
@@ -418,7 +425,7 @@ function TemplatesModal({
                   <label className="text-[10px] font-bold text-ber-gray uppercase">Etapa</label>
                   <select value={editing.etapa} onChange={e => setEditing({ ...editing, etapa: e.target.value as NutricaoEtapa })}
                     className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
-                    {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                    {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value} title={e.descricao}>{e.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -461,7 +468,7 @@ function TemplatesModal({
 
           {NUTRICAO_ETAPAS.map(etapa => (
             <div key={etapa.value}>
-              <h3 className="text-xs font-bold text-ber-carbon uppercase tracking-wide mb-1.5 flex items-center gap-2">
+              <h3 className="text-xs font-bold text-ber-carbon uppercase tracking-wide mb-1.5 flex items-center gap-2" title={etapa.descricao}>
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: etapa.color }} />
                 {etapa.label}
                 <span className="text-ber-gray/70 font-normal">({byEtapa[etapa.value]?.length ?? 0})</span>
@@ -621,7 +628,7 @@ function CampanhasModal({
                     onChange={e => setForm({ ...form, etapaAlvo: (e.target.value || null) as NutricaoEtapa | null })}
                     className="mt-0.5 w-full border border-ber-border rounded px-2 py-1 text-sm">
                     <option value="">Todas</option>
-                    {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                    {NUTRICAO_ETAPAS.map(e => <option key={e.value} value={e.value} title={e.descricao}>{e.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -949,10 +956,13 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
             const cards = byEtapa[etapa.value];
             return (
               <div key={etapa.value} className="flex-shrink-0 w-64 flex flex-col">
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: etapa.color }} />
-                  <span className="text-xs font-bold text-ber-carbon uppercase tracking-wide">{etapa.label}</span>
-                  <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{cards.length}</span>
+                <div className="mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: etapa.color }} />
+                    <span className="text-xs font-bold text-ber-carbon uppercase tracking-wide">{etapa.label}</span>
+                    <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{cards.length}</span>
+                  </div>
+                  <p className="mt-0.5 pl-4 text-[10px] leading-snug text-ber-gray/80">{etapa.descricao}</p>
                 </div>
                 <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
                   <DroppableColumn etapa={etapa.value}>

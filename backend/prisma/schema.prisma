@@ -2483,3 +2483,60 @@ model Attachment {
   @@index([entityType, entityId])
   @@map("attachments")
 }
+
+// ─── Financeiro ─── DRE gerencial editável e multi-ciclo ────────────────────
+// FinCiclo agrupa um DRE de um período (ex: "DRE 2026", "Orçamento revisado
+// 2026-Q3"). FinLinha define a estrutura (rótulo, ordem, se é total, pai).
+// FinValor guarda o valor por linha × mês (1..12) + coluna orçamento anual.
+
+model FinCiclo {
+  id              String     @id @default(uuid()) @db.Uuid
+  nome            String     @db.VarChar(120)
+  ano             Int
+  ordem           Int        @default(0)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  linhas          FinLinha[]
+
+  @@index([ano])
+  @@map("fin_ciclos")
+}
+
+model FinLinha {
+  id             String     @id @default(uuid()) @db.Uuid
+  cicloId        String     @map("ciclo_id") @db.Uuid
+  ordem          Int
+  rotulo         String     @db.VarChar(200)
+  kpiPct         Decimal?   @map("kpi_pct") @db.Decimal(6, 4)
+  orcamentoAnual Decimal?   @map("orcamento_anual") @db.Decimal(14, 2)
+  isTotal        Boolean    @default(false) @map("is_total")
+  isHeader       Boolean    @default(false) @map("is_header")
+  grupoId        String?    @map("grupo_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  ciclo   FinCiclo    @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  grupo   FinLinha?   @relation("FinLinhaGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
+  filhas  FinLinha[]  @relation("FinLinhaGrupo")
+  valores FinValor[]
+
+  @@index([cicloId])
+  @@index([grupoId])
+  @@map("fin_linhas")
+}
+
+model FinValor {
+  id        String   @id @default(uuid()) @db.Uuid
+  linhaId   String   @map("linha_id") @db.Uuid
+  mes       Int      // 1..12
+  valor     Decimal  @db.Decimal(16, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  linha FinLinha @relation(fields: [linhaId], references: [id], onDelete: Cascade)
+
+  @@unique([linhaId, mes])
+  @@index([linhaId])
+  @@map("fin_valores")
+}

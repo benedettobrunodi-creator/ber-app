@@ -116,13 +116,13 @@ export type NutricaoPerfil   = 'cliente_direto' | 'arquitetura' | 'gerenciadora'
 export type NutricaoPotencial = 'estrategico' | 'padrao' | 'prospect';
 export type NutricaoCanal    = 'linkedin' | 'email' | 'whatsapp' | 'ligacao' | 'reuniao';
 
-export const NUTRICAO_ETAPAS: { value: NutricaoEtapa; label: string; color: string }[] = [
-  { value: 'descoberta',   label: 'Descoberta',   color: '#94A3B8' },
-  { value: 'consciencia',  label: 'Consciência',  color: '#60A5FA' },
-  { value: 'engajamento',  label: 'Engajamento',  color: '#818CF8' },
-  { value: 'consideracao', label: 'Consideração', color: '#F59E0B' },
-  { value: 'ativo',        label: 'Ativo',        color: '#10B981' },
-  { value: 'pos_venda',    label: 'Pós-venda',    color: '#EC4899' },
+export const NUTRICAO_ETAPAS: { value: NutricaoEtapa; label: string; descricao: string; color: string }[] = [
+  { value: 'descoberta',   label: 'Sem Contato',         descricao: 'Contato cadastrado, mas ainda não abordamos.',                            color: '#94A3B8' },
+  { value: 'consciencia',  label: 'Aguardando Resposta', descricao: 'Primeiro toque enviado, sem retorno ainda.',                              color: '#60A5FA' },
+  { value: 'engajamento',  label: 'Em Conversa',         descricao: 'Já respondeu alguma vez. Relação viva, sem deal específico agora.',      color: '#818CF8' },
+  { value: 'consideracao', label: 'Orçamento Ativo',     descricao: 'Tem proposta enviada, RFP ou negociação em curso.',                      color: '#F59E0B' },
+  { value: 'ativo',        label: 'Em Obra',             descricao: 'Cliente com obra em execução.',                                           color: '#10B981' },
+  { value: 'pos_venda',    label: 'Pós-Obra',            descricao: 'Obra entregue. Relacionamento contínuo pra próximas oportunidades.',     color: '#EC4899' },
 ];
 
 export const NUTRICAO_PERFIS: { value: NutricaoPerfil; label: string }[] = [

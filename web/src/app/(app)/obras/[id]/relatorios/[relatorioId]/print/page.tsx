@@ -7,7 +7,36 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 
-interface EfetivoDisciplina { disciplina: string; quantidade: number; }
+interface EfetivoDisciplina {
+  disciplina: string;
+  porDia?: Record<string, number>;
+  quantidade?: number;
+}
+
+const DISCIPLINA_COLORS = [
+  '#1a1a1a','#3B82F6','#10B981','#F59E0B','#EF4444',
+  '#8B5CF6','#EC4899','#14B8A6','#F97316','#84CC16',
+  '#6366F1','#06B6D4','#EAB308','#A855F7',
+];
+
+function datasEntre(inicio: string, fim: string): string[] {
+  if (!inicio || !fim) return [];
+  const out: string[] = [];
+  const start = new Date(inicio.slice(0, 10) + 'T12:00:00');
+  const end   = new Date(fim.slice(0, 10)   + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+function totalDisciplina(d: EfetivoDisciplina): number {
+  if (d.porDia) return Object.values(d.porDia).reduce((s, v) => s + (Number(v) || 0), 0);
+  return d.quantidade ?? 0;
+}
 interface AtividadeSemana { wbs: string; nome: string; tipo: 'andamento' | 'proximo'; }
 interface PontoAtencao { descricao: string; severidade: string; }
 interface PlanoAcaoItem { atividadeAtrasada: string; acaoCorretiva: string; responsavel?: string; prazo?: string; }
@@ -73,7 +102,6 @@ export default function RelatorioImpressao() {
   const [prevRelatorio, setPrevRelatorio] = useState<Relatorio | null>(null);
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [rawCurvaS, setRawCurvaS] = useState<{ semana: string; planejadoPct?: number | null; realizadoPct?: number | null }[]>([]);
-  const [histData, setHistData] = useState<{ dia: string; data: string; trabalhadores: number }[]>([]);
 
   const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -82,18 +110,6 @@ export default function RelatorioImpressao() {
       api.get(`/obras/${params.id}/relatorios/${params.relatorioId}`).then(r => {
         const rel: Relatorio = r.data.data;
         setRelatorio(rel);
-        // Load period data for histograma
-        const inicio = rel.periodoInicio.slice(0, 10);
-        const fim = rel.periodoFim.slice(0, 10);
-        api.get(`/obras/${params.id}/relatorios/dados-periodo`, { params: { inicio, fim } })
-          .then(d => {
-            const ef: { data: string; total: number }[] = d.data.data.efetivos ?? [];
-            setHistData(ef.map(e => ({
-              dia: DIAS_PT[new Date(e.data + 'T12:00:00').getDay()],
-              data: new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-              trabalhadores: e.total,
-            })));
-          }).catch(() => {});
       }),
       api.get(`/obras/${params.id}`).then(r => setObra(r.data.data)),
       api.get(`/obras/${params.id}/relatorios/curva-s`).then(r => {
@@ -302,46 +318,103 @@ export default function RelatorioImpressao() {
           </Section>
         )}
 
-        {/* HISTOGRAMA */}
-        {histData.length > 0 && (
-          <Section title="Histograma de efetivos">
-            <BarChart width={660} height={130} data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-              <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-              <Tooltip formatter={(v: any) => [`${v} trabalhadores`, 'Efetivo']} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
-              <Bar dataKey="trabalhadores" fill="#374151" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </Section>
-        )}
+        {/* HISTOGRAMA + MATRIZ */}
+        {(() => {
+          const disciplinas = relatorio.efetivoPorDisciplina ?? [];
+          const dias = datasEntre(relatorio.periodoInicio, relatorio.periodoFim);
+          if (disciplinas.length === 0) return null;
 
-        {/* EFETIVO POR DISCIPLINA */}
-        {(relatorio.efetivoPorDisciplina ?? []).length > 0 && (
-          <Section title="Efetivo por disciplina">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Disciplina</th>
-                  <th className="text-right py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Pessoas</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(relatorio.efetivoPorDisciplina ?? []).map((d, i) => (
-                  <tr key={i}>
-                    <td className="py-1.5 text-gray-800">{d.disciplina}</td>
-                    <td className="py-1.5 text-right font-medium text-gray-900">{d.quantidade}</td>
-                  </tr>
-                ))}
-                <tr className="border-t border-gray-300">
-                  <td className="py-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Total</td>
-                  <td className="py-1.5 text-right font-black text-gray-900">
-                    {(relatorio.efetivoPorDisciplina ?? []).reduce((s, d) => s + d.quantidade, 0)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </Section>
-        )}
+          const hasMatriz = disciplinas.some(d => d.porDia && Object.keys(d.porDia).length > 0);
+          const histData = dias.map(data => {
+            const row: Record<string, string | number> = {
+              dia: DIAS_PT[new Date(data + 'T12:00:00').getDay()],
+              data: new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            };
+            disciplinas.forEach(d => { row[d.disciplina] = d.porDia?.[data] ?? 0; });
+            return row;
+          });
+          const totalGeral = disciplinas.reduce((s, d) => s + totalDisciplina(d), 0);
+
+          return (
+            <Section title="Histograma de efetivos">
+              {hasMatriz && dias.length > 0 && (
+                <div className="mb-3 overflow-hidden">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="border-b border-gray-300">
+                        <th className="text-left py-1.5 pr-2 text-[9px] font-bold uppercase tracking-widest text-gray-400">Disciplina</th>
+                        {dias.map(data => (
+                          <th key={data} className="text-center px-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                            <div>{DIAS_PT[new Date(data + 'T12:00:00').getDay()]}</div>
+                            <div className="text-[8px] font-normal text-gray-400/80">{new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                          </th>
+                        ))}
+                        <th className="text-center px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {disciplinas.map((d, i) => (
+                        <tr key={i}>
+                          <td className="py-1.5 pr-2 text-gray-800">{d.disciplina}</td>
+                          {dias.map(data => (
+                            <td key={data} className="text-center py-1 text-gray-800">{d.porDia?.[data] ?? 0}</td>
+                          ))}
+                          <td className="text-center py-1 font-semibold text-gray-900">{totalDisciplina(d)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-gray-300 bg-gray-50">
+                        <td className="py-1.5 pr-2 text-[9px] font-bold uppercase tracking-widest text-gray-500">Total/dia</td>
+                        {dias.map(data => (
+                          <td key={data} className="text-center py-1.5 font-semibold text-gray-900">
+                            {disciplinas.reduce((s, d) => s + (Number(d.porDia?.[data]) || 0), 0)}
+                          </td>
+                        ))}
+                        <td className="text-center py-1.5 font-black text-gray-900">{totalGeral}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {hasMatriz && dias.length > 0 && (
+                <BarChart width={660} height={140} data={histData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="dia" tick={{ fontSize: 9 }} />
+                  <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                  <Tooltip formatter={(v: any, name: any) => [`${v} pessoas`, name]} labelFormatter={(l: any, p: any) => p[0]?.payload?.data ?? l} />
+                  <Legend wrapperStyle={{ fontSize: 9 }} iconSize={8} />
+                  {disciplinas.map((d, idx) => (
+                    <Bar key={d.disciplina} dataKey={d.disciplina} stackId="a"
+                      fill={DISCIPLINA_COLORS[idx % DISCIPLINA_COLORS.length]} />
+                  ))}
+                </BarChart>
+              )}
+
+              {!hasMatriz && (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400">Disciplina</th>
+                      <th className="text-right py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 w-24">Pessoas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {disciplinas.map((d, i) => (
+                      <tr key={i}>
+                        <td className="py-1.5 text-gray-800">{d.disciplina}</td>
+                        <td className="py-1.5 text-right font-medium text-gray-900">{d.quantidade ?? 0}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-gray-300">
+                      <td className="py-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Total</td>
+                      <td className="py-1.5 text-right font-black text-gray-900">{totalGeral}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          );
+        })()}
 
         {/* ATIVIDADES DA SEMANA */}
         {(relatorio.atividadesSemana ?? []).length > 0 && (
