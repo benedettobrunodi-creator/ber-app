@@ -21,6 +21,7 @@ const ALL_OFF: Record<string, boolean> = {
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
   contratacaoPlano: false, histograma: false, gestao360: false,
+  financeiro: false,
 };
 
 const ALL_ON: Record<string, boolean> = Object.fromEntries(
@@ -39,9 +40,9 @@ const OBRA_OPS: Record<string, boolean> = {
 };
 
 /** Itens sensíveis exclusivos do sócio: salários (organograma), config
- *  de sistema, e gestão de usuários (admin). */
+ *  de sistema, gestão de usuários (admin) e financeiro (DRE). */
 const SOCIO_ONLY: Record<string, boolean> = {
-  organograma: false, configuracoes: false, admin: false,
+  organograma: false, configuracoes: false, admin: false, financeiro: false,
 };
 
 /** Defaults por cargo. Espelha backend/middleware/permission.ts — mantenha em sincronia. */
