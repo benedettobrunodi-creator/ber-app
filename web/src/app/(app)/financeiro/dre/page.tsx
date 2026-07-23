@@ -31,6 +31,10 @@ function fmtBR(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '';
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function fmtBRL(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return '';
+  return `R$ ${fmtBR(n)}`;
+}
 function fmtPct(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '';
   return `${(n * 100).toFixed(1)}%`;
@@ -319,14 +323,14 @@ export default function DrePage() {
                         </div>
                       </td>
                       <td className="px-2 py-1.5 text-right text-ber-gray">{fmtPct(l.kpiPct)}</td>
-                      <td className="px-2 py-1.5 text-right">{fmtBR(l.orcamentoAnual)}</td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">{fmtBRL(l.orcamentoAnual)}</td>
                       {MES_NUMS.map(m => {
                         const key = `${l.id}:${m}`;
                         const saving = savingCell === key;
                         if (isTotal) {
                           return (
                             <td key={m} className="px-2 py-1.5 text-right text-ber-carbon">
-                              {fmtBR(totalRow[m])}
+                              {fmtBRL(totalRow[m])}
                             </td>
                           );
                         }
@@ -344,7 +348,7 @@ export default function DrePage() {
                                 onClick={() => toggleRefNaSelecao({ linhaId: l.id, mes: m })}
                                 className={`w-24 py-1 px-1.5 text-right text-xs border rounded ${isHeader ? 'font-bold' : ''} ${isSelected ? 'bg-ber-teal/20 border-ber-teal' : 'border-transparent hover:border-ber-teal/60 hover:bg-ber-teal/5'}`}
                               >
-                                {isSelected && '✓ '}{fmtBR(cellValue) || '—'}
+                                {isSelected && '✓ '}{fmtBRL(cellValue) || '—'}
                               </button>
                             </td>
                           );
@@ -354,20 +358,39 @@ export default function DrePage() {
                         return (
                           <td key={m} className={`group px-1 py-1 text-right relative ${isHeader ? 'bg-ber-carbon/5' : ''} ${isTargetCell ? 'bg-amber-100 ring-2 ring-amber-400 rounded' : ''}`}>
                             {hasFormula ? (
-                              <div className={`w-24 py-1 px-1.5 text-right text-xs border rounded flex items-center justify-end gap-1 ${isHeader ? 'font-bold' : ''} bg-blue-50 border-blue-200 text-blue-900`}>
+                              <div className={`w-28 py-1 px-1.5 text-right text-xs border rounded flex items-center justify-end gap-1 ${isHeader ? 'font-bold' : ''} bg-blue-50 border-blue-200 text-blue-900`}>
                                 <Sigma size={9} />
-                                <span>{fmtBR(cellValue)}</span>
+                                <span>{fmtBRL(cellValue)}</span>
                               </div>
                             ) : (
                               <input
                                 type="text"
-                                defaultValue={l.valores[m] != null ? fmtBR(l.valores[m]) : ''}
+                                defaultValue={l.valores[m] != null ? fmtBRL(l.valores[m]) : ''}
+                                onFocus={e => {
+                                  // ao focar, mostra o número puro pra facilitar a edição
+                                  const raw = parseBR(e.target.value);
+                                  if (raw != null) e.target.value = fmtBR(raw);
+                                  e.target.select();
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    (e.target as HTMLInputElement).value = l.valores[m] != null ? fmtBRL(l.valores[m]) : '';
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
                                 onBlur={e => {
                                   const v = parseBR(e.target.value);
                                   const cur = l.valores[m] ?? null;
                                   if (v !== cur) updateCellLocal(l.id, m, v);
+                                  // reformata pra R$
+                                  e.target.value = v != null ? fmtBRL(v) : '';
                                 }}
-                                className={`w-24 py-1 px-1.5 text-right text-xs border rounded ${isHeader ? 'font-bold' : ''} ${saving ? 'border-ber-teal' : 'border-transparent hover:border-ber-border focus:border-ber-teal focus:outline-none'}`}
+                                className={`w-28 py-1 px-1.5 text-right text-xs border rounded ${isHeader ? 'font-bold' : ''} ${saving ? 'border-ber-teal' : 'border-transparent hover:border-ber-border focus:border-ber-teal focus:outline-none'}`}
                                 placeholder="—"
                               />
                             )}
@@ -389,7 +412,7 @@ export default function DrePage() {
                         );
                       })}
                       <td className={`px-2 py-1.5 text-right font-semibold bg-ber-surface`}>
-                        {fmtBR(totalAnual(l, linhasById))}
+                        {fmtBRL(totalAnual(l, linhasById))}
                       </td>
                       <td className="px-1 py-1">
                         <button onClick={() => removerLinha(l.id)} className="text-ber-gray/20 hover:text-red-500">
@@ -432,7 +455,7 @@ export default function DrePage() {
             <Sigma size={14} className="text-ber-teal" />
             <span className="text-xs">
               Selecionando células que somam em <b>{targetLinha?.rotulo}</b> · {MESES[selection.target.mes - 1]}
-              {selection.refs.length > 0 && <> · {selection.refs.length} refs · total {fmtBR(preview)}</>}
+              {selection.refs.length > 0 && <> · {selection.refs.length} refs · total {fmtBRL(preview)}</>}
             </span>
             <button
               onClick={salvarFormula}
