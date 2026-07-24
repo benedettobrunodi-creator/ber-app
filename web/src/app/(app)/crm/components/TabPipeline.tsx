@@ -258,7 +258,9 @@ function CardOportunidade({
         <p className="mt-2 text-[11px] text-ber-red/80 italic line-clamp-2">"{op.motivoPerda}"</p>
       )}
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[10px] text-ber-gray/60">toque {diasAtras(op.updatedAt)}</span>
+        <span className="text-[10px] text-ber-gray/60">
+          criado {fmtDate(op.createdAt)} · toque {diasAtras(op.updatedAt)}
+        </span>
         {op.dataFechamentoPrevisto && (
           <span className="text-[10px] text-ber-gray/60">↗ {fmtDate(op.dataFechamentoPrevisto)}</span>
         )}
