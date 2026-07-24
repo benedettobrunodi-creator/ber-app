@@ -32,8 +32,12 @@ const nextConfig: NextConfig = {
   // Bookmarks/PWA start_url antigos (commit 23e14022 removeu Dashboard + Painel)
   async redirects() {
     return [
-      { source: "/dashboard", destination: "/portfolio-360", permanent: true },
-      { source: "/kanban", destination: "/portfolio-360", permanent: true },
+      // Portfolio 360 foi removido. Ele era o start_url do PWA e o destino de
+      // rotas antigas — sem estes redirects, quem tem o app instalado ou um
+      // bookmark antigo cai em 404. Tudo aponta pra /obras, a nova home.
+      { source: "/portfolio-360", destination: "/obras", permanent: true },
+      { source: "/dashboard", destination: "/obras", permanent: true },
+      { source: "/kanban", destination: "/obras", permanent: true },
     ];
   },
 };

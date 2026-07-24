@@ -1134,29 +1134,12 @@ export default function ObraDetailPage() {
         >
           📝 Aditivos
         </Link>
-        {/* Contratações & OCs — página dedicada */}
-        <Link
-          href={`/obras/${params.id}/contratacoes`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
-        >
-          📑 Contratos
-        </Link>
         {/* Atas — página dedicada */}
         <Link
           href={`/obras/${params.id}/atas`}
           className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
         >
           📋 Atas
-        </Link>
-        {/* Medição — hub unificado (migrado do ber-medicao) */}
-        <Link
-          href={`/obras/${params.id}/medicao`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
-        >
-          💰 Medição
-        </Link>
-        <Link href={`/obras/${params.id}/documentos`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          📄 Docs
         </Link>
         <Link href={`/obras/${params.id}/stakeholders`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
           👥 Stakeholders
@@ -1169,9 +1152,6 @@ export default function ObraDetailPage() {
         </Link>
         <Link href={`/obras/${params.id}/cronograma-contratacoes`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
           📆 Crn. Contratações
-        </Link>
-        <Link href={`/obras/${params.id}/histograma`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          📊 Histograma
         </Link>
       </div>
 

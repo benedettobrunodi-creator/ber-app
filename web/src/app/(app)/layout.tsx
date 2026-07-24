@@ -11,7 +11,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, Building2, DollarSign,
+  ShoppingCart, DollarSign,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -30,7 +30,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     section: 'OBRAS',
     items: [
-      { label: 'Portfolio 360', href: '/portfolio-360', icon: Building2, perm: 'dashboard' },
       { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
     ],
   },
@@ -77,7 +76,6 @@ const NAV_GROUPS: NavGroup[] = [
 /* ─── Top bar views (horizontal nav) ─── */
 
 const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
-  { label: 'Portfolio 360', href: '/portfolio-360', perm: 'dashboard' },
   { label: 'Obras', href: '/obras' },
   { label: 'Checklists', href: '/checklists' },
   { label: 'Ponto', href: '/ponto' },
@@ -86,7 +84,6 @@ const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
 /* ─── Route → permission map for access guard ─── */
 
 const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
-  { prefix: '/portfolio-360', perm: 'dashboard' },
   { prefix: '/obras', perm: 'obras' },
   { prefix: '/checklists', perm: 'checklists' },
   { prefix: '/diario', perm: 'diario' },
@@ -106,7 +103,6 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
 /* ─── Bottom mobile nav ─── */
 
 const BOTTOM_NAV = [
-  { label: 'Portfolio', href: '/portfolio-360', icon: Building2 },
   { label: 'Obras', href: '/obras', icon: HardHat },
   { label: 'Apontamento', href: '/ponto', icon: Clock },
   { label: 'Checklists', href: '/checklists', icon: ClipboardCheck },
@@ -260,7 +256,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={22} />
           </button>
           <Link
-            href="/portfolio-360"
+            href="/obras"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
             title="Início"
           >

@@ -2141,7 +2141,7 @@ export default function AlocacaoPage() {
   const [filterOcultarEncerradas, setFilterOcultarEncerradas] = useState(false);
 
   useEffect(() => {
-    if (user && !perms.configuracoes) router.replace('/portfolio-360');
+    if (user && !perms.configuracoes) router.replace('/obras');
   }, [user, perms, router]);
 
   useEffect(() => {
