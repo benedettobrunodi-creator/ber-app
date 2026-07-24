@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, RefreshCw, X, AlertTriangle } from 'lucide-react';
+import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, X, AlertTriangle } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
@@ -88,8 +88,6 @@ export default function ObrasPage() {
   const [deleteObra, setDeleteObra] = useState<Obra | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
 
   async function fetchObras() {
     setLoading(true);
@@ -144,41 +142,12 @@ export default function ObrasPage() {
     }
   }
 
-  async function handleSyncClickUp() {
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      const res = await api.post('/obras/sync-clickup');
-      const { synced, unmatched, errors } = res.data.data;
-      const msgs: string[] = [];
-      if (synced.length) msgs.push(`✅ ${synced.length} obra(s) sincronizada(s)`);
-      if (unmatched.length) msgs.push(`⚠️ ${unmatched.length} sem correspondência`);
-      if (errors.length) msgs.push(`❌ ${errors.length} erro(s)`);
-      setSyncMsg(msgs.join(' · '));
-      fetchObras();
-    } catch {
-      setSyncMsg('Erro ao sincronizar com ClickUp');
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncMsg(''), 6000);
-    }
-  }
-
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Obras</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleSyncClickUp}
-            disabled={syncing}
-            title="Sincronizar progresso do cronograma"
-            className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon transition-colors hover:bg-ber-offwhite disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando…' : 'Sync Cronograma'}
-          </button>
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black"
@@ -188,12 +157,6 @@ export default function ObrasPage() {
           </button>
         </div>
       </div>
-
-      {syncMsg && (
-        <div className="mt-3 rounded-md bg-ber-teal/10 px-3 py-2 text-xs font-medium text-ber-teal">
-          {syncMsg}
-        </div>
-      )}
 
       {/* Filters */}
       <div className="mt-5 flex gap-2">

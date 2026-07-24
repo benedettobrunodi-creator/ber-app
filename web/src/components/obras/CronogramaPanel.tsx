@@ -43,8 +43,6 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   const [cronograma, setCronograma] = useState<Cronograma | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ created: number; updated: number; progressoGeral: number } | null>(null);
   const [reparsing, setReparsing] = useState(false);
   const [reparseResult, setReparseResult] = useState<{ numTarefas: number; progressPct: number } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -59,7 +57,7 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   }, [obraId]);
 
   async function handleUpload(file: File) {
-    setUploading(true); setSyncResult(null);
+    setUploading(true);
     try {
       const form = new FormData();
       form.append('file', file);
@@ -70,19 +68,9 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
     } finally { setUploading(false); }
   }
 
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      const r = await api.post(`/obras/${obraId}/cronograma/sync`);
-      setSyncResult(r.data.data);
-    } catch (err) {
-      alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao sincronizar');
-    } finally { setSyncing(false); }
-  }
-
   async function handleReparse() {
     if (!confirm('Reprocessar extrai as tarefas do PDF atual via IA. Pode levar 30-60s. Continuar?')) return;
-    setReparsing(true); setReparseResult(null); setSyncResult(null);
+    setReparsing(true); setReparseResult(null);
     try {
       const r = await api.post<{ data: { numTarefas: number; progressPct: number } }>(`/obras/${obraId}/cronograma/parse`);
       setReparseResult(r.data.data);
@@ -165,12 +153,6 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
               {reparsing ? 'Reprocessando…' : '🔁 Reprocessar PDF'}
             </button>
           )}
-          {cronograma?.parsedData && (
-            <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 rounded-md bg-ber-olive px-3 py-1.5 text-sm font-medium text-white hover:bg-ber-olive/90 disabled:opacity-50">
-              {syncing ? 'Sincronizando…' : '↻ Sincronizar Kanban'}
-            </button>
-          )}
           <button onClick={() => inputRef.current?.click()} disabled={uploading}
             className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm font-medium text-ber-carbon hover:bg-white disabled:opacity-50">
             <Upload size={13} />
@@ -180,12 +162,6 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
             onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
         </div>
       </div>
-
-      {syncResult && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          ✅ Kanban atualizado: <strong>{syncResult.created}</strong> criadas, <strong>{syncResult.updated}</strong> atualizadas · Progresso geral: <strong>{syncResult.progressoGeral}%</strong>
-        </div>
-      )}
 
       {reparseResult && (
         <div className="mb-4 rounded-lg border border-ber-teal/30 bg-ber-teal/5 px-4 py-3 text-sm text-ber-carbon">
