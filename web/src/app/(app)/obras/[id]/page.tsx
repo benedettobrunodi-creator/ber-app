@@ -426,9 +426,12 @@ export default function ObraDetailPage() {
 
   // FVS
   const [obraFvsList, setObraFvsList] = useState<ObraFvs[]>([]);
+  // Avanço do último relatório semanal — define qual fase do Passo a Passo está valendo
+  const [avancoObra, setAvancoObra] = useState<number | null>(null);
   const [fvsFilter, setFvsFilter] = useState<string>('todos');
   const [activeFvs, setActiveFvs] = useState<ObraFvs | null>(null);
-  const [fvsModalOpen, setFvsModalOpen] = useState(false);
+  // Fases abertas na trilha. Bruno pediu que várias possam ficar abertas juntas.
+  const [expandedFvs, setExpandedFvs] = useState<Set<string>>(new Set());
   const [fvsSubmitting, setFvsSubmitting] = useState(false);
   const [fvsTemplates, setFvsTemplates] = useState<FvsTemplateType[]>([]);
   const [createFvsModal, setCreateFvsModal] = useState(false);
@@ -531,6 +534,11 @@ export default function ObraDetailPage() {
       setRecebimentos(recebimentosRes.data.data);
       const fvsRes = await api.get(`/obras/${params.id}/fvs`).catch(() => ({ data: { data: [] } }));
       setObraFvsList(fvsRes.data.data ?? []);
+      api.get(`/obras/${params.id}/relatorios`).then(r => {
+        const lista = r.data?.data ?? [];
+        const ultimo = [...lista].sort((a: { numero: number }, b: { numero: number }) => b.numero - a.numero)[0];
+        setAvancoObra(ultimo ? Number(ultimo.avancoPct) : null);
+      }).catch(() => {});
       const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
       setFvsTemplates(tmplRes.data.data ?? []);
       const plantasRes = await api.get(`/obras/${params.id}/plantas`).catch(() => ({ data: { data: [] } }));
@@ -829,6 +837,418 @@ export default function ObraDetailPage() {
     { key: 'relatorios', label: `📋 Relatórios` },
   ];
 
+
+  const renderFvsPainel = (fvs: ObraFvs) => {
+        const FVS_STATUS: Record<string, { label: string; color: string }> = {
+          pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
+          inicio_preenchido: { label: 'Início — Aguard. gestor', color: 'bg-blue-100 text-blue-700' },
+          inicio_aprovado_gestor: { label: 'Início — Aguard. coord.', color: 'bg-purple-100 text-purple-700' },
+          inicio_aprovado: { label: 'Início aprovado ✓', color: 'bg-teal-100 text-teal-700' },
+          aguardando_gestor: { label: 'Conclusão — Aguard. gestor', color: 'bg-amber-100 text-amber-700' },
+          aguardando_coord: { label: 'Conclusão — Aguard. coord.', color: 'bg-orange-100 text-orange-700' },
+          aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
+          rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
+        };
+        const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
+        const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
+        const inicioAprovado = ['inicio_aprovado', 'aguardando_gestor', 'aguardando_coord', 'aprovada', 'rejeitada'].includes(fvs.status);
+
+        const inicioItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
+        const conclusaoItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
+        const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
+        const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
+        const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
+        const conclusaoObrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
+
+        const bySecao = (items: ObraFvsItemType[]) => {
+          const map: Record<string, ObraFvsItemType[]> = {};
+          items.forEach(i => { const s = i.templateItem?.secao ?? (i.templateItem ? 'Geral' : 'Personalizado'); (map[s] = map[s] ?? []).push(i); });
+          return map;
+        };
+
+        const toggleItem = async (itemId: string, field: 'checked' | 'na') => {
+          if (isLocked) return;
+          const item = fvs.items.find(i => i.id === itemId);
+          if (!item) return;
+          setFvsSubmitting(true);
+          try {
+            const body = field === 'na'
+              ? { na: !item.na }
+              : { checked: !item.checked };
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, body);
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        const uploadFvsPhoto = async (itemId: string, file: File) => {
+          setFvsSubmitting(true);
+          try {
+            const fd = new FormData(); fd.append('file', file);
+            const up = await api.post('/uploads', fd);
+            const url = up.data.data?.url ?? up.data.url;
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { fotoUrl: url });
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        // O Passo a Passo NÃO é sequencial: os itens de uma fase acontecem em
+        // paralelo ao longo dela. Travar por ordem prenderia o engenheiro sem
+        // motivo. A única trava que resta é a foto obrigatória.
+        const isItemBlocked = (_item: ObraFvsItemType, _sectionItems: ObraFvsItemType[]) => false;
+
+        const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
+          const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
+          const grouped = bySecao(sorted);
+          return Object.entries(grouped).map(([secao, items]) => (
+            <div key={secao} className="mb-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
+              <div className="space-y-1.5">
+                {items.map(item => {
+                  const blocked = isItemBlocked(item, sorted);
+                  const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
+                  const photoMissing = needsPhoto && !item.fotoUrl;
+                  const canCheck = !blocked && !photoMissing;
+                  return (
+                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${
+                    item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : blocked ? 'bg-ber-offwhite/40 opacity-60' : 'hover:bg-ber-offwhite/60'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      {/* Checkbox */}
+                      <input type="checkbox" checked={item.checked}
+                        disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
+                        onChange={() => toggleItem(item.id, 'checked')}
+                        title={photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
+                      {/* Description */}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                          {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
+                          {item.templateItem?.sourceItCode && (
+                            <span className="mr-1.5 font-bold tabular-nums text-ber-gray/70">{item.templateItem.sourceItCode}</span>
+                          )}
+                          {item.templateItem?.descricao ?? item.descricao}
+                          {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
+                          {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
+                        </p>
+                        {/* Photo row */}
+                        {(needsPhoto || item.fotoUrl) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {item.fotoUrl && (
+                              <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                <img src={item.fotoUrl} alt="foto" className="h-12 w-12 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
+                              </a>
+                            )}
+                            {!isLocked && (
+                              <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${item.fotoUrl ? 'border-green-300 text-green-600 hover:bg-green-50' : needsPhoto ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'}`}>
+                                <Camera size={11} />
+                                {item.fotoUrl ? 'Trocar foto' : needsPhoto ? 'Foto obrigatória' : '+ Foto'}
+                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
+                              </label>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* N/A toggle */}
+                      {!isLocked && (
+                        <button type="button" disabled={fvsSubmitting || (blocked && !item.na)}
+                          onClick={() => toggleItem(item.id, 'na')}
+                          title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-40 ${
+                            item.na
+                              ? 'bg-gray-300 text-gray-600'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}>
+                          N/A
+                        </button>
+                      )}
+                      {isLocked && item.na && (
+                        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
+                      )}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          ));
+        };
+
+        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor-inicio' | 'approve-coord-inicio' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
+          setFvsSubmitting(true);
+          try {
+            const body = type === 'reject' ? { reason } : {};
+            const r = await api.post(`/obra-fvs/${fvs.id}/${type}`, body);
+            const updated = r.data.data;
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        const doReset = async () => {
+          setFvsSubmitting(true);
+          try {
+            const r = await api.delete(`/obras/${params.id}/fvs/${fvs.id}/reset`);
+            const updated = r.data.data;
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+            setFvsResetConfirm(false);
+          } catch (e: any) {
+            alert(e?.response?.data?.message ?? 'Erro ao resetar FVS');
+          } finally { setFvsSubmitting(false); }
+        };
+
+        return (
+          <div className="mt-3 overflow-hidden rounded-xl border border-ber-border bg-white">
+              {/* Header */}
+              <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{fvs.template?.code}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                  </div>
+                  <h2 className="mt-0.5 text-base font-black text-ber-carbon">{fvs.template?.name}</h2>
+                  {fvs.etapa && <p className="text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
+                </div>
+                <button onClick={() => { setExpandedFvs(prev => { const n = new Set(prev); n.delete(fvs.id); return n; }); setFvsResetConfirm(false); }}
+                  className="rounded p-1 text-ber-gray hover:bg-ber-offwhite" title="Recolher"><ChevronUp size={18} /></button>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-4">
+                {/* Seção Início */}
+                {inicioItems.length > 0 && (
+                  <div className="mb-6">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-ber-carbon">
+                        {fvs.status === 'pendente' ? '🟡' : '✅'} Pré-execução (Início)
+                      </h3>
+                      <span className={`text-xs font-semibold ${inicioObrigChecked === inicioObrigTotal ? 'text-green-600' : 'text-amber-600'}`}>
+                        {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
+                      </span>
+                    </div>
+                    {fvs.status !== 'pendente' && inicioAprovado && (
+                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução aprovada pelo gestor e coordenador</p>
+                    )}
+                    {fvs.status !== 'pendente' && !inicioAprovado && (
+                      <p className="mb-2 text-xs text-blue-600 font-medium">Pré-execução enviada — aguardando aprovação</p>
+                    )}
+                    {renderSection(inicioItems, 'inicio')}
+                  </div>
+                )}
+
+                {conclusaoItems.length > 0 && (
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-ber-carbon">🔵 Itens da fase</h3>
+                      <span className={`text-xs font-semibold ${conclusaoObrigChecked === conclusaoObrigTotal ? 'text-green-600' : 'text-blue-600'}`}>
+                        {conclusaoObrigChecked}/{conclusaoObrigTotal} obrigatórios
+                      </span>
+                    </div>
+                    {renderSection(conclusaoItems, 'conclusao')}
+                  </div>
+                )}
+
+                {/* Adicionar etapa customizada */}
+                {!isLocked && (
+                  <div className="mt-6 border-t border-dashed border-ber-gray/20 pt-4">
+                    {!addFvsItemOpen ? (
+                      <button
+                        onClick={() => setAddFvsItemOpen(true)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ber-gray/30 py-2.5 text-sm font-medium text-ber-gray hover:border-ber-teal hover:text-ber-teal transition-colors">
+                        + Adicionar etapa
+                      </button>
+                    ) : (
+                      <div className="space-y-3 rounded-lg bg-ber-offwhite/50 p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-ber-gray">Nova etapa</p>
+                        <input
+                          type="text"
+                          placeholder="Descrição da etapa..."
+                          value={addFvsItemDesc}
+                          onChange={e => setAddFvsItemDesc(e.target.value)}
+                          className="w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none"
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-semibold text-ber-gray">Momento:</label>
+                          <select
+                            value={addFvsItemMomento}
+                            onChange={e => setAddFvsItemMomento(e.target.value as 'inicio' | 'conclusao')}
+                            className="rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:outline-none">
+                            <option value="inicio">Pré-execução (Início)</option>
+                            <option value="conclusao">Execução e Conclusão</option>
+                          </select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => { setAddFvsItemOpen(false); setAddFvsItemDesc(''); }}
+                            className="rounded-md px-3 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
+                            Cancelar
+                          </button>
+                          <button
+                            disabled={!addFvsItemDesc.trim() || fvsSubmitting}
+                            onClick={async () => {
+                              setFvsSubmitting(true);
+                              try {
+                                const r = await api.post(`/obra-fvs/${fvs.id}/items`, {
+                                  descricao: addFvsItemDesc.trim(),
+                                  momento: addFvsItemMomento,
+                                });
+                                const newItem = r.data.data;
+                                const updated = { ...fvs, items: [...fvs.items, newItem] };
+                                setActiveFvs(updated);
+                                setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+                                setAddFvsItemDesc('');
+                                setAddFvsItemOpen(false);
+                              } catch (e: any) {
+                                alert(e?.response?.data?.message ?? 'Erro ao adicionar etapa');
+                              } finally { setFvsSubmitting(false); }
+                            }}
+                            className="rounded-md bg-ber-carbon px-4 py-1.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
+                            Adicionar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer — actions */}
+              <div className="shrink-0 border-t border-ber-offwhite px-6 py-4">
+                {fvsSubmitting && <p className="mb-2 text-center text-xs text-ber-gray">Salvando...</p>}
+
+                {/* Confirmação de reset */}
+                {fvsResetConfirm && (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm font-semibold text-red-700">Tem certeza? Todos os itens e fotos serão apagados e a FVS voltará ao status Pendente.</p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={doReset} disabled={fvsSubmitting}
+                        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">
+                        Confirmar
+                      </button>
+                      <button onClick={() => setFvsResetConfirm(false)} disabled={fvsSubmitting}
+                        className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {isGestor && !fvsResetConfirm && (
+                    <button onClick={() => setFvsResetConfirm(true)} disabled={fvsSubmitting}
+                      className="mr-auto rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50">
+                      🗑 Resetar FVS
+                    </button>
+                  )}
+                  <button onClick={() => setExpandedFvs(prev => { const n = new Set(prev); n.delete(fvs.id); return n; })}
+                    className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Recolher</button>
+
+                  {/* submit-inicio — envia pré-execução para aprovação */}
+                  {fvs.status === 'pendente' && inicioItems.length > 0 && (
+                    <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
+                      onClick={() => doAction('submit-inicio')}
+                      className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50">
+                      📋 Enviar Pré-execução para Aprovação
+                    </button>
+                  )}
+
+                  {/* approve-gestor-inicio */}
+                  {fvs.status === 'inicio_preenchido' && isGestor && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor-inicio')}
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
+                        ✅ Aprovar Início (Gestor)
+                      </button>
+                    </>
+                  )}
+
+                  {/* approve-coord-inicio */}
+                  {fvs.status === 'inicio_aprovado_gestor' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord-inicio')}
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
+                        ✅ Aprovar Início (Coord.)
+                      </button>
+                    </>
+                  )}
+
+                  {/* submit-conclusao — só aparece após início aprovado (ou se não há itens de início) */}
+                  {(fvs.status === 'inicio_aprovado' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
+                    <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
+                      onClick={() => doAction('submit-conclusao')}
+                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
+                      📋 Enviar para Aprovação
+                    </button>
+                  )}
+
+                  {/* approve-gestor (conclusão) */}
+                  {fvs.status === 'aguardando_gestor' && isGestor && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor')}
+                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
+                        ✅ Aprovar (Gestor)
+                      </button>
+                    </>
+                  )}
+
+                  {/* approve-coord */}
+                  {fvs.status === 'aguardando_coord' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
+                    <>
+                      <button disabled={fvsSubmitting}
+                        onClick={() => {
+                          const r = prompt('Motivo da rejeição:');
+                          if (r) doAction('reject', r);
+                        }}
+                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                        ❌ Rejeitar
+                      </button>
+                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord')}
+                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
+                        ✅ Aprovação Final
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+        );
+  };
 
   return (
     <div className="p-4 md:p-6">
@@ -1891,98 +2311,184 @@ export default function ObraDetailPage() {
             return na !== nb ? (na as number) - (nb as number) : (sa as string).localeCompare(sb as string);
           });
           const filtered = sortFvs(fvsFilter === 'todos' ? obraFvsList : obraFvsList.filter(f => f.status === fvsFilter));
+
+          // Faixa de avanço físico que cada fase cobre — usada pra dizer "você está aqui"
+          const FASE_FAIXA: Record<string, string> = {
+            PP1: 'antes do início',
+            PP2: '0 a 25% de obra',
+            PP3: '25 a 50% de obra',
+            PP4: '50 a 75% de obra',
+            PP5: '75 a 100% de obra',
+            PP6: 'após a entrega',
+          };
+          // Qual fase está valendo agora, pelo avanço do último relatório
+          const faseAtual: string | null = (() => {
+            if (obra.status === 'planejamento') return 'PP1';
+            if (obra.status === 'concluida') return 'PP6';
+            if (avancoObra == null) return null;
+            if (avancoObra >= 100) return 'PP6';
+            if (avancoObra >= 75) return 'PP5';
+            if (avancoObra >= 50) return 'PP4';
+            if (avancoObra >= 25) return 'PP3';
+            return 'PP2';
+          })();
+          const ordemFase = (code?: string | null) => Number(String(code ?? '').replace(/\D/g, '')) || 0;
+          const ordemAtual = ordemFase(faseAtual);
+
           return (
             <div>
               {/* Header */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Passo a Passo da Obra — Controle de Coordenação</h3>
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Passo a Passo da Obra — Controle de Coordenação</h3>
+                  <p className="mt-0.5 text-xs text-ber-gray/70">
+                    O que precisa estar feito em cada altura da obra. Cada item é verificado pelo gestor e depois pelo coordenador.
+                  </p>
+                </div>
                 {isGestor && (
                   <button onClick={() => setCreateFvsModal(true)}
-                    className="flex items-center gap-1.5 rounded-md bg-ber-carbon px-3 py-2 text-xs font-bold text-white hover:bg-ber-black">
-                    + Nova FVS
+                    className="flex items-center gap-1.5 rounded-md border border-ber-gray/25 px-3 py-2 text-xs font-semibold text-ber-gray hover:bg-ber-offwhite">
+                    + Nova ficha
                   </button>
                 )}
               </div>
 
-              {/* Filters */}
-              <div className="mb-4 flex flex-wrap gap-2">
-                {FILTERS.map(f => (
-                  <button key={f.key} onClick={() => setFvsFilter(f.key)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${fvsFilter === f.key ? 'bg-ber-carbon text-white' : 'bg-ber-offwhite text-ber-gray hover:bg-ber-offwhite/80'}`}>
-                    {f.label} {f.key !== 'todos' ? `(${obraFvsList.filter(x => x.status === f.key).length})` : `(${obraFvsList.length})`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Lista sequencial */}
-              {filtered.length === 0 ? (
-                <div className="rounded-lg border-2 border-dashed border-ber-gray/20 p-12 text-center">
-                  <p className="text-sm text-ber-gray/60">Nenhuma FVS {fvsFilter !== 'todos' ? 'com este filtro' : 'criada para esta obra'}.</p>
-                  {isGestor && fvsFilter === 'todos' && (
-                    <button onClick={() => setCreateFvsModal(true)} className="mt-3 text-sm font-semibold text-ber-teal hover:underline">
-                      + Criar primeira FVS
-                    </button>
-                  )}
-                </div>
-              ) : (() => {
-                const BLOCO_ACCENT = ['#6B7280','#3B82F6','#8B5CF6','#A855F7','#F97316','#EAB308','#10B981','#5A7A7A','#B5B820','#EF4444'];
-                const STATUS_ACCENT: Record<string, string> = {
-                  pendente: '#D1D5DB', inicio_preenchido: '#3B82F6',
-                  aguardando_gestor: '#F97316', aguardando_coord: '#A855F7',
-                  aprovada: '#10B981', rejeitada: '#EF4444',
-                };
+              {/* Filtros — só os que têm conteúdo */}
+              {(() => {
+                const comConteudo = FILTERS.filter(f => f.key === 'todos' || obraFvsList.some(x => x.status === f.key));
+                if (comConteudo.length <= 1) return null;
                 return (
-                  <div className="overflow-hidden rounded-lg border border-ber-border">
-                    {/* Cabeçalho */}
-                    <div className="grid items-center gap-3 border-b border-ber-border bg-ber-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray"
-                      style={{ gridTemplateColumns: '2rem 1fr 1fr 7rem 6rem' }}>
-                      <span>#</span>
-                      <span>Ficha</span>
-                      <span>Etapa</span>
-                      <span>Progresso</span>
-                      <span>Status</span>
-                    </div>
-                    {/* Linhas */}
-                    {filtered.map((fvs, idx) => {
-                      const total = fvs.items.length;
-                      const checked = fvs.items.filter(i => i.checked || i.na).length;
-                      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-                      const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
-                      const blocoAccent = BLOCO_ACCENT[fvs.template?.bloco ?? 0] ?? '#6B7280';
-                      const statusAccent = STATUS_ACCENT[fvs.status] ?? '#D1D5DB';
-                      const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
-                      return (
-                        <button key={fvs.id}
-                          onClick={() => { setActiveFvs(fvs); setFvsModalOpen(true); }}
-                          className={`group grid w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-ber-surface ${idx !== filtered.length - 1 ? 'border-b border-ber-border' : ''}`}
-                          style={{ gridTemplateColumns: '2rem 1fr 1fr 7rem 6rem', borderLeft: `3px solid ${statusAccent}` }}>
-                          {/* # sequencial */}
-                          <span className="text-[11px] font-bold tabular-nums" style={{ color: blocoAccent }}>{String(idx + 1).padStart(2, '0')}</span>
-                          {/* Ficha */}
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: blocoAccent }}>{fvs.template?.code} </span>
-                            <span className="text-xs font-semibold text-ber-carbon">{fvs.template?.name ?? 'FVS'}</span>
-                          </div>
-                          {/* Etapa */}
-                          <span className="truncate text-xs text-ber-gray">{fvs.etapa?.name ?? '—'}</span>
-                          {/* Progresso */}
-                          <div className="flex items-center gap-2">
-                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                            </div>
-                            <span className="w-7 text-right text-[10px] tabular-nums text-ber-gray">{pct}%</span>
-                          </div>
-                          {/* Status */}
-                          <div className="flex items-center justify-between">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
-                            <ChevronRight size={13} className="shrink-0 text-ber-gray/40 transition-opacity opacity-0 group-hover:opacity-100" />
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {comConteudo.map(f => (
+                      <button key={f.key} onClick={() => setFvsFilter(f.key)}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${fvsFilter === f.key ? 'bg-ber-carbon text-white' : 'bg-ber-offwhite text-ber-gray hover:bg-ber-offwhite/80'}`}>
+                        {f.label} ({f.key === 'todos' ? obraFvsList.length : obraFvsList.filter(x => x.status === f.key).length})
+                      </button>
+                    ))}
                   </div>
                 );
               })()}
+
+              {filtered.length === 0 ? (
+                <div className="rounded-lg border-2 border-dashed border-ber-gray/20 p-12 text-center">
+                  <p className="text-sm text-ber-gray/60">Nenhuma fase {fvsFilter !== 'todos' ? 'com este filtro' : 'criada para esta obra'}.</p>
+                  {isGestor && fvsFilter === 'todos' && (
+                    <button onClick={() => setCreateFvsModal(true)} className="mt-3 text-sm font-semibold text-ber-teal hover:underline">
+                      + Criar primeira ficha
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* Trilha vertical — cada fase é uma parada na vida da obra */
+                <div className="relative max-w-3xl">
+                  {filtered.map((fvs, idx) => {
+                    const code = fvs.template?.code ?? '';
+                    const total = fvs.items.length;
+                    const feitos = fvs.items.filter(i => i.checked || i.na).length;
+                    const pct = total > 0 ? Math.round((feitos / total) * 100) : 0;
+                    const fotosPendentes = fvs.items.filter(i => i.templateItem?.fotoObrigatoria && !i.fotoUrl && !i.na).length;
+                    const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
+
+                    const ordem = ordemFase(code);
+                    const isAtual = faseAtual != null && code === faseAtual;
+                    const isPassada = ordemAtual > 0 && ordem > 0 && ordem < ordemAtual;
+                    const isFutura = ordemAtual > 0 && ordem > 0 && ordem > ordemAtual;
+                    const completa = total > 0 && feitos === total;
+                    const atrasada = isPassada && !completa;
+                    const ultimo = idx === filtered.length - 1;
+
+                    const anelCor = atrasada ? 'bg-red-500 text-white'
+                      : completa ? 'bg-green-600 text-white'
+                      : isAtual ? 'bg-ber-carbon text-white'
+                      : 'bg-ber-offwhite text-ber-gray';
+                    const barra = atrasada ? '#DC2626' : pct === 100 ? '#16A34A' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
+
+                    return (
+                      <div key={fvs.id} className="relative flex gap-3 pb-3">
+                        {/* Trilho + marcador */}
+                        <div className="flex w-8 shrink-0 flex-col items-center">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${anelCor} ${isAtual ? 'ring-4 ring-ber-carbon/15' : ''}`}>
+                            {completa && !atrasada ? '✓' : ordem || idx + 1}
+                          </div>
+                          {!ultimo && <div className="mt-1 w-px flex-1 bg-ber-gray/20" />}
+                        </div>
+
+                        {/* Cartão da fase + painel de itens */}
+                        <div className="min-w-0 flex-1">
+                        <button
+                          onClick={() => {
+                            setActiveFvs(fvs);
+                            setExpandedFvs(prev => {
+                              const n = new Set(prev);
+                              if (n.has(fvs.id)) n.delete(fvs.id); else n.add(fvs.id);
+                              return n;
+                            });
+                          }}
+                          className={`group block w-full rounded-xl border p-4 text-left transition-all hover:shadow-sm ${
+                            isAtual ? 'border-ber-carbon/30 bg-white shadow-sm'
+                            : atrasada ? 'border-red-200 bg-red-50/40'
+                            : isFutura ? 'border-ber-border bg-white/50 opacity-70 hover:opacity-100'
+                            : 'border-ber-border bg-white'
+                          }`}>
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-sm font-bold text-ber-carbon">{fvs.template?.name ?? 'Fase'}</h4>
+                                {isAtual && (
+                                  <span className="rounded-full bg-ber-carbon px-2 py-0.5 text-[10px] font-bold text-white">FASE ATUAL</span>
+                                )}
+                                {atrasada && (
+                                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">FICOU PRA TRÁS</span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-[11px] text-ber-gray">{FASE_FAIXA[code] ?? fvs.etapa?.name ?? ''}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
+                              <ChevronRight size={14} className={`shrink-0 text-ber-gray/40 transition-transform ${expandedFvs.has(fvs.id) ? 'rotate-90' : ''}`} />
+                            </div>
+                          </div>
+
+                          {/* Progresso com fração — não só um zero solitário */}
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barra }} />
+                            </div>
+                            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-ber-carbon">
+                              {feitos} de {total}
+                            </span>
+                          </div>
+
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ber-gray">
+                            {fotosPendentes > 0 && (
+                              <span className="inline-flex items-center gap-1 text-amber-600">
+                                <Camera size={11} /> {fotosPendentes} {fotosPendentes === 1 ? 'foto pendente' : 'fotos pendentes'}
+                              </span>
+                            )}
+                            {atrasada && (
+                              <span className="font-medium text-red-600">
+                                {total - feitos} {total - feitos === 1 ? 'item aberto' : 'itens abertos'} de uma fase que a obra já passou
+                              </span>
+                            )}
+                            {isAtual && !completa && (
+                              <span className="font-medium text-ber-carbon">É aqui que a obra está agora</span>
+                            )}
+                          </div>
+                        </button>
+                        {expandedFvs.has(fvs.id) && renderFvsPainel(fvs)}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Rodapé de contexto */}
+                  {faseAtual == null && (
+                    <p className="mt-2 text-[11px] text-ber-gray/70 italic">
+                      A fase atual aparece destacada assim que o primeiro relatório semanal for emitido — é o avanço dele que diz onde a obra está.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -2433,418 +2939,6 @@ export default function ObraDetailPage() {
       })()}
 
       {/* ─── FVS Detail Modal ─── */}
-      {fvsModalOpen && activeFvs && (() => {
-        const fvs = activeFvs;
-        const FVS_STATUS: Record<string, { label: string; color: string }> = {
-          pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600' },
-          inicio_preenchido: { label: 'Início — Aguard. gestor', color: 'bg-blue-100 text-blue-700' },
-          inicio_aprovado_gestor: { label: 'Início — Aguard. coord.', color: 'bg-purple-100 text-purple-700' },
-          inicio_aprovado: { label: 'Início aprovado ✓', color: 'bg-teal-100 text-teal-700' },
-          aguardando_gestor: { label: 'Conclusão — Aguard. gestor', color: 'bg-amber-100 text-amber-700' },
-          aguardando_coord: { label: 'Conclusão — Aguard. coord.', color: 'bg-orange-100 text-orange-700' },
-          aprovada: { label: 'Aprovada ✓', color: 'bg-green-100 text-green-700' },
-          rejeitada: { label: 'Rejeitada', color: 'bg-red-100 text-red-700' },
-        };
-        const sc = FVS_STATUS[fvs.status] ?? { label: fvs.status, color: 'bg-gray-100 text-gray-500' };
-        const isLocked = ['aprovada', 'rejeitada'].includes(fvs.status);
-        const inicioAprovado = ['inicio_aprovado', 'aguardando_gestor', 'aguardando_coord', 'aprovada', 'rejeitada'].includes(fvs.status);
-
-        const inicioItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'inicio');
-        const conclusaoItems = fvs.items.filter(i => (i.templateItem?.momento ?? i.momento) === 'conclusao');
-        const inicioObrigTotal = inicioItems.filter(i => i.templateItem?.obrigatorio).length;
-        const inicioObrigChecked = inicioItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
-        const conclusaoObrigTotal = conclusaoItems.filter(i => i.templateItem?.obrigatorio).length;
-        const conclusaoObrigChecked = conclusaoItems.filter(i => i.templateItem?.obrigatorio && (i.checked || i.na)).length;
-
-        const bySecao = (items: ObraFvsItemType[]) => {
-          const map: Record<string, ObraFvsItemType[]> = {};
-          items.forEach(i => { const s = i.templateItem?.secao ?? (i.templateItem ? 'Geral' : 'Personalizado'); (map[s] = map[s] ?? []).push(i); });
-          return map;
-        };
-
-        const toggleItem = async (itemId: string, field: 'checked' | 'na') => {
-          if (isLocked) return;
-          const item = fvs.items.find(i => i.id === itemId);
-          if (!item) return;
-          setFvsSubmitting(true);
-          try {
-            const body = field === 'na'
-              ? { na: !item.na }
-              : { checked: !item.checked };
-            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, body);
-            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
-            setActiveFvs(updated);
-            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
-          } catch (e: any) {
-            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
-          } finally { setFvsSubmitting(false); }
-        };
-
-        const uploadFvsPhoto = async (itemId: string, file: File) => {
-          setFvsSubmitting(true);
-          try {
-            const fd = new FormData(); fd.append('file', file);
-            const up = await api.post('/uploads', fd);
-            const url = up.data.data?.url ?? up.data.url;
-            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { fotoUrl: url });
-            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
-            setActiveFvs(updated);
-            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
-          } catch (e: any) {
-            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload');
-          } finally { setFvsSubmitting(false); }
-        };
-
-        // O Passo a Passo NÃO é sequencial: os itens de uma fase acontecem em
-        // paralelo ao longo dela. Travar por ordem prenderia o engenheiro sem
-        // motivo. A única trava que resta é a foto obrigatória.
-        const isItemBlocked = (_item: ObraFvsItemType, _sectionItems: ObraFvsItemType[]) => false;
-
-        const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
-          const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
-          const grouped = bySecao(sorted);
-          return Object.entries(grouped).map(([secao, items]) => (
-            <div key={secao} className="mb-4">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
-              <div className="space-y-1.5">
-                {items.map(item => {
-                  const blocked = isItemBlocked(item, sorted);
-                  const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
-                  const photoMissing = needsPhoto && !item.fotoUrl;
-                  const canCheck = !blocked && !photoMissing;
-                  return (
-                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${
-                    item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : blocked ? 'bg-ber-offwhite/40 opacity-60' : 'hover:bg-ber-offwhite/60'
-                  }`}>
-                    <div className="flex items-start gap-2">
-                      {/* Checkbox */}
-                      <input type="checkbox" checked={item.checked}
-                        disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
-                        onChange={() => toggleItem(item.id, 'checked')}
-                        title={photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
-                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
-                      {/* Description */}
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
-                          {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
-                          {item.templateItem?.sourceItCode && (
-                            <span className="mr-1.5 font-bold tabular-nums text-ber-gray/70">{item.templateItem.sourceItCode}</span>
-                          )}
-                          {item.templateItem?.descricao ?? item.descricao}
-                          {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
-                          {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
-                        </p>
-                        {/* Photo row */}
-                        {(needsPhoto || item.fotoUrl) && (
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            {item.fotoUrl && (
-                              <a href={item.fotoUrl} target="_blank" rel="noreferrer">
-                                <img src={item.fotoUrl} alt="foto" className="h-12 w-12 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
-                              </a>
-                            )}
-                            {!isLocked && (
-                              <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${item.fotoUrl ? 'border-green-300 text-green-600 hover:bg-green-50' : needsPhoto ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'}`}>
-                                <Camera size={11} />
-                                {item.fotoUrl ? 'Trocar foto' : needsPhoto ? 'Foto obrigatória' : '+ Foto'}
-                                <input type="file" accept="image/*" capture="environment" className="hidden"
-                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
-                              </label>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {/* N/A toggle */}
-                      {!isLocked && (
-                        <button type="button" disabled={fvsSubmitting || (blocked && !item.na)}
-                          onClick={() => toggleItem(item.id, 'na')}
-                          title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
-                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-40 ${
-                            item.na
-                              ? 'bg-gray-300 text-gray-600'
-                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                          }`}>
-                          N/A
-                        </button>
-                      )}
-                      {isLocked && item.na && (
-                        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
-          ));
-        };
-
-        const doAction = async (type: 'submit-inicio' | 'submit-conclusao' | 'approve-gestor-inicio' | 'approve-coord-inicio' | 'approve-gestor' | 'approve-coord' | 'reject', reason?: string) => {
-          setFvsSubmitting(true);
-          try {
-            const body = type === 'reject' ? { reason } : {};
-            const r = await api.post(`/obra-fvs/${fvs.id}/${type}`, body);
-            const updated = r.data.data;
-            setActiveFvs(updated);
-            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
-          } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro');
-          } finally { setFvsSubmitting(false); }
-        };
-
-        const doReset = async () => {
-          setFvsSubmitting(true);
-          try {
-            const r = await api.delete(`/obras/${params.id}/fvs/${fvs.id}/reset`);
-            const updated = r.data.data;
-            setActiveFvs(updated);
-            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
-            setFvsResetConfirm(false);
-          } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro ao resetar FVS');
-          } finally { setFvsSubmitting(false); }
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
-            <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-t-2xl md:rounded-xl bg-white shadow-2xl">
-              {/* Header */}
-              <div className="flex shrink-0 items-start justify-between border-b border-ber-offwhite px-6 py-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray/60">{fvs.template?.code}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
-                  </div>
-                  <h2 className="mt-0.5 text-base font-black text-ber-carbon">{fvs.template?.name}</h2>
-                  {fvs.etapa && <p className="text-xs text-ber-gray">↳ {fvs.etapa.name}</p>}
-                </div>
-                <button onClick={() => { setFvsModalOpen(false); setFvsResetConfirm(false); }} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={18} /></button>
-              </div>
-
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                {/* Seção Início */}
-                {inicioItems.length > 0 && (
-                  <div className="mb-6">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-ber-carbon">
-                        {fvs.status === 'pendente' ? '🟡' : '✅'} Pré-execução (Início)
-                      </h3>
-                      <span className={`text-xs font-semibold ${inicioObrigChecked === inicioObrigTotal ? 'text-green-600' : 'text-amber-600'}`}>
-                        {inicioObrigChecked}/{inicioObrigTotal} obrigatórios
-                      </span>
-                    </div>
-                    {fvs.status !== 'pendente' && inicioAprovado && (
-                      <p className="mb-2 text-xs text-green-600 font-medium">Pré-execução aprovada pelo gestor e coordenador</p>
-                    )}
-                    {fvs.status !== 'pendente' && !inicioAprovado && (
-                      <p className="mb-2 text-xs text-blue-600 font-medium">Pré-execução enviada — aguardando aprovação</p>
-                    )}
-                    {renderSection(inicioItems, 'inicio')}
-                  </div>
-                )}
-
-                {conclusaoItems.length > 0 && (
-                  <div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-ber-carbon">🔵 Itens da fase</h3>
-                      <span className={`text-xs font-semibold ${conclusaoObrigChecked === conclusaoObrigTotal ? 'text-green-600' : 'text-blue-600'}`}>
-                        {conclusaoObrigChecked}/{conclusaoObrigTotal} obrigatórios
-                      </span>
-                    </div>
-                    {renderSection(conclusaoItems, 'conclusao')}
-                  </div>
-                )}
-
-                {/* Adicionar etapa customizada */}
-                {!isLocked && (
-                  <div className="mt-6 border-t border-dashed border-ber-gray/20 pt-4">
-                    {!addFvsItemOpen ? (
-                      <button
-                        onClick={() => setAddFvsItemOpen(true)}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-ber-gray/30 py-2.5 text-sm font-medium text-ber-gray hover:border-ber-teal hover:text-ber-teal transition-colors">
-                        + Adicionar etapa
-                      </button>
-                    ) : (
-                      <div className="space-y-3 rounded-lg bg-ber-offwhite/50 p-3">
-                        <p className="text-xs font-bold uppercase tracking-wide text-ber-gray">Nova etapa</p>
-                        <input
-                          type="text"
-                          placeholder="Descrição da etapa..."
-                          value={addFvsItemDesc}
-                          onChange={e => setAddFvsItemDesc(e.target.value)}
-                          className="w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:outline-none"
-                          autoFocus
-                        />
-                        <div className="flex items-center gap-3">
-                          <label className="text-xs font-semibold text-ber-gray">Momento:</label>
-                          <select
-                            value={addFvsItemMomento}
-                            onChange={e => setAddFvsItemMomento(e.target.value as 'inicio' | 'conclusao')}
-                            className="rounded-md border border-ber-gray/30 px-2 py-1 text-sm focus:border-ber-teal focus:outline-none">
-                            <option value="inicio">Pré-execução (Início)</option>
-                            <option value="conclusao">Execução e Conclusão</option>
-                          </select>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => { setAddFvsItemOpen(false); setAddFvsItemDesc(''); }}
-                            className="rounded-md px-3 py-1.5 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">
-                            Cancelar
-                          </button>
-                          <button
-                            disabled={!addFvsItemDesc.trim() || fvsSubmitting}
-                            onClick={async () => {
-                              setFvsSubmitting(true);
-                              try {
-                                const r = await api.post(`/obra-fvs/${fvs.id}/items`, {
-                                  descricao: addFvsItemDesc.trim(),
-                                  momento: addFvsItemMomento,
-                                });
-                                const newItem = r.data.data;
-                                const updated = { ...fvs, items: [...fvs.items, newItem] };
-                                setActiveFvs(updated);
-                                setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
-                                setAddFvsItemDesc('');
-                                setAddFvsItemOpen(false);
-                              } catch (e: any) {
-                                alert(e?.response?.data?.message ?? 'Erro ao adicionar etapa');
-                              } finally { setFvsSubmitting(false); }
-                            }}
-                            className="rounded-md bg-ber-carbon px-4 py-1.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
-                            Adicionar
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer — actions */}
-              <div className="shrink-0 border-t border-ber-offwhite px-6 py-4">
-                {fvsSubmitting && <p className="mb-2 text-center text-xs text-ber-gray">Salvando...</p>}
-
-                {/* Confirmação de reset */}
-                {fvsResetConfirm && (
-                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3">
-                    <p className="text-sm font-semibold text-red-700">Tem certeza? Todos os itens e fotos serão apagados e a FVS voltará ao status Pendente.</p>
-                    <div className="mt-2 flex gap-2">
-                      <button onClick={doReset} disabled={fvsSubmitting}
-                        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">
-                        Confirmar
-                      </button>
-                      <button onClick={() => setFvsResetConfirm(false)} disabled={fvsSubmitting}
-                        className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {isGestor && !fvsResetConfirm && (
-                    <button onClick={() => setFvsResetConfirm(true)} disabled={fvsSubmitting}
-                      className="mr-auto rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50">
-                      🗑 Resetar FVS
-                    </button>
-                  )}
-                  <button onClick={() => { setFvsModalOpen(false); setFvsResetConfirm(false); }} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
-
-                  {/* submit-inicio — envia pré-execução para aprovação */}
-                  {fvs.status === 'pendente' && inicioItems.length > 0 && (
-                    <button disabled={fvsSubmitting || inicioObrigChecked < inicioObrigTotal}
-                      onClick={() => doAction('submit-inicio')}
-                      className="rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600 disabled:opacity-50">
-                      📋 Enviar Pré-execução para Aprovação
-                    </button>
-                  )}
-
-                  {/* approve-gestor-inicio */}
-                  {fvs.status === 'inicio_preenchido' && isGestor && (
-                    <>
-                      <button disabled={fvsSubmitting}
-                        onClick={() => {
-                          const r = prompt('Motivo da rejeição:');
-                          if (r) doAction('reject', r);
-                        }}
-                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
-                        ❌ Rejeitar
-                      </button>
-                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor-inicio')}
-                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
-                        ✅ Aprovar Início (Gestor)
-                      </button>
-                    </>
-                  )}
-
-                  {/* approve-coord-inicio */}
-                  {fvs.status === 'inicio_aprovado_gestor' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
-                    <>
-                      <button disabled={fvsSubmitting}
-                        onClick={() => {
-                          const r = prompt('Motivo da rejeição:');
-                          if (r) doAction('reject', r);
-                        }}
-                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
-                        ❌ Rejeitar
-                      </button>
-                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord-inicio')}
-                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
-                        ✅ Aprovar Início (Coord.)
-                      </button>
-                    </>
-                  )}
-
-                  {/* submit-conclusao — só aparece após início aprovado (ou se não há itens de início) */}
-                  {(fvs.status === 'inicio_aprovado' || (fvs.status === 'pendente' && inicioItems.length === 0)) && conclusaoItems.length > 0 && (
-                    <button disabled={fvsSubmitting || conclusaoObrigChecked < conclusaoObrigTotal}
-                      onClick={() => doAction('submit-conclusao')}
-                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
-                      📋 Enviar para Aprovação
-                    </button>
-                  )}
-
-                  {/* approve-gestor (conclusão) */}
-                  {fvs.status === 'aguardando_gestor' && isGestor && (
-                    <>
-                      <button disabled={fvsSubmitting}
-                        onClick={() => {
-                          const r = prompt('Motivo da rejeição:');
-                          if (r) doAction('reject', r);
-                        }}
-                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
-                        ❌ Rejeitar
-                      </button>
-                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-gestor')}
-                        className="rounded-md bg-green-500 px-4 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
-                        ✅ Aprovar (Gestor)
-                      </button>
-                    </>
-                  )}
-
-                  {/* approve-coord */}
-                  {fvs.status === 'aguardando_coord' && (user?.role === 'coordenacao' || user?.role === 'diretoria') && (
-                    <>
-                      <button disabled={fvsSubmitting}
-                        onClick={() => {
-                          const r = prompt('Motivo da rejeição:');
-                          if (r) doAction('reject', r);
-                        }}
-                        className="rounded-md bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50">
-                        ❌ Rejeitar
-                      </button>
-                      <button disabled={fvsSubmitting} onClick={() => doAction('approve-coord')}
-                        className="rounded-md bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50">
-                        ✅ Aprovação Final
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ─── Create FVS Modal ─── */}
       {createFvsModal && (
@@ -2873,12 +2967,13 @@ export default function ObraDetailPage() {
                     const r = await api.post(`/obras/${params.id}/fvs`, { templateId: createFvsTemplateId });
                     setObraFvsList(prev => [r.data.data, ...prev]);
                     setActiveFvs(r.data.data);
-                    setFvsModalOpen(true);
+                    // já abre a fase recém-criada na trilha
+                    setExpandedFvs(prev => new Set(prev).add(r.data.data.id));
                     setCreateFvsModal(false);
                   } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
                 }}
                 className="rounded-md bg-ber-carbon px-5 py-2 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
-                Criar FVS
+                Criar ficha
               </button>
             </div>
           </div>
