@@ -1119,12 +1119,12 @@ export default function ObraDetailPage() {
             {tab.label}
           </button>
         ))}
-        {/* Gestão 360 — destaque */}
+        {/* Cronograma — página dedicada (saiu do Gestão 360) */}
         <Link
-          href={`/obras/${params.id}/gestao-360`}
-          className="shrink-0 px-4 py-2.5 text-sm font-semibold text-white bg-ber-carbon hover:bg-ber-black rounded-md transition-colors flex items-center gap-1.5 ml-2"
+          href={`/obras/${params.id}/cronograma`}
+          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1 ml-2"
         >
-          🎯 Gestão 360
+          📅 Cronograma
         </Link>
         {/* Compras — página dedicada */}
         <Link
@@ -1829,13 +1829,13 @@ export default function ObraDetailPage() {
         })()}
 
 
-        {/* ─── Cronograma tab — REDIRECT pro Gestão 360 ─── */}
+        {/* ─── Cronograma tab — redireciona pra página dedicada ─── */}
         {activeTab === 'cronograma' && (
           <div className="py-12 text-center">
-            <p className="text-sm text-ber-gray mb-3">O Cronograma agora vive dentro do <strong>Gestão 360</strong>.</p>
-            <a href={`/obras/${params.id}/gestao-360`}
+            <p className="text-sm text-ber-gray mb-3">O Cronograma tem página própria.</p>
+            <a href={`/obras/${params.id}/cronograma`}
               className="inline-flex items-center gap-1.5 rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white hover:bg-ber-black">
-              Abrir Gestão 360 →
+              Abrir Cronograma →
             </a>
           </div>
         )}

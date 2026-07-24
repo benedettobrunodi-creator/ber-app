@@ -247,7 +247,7 @@ function TabVisao({ obras }: { obras: ObraRow[] }) {
               return (
                 <tr key={o.id} className="hover:bg-ber-bg/30 transition-colors">
                   <Td>
-                    <Link href={`/obras/${o.id}/gestao-360`} className="font-medium text-ber-carbon hover:text-ber-teal inline-flex items-center gap-1">
+                    <Link href={`/obras/${o.id}`} className="font-medium text-ber-carbon hover:text-ber-teal inline-flex items-center gap-1">
                       {o.name} <ArrowRight size={11} className="opacity-50" />
                     </Link>
                   </Td>

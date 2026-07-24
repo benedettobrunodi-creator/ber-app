@@ -753,7 +753,7 @@ function OportunidadeDrawer({
                   </div>
                 </div>
                 <a
-                  href={`/obras/${op.obra.id}/gestao-360`}
+                  href={`/obras/${op.obra.id}`}
                   className="text-[11px] text-ber-teal hover:underline font-medium"
                 >
                   Abrir 360 ↗

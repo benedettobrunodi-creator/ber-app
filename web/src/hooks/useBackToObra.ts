@@ -1,19 +1,15 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 /**
- * Retorna o href do botão "← voltar pra obra" considerando de onde o user veio.
- * Se a URL tem `?from=gestao-360`, volta pro cockpit 360 em vez da home da obra.
+ * Retorna o href do botão "← voltar pra obra".
  *
- * Uso:
- *   const backHref = useBackToObra();
- *   <Link href={backHref}>...</Link>
+ * Antes desviava pro Gestão 360 quando a URL trazia `?from=gestao-360`.
+ * O 360 saiu, então volta sempre pra home da obra — o `?from=` que ainda
+ * apareça em link antigo é simplesmente ignorado.
  */
 export function useBackToObra(): string {
   const params = useParams<{ id: string }>();
-  const sp = useSearchParams();
-  const obraId = params.id;
-  if (sp.get('from') === 'gestao-360') return `/obras/${obraId}/gestao-360`;
-  return `/obras/${obraId}`;
+  return `/obras/${params.id}`;
 }
