@@ -749,7 +749,11 @@ export default function ComprasPage() {
                       : null;
                     const effectiveVenda = coNet !== null ? coNet : item.venda;
                     const meta = effectiveVenda * (1 - item.pctMeta);
-                    const effectiveComprado = item.comprado;
+                    // Comprado da linha-mãe = soma das linhas C/D, igual ao card de
+                    // totais do topo (effectiveCompradoItem). Antes lia item.comprado,
+                    // que fica zerado quando o CO é quebrado em splits — a economia
+                    // da linha ignorava tudo que já tinha sido comprado.
+                    const effectiveComprado = effectiveCompradoItem(item);
                     const savOrç = effectiveVenda - effectiveComprado;
                     const savMeta = meta - effectiveComprado;
                     return (
