@@ -6,7 +6,7 @@
  * Reproduz a "primeira aba da planilha" que Bruno enviava ao cliente:
  *   Header (info da obra) + Painel de Controle:
  *     [PRAZOS] · [RESULTADO + CONTRATAÇÕES (donut)] · [TEMPERATURA]
- *   + Linha do Tempo / Cronograma (curva S)
+ *   + Curva S (planejado vs. realizado, do módulo de Relatórios)
  *
  * Usado em dois lugares:
  *   1. `/obras/[id]`        — aba inicial da obra (embedded)
@@ -99,8 +99,12 @@ const RELATORIO_STATUS: Record<string, { label: string; badge: string; bar: stri
   atrasado: { label: 'ATRASADO', badge: 'bg-red-100 text-red-800',        bar: 'linear-gradient(90deg,#f87171,#dc2626)' },
 };
 
-interface CronogramaTarefa { i?: string | null; inicio?: string | null; f?: string | null; fim?: string | null; d?: number | null; duracaoDias?: number | null; p?: number; percentualConcluido?: number; r?: boolean; ehResumo?: boolean }
-interface Cronograma { progressPct?: number | null; parsedData: { tarefas?: CronogramaTarefa[] } | null }
+/** Ponto da curva S mantida no módulo de relatórios (tabela relatorio_curva_s). */
+interface CurvaSPonto {
+  semana: string;
+  planejadoPct?: number | string | null;
+  realizadoPct?: number | string | null;
+}
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
@@ -116,7 +120,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
 
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
-  const [cronograma, setCronograma] = useState<Cronograma | null>(null);
+  const [curvaS, setCurvaS] = useState<CurvaSPonto[]>([]);
   const [temperaturas, setTemperaturas] = useState<TemperaturaRow[]>([]);
   const [ultimoRelatorio, setUltimoRelatorio] = useState<RelatorioLite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,16 +130,16 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   async function load() {
     setLoading(true);
     const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-    const [o, c, cron, temps, rels] = await Promise.all([
+    const [o, c, curva, temps, rels] = await Promise.all([
       safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
       safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
-      safe(api.get<{ data: Cronograma }>(`/obras/${obraId}/cronograma`).then(r => r.data.data)),
+      safe(api.get<{ data: CurvaSPonto[] }>(`/obras/${obraId}/relatorios/curva-s`).then(r => r.data.data)),
       safe(api.get<{ data: TemperaturaRow[] }>(`/obras/${obraId}/temperatura`).then(r => r.data.data)),
       safe(api.get<{ data: RelatorioLite[] }>(`/obras/${obraId}/relatorios`).then(r => r.data.data)),
     ]);
     setObra(o);
     setContratos(c);
-    setCronograma(cron);
+    setCurvaS(curva ?? []);
     setTemperaturas(temps ?? []);
     // O backend já devolve ordenado por numero desc — o último emitido é o primeiro.
     // Reordena defensivamente caso a ordenação do endpoint mude.
@@ -183,91 +187,60 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       ].filter(d => d.value > 0)
     : [{ name: 'sem dados', value: 1, color: '#E5E5E5' }];
 
-  // ─── Curva S do cronograma ─────────────────────────────────────────────
-  // Mesma fórmula da Curva S "oficial" (web/.../obras/[id]/page.tsx — generateCurvaS):
-  // planejado = % linear do tempo decorrido dentro do span da tarefa-raiz;
-  // realizado = currentPct na semana atual; proporção planejado×currentPct/planTodayPct nas passadas.
-  type CurvaPt = { label: string; planejado: number; real: number | null };
-  const tarefas = cronograma?.parsedData?.tarefas ?? [];
-  const tFim = (t: typeof tarefas[number]) => (t.f ?? t.fim) ?? null;
-  const tIni = (t: typeof tarefas[number]) => (t.i ?? t.inicio) ?? null;
-  const tDur = (t: typeof tarefas[number]) => (t.d ?? t.duracaoDias) ?? 0;
-  const tPct = (t: typeof tarefas[number]) => (t.p ?? t.percentualConcluido) ?? 0;
-  const isResumo = (t: typeof tarefas[number]) => !!(t.r ?? t.ehResumo);
+  // ─── Curva S ───────────────────────────────────────────────────────────
+  // Fonte: a curva mantida no módulo de Relatórios (tabela relatorio_curva_s),
+  // a mesma que sai no PDF enviado ao cliente. Não é derivada do cronograma.
+  type CurvaPt = { label: string; semana: string; planejado?: number; realizado?: number };
 
-  const folhas = tarefas.filter(t => !isResumo(t) && tDur(t) > 0 && tIni(t) && tFim(t));
-  const totalDias = folhas.reduce((s, t) => s + tDur(t), 0);
-  // Span do projeto: combina min/max das tarefas COM as datas oficiais da
-  // obra como fallback (garante que a curva cobre o projeto inteiro mesmo
-  // quando o cronograma é parcial).
-  const comDatas = tarefas.filter(t => tIni(t) && tFim(t));
-  const tarefaMinIni = comDatas.reduce((min, t) => {
-    const i = tIni(t)!; return !min || i < min ? i : min;
-  }, '' as string);
-  const tarefaMaxFim = comDatas.reduce((max, t) => {
-    const f = tFim(t)!; return !max || f > max ? f : max;
-  }, '' as string);
-  const obraIni = (obra.dataInicioObra ?? obra.dataInicioProjeto ?? obra.startDate ?? '').slice(0, 10);
-  const obraFim = (obra.dataFimObra ?? obra.dataFimProjeto ?? obra.expectedEndDate ?? '').slice(0, 10);
-  const minStr = (a: string, b: string) => (!a ? b : !b ? a : (a < b ? a : b));
-  const maxStr = (a: string, b: string) => (!a ? b : !b ? a : (a > b ? a : b));
-  const raizIni = minStr(tarefaMinIni, obraIni);
-  const raizFim = maxStr(tarefaMaxFim, obraFim);
+  const startIso = (obra.dataInicioObra ?? obra.startDate ?? '').slice(0, 10) || null;
+  const endIso = (obra.dataFimObra ?? obra.expectedEndDate ?? '').slice(0, 10) || null;
+  const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
 
-  const curva: CurvaPt[] = [];
-  // % que o cronograma previa pra hoje — referência do "adiantado/atrasado".
-  // Preenchido dentro do bloco abaixo quando há cronograma parseado.
-  let planejadoHoje: number | null = null;
-  if (folhas.length > 0 && totalDias > 0 && raizIni && raizFim) {
-    const raizStartMs = new Date(raizIni + 'T00:00:00').getTime();
-    const raizEndMs   = new Date(raizFim + 'T00:00:00').getTime();
-    if (raizEndMs > raizStartMs) {
-      // Pré-computa inicio/fim/duracao em ms pra cada folha
-      const folhasMs = folhas.map(t => ({
-        iniMs: new Date(tIni(t)! + 'T00:00:00').getTime(),
-        fimMs: new Date(tFim(t)! + 'T00:00:00').getTime(),
-        dur:   tDur(t),
-      }));
-      // % planejado de uma folha numa data (= coluna "% Planejado" do MS Project)
-      const leafPlanAt = (ms: number, iniMs: number, fimMs: number) => {
-        if (ms >= fimMs) return 1;
-        if (ms <= iniMs) return 0;
-        return (ms - iniMs) / (fimMs - iniMs);
-      };
-      const planAt = (ms: number) => {
-        const acc = folhasMs.reduce((s, f) => s + f.dur * leafPlanAt(ms, f.iniMs, f.fimMs), 0);
-        return acc / totalDias * 100;
-      };
+  const curva: CurvaPt[] = (() => {
+    const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
+    curvaS.forEach(p => {
+      const k = String(p.semana).slice(0, 10);
+      const entry = map.get(k) ?? { semana: k };
+      if (p.planejadoPct != null) entry.planejado = Number(p.planejadoPct);
+      if (p.realizadoPct != null) entry.realizado = Number(p.realizadoPct);
+      map.set(k, entry);
+    });
+    if (map.size === 0) return [];
+    // Ancora nas datas oficiais da obra pra curva cobrir o projeto inteiro
+    if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
+    if (endIso && !map.has(endIso)) map.set(endIso, { semana: endIso });
+    return Array.from(map.values())
+      .sort((a, b) => a.semana.localeCompare(b.semana))
+      .map(pt => {
+        const pointMs = new Date(pt.semana + 'T12:00:00').getTime();
+        const label = startMs != null && pointMs >= startMs
+          ? `Sem. ${Math.round((pointMs - startMs) / (7 * 86_400_000)) + 1}`
+          : new Date(pt.semana + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        return { ...pt, label };
+      });
+  })();
 
-      const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-      const todayMs = todayD.getTime();
-      const currentPct = cronograma?.progressPct ?? Math.round(
-        folhas.reduce((s, t) => s + tDur(t) * tPct(t) / 100, 0) / totalDias * 100,
-      );
-      const planTodayPct = planAt(todayMs);
-      planejadoHoje = Math.round(planTodayPct);
-
-      const firstDay = new Date(raizIni + 'T00:00:00');
-      const dow = firstDay.getDay();
-      firstDay.setDate(firstDay.getDate() - (dow === 0 ? 6 : dow - 1));
-      const loopEnd = new Date(raizFim + 'T00:00:00');
-      const cursor = new Date(firstDay);
-      while (cursor <= loopEnd) {
-        const weekEnd = new Date(cursor); weekEnd.setDate(weekEnd.getDate() + 6); weekEnd.setHours(23, 59, 59);
-        const planejado = Math.round(planAt(weekEnd.getTime()) * 10) / 10;
-        let real: number | null;
-        const isCurrentWeek = cursor <= todayD && todayD <= weekEnd;
-        const isPast = weekEnd.getTime() < todayMs;
-        if (isCurrentWeek) real = currentPct;
-        else if (isPast && planTodayPct > 0) real = Math.round(planejado * currentPct / planTodayPct * 10) / 10;
-        else real = null;
-        const k = cursor.toISOString().slice(0, 10);
-        const [, m, day] = k.split('-');
-        curva.push({ label: `${day}/${m}`, planejado, real });
-        cursor.setDate(cursor.getDate() + 7);
+  // % planejado para hoje — interpolação linear entre os pontos cadastrados.
+  // Vira a referência do "adiantado/atrasado" na faixa de progresso.
+  const planejadoHoje: number | null = (() => {
+    const pts = curva
+      .filter(p => p.planejado != null)
+      .map(p => ({ ms: new Date(p.semana + 'T12:00:00').getTime(), v: p.planejado! }))
+      .sort((a, b) => a.ms - b.ms);
+    if (pts.length === 0) return null;
+    const hoje = today().getTime();
+    if (hoje <= pts[0].ms) return Math.round(pts[0].v);
+    if (hoje >= pts[pts.length - 1].ms) return Math.round(pts[pts.length - 1].v);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (hoje >= a.ms && hoje <= b.ms) {
+        const span = b.ms - a.ms;
+        if (span <= 0) return Math.round(a.v);
+        return Math.round(a.v + (b.v - a.v) * ((hoje - a.ms) / span));
       }
     }
-  }
+    return null;
+  })();
 
   // ─── Temperatura (ordenada por data crescente) ─────────────────────────
   const tempOrdenadas = [...temperaturas].sort((a, b) => a.data.localeCompare(b.data));
@@ -690,41 +663,70 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
         </div>
       </div>
 
-      {/* ─── LINHA DO TEMPO / CRONOGRAMA ────────────────────────────────── */}
-      <div className="border border-ber-gray/20 p-4 bg-white">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-black text-ber-carbon">LINHA DO TEMPO / CRONOGRAMA</h3>
+      {/* ─── CURVA S ────────────────────────────────────────────────────── */}
+      {/* Mesma curva do PDF do relatório (módulo Relatórios → aba Curva S). */}
+      <div className="border border-ber-gray/30">
+        <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
+          <span>CURVA S — PLANEJADO VS. REALIZADO</span>
           <button onClick={load}
-            className="flex items-center gap-1 rounded border border-ber-gray/30 px-2 py-1 text-xs font-medium text-ber-carbon hover:bg-ber-bg print:hidden">
-            <RefreshCw size={12} /> Atualizar
+            className="print:hidden inline-flex items-center gap-1 rounded border border-white/30 px-2 py-0.5 text-[10px] font-medium text-white/90 hover:bg-white/10">
+            <RefreshCw size={10} /> Atualizar
           </button>
         </div>
-        {curva.length === 0 ? (
-          <div className="py-12 text-center text-sm text-ber-gray italic">
-            Sem cronograma parseado pra essa obra ainda — a curva S aparece aqui assim que o cronograma tiver tarefas cadastradas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <div className="h-[280px]" style={{ width: Math.max(600, curva.length * 50) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={curva}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={50} />
-                  <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip
-                    formatter={((v: unknown, name: unknown) => [
-                      `${typeof v === 'number' ? v.toFixed(1) : String(v)}%`,
-                      name === 'planejado' ? 'Planejado' : 'Real',
-                    ]) as never}
-                    labelFormatter={(l) => `Semana ${l}`}
-                    contentStyle={{ fontSize: 11, padding: '6px 10px' }} />
-                  <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} name="Planejado" />
-                  <Line type="monotone" dataKey="real" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} name="Real" />
-                </LineChart>
-              </ResponsiveContainer>
+        <div className="p-4 bg-white">
+          {curva.length === 0 ? (
+            <div className="py-12 text-center text-sm text-ber-gray italic">
+              Curva S ainda não cadastrada para esta obra — ela é preenchida na aba Relatórios, em Curva S.
+              <div className="mt-2 print:hidden">
+                <Link href={`/obras/${obraId}?tab=relatorios`} className="text-[12px] font-medium text-ber-teal hover:underline not-italic">
+                  Ir para Relatórios
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="h-[300px]" style={{ width: Math.max(600, curva.length * 55) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={curva} margin={{ top: 16, right: 12, bottom: 4, left: -12 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} angle={-45} textAnchor="end" height={52} />
+                    <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
+                    <Tooltip
+                      formatter={((v: unknown, name: unknown) => [
+                        `${typeof v === 'number' ? v.toFixed(1) : String(v)}%`,
+                        name === 'planejado' ? 'Planejado acumulado' : 'Realizado acumulado',
+                      ]) as never}
+                      labelFormatter={(l, payload) => {
+                        const first = (payload as unknown as { payload?: CurvaPt }[] | undefined)?.[0];
+                        const semana = first?.payload?.semana;
+                        return semana ? `${l} · ${fmtDate(semana + 'T12:00:00')}` : String(l);
+                      }}
+                      contentStyle={{ fontSize: 11, padding: '6px 10px' }} />
+                    <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2}
+                      dot={{ r: 2.5, fill: '#3B82F6' }} name="Planejado" connectNulls />
+                    <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={3}
+                      dot={{ r: 3.5, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado" connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Legenda */}
+          {curva.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] text-ber-gray">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-[#3B82F6]" /> Planejado acumulado
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-5 bg-[#22C55E]" /> Realizado acumulado
+              </span>
+              {planejadoHoje != null && (
+                <span className="ml-auto">Planejado para hoje: <span className="font-bold text-ber-carbon">{planejadoHoje}%</span></span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {tempModalOpen && (
