@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown, Plus, FilePlus } from 'lucide-react';
 import api from '@/lib/api';
+import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 
 interface ComprasSplit {
   id: string;
@@ -82,6 +83,15 @@ function isElegivelComissao(item: CompraItem): boolean {
 
 export default function ComprasPage() {
   const { id: obraId } = useParams<{ id: string }>();
+  const router = useRouter();
+  // Compras é restrito. O backend já bloqueia os dados (403); aqui o guard de
+  // UI evita mostrar a tela vazia pra quem entrou pela URL sem permissão.
+  const user = useAuthStore(s => s.user);
+  const podeVerCompras = getUserPermissions(user).comprasDashboard === true;
+  useEffect(() => {
+    if (user && !podeVerCompras) router.replace(`/obras/${obraId}`);
+  }, [user, podeVerCompras, obraId, router]);
+
   const [items, setItems] = useState<CompraItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);

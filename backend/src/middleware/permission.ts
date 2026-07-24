@@ -22,7 +22,7 @@ const OBRA_OPS: Record<string, boolean> = {
   ...ALL_OFF,
   dashboard: true, obras: true, kanban: true, checklists: true, diario: true,
   seguranca: true, normas: true, instrucoes: true, ponto: true,
-  comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
+  aditivos: true, contratacoes: true, atas: true,
   documentos: true, stakeholders: true, kickoff: true, raci: true,
   contratacaoPlano: true, histograma: true, gestao360: true,
 };

@@ -327,7 +327,8 @@ app.get('/v1/ber-checklist-templates',   ...cp, (req: any, res: any, next: any) 
 // ── MEDIÇÃO (em reconstrução — Fase 2 da migração ber-medicao) ───────────────
 // As rotas voltam na Fase 2 com o módulo novo (etapas + fornecedores + NFs).
 import comprasRoutes from './modules/compras/routes';
-app.use('/v1/obras', ...perm('obras'), comprasRoutes);
+// Compras é módulo restrito (diretoria/coordenação/compras/financeiro) — trava no servidor, não só na UI
+app.use('/v1/obras', ...perm('comprasDashboard'), comprasRoutes);
 // — Módulo: diário de obra —
 app.use('/v1/obras/:id/diario', ...perm('diario'), obraDiarioRouter);
 app.use('/v1/diario', ...perm('diario'), diarioRouter);
