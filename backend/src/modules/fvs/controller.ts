@@ -116,20 +116,6 @@ export async function checkItem(req: Request, res: Response) {
   const isChecking = checked === true;
   const isMarkingNa = na === true;
 
-  if (isChecking || isMarkingNa) {
-    // Sequential: all earlier items (same momento, lower ordem) must be checked or na.
-    const targetOrdem = target.templateItem?.ordem ?? 0;
-    const pending = fvs.items.filter(i =>
-      i.momento === target.momento &&
-      i.id !== target.id &&
-      (i.templateItem?.ordem ?? 0) < targetOrdem &&
-      !i.checked && !i.na,
-    );
-    if (pending.length > 0) {
-      throw AppError.badRequest('Complete os itens anteriores antes de avançar');
-    }
-  }
-
   if (isChecking) {
     // Photo required (if template demands) — must come on the same request or already be stored.
     const needsPhoto = target.templateItem?.fotoObrigatoria ?? false;

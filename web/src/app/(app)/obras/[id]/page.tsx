@@ -820,7 +820,7 @@ export default function ObraDetailPage() {
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'capa', label: '📋 Capa' },
-    { key: 'fvs', label: `FVS (${obraFvsList.length})` },
+    { key: 'fvs', label: `Passo a Passo (${obraFvsList.length})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
     { key: 'fotos', label: `Fotos (${obra._count.photos})` },
     { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
@@ -1881,7 +1881,8 @@ export default function ObraDetailPage() {
           ];
           const sortFvs = (list: typeof obraFvsList) => [...list].sort((a, b) => {
             const parseCode = (code: string) => {
-              const m = code.match(/FVS_(\d+)([A-Z]?)/i);
+              // PP1..PP6 = fases do Passo a Passo. FVS_n mantido pra dados legados.
+              const m = code.match(/(?:FVS_|PP)(\d+)([A-Z]?)/i);
               if (!m) return [0, ''];
               return [parseInt(m[1]), m[2] || ''];
             };
@@ -1894,7 +1895,7 @@ export default function ObraDetailPage() {
             <div>
               {/* Header */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Fichas de Verificação de Serviço</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Passo a Passo da Obra — Controle de Coordenação</h3>
                 {isGestor && (
                   <button onClick={() => setCreateFvsModal(true)}
                     className="flex items-center gap-1.5 rounded-md bg-ber-carbon px-3 py-2 text-xs font-bold text-white hover:bg-ber-black">
@@ -2494,15 +2495,10 @@ export default function ObraDetailPage() {
           } finally { setFvsSubmitting(false); }
         };
 
-        // Sequential gating: previous items (same momento, lower ordem) must be checked or na.
-        const isItemBlocked = (item: ObraFvsItemType, sectionItems: ObraFvsItemType[]) => {
-          const myOrdem = item.templateItem?.ordem ?? 0;
-          return sectionItems.some(other =>
-            other.id !== item.id &&
-            (other.templateItem?.ordem ?? 0) < myOrdem &&
-            !other.checked && !other.na,
-          );
-        };
+        // O Passo a Passo NÃO é sequencial: os itens de uma fase acontecem em
+        // paralelo ao longo dela. Travar por ordem prenderia o engenheiro sem
+        // motivo. A única trava que resta é a foto obrigatória.
+        const isItemBlocked = (_item: ObraFvsItemType, _sectionItems: ObraFvsItemType[]) => false;
 
         const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
           const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
@@ -2525,16 +2521,18 @@ export default function ObraDetailPage() {
                       <input type="checkbox" checked={item.checked}
                         disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
                         onChange={() => toggleItem(item.id, 'checked')}
-                        title={blocked ? 'Complete o item anterior primeiro' : photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                        title={photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
                         className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
                       {/* Description */}
                       <div className="min-w-0 flex-1">
                         <p className={`text-sm leading-snug ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                           {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
+                          {item.templateItem?.sourceItCode && (
+                            <span className="mr-1.5 font-bold tabular-nums text-ber-gray/70">{item.templateItem.sourceItCode}</span>
+                          )}
                           {item.templateItem?.descricao ?? item.descricao}
                           {item.templateItem?.obrigatorio === false && <span className="ml-1 text-[10px] text-ber-gray/40">(opcional)</span>}
                           {!item.templateItem && <span className="ml-1 text-[10px] text-ber-teal/60">(personalizado)</span>}
-                          {blocked && <span className="ml-1 text-[10px] text-ber-gray/50">(aguarde item anterior)</span>}
                         </p>
                         {/* Photo row */}
                         {(needsPhoto || item.fotoUrl) && (
@@ -2648,7 +2646,7 @@ export default function ObraDetailPage() {
                 {conclusaoItems.length > 0 && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-ber-carbon">🔵 Execução e Conclusão</h3>
+                      <h3 className="text-sm font-bold text-ber-carbon">🔵 Itens da fase</h3>
                       <span className={`text-xs font-semibold ${conclusaoObrigChecked === conclusaoObrigTotal ? 'text-green-600' : 'text-blue-600'}`}>
                         {conclusaoObrigChecked}/{conclusaoObrigTotal} obrigatórios
                       </span>

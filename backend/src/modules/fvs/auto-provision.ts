@@ -1,13 +1,17 @@
 /**
- * FVS Auto-Provisioning
- * Instancia TODOS os 23 templates FVS para uma obra automaticamente.
- * etapa_id permanece null — vinculação a etapa é opcional/manual.
+ * Auto-provisionamento do Passo a Passo da Obra.
+ *
+ * Instancia todos os templates cadastrados para uma obra — hoje as 6 fases
+ * do Controle de Coordenação (PP1..PP6). Genérico de propósito: se os
+ * templates mudarem, o provisionamento acompanha sem alteração aqui.
+ *
+ * etapa_id permanece null — as fases valem para a obra inteira.
  */
 import { prisma } from '../../config/database';
 
 /**
- * Cria todos os templates FVS faltantes para uma obra.
- * Idempotente: pula templates já existentes.
+ * Cria as fases faltantes para uma obra.
+ * Idempotente: pula o que já existe.
  */
 export async function autoProvisionFvs(obraId: string): Promise<{ created: number; skipped: number }> {
   const templates = await prisma.fvsTemplate.findMany({
@@ -45,6 +49,6 @@ export async function autoProvisionFvs(obraId: string): Promise<{ created: numbe
     created++;
   }
 
-  console.log(`[FVS AutoProvision] obra=${obraId} created=${created} skipped=${skipped}`);
+  console.log(`[PassoAPasso AutoProvision] obra=${obraId} created=${created} skipped=${skipped}`);
   return { created, skipped };
 }
