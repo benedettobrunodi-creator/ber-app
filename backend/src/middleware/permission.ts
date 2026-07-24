@@ -4,7 +4,7 @@ import { AppError } from '../utils/errors';
 
 const ALL_OFF: Record<string, boolean> = {
   dashboard: false, obras: false, kanban: false, checklists: false, diario: false,
-  recebimentos: false, seguranca: false, normas: false, instrucoes: false, ponto: false,
+  seguranca: false, normas: false, instrucoes: false, ponto: false,
   orcamentos: false, organograma: false, configuracoes: false, admin: false,
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
@@ -21,7 +21,7 @@ const ALL_ON: Record<string, boolean> = Object.fromEntries(
 const OBRA_OPS: Record<string, boolean> = {
   ...ALL_OFF,
   dashboard: true, obras: true, kanban: true, checklists: true, diario: true,
-  recebimentos: true, seguranca: true, normas: true, instrucoes: true, ponto: true,
+  seguranca: true, normas: true, instrucoes: true, ponto: true,
   comprasDashboard: true, aditivos: true, contratacoes: true, atas: true,
   documentos: true, stakeholders: true, kickoff: true, raci: true,
   contratacaoPlano: true, histograma: true, gestao360: true,
@@ -40,9 +40,9 @@ const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
   pmo:         { ...OBRA_OPS, organograma: true },
   engenharia:  { ...OBRA_OPS },
   gestor:      { ...OBRA_OPS },
-  financeiro:  { ...ALL_OFF, dashboard: true, obras: true, recebimentos: true, ponto: true, diario: true,
+  financeiro:  { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
                  comprasDashboard: true, aditivos: true, contratacoes: true, documentos: true, gestao360: true },
-  compras:     { ...ALL_OFF, dashboard: true, obras: true, recebimentos: true, ponto: true, diario: true,
+  compras:     { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
                  comprasDashboard: true, contratacoes: true, contratacaoPlano: true, documentos: true },
   orcamentos:  { ...ALL_OFF, dashboard: true, obras: true, orcamentos: true, ponto: true, diario: true },
   campo:       { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true, checklists: true,

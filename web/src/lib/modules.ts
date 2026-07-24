@@ -6,7 +6,6 @@ export const APP_MODULES = [
   { key: 'kanban',       label: 'Painel de Gestão' },
   { key: 'checklists',   label: 'Checklists' },
   { key: 'diario',       label: 'Diário de Obra' },
-  { key: 'recebimentos', label: 'Recebimentos' },
   { key: 'seguranca',    label: 'Segurança' },
   { key: 'normas',       label: 'Normas Técnicas' },
   { key: 'instrucoes',   label: 'Instruções Técnicas' },

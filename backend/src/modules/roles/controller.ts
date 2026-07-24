@@ -5,7 +5,7 @@ import { AppError } from '../../utils/errors';
 
 const MODULES = [
   'dashboard', 'obras', 'kanban', 'sequenciamento', 'checklists',
-  'recebimentos', 'pmo', 'seguranca', 'normas', 'instrucoes',
+  'pmo', 'seguranca', 'normas', 'instrucoes',
   'ponto', 'dre', 'configuracoes',
 ] as const;
 

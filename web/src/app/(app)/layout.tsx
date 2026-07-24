@@ -40,7 +40,6 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
       { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
       { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
-      { label: 'Recebimentos', href: '/recebimentos', icon: Package, badge: true, perm: 'recebimentos' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
@@ -81,7 +80,6 @@ const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
   { label: 'Portfolio 360', href: '/portfolio-360', perm: 'dashboard' },
   { label: 'Obras', href: '/obras' },
   { label: 'Checklists', href: '/checklists' },
-  { label: 'Recebimentos', href: '/recebimentos' },
   { label: 'Ponto', href: '/ponto' },
 ];
 
@@ -93,7 +91,6 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/checklists', perm: 'checklists' },
   { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },
-  { prefix: '/recebimentos', perm: 'recebimentos' },
   { prefix: '/seguranca', perm: 'seguranca' },
   { prefix: '/normas', perm: 'normas' },
   { prefix: '/instrucoes', perm: 'instrucoes' },

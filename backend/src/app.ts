@@ -39,7 +39,6 @@ import {
 import { seqTemplateRouter, obraSeqRouter, obraEtapaRouter, editReqRouter, globalEditReqRouter } from './modules/sequenciamento/routes';
 import normasRouter from './modules/normas/routes';
 import instrucoesRouter from './modules/instrucoes/routes';
-import recebimentoRouter, { obraRecebimentoRouter } from './modules/recebimentos/routes';
 import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/routes';
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
 import dashboardRoutes from './modules/dashboard/routes';
@@ -164,9 +163,6 @@ app.use('/v1/normas', ...perm('normas'), normasRouter);
 // — Módulo: instruções —
 app.use('/v1/instrucoes-tecnicas', ...perm('instrucoes'), instrucoesRouter);
 
-// — Módulo: recebimentos —
-app.use('/v1/obras/:id/recebimentos', ...perm('recebimentos'), obraRecebimentoRouter);
-app.use('/v1/recebimentos', ...perm('recebimentos'), recebimentoRouter);
 
 // — Módulo: ponto —
 app.use('/v1/time-entries', ...perm('ponto'), timeEntryRoutes);

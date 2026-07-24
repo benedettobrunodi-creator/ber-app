@@ -5,18 +5,14 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Package, Camera, Image as ImageIcon, ChevronRight, Upload, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Camera, Image as ImageIcon, ChevronRight, Upload, RefreshCw } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable, useDraggable, DragOverlay, pointerWithin } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import CapaObra from '@/components/obras/CapaObra';
 import DiarioTab from '@/components/obras/DiarioTab';
 import RelatorioTab from '@/components/obras/RelatorioTab';
 import ObraInfoModal from '@/components/obras/ObraInfoModal';
-import dynamic from 'next/dynamic';
-import { usePdfAsImage } from '@/components/PdfImage';
 
-// Konva requires window — load client-side only
-const PlantaCanvas = dynamic(() => import('@/components/PlantaCanvas'), { ssr: false });
 
 type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
@@ -46,20 +42,6 @@ interface Task {
   dueDate: string | null;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
   creator: { id: string; name: string } | null;
-}
-
-// ─── Fotos types ────────────────────────────────────────────────────────────
-interface ObraPlanta { id: string; fileUrl: string; createdAt: string; ambientes: ObraAmbiente[]; }
-interface ObraAmbiente {
-  id: string; nome: string; posX: number; posY: number; cor: string; plantaId: string | null;
-  _count: { fotos: number };
-  fotos: { tiradaEm: string | null; createdAt: string }[];
-}
-interface ObraFoto {
-  id: string; fileUrl: string; categoria: string; legenda: string | null;
-  tiradaEm: string | null; createdAt: string;
-  ambiente: ObraAmbiente | null;
-  autor: { id: string; name: string; avatarUrl: string | null } | null;
 }
 
 interface BerClTemplate {
@@ -133,30 +115,7 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
   concluida: { label: 'Concluída', badge: 'bg-ber-olive/15 text-ber-olive', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
 };
 
-type TabKey = 'capa' | 'fotos' | 'equipe' | 'checklists' | 'canteiro' | 'recebimentos' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
-
-interface Recebimento {
-  id: string;
-  fornecedor: string;
-  material: string;
-  quantidade: number;
-  unidade: string;
-  numeroNF: string | null;
-  dataNF: string | null;
-  dataEntrega: string;
-  condicao: string;
-  observacao: string | null;
-  fotosMaterial: string[];
-  fotoNF: string | null;
-  createdAt: string;
-  registrador: { id: string; name: string } | null;
-}
-
-const CONDICAO_CONFIG: Record<string, { label: string; className: string }> = {
-  aprovado: { label: 'Aprovado', className: 'bg-ber-olive/15 text-ber-olive' },
-  aprovado_com_ressalva: { label: 'Com ressalva', className: 'bg-amber-100 text-amber-700' },
-  reprovado: { label: 'Reprovado', className: 'bg-red-100 text-red-600' },
-};
+type TabKey = 'capa' | 'equipe' | 'checklists' | 'canteiro' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
 
 interface CanteiroSummary {
   id: string;
@@ -193,74 +152,6 @@ const CHECKLIST_TYPE_COLORS: Record<string, string> = {
 function formatDate(iso: string | null): string {
   if (!iso) return '--';
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
-
-/** Wrapper that resolves PDF→image and renders PlantaCanvas */
-function PlantaCanvasWrapper({
-  planta,
-  ambientes,
-  selectedId,
-  addMode,
-  onSelect,
-  onAddPin,
-  getPinColor,
-  resolveFileUrl,
-  isPdf,
-}: {
-  planta: { id: string; fileUrl: string };
-  ambientes: any[];
-  selectedId: string | null;
-  addMode: boolean;
-  onSelect: (amb: any | null) => void;
-  onAddPin: (posX: number, posY: number) => void;
-  getPinColor: (amb: any) => string;
-  resolveFileUrl: (url: string) => string;
-  isPdf: (url: string) => boolean;
-}) {
-  const resolvedUrl = resolveFileUrl(planta.fileUrl);
-  const { dataUrl: pdfDataUrl, loading: pdfLoading, error: pdfError } = usePdfAsImage(
-    isPdf(planta.fileUrl) ? resolvedUrl : undefined
-  );
-
-  const imageSrc = isPdf(planta.fileUrl) ? pdfDataUrl : resolvedUrl;
-  const plantaAmbientes = ambientes.filter((a: any) => a.plantaId === planta.id);
-
-  if (isPdf(planta.fileUrl) && pdfError) {
-    return (
-      <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: 400 }}>
-        <div className="text-center">
-          <span className="text-3xl">📄</span>
-          <p className="mt-2 text-xs font-semibold text-gray-500">Erro ao carregar planta PDF</p>
-          <p className="mt-1 text-xs text-gray-400">Verifique se o arquivo é válido ou tente novamente.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isPdf(planta.fileUrl) && (pdfLoading || !pdfDataUrl)) {
-    return (
-      <div className="flex items-center justify-center bg-gray-50 rounded-lg" style={{ minHeight: 400 }}>
-        <div className="text-center">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-          <p className="mt-2 text-xs text-gray-500">Renderizando planta PDF...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!imageSrc) return null;
-
-  return (
-    <PlantaCanvas
-      imageSrc={imageSrc}
-      ambientes={plantaAmbientes}
-      selectedId={selectedId}
-      addMode={addMode}
-      onSelect={onSelect}
-      onAddPin={onAddPin}
-      getPinColor={getPinColor}
-    />
-  );
 }
 
 // ─── Kanban DnD components ────────────────────────────────────────────────────
@@ -395,26 +286,6 @@ export default function ObraDetailPage() {
   // Checklists state
   // Fotos
   const imgRef = useRef<HTMLImageElement>(null);
-  const [plantas, setPlantas] = useState<ObraPlanta[]>([]);
-  const [ambientes, setAmbientes] = useState<ObraAmbiente[]>([]);
-  const [fotos, setFotos] = useState<ObraFoto[]>([]);
-  const [fotosView, setFotosView] = useState<'planta' | 'grid'>('planta');
-  const [selectedAmbiente, setSelectedAmbiente] = useState<ObraAmbiente | null>(null);
-  const [fotosLoading, setFotosLoading] = useState(false);
-  const [fullscreenFoto, setFullscreenFoto] = useState<ObraFoto | null>(null);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [addAmbienteMode, setAddAmbienteMode] = useState(false);
-  const [pendingAmbientePos, setPendingAmbientePos] = useState<{ x: number; y: number } | null>(null);
-  const [pendingAmbienteNome, setPendingAmbienteNome] = useState('');
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadStep, setUploadStep] = useState<'files' | 'ambiente' | 'meta'>('files');
-  const [uploadAmbienteId, setUploadAmbienteId] = useState('');
-  const [uploadCategoria, setUploadCategoria] = useState('geral');
-  const [uploadLegenda, setUploadLegenda] = useState('');
-  const [referenceFoto, setReferenceFoto] = useState<ObraFoto | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [fotosAmbienteFilter, setFotosAmbienteFilter] = useState('');
-  const [fotasCatFilter, setFotosCatFilter] = useState('');
 
   // BÈR Checklists
   const [berChecklists, setBerChecklists] = useState<ObraBerChecklist[]>([]);
@@ -422,7 +293,6 @@ export default function ObraDetailPage() {
   const [activeCl, setActiveCl] = useState<ObraBerChecklist | null>(null);
   const [clModalOpen, setClModalOpen] = useState(false);
   const [clSubmitting, setClSubmitting] = useState(false);
-  const [newAmbiente, setNewAmbiente] = useState('');
 
   // FVS
   const [obraFvsList, setObraFvsList] = useState<ObraFvs[]>([]);
@@ -461,19 +331,8 @@ export default function ObraDetailPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // Recebimentos state
-  const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
-  const [loadingRecebimentos, setLoadingRecebimentos] = useState(false);
-  const [showRecebimentoForm, setShowRecebimentoForm] = useState(false);
-  const [recebimentoDetail, setRecebimentoDetail] = useState<Recebimento | null>(null);
-  const [submittingRecebimento, setSubmittingRecebimento] = useState(false);
-  const [newRecebimento, setNewRecebimento] = useState({
-    fornecedor: '', material: '', quantidade: '', unidade: 'un',
-    numeroNF: '', dataNF: '', dataEntrega: '',
-    condicao: 'aprovado', observacao: '', fotosMaterial: [] as string[], fotoNF: '',
-  });
-
   // Equipe state
+  const [newAmbiente, setNewAmbiente] = useState('');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [allUsers, setAllUsers] = useState<{ id: string; name: string; email: string; role: string }[]>([]);
@@ -501,23 +360,14 @@ export default function ObraDetailPage() {
     } catch {} finally { setLoadingCanteiro(false); }
   }
 
-  async function fetchRecebimentos() {
-    setLoadingRecebimentos(true);
-    try {
-      const res = await api.get(`/obras/${params.id}/recebimentos`);
-      setRecebimentos(res.data.data);
-    } catch {} finally { setLoadingRecebimentos(false); }
-  }
-
   async function fetchData() {
     setLoading(true);
     try {
-      const [obraRes, tasksRes, checklistsRes, canteiroRes, recebimentosRes] = await Promise.all([
+      const [obraRes, tasksRes, checklistsRes, canteiroRes] = await Promise.all([
         api.get(`/obras/${params.id}`),
         api.get(`/obras/${params.id}/tasks`, { params: { limit: 200 } }),
         api.get(`/obras/${params.id}/checklists`),
         api.get(`/obras/${params.id}/canteiro`),
-        api.get(`/obras/${params.id}/recebimentos`),
       ]);
       setObra(obraRes.data.data);
       const obraData = obraRes.data.data;
@@ -531,7 +381,6 @@ export default function ObraDetailPage() {
       setTasks(tasksRes.data.data);
       setChecklists(checklistsRes.data.data);
       setCanteiroChecklists(canteiroRes.data.data);
-      setRecebimentos(recebimentosRes.data.data);
       const fvsRes = await api.get(`/obras/${params.id}/fvs`).catch(() => ({ data: { data: [] } }));
       setObraFvsList(fvsRes.data.data ?? []);
       api.get(`/obras/${params.id}/relatorios`).then(r => {
@@ -541,12 +390,6 @@ export default function ObraDetailPage() {
       }).catch(() => {});
       const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
       setFvsTemplates(tmplRes.data.data ?? []);
-      const plantasRes = await api.get(`/obras/${params.id}/plantas`).catch(() => ({ data: { data: [] } }));
-      setPlantas(plantasRes.data.data ?? []);
-      const ambientesRes = await api.get(`/obras/${params.id}/ambientes`).catch(() => ({ data: { data: [] } }));
-      setAmbientes(ambientesRes.data.data ?? []);
-      const fotosRes2 = await api.get(`/obras/${params.id}/fotos`).catch(() => ({ data: { data: [] } }));
-      setFotos(fotosRes2.data.data ?? []);
 
       const berClRes = await api.get(`/obras/${params.id}/ber-checklists`).catch(() => ({ data: { data: [] } }));
       setBerChecklists(berClRes.data.data ?? []);
@@ -770,48 +613,6 @@ export default function ObraDetailPage() {
     } catch {} finally { setCreatingChecklist(false); }
   }
 
-  // ─── Recebimentos ──────────────────────────────────────────────────────────
-
-  async function handleCreateRecebimento(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newRecebimento.fornecedor.trim() || !newRecebimento.material.trim()) return;
-    setSubmittingRecebimento(true);
-    try {
-      await api.post(`/obras/${params.id}/recebimentos`, {
-        fornecedor: newRecebimento.fornecedor,
-        material: newRecebimento.material,
-        quantidade: parseFloat(newRecebimento.quantidade),
-        unidade: newRecebimento.unidade,
-        numeroNF: newRecebimento.numeroNF || undefined,
-        dataNF: newRecebimento.dataNF || undefined,
-        dataEntrega: newRecebimento.dataEntrega,
-        condicao: newRecebimento.condicao,
-        observacao: newRecebimento.observacao || undefined,
-        fotosMaterial: newRecebimento.fotosMaterial,
-        fotoNF: newRecebimento.fotoNF || undefined,
-      });
-      setNewRecebimento({ fornecedor: '', material: '', quantidade: '', unidade: 'un', numeroNF: '', dataNF: '', dataEntrega: '', condicao: 'aprovado', observacao: '', fotosMaterial: [], fotoNF: '' });
-      setShowRecebimentoForm(false);
-      fetchRecebimentos();
-    } catch {} finally { setSubmittingRecebimento(false); }
-  }
-
-  async function handleRecebimentoUpload(e: React.ChangeEvent<HTMLInputElement>, field: 'fotosMaterial' | 'fotoNF') {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await api.post('/uploads', formData);
-      const url = res.data.data.url;
-      if (field === 'fotoNF') {
-        setNewRecebimento((p) => ({ ...p, fotoNF: url }));
-      } else {
-        setNewRecebimento((p) => ({ ...p, fotosMaterial: [...p.fotosMaterial, url] }));
-      }
-    } catch {}
-  }
-
   const isGestor = user?.role ? ['gestor', 'coordenacao', 'diretoria'].includes(user.role) : false;
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -830,8 +631,6 @@ export default function ObraDetailPage() {
     { key: 'capa', label: '📋 Capa' },
     { key: 'fvs', label: `Passo a Passo (${obraFvsList.length})` },
     { key: 'checklists', label: `Checklists (${checklists.length})` },
-    { key: 'fotos', label: `Fotos (${obra._count.photos})` },
-    { key: 'recebimentos', label: `Recebimentos (${recebimentos.length})` },
     { key: 'equipe', label: `Equipe (${obra.members.length})` },
     { key: 'diario', label: `📓 Diário` },
     { key: 'relatorios', label: `📋 Relatórios` },
@@ -1478,470 +1277,6 @@ export default function ObraDetailPage() {
           </div>
         )}
 
-        {activeTab === 'fotos' && (() => {
-          const CATEGORIAS = ['geral','canteiro','demolicao','eletrica','hidraulica','ac_hvac','drywall','forro','piso','pintura','marcenaria','acabamento','entrega','sem_categoria'];
-          const CAT_LABELS: Record<string,string> = {geral:'Geral',canteiro:'Canteiro',demolicao:'Demolição',eletrica:'Elétrica',hidraulica:'Hidráulica',ac_hvac:'AC/HVAC',drywall:'Drywall',forro:'Forro',piso:'Piso/Revestimento',pintura:'Pintura',marcenaria:'Marcenaria',acabamento:'Acabamento Final',entrega:'Entrega',sem_categoria:'Sem categoria'};
-          const isPdf = (url: string) =>
-            url?.toLowerCase().endsWith('.pdf') ||
-            url?.includes('drive.google.com') ||
-            url?.includes('docs.google.com');
-          // Resolve relative /uploads/ paths to the backend URL
-          const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace('/v1', '');
-          const resolveFileUrl = (url: string) => {
-            if (!url) return url;
-            if (url.startsWith('http')) return url;
-            return `${BACKEND_BASE}${url}`;
-          };
-          const planta = plantas[0] ?? null;
-          const now = Date.now();
-          const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-
-          const getPinColor = (amb: ObraAmbiente) => {
-            if (amb._count.fotos === 0) return '#9CA3AF'; // gray
-            const lastDate = amb.fotos[0]?.tiradaEm ?? amb.fotos[0]?.createdAt;
-            if (!lastDate) return '#9CA3AF';
-            return (now - new Date(lastDate).getTime()) < SEVEN_DAYS ? '#22C55E' : '#F59E0B'; // green or yellow
-          };
-
-          const filteredFotos = fotos.filter(f => {
-            if (fotosAmbienteFilter && f.ambiente?.id !== fotosAmbienteFilter) return false;
-            if (fotasCatFilter && f.categoria !== fotasCatFilter) return false;
-            return true;
-          });
-
-          const ambienteFotos = selectedAmbiente ? fotos.filter(f => f.ambiente?.id === selectedAmbiente.id) : [];
-
-          // Refetch fotos + ambientes do servidor (fonte da verdade)
-          const refetchFotosAmbientes = async () => {
-            const [fRes, aRes] = await Promise.all([
-              api.get(`/obras/${params.id}/fotos`),
-              api.get(`/obras/${params.id}/ambientes`),
-            ]);
-            setFotos(fRes.data.data ?? []);
-            setAmbientes(aRes.data.data ?? []);
-          };
-
-          const handleUploadFiles = async () => {
-            if (!pendingFiles.length) return;
-            setUploading(true);
-            try {
-              const urls: string[] = [];
-              for (const file of pendingFiles) {
-                const fd = new FormData(); fd.append('file', file);
-                const up = await api.post('/uploads', fd);
-                urls.push(up.data.data?.url ?? up.data.url);
-              }
-              const batch = urls.map(url => ({
-                fileUrl: url,
-                ...(uploadAmbienteId && { ambienteId: uploadAmbienteId }),
-                categoria: uploadCategoria,
-                ...(uploadLegenda && { legenda: uploadLegenda }),
-              }));
-              await api.post(`/obras/${params.id}/fotos/batch`, { fotos: batch });
-              // Refetch completo: garante fotos com ambiente populado + _count atualizado nos pins
-              await refetchFotosAmbientes();
-              setUploadModalOpen(false); setPendingFiles([]); setUploadStep('files');
-              setUploadAmbienteId(''); setUploadCategoria('geral'); setUploadLegenda(''); setReferenceFoto(null);
-            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro no upload'); }
-            finally { setUploading(false); }
-          };
-
-          // Confirmar nome do ambiente (chamado pelo mini-modal)
-          const confirmAddAmbiente = async () => {
-            if (!pendingAmbientePos || !pendingAmbienteNome.trim() || !planta) return;
-            try {
-              await api.post(`/obras/${params.id}/ambientes`, {
-                nome: pendingAmbienteNome.trim(),
-                posX: pendingAmbientePos.x,
-                posY: pendingAmbientePos.y,
-                plantaId: planta.id,
-              });
-              const aRes = await api.get(`/obras/${params.id}/ambientes`);
-              setAmbientes(aRes.data.data ?? []);
-            } catch (e: any) {
-              alert(e?.response?.data?.error?.message ?? 'Erro ao criar ambiente');
-            } finally {
-              setPendingAmbientePos(null);
-              setPendingAmbienteNome('');
-            }
-          };
-
-          const handleDeleteAmbiente = async (ambienteId: string) => {
-            if (!confirm('Excluir este ambiente e desvincular suas fotos?')) return;
-            try {
-              await api.delete(`/obras/${params.id}/ambientes/${ambienteId}`);
-              setAmbientes(prev => prev.filter(a => a.id !== ambienteId));
-              if (selectedAmbiente?.id === ambienteId) setSelectedAmbiente(null);
-            } catch { alert('Erro ao excluir ambiente'); }
-          };
-
-          const handleDeleteFoto = async (fotoId: string) => {
-            if (!confirm('Excluir esta foto?')) return;
-            try {
-              await api.delete(`/obras/${params.id}/fotos/${fotoId}`);
-              setFotos(prev => prev.filter(f => f.id !== fotoId));
-              setFullscreenFoto(null);
-              const ambRes = await api.get(`/obras/${params.id}/ambientes`);
-              setAmbientes(ambRes.data.data ?? []);
-            } catch { alert('Erro ao excluir'); }
-          };
-
-          const handlePlantaUpload = async (file: File) => {
-            const fd = new FormData();
-            fd.append('file', file);
-            try {
-              const r = await api.post(
-                `/obras/${params.id}/plantas`,
-                fd,
-                { timeout: 120000 }
-              );
-              setPlantas(prev => [r.data.data, ...prev]);
-            } catch (err: any) {
-              const msg = err?.response?.data?.error?.message || err?.message || 'Erro no upload da planta';
-              alert(`Erro no upload da planta: ${msg}`);
-            }
-          };
-
-          // Check reference foto when ambiente+categoria change
-          const checkReference = async (ambId: string, cat: string) => {
-            if (!ambId || !cat) { setReferenceFoto(null); return; }
-            try {
-              const r = await api.get(`/obras/${params.id}/fotos/referencia?ambienteId=${ambId}&categoria=${cat}`);
-              setReferenceFoto(r.data.data ?? null);
-            } catch { setReferenceFoto(null); }
-          };
-
-          return (
-            <div>
-              {/* Header */}
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Fotos ({fotos.length})</h3>
-                  <div className="flex rounded-md border border-ber-gray/20 overflow-hidden">
-                    <button onClick={() => setFotosView('planta')}
-                      className={`px-3 py-1 text-xs font-semibold transition ${fotosView === 'planta' ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-offwhite'}`}>
-                      🗺️ Planta
-                    </button>
-                    <button onClick={() => setFotosView('grid')}
-                      className={`px-3 py-1 text-xs font-semibold transition ${fotosView === 'grid' ? 'bg-ber-carbon text-white' : 'text-ber-gray hover:bg-ber-offwhite'}`}>
-                      📷 Grid
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {planta && (
-                    <button onClick={() => setAddAmbienteMode(!addAmbienteMode)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${addAmbienteMode ? 'bg-amber-500 text-white animate-pulse' : 'border border-ber-gray/20 text-ber-gray hover:bg-ber-offwhite'}`}>
-                      {addAmbienteMode ? '📍 Clique na planta...' : '+ Ambiente'}
-                    </button>
-                  )}
-                  <button onClick={() => { setUploadModalOpen(true); setUploadStep('files'); setPendingFiles([]); }}
-                    className="rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black">
-                    + Foto
-                  </button>
-                </div>
-              </div>
-
-              {/* VISTA PLANTA */}
-              {fotosView === 'planta' && (
-                <div className="flex gap-4 flex-col lg:flex-row">
-                  {/* Planta */}
-                  <div className="flex-1 min-w-0">
-                    {!planta ? (
-                      <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ber-gray/30 py-16 cursor-pointer hover:border-ber-teal/50 transition">
-                        <span className="text-3xl mb-2">🏗️</span>
-                        <span className="text-sm font-semibold text-ber-gray">Upload da planta baixa</span>
-                        <span className="text-[10px] text-ber-gray/60 mt-0.5">JPG, PNG ou PDF</span>
-                        <input type="file" accept="image/*,.pdf" className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) handlePlantaUpload(f); }} />
-                      </label>
-                    ) : (
-                      <div className="rounded-xl overflow-hidden border border-ber-gray/10">
-                        {/* Botão trocar planta */}
-                        <div className="flex items-center justify-end gap-2 bg-gray-50 px-3 py-1.5 border-b border-ber-gray/10">
-                          <label className="flex items-center gap-1.5 cursor-pointer rounded-md px-2.5 py-1 text-[10px] font-semibold text-ber-gray hover:bg-white hover:text-ber-carbon transition-colors">
-                            🔄 Trocar planta
-                            <input type="file" accept="image/*,.pdf" className="hidden"
-                              onChange={async (e) => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-                                if (!confirm('Deseja substituir a planta atual? Os ambientes serão mantidos.')) return;
-                                try {
-                                  await api.delete(`/obras/${params.id}/plantas/${planta.id}`);
-                                  const fd = new FormData();
-                                  fd.append('file', f);
-                                  const r = await api.post(
-                                    `/obras/${params.id}/plantas`,
-                                    fd,
-                                    { timeout: 120000 }
-                                  );
-                                  setPlantas([r.data.data]);
-                                } catch (err: any) {
-                                  const msg = err?.response?.data?.error?.message || err?.message || 'Erro ao trocar a planta';
-                                  alert(`Erro ao trocar a planta: ${msg}`);
-                                }
-                              }} />
-                          </label>
-                        </div>
-                        {/* Planta + Pins via Konva Canvas — pins são desenhados na mesma superfície */}
-                        <PlantaCanvasWrapper
-                          planta={planta}
-                          ambientes={ambientes}
-                          selectedId={selectedAmbiente?.id ?? null}
-                          addMode={addAmbienteMode}
-                          onSelect={(amb) => setSelectedAmbiente(amb)}
-                          onAddPin={(posX, posY) => {
-                            setPendingAmbientePos({ x: posX, y: posY });
-                            setPendingAmbienteNome('');
-                            setAddAmbienteMode(false);
-                          }}
-                          getPinColor={getPinColor}
-                          resolveFileUrl={resolveFileUrl}
-                          isPdf={isPdf}
-                        />
-                        {/* Mini-modal: nome do ambiente após clicar na planta */}
-                        {pendingAmbientePos && (
-                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-50 p-3">
-                            <span className="text-sm font-semibold text-amber-700">📍 Nome do ambiente:</span>
-                            <input
-                              type="text"
-                              autoFocus
-                              value={pendingAmbienteNome}
-                              onChange={(e) => setPendingAmbienteNome(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') confirmAddAmbiente(); if (e.key === 'Escape') setPendingAmbientePos(null); }}
-                              placeholder="Ex: Sala, Cozinha..."
-                              className="flex-1 rounded-md border border-amber-300 px-2 py-1.5 text-sm outline-none focus:border-amber-500"
-                            />
-                            <button onClick={confirmAddAmbiente}
-                              className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-colors">
-                              Salvar
-                            </button>
-                            <button onClick={() => setPendingAmbientePos(null)}
-                              className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors">
-                              Cancelar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Painel lateral */}
-                  {selectedAmbiente && (
-                    <div className="w-full lg:w-80 shrink-0 rounded-xl border border-ber-gray/10 bg-white overflow-hidden">
-                      <div className="border-b border-ber-offwhite px-4 py-3 flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-bold text-ber-carbon">
-                            {(() => { const idx = ambientes.filter(a => a.plantaId === planta?.id).findIndex(a => a.id === selectedAmbiente.id); return idx >= 0 ? `${idx + 1}. ` : ''; })()}
-                            {selectedAmbiente.nome}
-                          </h4>
-                          <p className="text-[10px] text-ber-gray">{ambienteFotos.length} foto{ambienteFotos.length !== 1 ? 's' : ''}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleDeleteAmbiente(selectedAmbiente.id)}
-                            className="rounded p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Excluir ambiente">
-                            <Trash2 size={14} />
-                          </button>
-                          <button onClick={() => setSelectedAmbiente(null)} className="rounded p-1.5 text-ber-gray hover:bg-ber-offwhite"><X size={14} /></button>
-                        </div>
-                      </div>
-                      <div className="max-h-[500px] overflow-y-auto p-3 space-y-3">
-                        {ambienteFotos.length === 0 ? (
-                          <p className="text-xs text-ber-gray text-center py-6">Nenhuma foto neste ambiente.</p>
-                        ) : ambienteFotos.map(foto => (
-                          <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
-                            className="w-full rounded-lg overflow-hidden border border-ber-gray/10 transition text-left">
-                            {isPdf(foto.fileUrl) ? (
-                              <div className="w-full h-32 bg-gray-100 flex flex-col items-center justify-center gap-1">
-                                <span className="text-3xl">📄</span>
-                                <span className="text-[10px] font-semibold text-ber-gray">PDF</span>
-                              </div>
-                            ) : (
-                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="w-full h-32 object-cover" />
-                            )}
-                            <div className="px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[9px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
-                                <span className="text-[10px] text-ber-gray">{foto.tiradaEm ? new Date(foto.tiradaEm).toLocaleDateString('pt-BR') : ''}</span>
-                              </div>
-                              {foto.legenda && <p className="mt-1 text-xs text-ber-carbon truncate">{foto.legenda}</p>}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* VISTA GRID */}
-              {fotosView === 'grid' && (
-                <div>
-                  {/* Filtros */}
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    <select value={fotosAmbienteFilter} onChange={e => setFotosAmbienteFilter(e.target.value)}
-                      className="rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-xs text-ber-carbon">
-                      <option value="">Todos os ambientes</option>
-                      {ambientes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                    </select>
-                    <select value={fotasCatFilter} onChange={e => setFotosCatFilter(e.target.value)}
-                      className="rounded-md border border-ber-gray/20 px-2.5 py-1.5 text-xs text-ber-carbon">
-                      <option value="">Todas as categorias</option>
-                      {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
-                    </select>
-                  </div>
-                  {filteredFotos.length === 0 ? (
-                    <div className="flex flex-col items-center py-12 text-center">
-                      <span className="text-3xl mb-2">📷</span>
-                      <p className="text-sm text-ber-gray">Nenhuma foto {(fotosAmbienteFilter || fotasCatFilter) ? 'com esses filtros' : 'ainda'}.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-                      {filteredFotos.map(foto => (
-                        <button key={foto.id} onClick={() => setFullscreenFoto(foto)}
-                          className="group rounded-lg overflow-hidden border border-ber-gray/10 bg-white transition text-left">
-                          <div className="relative aspect-square">
-                            {isPdf(foto.fileUrl) ? (
-                              <div className="h-full w-full bg-gray-100 flex flex-col items-center justify-center gap-1">
-                                <span className="text-4xl">📄</span>
-                                <span className="text-xs font-semibold text-ber-gray">PDF</span>
-                              </div>
-                            ) : (
-                              <img src={resolveFileUrl(foto.fileUrl)} alt={foto.legenda ?? ''} className="h-full w-full object-cover" />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition" />
-                          </div>
-                          <div className="px-2.5 py-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="rounded bg-ber-teal/10 px-1.5 py-0.5 text-[8px] font-semibold text-ber-teal">{CAT_LABELS[foto.categoria] ?? foto.categoria}</span>
-                              {foto.ambiente && <span className="text-[8px] text-ber-gray truncate">{foto.ambiente.nome}</span>}
-                            </div>
-                            {foto.legenda && <p className="mt-0.5 text-[10px] text-ber-carbon truncate">{foto.legenda}</p>}
-                            <p className="text-[9px] text-ber-gray/50">{foto.tiradaEm ? new Date(foto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* FULLSCREEN MODAL */}
-              {fullscreenFoto && (() => {
-                const list = selectedAmbiente ? ambienteFotos : filteredFotos;
-                const idx = list.findIndex(f => f.id === fullscreenFoto.id);
-                const prev = idx > 0 ? list[idx - 1] : null;
-                const next = idx < list.length - 1 ? list[idx + 1] : null;
-                return (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setFullscreenFoto(null)}>
-                    <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(null); }}
-                      className="absolute top-4 right-4 z-10 rounded-full bg-white/20 p-2 text-white hover:bg-white/30"><X size={20} /></button>
-                    {prev && (
-                      <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(prev); }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">←</button>
-                    )}
-                    {next && (
-                      <button onClick={(e) => { e.stopPropagation(); setFullscreenFoto(next); }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-3 text-white hover:bg-white/30 text-lg font-bold">→</button>
-                    )}
-                    <div className="max-h-[90vh] max-w-[90vw] flex flex-col items-center" onClick={e => e.stopPropagation()}>
-                      {isPdf(fullscreenFoto.fileUrl) ? (
-                        <iframe src={resolveFileUrl(fullscreenFoto.fileUrl)} className="w-[90vw] max-w-4xl h-[75vh] rounded-lg bg-white" title="PDF" />
-                      ) : (
-                        <img src={resolveFileUrl(fullscreenFoto.fileUrl)} alt="" className="max-h-[75vh] max-w-full rounded-lg object-contain" />
-                      )}
-                      <div className="mt-3 text-center text-white">
-                        {fullscreenFoto.ambiente && <span className="text-sm font-semibold">{fullscreenFoto.ambiente.nome}</span>}
-                        <span className="mx-2 text-white/40">·</span>
-                        <span className="text-sm">{CAT_LABELS[fullscreenFoto.categoria] ?? fullscreenFoto.categoria}</span>
-                        {fullscreenFoto.tiradaEm && <>
-                          <span className="mx-2 text-white/40">·</span>
-                          <span className="text-sm">{new Date(fullscreenFoto.tiradaEm).toLocaleDateString('pt-BR')}</span>
-                        </>}
-                        {fullscreenFoto.autor && <>
-                          <span className="mx-2 text-white/40">·</span>
-                          <span className="text-xs text-white/70">{fullscreenFoto.autor.name}</span>
-                        </>}
-                        {fullscreenFoto.legenda && <p className="mt-1 text-xs text-white/80 italic">{fullscreenFoto.legenda}</p>}
-                        <button onClick={() => handleDeleteFoto(fullscreenFoto.id)}
-                          className="mt-2 rounded-md bg-red-500/80 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500">
-                          🗑️ Excluir
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* UPLOAD MODAL */}
-              {uploadModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-3">
-                  <div className="w-full max-w-lg rounded-t-2xl md:rounded-xl bg-white shadow-2xl overflow-hidden max-h-[90dvh] overflow-y-auto">
-                    <div className="flex items-center justify-between border-b border-ber-offwhite px-5 py-3">
-                      <h3 className="text-sm font-bold text-ber-carbon">Nova Foto</h3>
-                      <button onClick={() => { setUploadModalOpen(false); setPendingFiles([]); }} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite"><X size={16} /></button>
-                    </div>
-                    <div className="p-5 space-y-4">
-                      {/* Step 1: Files */}
-                      {uploadStep === 'files' && (
-                        <div>
-                          <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-ber-gray/30 py-8 cursor-pointer hover:border-ber-teal/50 transition">
-                            <span className="text-2xl mb-1">📷</span>
-                            <span className="text-sm font-semibold text-ber-gray">Selecione fotos</span>
-                            <span className="text-[10px] text-ber-gray/60">Câmera ou galeria · múltiplas fotos</span>
-                            <input type="file" accept="image/*" multiple capture="environment" className="hidden"
-                              onChange={e => { const files = Array.from(e.target.files ?? []); if (files.length) { setPendingFiles(files); setUploadStep('ambiente'); } }} />
-                          </label>
-                          {pendingFiles.length > 0 && (
-                            <p className="mt-2 text-xs text-ber-teal font-semibold">{pendingFiles.length} foto{pendingFiles.length > 1 ? 's' : ''} selecionada{pendingFiles.length > 1 ? 's' : ''}</p>
-                          )}
-                        </div>
-                      )}
-                      {/* Step 2: Ambiente + Categoria */}
-                      {uploadStep === 'ambiente' && (
-                        <div className="space-y-3">
-                          <p className="text-xs text-ber-gray font-semibold">{pendingFiles.length} foto{pendingFiles.length > 1 ? 's' : ''} selecionada{pendingFiles.length > 1 ? 's' : ''}</p>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Ambiente</label>
-                            <select value={uploadAmbienteId} onChange={e => { setUploadAmbienteId(e.target.value); checkReference(e.target.value, uploadCategoria); }}
-                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm">
-                              <option value="">Sem ambiente</option>
-                              {ambientes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Categoria</label>
-                            <select value={uploadCategoria} onChange={e => { setUploadCategoria(e.target.value); checkReference(uploadAmbienteId, e.target.value); }}
-                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm">
-                              {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ber-gray">Legenda (opcional)</label>
-                            <input value={uploadLegenda} onChange={e => setUploadLegenda(e.target.value)}
-                              className="w-full rounded-md border border-ber-gray/20 px-3 py-2 text-sm" placeholder="Ex: Quadro QD-01 instalado" />
-                          </div>
-                          {referenceFoto && (
-                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                              <p className="text-[10px] font-bold text-amber-700 mb-1">📷 Foto anterior — mesmo ângulo</p>
-                              <img src={resolveFileUrl(referenceFoto.fileUrl)} alt="" className="w-full h-24 object-cover rounded" />
-                              <p className="mt-1 text-[9px] text-amber-600">{referenceFoto.tiradaEm ? new Date(referenceFoto.tiradaEm).toLocaleDateString('pt-BR') : ''}</p>
-                            </div>
-                          )}
-                          <button onClick={handleUploadFiles} disabled={uploading}
-                            className="w-full rounded-md bg-ber-carbon py-2.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
-                            {uploading ? 'Enviando...' : `Enviar ${pendingFiles.length} foto${pendingFiles.length > 1 ? 's' : ''}`}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
 
         {activeTab === 'equipe' && (
           <div>
@@ -2493,186 +1828,6 @@ export default function ObraDetailPage() {
           );
         })()}
 
-        {/* ─── Recebimentos Tab ─── */}
-        {activeTab === 'recebimentos' && (
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Recebimento de Materiais</h3>
-              {isGestor && (
-                <button
-                  onClick={() => setShowRecebimentoForm(true)}
-                  className="flex items-center gap-2 rounded-md bg-ber-carbon px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-ber-black"
-                >
-                  <Plus size={14} />
-                  Registrar Recebimento
-                </button>
-              )}
-            </div>
-
-            {loadingRecebimentos ? (
-              <p className="text-sm text-ber-gray">Carregando...</p>
-            ) : recebimentos.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-ber-gray/30 py-12 text-center">
-                <Package size={32} className="mx-auto text-ber-gray/40" />
-                <p className="mt-2 text-sm text-ber-gray">Nenhum recebimento registrado.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {recebimentos.map((rec) => {
-                  const cond = CONDICAO_CONFIG[rec.condicao] ?? CONDICAO_CONFIG.aprovado;
-                  return (
-                    <button
-                      key={rec.id}
-                      onClick={() => setRecebimentoDetail(rec)}
-                      className="flex w-full items-center gap-4 rounded-lg border border-ber-gray/15 bg-white px-4 py-3 text-left transition-colors hover:border-ber-teal/30"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-semibold text-ber-carbon">{rec.material}</p>
-                        <p className="truncate text-xs text-ber-gray">{rec.fornecedor}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-medium text-ber-carbon">{rec.quantidade} {rec.unidade}</p>
-                        <p className="text-xs text-ber-gray">{formatDate(rec.dataEntrega)}</p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cond.className}`}>
-                        {cond.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Detail overlay */}
-            {recebimentoDetail && (
-              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-                <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-                  <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-                    <h2 className="text-lg font-black text-ber-carbon">Detalhes do Recebimento</h2>
-                    <button onClick={() => setRecebimentoDetail(null)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                  </div>
-                  <div className="px-6 py-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><p className="text-xs text-ber-gray">Material</p><p className="text-sm font-medium">{recebimentoDetail.material}</p></div>
-                      <div><p className="text-xs text-ber-gray">Fornecedor</p><p className="text-sm font-medium">{recebimentoDetail.fornecedor}</p></div>
-                      <div><p className="text-xs text-ber-gray">Quantidade</p><p className="text-sm font-medium">{recebimentoDetail.quantidade} {recebimentoDetail.unidade}</p></div>
-                      <div><p className="text-xs text-ber-gray">Condição</p><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${(CONDICAO_CONFIG[recebimentoDetail.condicao] ?? CONDICAO_CONFIG.aprovado).className}`}>{(CONDICAO_CONFIG[recebimentoDetail.condicao] ?? CONDICAO_CONFIG.aprovado).label}</span></div>
-                      <div><p className="text-xs text-ber-gray">Data Entrega</p><p className="text-sm font-medium">{formatDate(recebimentoDetail.dataEntrega)}</p></div>
-                      <div><p className="text-xs text-ber-gray">NF</p><p className="text-sm font-medium">{recebimentoDetail.numeroNF || '--'}{recebimentoDetail.dataNF ? ` (${formatDate(recebimentoDetail.dataNF)})` : ''}</p></div>
-                      <div className="col-span-2"><p className="text-xs text-ber-gray">Registrado por</p><p className="text-sm font-medium">{recebimentoDetail.registrador?.name ?? '--'} em {formatDate(recebimentoDetail.createdAt)}</p></div>
-                    </div>
-                    {recebimentoDetail.observacao && (
-                      <div><p className="text-xs text-ber-gray">Observação</p><p className="text-sm">{recebimentoDetail.observacao}</p></div>
-                    )}
-                    {recebimentoDetail.fotoNF && (
-                      <div><p className="text-xs text-ber-gray mb-1">Foto NF</p><img src={recebimentoDetail.fotoNF} alt="NF" className="h-32 rounded border object-cover" /></div>
-                    )}
-                    {recebimentoDetail.fotosMaterial.length > 0 && (
-                      <div>
-                        <p className="text-xs text-ber-gray mb-1">Fotos do Material</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {recebimentoDetail.fotosMaterial.map((url, i) => (
-                            <img key={i} src={url} alt={`Material ${i + 1}`} className="h-24 rounded border object-cover" />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Registration modal */}
-            {showRecebimentoForm && (
-              <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40">
-                <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white shadow-xl max-h-[90dvh] overflow-y-auto">
-                  <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-                    <h2 className="text-lg font-black text-ber-carbon">Registrar Recebimento</h2>
-                    <button onClick={() => setShowRecebimentoForm(false)} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
-                  </div>
-                  <form onSubmit={handleCreateRecebimento} className="px-6 py-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <label className="text-xs font-medium text-ber-gray">Material *</label>
-                        <input type="text" required value={newRecebimento.material} onChange={(e) => setNewRecebimento((p) => ({ ...p, material: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-xs font-medium text-ber-gray">Fornecedor *</label>
-                        <input type="text" required value={newRecebimento.fornecedor} onChange={(e) => setNewRecebimento((p) => ({ ...p, fornecedor: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Quantidade *</label>
-                        <input type="number" step="0.01" required value={newRecebimento.quantidade} onChange={(e) => setNewRecebimento((p) => ({ ...p, quantidade: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Unidade *</label>
-                        <select value={newRecebimento.unidade} onChange={(e) => setNewRecebimento((p) => ({ ...p, unidade: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none">
-                          <option value="un">Unidade</option>
-                          <option value="m">Metro</option>
-                          <option value="m²">m²</option>
-                          <option value="m³">m³</option>
-                          <option value="kg">kg</option>
-                          <option value="L">Litro</option>
-                          <option value="cx">Caixa</option>
-                          <option value="pc">Peça</option>
-                          <option value="sc">Saco</option>
-                          <option value="rl">Rolo</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Data Entrega *</label>
-                        <input type="date" required value={newRecebimento.dataEntrega} onChange={(e) => setNewRecebimento((p) => ({ ...p, dataEntrega: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Condição *</label>
-                        <select value={newRecebimento.condicao} onChange={(e) => setNewRecebimento((p) => ({ ...p, condicao: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none">
-                          <option value="aprovado">Aprovado</option>
-                          <option value="aprovado_com_ressalva">Aprovado com ressalva</option>
-                          <option value="reprovado">Reprovado</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Nº NF</label>
-                        <input type="text" value={newRecebimento.numeroNF} onChange={(e) => setNewRecebimento((p) => ({ ...p, numeroNF: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Data NF</label>
-                        <input type="date" value={newRecebimento.dataNF} onChange={(e) => setNewRecebimento((p) => ({ ...p, dataNF: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-xs font-medium text-ber-gray">Observação</label>
-                        <textarea rows={2} value={newRecebimento.observacao} onChange={(e) => setNewRecebimento((p) => ({ ...p, observacao: e.target.value }))} className="mt-1 w-full rounded-md border border-ber-gray/30 px-3 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Foto NF</label>
-                        <input type="file" accept="image/*" capture="environment" onChange={(e) => handleRecebimentoUpload(e, 'fotoNF')} className="mt-1 w-full text-xs" />
-                        {newRecebimento.fotoNF && <img src={newRecebimento.fotoNF} alt="NF" className="mt-1 h-16 rounded border object-cover" />}
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-ber-gray">Fotos Material</label>
-                        <input type="file" accept="image/*" capture="environment" onChange={(e) => handleRecebimentoUpload(e, 'fotosMaterial')} className="mt-1 w-full text-xs" />
-                        {newRecebimento.fotosMaterial.length > 0 && (
-                          <div className="mt-1 flex gap-1 flex-wrap">
-                            {newRecebimento.fotosMaterial.map((url, i) => (
-                              <img key={i} src={url} alt={`Material ${i + 1}`} className="h-12 rounded border object-cover" />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-5 flex justify-end gap-3">
-                      <button type="button" onClick={() => setShowRecebimentoForm(false)} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray transition-colors hover:bg-ber-offwhite">Cancelar</button>
-                      <button type="submit" disabled={submittingRecebimento} className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black disabled:opacity-50">
-                        <Package size={14} />
-                        {submittingRecebimento ? 'Salvando...' : 'Registrar'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ─── Cronograma tab — REDIRECT pro Gestão 360 ─── */}
         {activeTab === 'cronograma' && (
