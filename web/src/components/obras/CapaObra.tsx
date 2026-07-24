@@ -99,6 +99,14 @@ const RELATORIO_STATUS: Record<string, { label: string; badge: string; bar: stri
   atrasado: { label: 'ATRASADO', badge: 'bg-red-100 text-red-800',        bar: 'linear-gradient(90deg,#f87171,#dc2626)' },
 };
 
+/** Fase do Passo a Passo (obra_fvs) — só o que a Capa precisa pra dar o status. */
+interface FaseLite {
+  id: string;
+  status: string;
+  template: { code: string; name: string } | null;
+  items: { checked: boolean; na: boolean }[];
+}
+
 /** Ponto da curva S mantida no módulo de relatórios (tabela relatorio_curva_s). */
 interface CurvaSPonto {
   semana: string;
@@ -123,6 +131,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const [curvaS, setCurvaS] = useState<CurvaSPonto[]>([]);
   const [temperaturas, setTemperaturas] = useState<TemperaturaRow[]>([]);
   const [ultimoRelatorio, setUltimoRelatorio] = useState<RelatorioLite | null>(null);
+  const [fases, setFases] = useState<FaseLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [tempModalOpen, setTempModalOpen] = useState(false);
   const [tempEditing, setTempEditing] = useState<TemperaturaRow | null>(null);
@@ -130,17 +139,19 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   async function load() {
     setLoading(true);
     const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-    const [o, c, curva, temps, rels] = await Promise.all([
+    const [o, c, curva, temps, rels, fvs] = await Promise.all([
       safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
       safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
       safe(api.get<{ data: CurvaSPonto[] }>(`/obras/${obraId}/relatorios/curva-s`).then(r => r.data.data)),
       safe(api.get<{ data: TemperaturaRow[] }>(`/obras/${obraId}/temperatura`).then(r => r.data.data)),
       safe(api.get<{ data: RelatorioLite[] }>(`/obras/${obraId}/relatorios`).then(r => r.data.data)),
+      safe(api.get<{ data: FaseLite[] }>(`/obras/${obraId}/fvs`).then(r => r.data.data)),
     ]);
     setObra(o);
     setContratos(c);
     setCurvaS(curva ?? []);
     setTemperaturas(temps ?? []);
+    setFases(fvs ?? []);
     // O backend já devolve ordenado por numero desc — o último emitido é o primeiro.
     // Reordena defensivamente caso a ordenação do endpoint mude.
     const ordenados = [...(rels ?? [])].sort((a, b) => b.numero - a.numero);
@@ -284,6 +295,48 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const atividades = ultimoRelatorio?.atividadesSemana ?? [];
   const atvAndamento = atividades.filter(a => a.tipo === 'andamento');
   const atvProximo = atividades.filter(a => a.tipo === 'proximo');
+
+  // ─── Controle de coordenação (Passo a Passo) ───────────────────────────
+  // Atraso = item aberto em fase que a obra JÁ passou. É o que não se recupera
+  // sozinho. Item aberto na fase corrente é trabalho normal, não alarme.
+  const ordemFase = (code?: string | null) => Number(String(code ?? '').replace(/\D/g, '')) || 0;
+  const faseAtualCode: string | null = (() => {
+    if (obra.status === 'planejamento') return 'PP1';
+    if (obra.status === 'concluida') return 'PP6';
+    if (avancoPct == null) return null;
+    if (avancoPct >= 100) return 'PP6';
+    if (avancoPct >= 75) return 'PP5';
+    if (avancoPct >= 50) return 'PP4';
+    if (avancoPct >= 25) return 'PP3';
+    return 'PP2';
+  })();
+  const ordemAtual = ordemFase(faseAtualCode);
+  const abertosDe = (f: FaseLite) => f.items.filter(i => !i.checked && !i.na).length;
+  const fasesAtrasadas = ordemAtual > 0
+    ? fases.filter(f => {
+        const o = ordemFase(f.template?.code);
+        return o > 0 && o < ordemAtual && abertosDe(f) > 0;
+      })
+    : [];
+  const itensAtrasados = fasesAtrasadas.reduce((acc, f) => acc + abertosDe(f), 0);
+  const faseCorrente = fases.find(f => f.template?.code === faseAtualCode) ?? null;
+  const itensFaseAtual = faseCorrente ? abertosDe(faseCorrente) : 0;
+  const semDados = fases.length === 0 || faseAtualCode == null;
+
+  const coordStatus = semDados
+    ? { tom: 'neutro' as const, titulo: 'SEM LEITURA', frase: 'Depende do primeiro relatório emitido' }
+    : itensAtrasados > 0
+      ? { tom: 'ruim' as const, titulo: 'ATRASADO', frase: `${itensAtrasados} ${itensAtrasados === 1 ? 'item ficou' : 'itens ficaram'} para trás` }
+      : itensFaseAtual > 0
+        ? { tom: 'atencao' as const, titulo: 'EM ANDAMENTO', frase: `${itensFaseAtual} ${itensFaseAtual === 1 ? 'item a preencher' : 'itens a preencher'} na fase atual` }
+        : { tom: 'bom' as const, titulo: 'EM DIA', frase: 'Nada pendente até aqui' };
+
+  const COORD_TOM = {
+    ruim:    { bg: 'bg-red-600',     texto: 'text-white', sub: 'text-red-50' },
+    atencao: { bg: 'bg-amber-500',   texto: 'text-white', sub: 'text-amber-50' },
+    bom:     { bg: 'bg-emerald-600', texto: 'text-white', sub: 'text-emerald-50' },
+    neutro:  { bg: 'bg-ber-gray/25', texto: 'text-ber-carbon', sub: 'text-ber-gray' },
+  }[coordStatus.tom];
 
   // ─── Linha do tempo (régua Início → Hoje → Prazo) ──────────────────────
   // % do prazo já consumido. Serve de referência visual contra o avanço real.
@@ -663,7 +716,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
         </div>
       </div>
 
-      {/* ─── CURVA S ────────────────────────────────────────────────────── */}
+      {/* ─── CURVA S + CONTROLE DE COORDENAÇÃO ──────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+
       {/* Mesma curva do PDF do relatório (módulo Relatórios → aba Curva S). */}
       <div className="border border-ber-gray/30">
         <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
@@ -727,6 +782,60 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
             </div>
           )}
         </div>
+      </div>
+
+      {/* Controle de coordenação — o processo acompanhou o avanço? */}
+      <div className="border border-ber-gray/30 flex flex-col">
+        <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider">
+          CONTROLE DE COORDENAÇÃO
+        </div>
+        <div className="flex flex-1 flex-col bg-white p-4">
+          {/* Semáforo: cor forte e palavra pronta, sem legenda pra decorar */}
+          <div className={`rounded-lg ${COORD_TOM.bg} px-4 py-3`}>
+            <p className={`text-2xl font-black leading-none ${COORD_TOM.texto}`}>{coordStatus.titulo}</p>
+            <p className={`mt-1 text-[12px] font-medium ${COORD_TOM.sub}`}>{coordStatus.frase}</p>
+          </div>
+
+          {/* Detalhe por fase — só o que merece atenção */}
+          <div className="mt-3 flex-1 space-y-1.5">
+            {fasesAtrasadas.length > 0 && (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Ficaram para trás</p>
+                {fasesAtrasadas.map(f => (
+                  <div key={f.id} className="flex items-start justify-between gap-2 text-[12px]">
+                    <span className="min-w-0 truncate text-ber-carbon">{f.template?.name}</span>
+                    <span className="shrink-0 font-bold tabular-nums text-red-600">{abertosDe(f)}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            {faseCorrente && (
+              <div className={fasesAtrasadas.length > 0 ? 'border-t border-ber-gray/10 pt-2 mt-2' : ''}>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Fase atual</p>
+                <div className="flex items-start justify-between gap-2 text-[12px]">
+                  <span className="min-w-0 truncate text-ber-carbon">{faseCorrente.template?.name}</span>
+                  <span className={`shrink-0 font-bold tabular-nums ${itensFaseAtual > 0 ? 'text-amber-600' : 'text-green-700'}`}>
+                    {itensFaseAtual > 0 ? itensFaseAtual : '✓'}
+                  </span>
+                </div>
+              </div>
+            )}
+            {semDados && (
+              <p className="text-[11px] italic text-ber-gray">
+                A fase vigente sai do avanço do relatório semanal. Sem relatório emitido, não dá pra dizer o que está atrasado.
+              </p>
+            )}
+          </div>
+
+          <Link
+            href={`/obras/${obraId}?tab=fvs`}
+            className="print:hidden mt-3 block rounded-md border border-ber-gray/25 px-3 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
+          >
+            Abrir Passo a Passo
+          </Link>
+        </div>
+      </div>
+
       </div>
 
       {tempModalOpen && (
