@@ -4,21 +4,24 @@ import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import * as controller from './controller';
 
-const router = Router();
+// mergeParams: o :id da obra vem do mount em app.ts (/v1/obras/:id/compras).
+// Paths relativos ao mount — NÃO repetir /:id/compras aqui, senão o gate
+// perm('comprasDashboard') do mount amplo vazava para relatorios/diario/cronograma.
+const router = Router({ mergeParams: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 router.use(authenticate);
 
-router.get('/:id/compras/config', requireRole('campo'), controller.getConfig);
-router.put('/:id/compras/config', requireRole('gestor'), controller.upsertConfig);
-router.get('/:id/compras', requireRole('campo'), controller.list);
-router.post('/:id/compras/import', requireRole('gestor'), upload.single('file'), controller.importXlsx);
-router.post('/:id/compras', requireRole('campo'), controller.createItem);
-router.patch('/:id/compras/:itemId', requireRole('campo'), controller.update);
-router.delete('/:id/compras', requireRole('gestor'), controller.clear);
-router.delete('/:id/compras/:itemId', requireRole('campo'), controller.deleteItem);
-router.post('/:id/compras/:itemId/splits', requireRole('campo'), controller.addSplit);
-router.patch('/:id/compras/:itemId/splits/:splitId', requireRole('campo'), controller.updateSplit);
-router.delete('/:id/compras/:itemId/splits/:splitId', requireRole('campo'), controller.deleteSplit);
+router.get('/config', requireRole('campo'), controller.getConfig);
+router.put('/config', requireRole('gestor'), controller.upsertConfig);
+router.get('/', requireRole('campo'), controller.list);
+router.post('/import', requireRole('gestor'), upload.single('file'), controller.importXlsx);
+router.post('/', requireRole('campo'), controller.createItem);
+router.patch('/:itemId', requireRole('campo'), controller.update);
+router.delete('/', requireRole('gestor'), controller.clear);
+router.delete('/:itemId', requireRole('campo'), controller.deleteItem);
+router.post('/:itemId/splits', requireRole('campo'), controller.addSplit);
+router.patch('/:itemId/splits/:splitId', requireRole('campo'), controller.updateSplit);
+router.delete('/:itemId/splits/:splitId', requireRole('campo'), controller.deleteSplit);
 
 export default router;
