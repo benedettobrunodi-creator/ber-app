@@ -21,6 +21,96 @@ function diasRestantes(d: Date | null): number | null {
   return Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000);
 }
 
+const DISCIPLINA_COLORS = [
+  '#1a1a1a', '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+  '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#84CC16',
+  '#6366F1', '#06B6D4', '#EAB308', '#A855F7',
+];
+
+const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+interface EfetivoDisciplina {
+  disciplina: string;
+  porDia?: Record<string, number> | null;
+  quantidade?: number | null;
+}
+
+function diaSemana(iso: string): string {
+  return DIAS_PT[new Date(iso + 'T12:00:00').getDay()];
+}
+
+function diaMes(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+// Lista de datas ISO (YYYY-MM-DD) entre início e fim, inclusive.
+function datasEntre(inicio: string | Date | null, fim: string | Date | null): string[] {
+  if (!inicio || !fim) return [];
+  const out: string[] = [];
+  const start = new Date(String(inicio).slice(0, 10) + 'T12:00:00');
+  const end = new Date(String(fim).slice(0, 10) + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+// Total de pessoas de uma disciplina: soma o porDia quando existe, senão usa quantidade.
+function totalDisciplina(d: EfetivoDisciplina): number {
+  if (d.porDia && Object.keys(d.porDia).length > 0) {
+    return Object.values(d.porDia).reduce((s, v) => s + (Number(v) || 0), 0);
+  }
+  return Number(d.quantidade) || 0;
+}
+
+// Histograma de barras empilhadas por dia (uma cor por disciplina). Só o gráfico; a legenda vai em HTML abaixo.
+function buildHistogramaSvg(disciplinas: EfetivoDisciplina[], dias: string[]): string {
+  const W = 560, H = 150;
+  const PAD = { top: 10, right: 12, bottom: 22, left: 26 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+
+  const totaisDia = dias.map(dia => disciplinas.reduce((s, d) => s + (Number(d.porDia?.[dia]) || 0), 0));
+  const maxTotal = Math.max(1, ...totaisDia);
+  const step = maxTotal <= 5 ? 1 : maxTotal <= 10 ? 2 : maxTotal <= 20 ? 5 : maxTotal <= 50 ? 10 : 20;
+  const axisMax = Math.ceil(maxTotal / step) * step || step;
+
+  const toY = (v: number) => PAD.top + cH - (v / axisMax) * cH;
+  const bandW = cW / (dias.length || 1);
+  const barW = Math.min(38, bandW * 0.6);
+
+  const yTicks: number[] = [];
+  for (let v = 0; v <= axisMax; v += step) yTicks.push(v);
+
+  const grid = yTicks.map(v =>
+    `<line x1="${PAD.left}" y1="${toY(v).toFixed(1)}" x2="${W - PAD.right}" y2="${toY(v).toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>` +
+    `<text x="${PAD.left - 3}" y="${(toY(v) + 3).toFixed(1)}" text-anchor="end" fill="#9ca3af" font-size="7">${v}</text>`
+  ).join('');
+
+  const bars = dias.map((dia, i) => {
+    const cx = PAD.left + bandW * i + bandW / 2;
+    let acc = 0;
+    const segs = disciplinas.map((d, di) => {
+      const val = Number(d.porDia?.[dia]) || 0;
+      if (val <= 0) return '';
+      const y0 = toY(acc);
+      const y1 = toY(acc + val);
+      acc += val;
+      return `<rect x="${(cx - barW / 2).toFixed(1)}" y="${y1.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, y0 - y1).toFixed(1)}" fill="${DISCIPLINA_COLORS[di % DISCIPLINA_COLORS.length]}"/>`;
+    }).join('');
+    const label = `<text x="${cx.toFixed(1)}" y="${H - 6}" text-anchor="middle" fill="#9ca3af" font-size="7">${diaSemana(dia)}</text>`;
+    return segs + label;
+  }).join('');
+
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:Arial,sans-serif;display:block;">
+  ${grid}
+  ${bars}
+</svg>`;
+}
+
 function buildCurvaSvg(
   pontos: { semana: Date; planejadoPct: number | null; realizadoPct: number | null }[],
   startDate: Date | null,
@@ -80,7 +170,7 @@ function buildCurvaSvg(
     if (p.realizadoPct != null) parts.push(`<text x="${x.toFixed(1)}" y="${(toY(p.realizadoPct) + 12).toFixed(1)}" text-anchor="middle" fill="#16a34a" font-size="7" font-weight="bold">${Math.round(p.realizadoPct)}%</text>`);
     return parts.join('');
   }).join('')}
-  <g transform="translate(${W - PAD.right - 220},8)">
+  <g transform="translate(${PAD.left + 4},8)">
     <line x1="0" y1="0" x2="12" y2="0" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="4 2"/><text x="15" y="3" fill="#6b7280" font-size="7">Planejado acumulado</text>
     <line x1="110" y1="0" x2="122" y2="0" stroke="#22c55e" stroke-width="2.4"/><text x="125" y="3" fill="#6b7280" font-size="7">Realizado acumulado</text>
   </g>
@@ -103,7 +193,7 @@ function buildHtml(
   const avanco = parseFloat(rel.avancoPct ?? 0);
   const delta = rel.avancoDelta != null ? parseFloat(rel.avancoDelta) : null;
 
-  const efetivos: { disciplina: string; quantidade: number }[] = rel.efetivoPorDisciplina ?? [];
+  const efetivos: EfetivoDisciplina[] = rel.efetivoPorDisciplina ?? [];
   const atividades: { wbs: string; nome: string; tipo: string }[] = rel.atividadesSemana ?? [];
   const andamento = atividades.filter(a => a.tipo === 'andamento');
   const proximos = atividades.filter(a => a.tipo === 'proximo');
@@ -246,8 +336,53 @@ ${curvaS.length >= 1 && sec('curvaS') ? `
   ${buildCurvaSvg(curvaS, obra.startDate ? new Date(obra.startDate) : null, obra.expectedEndDate ? new Date(obra.expectedEndDate) : null)}
 </div>` : ''}
 
-<!-- EFETIVO POR DISCIPLINA -->
-${efetivos.length > 0 && sec('equipe') ? `
+<!-- HISTOGRAMA / EFETIVO POR DISCIPLINA -->
+${efetivos.length > 0 && sec('equipe') ? (() => {
+  const dias = datasEntre(rel.periodoInicio, rel.periodoFim);
+  const hasMatriz = efetivos.some(d => d.porDia && Object.keys(d.porDia).length > 0) && dias.length > 0;
+  const totalGeral = efetivos.reduce((s, d) => s + totalDisciplina(d), 0);
+  const thDay = 'font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;padding:3px 2px;text-align:center;';
+
+  if (hasMatriz) {
+    const matriz = `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
+        <thead><tr style="border-bottom:1px solid #d1d5db;">
+          <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;padding:3px 4px 3px 0;text-align:left;">Disciplina</th>
+          ${dias.map(dia => `<th style="${thDay}"><div>${diaSemana(dia)}</div><div style="font-size:6px;font-weight:400;color:#b7bcc4;">${diaMes(dia)}</div></th>`).join('')}
+          <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#6b7280;padding:3px 0 3px 4px;text-align:center;">Total</th>
+        </tr></thead>
+        <tbody>
+          ${efetivos.map(d => `<tr style="border-bottom:1px solid #f3f4f6;">
+            <td style="padding:4px 4px 4px 0;color:#374151;font-size:9px;">${d.disciplina}</td>
+            ${dias.map(dia => `<td style="padding:4px 2px;text-align:center;color:#374151;font-size:9px;">${Number(d.porDia?.[dia]) || 0}</td>`).join('')}
+            <td style="padding:4px 0 4px 4px;text-align:center;font-weight:600;color:#111827;font-size:9px;">${totalDisciplina(d)}</td>
+          </tr>`).join('')}
+          <tr style="border-top:1px solid #d1d5db;background:#f9fafb;">
+            <td style="padding:4px 4px 4px 0;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;">Total/dia</td>
+            ${dias.map(dia => `<td style="padding:4px 2px;text-align:center;font-weight:600;color:#111827;font-size:9px;">${efetivos.reduce((s, d) => s + (Number(d.porDia?.[dia]) || 0), 0)}</td>`).join('')}
+            <td style="padding:4px 0 4px 4px;text-align:center;font-weight:900;color:#111827;font-size:9px;">${totalGeral}</td>
+          </tr>
+        </tbody>
+      </table>`;
+
+    const legenda = `
+      <div style="display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;margin-top:6px;">
+        ${efetivos.map((d, di) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:8px;color:#4b5563;">
+          <span style="width:8px;height:8px;border-radius:2px;background:${DISCIPLINA_COLORS[di % DISCIPLINA_COLORS.length]};display:inline-block;"></span>${d.disciplina}
+        </span>`).join('')}
+      </div>`;
+
+    return `
+<div style="margin-bottom:14px;break-inside:avoid;">
+  ${sectionTitle('Histograma de efetivos')}
+  ${matriz}
+  ${buildHistogramaSvg(efetivos, dias)}
+  ${legenda}
+</div>`;
+  }
+
+  // Fallback: sem matriz por dia → tabela simples (usa totalDisciplina p/ evitar undefined/NaN).
+  return `
 <div style="margin-bottom:14px;break-inside:avoid;">
   ${sectionTitle('Efetivo por disciplina')}
   <table style="width:100%;border-collapse:collapse;">
@@ -256,14 +391,15 @@ ${efetivos.length > 0 && sec('equipe') ? `
       <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;border-bottom:1px solid #e5e7eb;padding:3px 0;text-align:right;width:80px;">Pessoas</th>
     </tr></thead>
     <tbody>
-      ${efetivos.map(e => `<tr><td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#374151;">${e.disciplina}</td><td style="padding:5px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:500;">${e.quantidade}</td></tr>`).join('')}
+      ${efetivos.map(e => `<tr><td style="padding:5px 0;border-bottom:1px solid #f3f4f6;color:#374151;">${e.disciplina}</td><td style="padding:5px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:500;">${totalDisciplina(e)}</td></tr>`).join('')}
       <tr>
         <td style="padding:5px 0;border-top:1px solid #d1d5db;font-size:8px;font-weight:700;text-transform:uppercase;color:#6b7280;">Total</td>
-        <td style="padding:5px 0;border-top:1px solid #d1d5db;text-align:right;font-weight:900;">${efetivos.reduce((s, e) => s + e.quantidade, 0)}</td>
+        <td style="padding:5px 0;border-top:1px solid #d1d5db;text-align:right;font-weight:900;">${totalGeral}</td>
       </tr>
     </tbody>
   </table>
-</div>` : ''}
+</div>`;
+})() : ''}
 
 <!-- ATIVIDADES DA SEMANA -->
 ${atividades.length > 0 && sec('atividades') ? `
