@@ -47,8 +47,11 @@ function diaMes(iso: string): string {
 function datasEntre(inicio: string | Date | null, fim: string | Date | null): string[] {
   if (!inicio || !fim) return [];
   const out: string[] = [];
-  const start = new Date(String(inicio).slice(0, 10) + 'T12:00:00');
-  const end = new Date(String(fim).slice(0, 10) + 'T12:00:00');
+  // Prisma entrega Date; a API entrega string ISO. String(Date).slice(0,10) vira "Sun Jul 19"
+  // (inválido + erra o dia por timezone) -> datasEntre retornava [] no PDF -> caía no fallback sem gráfico.
+  const toISO = (v: string | Date) => v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+  const start = new Date(toISO(inicio) + 'T12:00:00');
+  const end = new Date(toISO(fim) + 'T12:00:00');
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return [];
   const cur = new Date(start);
   while (cur <= end) {
@@ -200,17 +203,14 @@ function buildHtml(
   const marcosConc = (rel.marcos ?? []).filter((m: any) => m.tipo === 'concluido');
   const marcosProx = (rel.marcos ?? []).filter((m: any) => m.tipo === 'proximo');
 
-  // Group fotos by angulo
-  const angulosMap = new Map<string, { nome: string; fotos: any[] }>();
-  const semAngulo: any[] = [];
+  // Agrupa fotos por AMBIENTE. Chave = nome do ângulo; senão a legenda; senão "Fotos gerais".
+  // Agrupar por NOME (e não por anguloId) colapsa ambientes homônimos num único bloco com 1 título.
+  const grupos = new Map<string, { nome: string; fotos: any[] }>();
   (rel.fotos ?? []).forEach((ft: any) => {
-    if (ft.anguloId && ft.angulo) {
-      const e: { nome: string; fotos: any[] } = angulosMap.get(ft.anguloId) ?? { nome: ft.angulo.nome, fotos: [] };
-      e.fotos.push(ft);
-      angulosMap.set(ft.anguloId, e);
-    } else {
-      semAngulo.push(ft);
-    }
+    const nome = ((ft.angulo?.nome ?? ft.legenda ?? 'Fotos gerais') as string).trim() || 'Fotos gerais';
+    const e = grupos.get(nome) ?? { nome, fotos: [] };
+    e.fotos.push(ft);
+    grupos.set(nome, e);
   });
 
   const rtNum = String(rel.numero).padStart(3, '0');
@@ -231,42 +231,33 @@ function buildHtml(
       <span style="font-size:10px;color:#374151;">${text}</span>
     </div>`;
 
-  const fotosSection = Array.from(angulosMap.entries()).map(([, { nome, fotos }]) => {
-    const prevFoto = prevRel?.fotos?.find((f: any) => f.anguloId && fotos[0]?.anguloId === f.anguloId) ?? null;
-    const allSlots = fotos.length + (prevFoto ? 1 : 0);
-    const cols = allSlots === 1 ? '1fr' : '1fr 1fr';
-    const imgH = allSlots === 1 ? '220px' : '170px';
+  const fotosSection = Array.from(grupos.values()).map(({ nome, fotos }) => {
+    // Foto do mesmo ambiente no relatório anterior (comparação), casando pelo NOME do ângulo.
+    const prevFoto = prevRel?.fotos?.find((f: any) => f.angulo?.nome && f.angulo.nome === nome) ?? null;
+    // Cada card = uma foto INTEIRA (sem crop). height:auto preserva a proporção original.
+    const cards: { url: string; cap: string; prev?: boolean }[] = [
+      ...fotos.map((ft: any) => ({
+        url: ft.url,
+        // Não repetir a legenda quando ela é igual ao título do grupo (evita "ambiente" 2x).
+        cap: (ft.legenda && String(ft.legenda).trim() !== nome) ? String(ft.legenda) : '',
+      })),
+      ...(prevFoto ? [{ url: prevFoto.url, cap: `RT-${String(rel.numero - 1).padStart(3, '0')} (anterior)`, prev: true }] : []),
+    ];
+    const cols = cards.length === 1 ? '1fr' : '1fr 1fr';
     return `
-      <div style="margin-bottom:14px;break-inside:avoid;">
-        <p style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9ca3af;margin-bottom:6px;">${nome}</p>
-        <div style="display:grid;grid-template-columns:${cols};gap:6px;">
-          ${fotos.map((ft: any) => `
-            <div>
-              <img src="${ft.url}" style="width:100%;height:${imgH};object-fit:cover;border-radius:4px;display:block;" />
-              ${ft.legenda ? `<p style="font-size:7px;color:#9ca3af;margin-top:2px;">${ft.legenda}</p>` : ''}
+      <div style="margin-bottom:16px;">
+        <p style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b7280;margin-bottom:6px;break-after:avoid;">${nome}</p>
+        <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:start;">
+          ${cards.map(c => `
+            <div style="break-inside:avoid;${c.prev ? 'opacity:0.6;' : ''}">
+              <img src="${c.url}" style="width:100%;height:auto;border-radius:4px;display:block;background:#f9fafb;" />
+              ${c.cap ? `<p style="font-size:7px;color:#9ca3af;margin-top:2px;">${c.cap}</p>` : ''}
             </div>`).join('')}
-          ${prevFoto ? `
-            <div style="opacity:0.6;">
-              <img src="${prevFoto.url}" style="width:100%;height:${imgH};object-fit:cover;border-radius:4px;display:block;" />
-              <p style="font-size:7px;color:#9ca3af;margin-top:2px;">RT-${String(rel.numero - 1).padStart(3, '0')} (anterior)</p>
-            </div>` : ''}
         </div>
       </div>`;
   }).join('');
 
-  const fotosGerais = semAngulo.length > 0 ? `
-    <div style="break-inside:avoid;">
-      <p style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9ca3af;margin-bottom:6px;">Fotos gerais</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
-        ${semAngulo.map((ft: any) => `
-          <div>
-            <img src="${ft.url}" style="width:100%;height:110px;object-fit:cover;border-radius:4px;display:block;" />
-            ${ft.legenda ? `<p style="font-size:7px;color:#9ca3af;margin-top:2px;">${ft.legenda}</p>` : ''}
-          </div>`).join('')}
-      </div>
-    </div>` : '';
-
-  const hasFotos = angulosMap.size > 0 || semAngulo.length > 0;
+  const hasFotos = grupos.size > 0;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -513,7 +504,6 @@ ${hasFotos && sec('fotos') ? `
 <div style="margin-bottom:14px;">
   ${sectionTitle('Registro fotográfico')}
   ${fotosSection}
-  ${fotosGerais}
 </div>` : ''}
 
 <!-- ITENS EM ABERTO -->
