@@ -11,6 +11,7 @@ export const createTopicoSchema = z.object({
   tema:          z.string().optional().nullable(),
   observacoes:   z.string().optional().nullable(),
   responsavelId: z.string().uuid().optional().nullable(),
+  responsavelStakeholderId: z.string().uuid().optional().nullable(),
   acao:          z.string().optional().nullable(),
   dataInfo:      z.string().optional().nullable(),
   dataAlvo:      z.string().optional().nullable(),

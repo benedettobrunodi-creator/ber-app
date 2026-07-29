@@ -2285,6 +2285,7 @@ model ObraStakeholder {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  ataTopicosResponsavel ObraAtaTopico[] @relation("AtaTopicoResponsavelStakeholder")
 
   @@index([obraId])
   @@map("obra_stakeholders")
@@ -2362,6 +2363,8 @@ model ObraAtaTopico {
   tema          String?
   observacoes   String?
   responsavelId String?   @map("responsavel_id") @db.Uuid
+  // (legado, não usado na UI — responsável agora aponta pro stakeholder da obra)
+  responsavelStakeholderId String? @map("responsavel_stakeholder_id") @db.Uuid
   acao          String?
   // Texto livre da ação/informação do item (ex: "mandar email para fornecedor")
   confirmado    Boolean   @default(true)
@@ -2375,6 +2378,7 @@ model ObraAtaTopico {
 
   obra          Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
   responsavel   User?                      @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
+  responsavelStakeholder ObraStakeholder?  @relation("AtaTopicoResponsavelStakeholder", fields: [responsavelStakeholderId], references: [id], onDelete: SetNull)
   atualizacoes  ObraAtaTopicoAtualizacao[]
 
   @@index([obraId])
