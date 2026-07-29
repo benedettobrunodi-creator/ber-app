@@ -379,9 +379,9 @@ function TopicosTable({
   });
 
   return (
-    <div className="mt-3 overflow-x-auto rounded-xl border border-ber-gray/15 bg-white shadow-sm">
+    <div className="mt-3 max-h-[70vh] overflow-auto rounded-xl border border-ber-gray/15 bg-white shadow-sm">
       <table className="min-w-max text-xs">
-        <thead className="bg-ber-bg sticky top-0">
+        <thead className="bg-ber-bg sticky top-0 z-10">
           <tr className="border-b border-ber-gray/20 text-left">
             <Th className="w-8" />
             <Th className="w-32">Status</Th>
