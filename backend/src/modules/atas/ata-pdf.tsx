@@ -101,10 +101,10 @@ const styles = StyleSheet.create({
   infoLabel: { width: 78, fontSize: 8, color: BER.gray },
   infoValue: { flex: 1, fontSize: 9, paddingRight: 8 },
 
-  tableHeader: { flexDirection: "row", backgroundColor: BER.surface, borderTop: `1.5pt solid ${BER.teal}`, borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 4, paddingHorizontal: 3 },
+  tableHeader: { flexDirection: "row", backgroundColor: BER.surface, borderTop: `1.5pt solid ${BER.teal}`, borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 5, paddingHorizontal: 4 },
   th: { fontFamily: "Helvetica-Bold", fontSize: 7, color: BER.carbon },
-  row: { flexDirection: "row", borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 4, paddingHorizontal: 3 },
-  cell: { fontSize: 8, paddingRight: 4 },
+  row: { flexDirection: "row", paddingTop: 8, paddingBottom: 6, paddingHorizontal: 4 },
+  cell: { fontSize: 8, paddingRight: 6 },
 
   // stakeholders cols
   skNome: { width: "26%" }, skEmpresa: { width: "22%" }, skFuncao: { width: "18%" }, skContato: { width: "34%" },
@@ -118,17 +118,18 @@ const styles = StyleSheet.create({
   tDatas: { width: "16%" },
   tDelta: { width: "8%", textAlign: "right" },
 
+  topicoBlock: { borderBottom: `0.5pt solid ${BER.border}` },
   rowAlt: { backgroundColor: "#FAFAF8" },
-  disciplina: { fontSize: 7, color: BER.teal, fontFamily: "Helvetica-Bold", marginBottom: 1 },
   temaTxt: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: BER.carbon },
   badge: { fontSize: 7, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 4, borderRadius: 2, alignSelf: "flex-start" },
-  // Etiquetas (chips) — mantidas, mas compactas e nítidas
-  chipRow: { flexDirection: "row", marginTop: 3 },
+  // Etiquetas (chips) — disciplina, change order e impacto, todas na linha de meta
+  chipRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 3 },
   chip: { fontSize: 6, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 4, borderRadius: 2, marginRight: 3, letterSpacing: 0.3 },
+  chipDisc: { color: BER.teal, backgroundColor: "#EAF0F0" },
   chipCO: { color: "#6E7A0E", backgroundColor: "#F1F2D4" },
   chipImpacto: { color: "#8A6D1E", backgroundColor: "#F6EFDD" },
   // Observação — recuada, sem itálico, com respiro e um filete à esquerda
-  obs: { fontSize: 8, color: "#555555", marginTop: 4, marginBottom: 3, marginLeft: 16, paddingLeft: 6, borderLeft: `1.5pt solid ${BER.offwhite}`, lineHeight: 1.35 },
+  obs: { fontSize: 8, color: "#555555", marginTop: 5, marginBottom: 7, marginLeft: 18, paddingLeft: 7, borderLeft: `1.5pt solid ${BER.offwhite}`, lineHeight: 1.4 },
   respNome: { fontSize: 8, color: BER.carbon },
   respEmpresa: { fontSize: 7, color: BER.gray },
   dateAlvo: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BER.carbon },
@@ -223,14 +224,14 @@ export function AtaPDF({ obra, stakeholders, topicos, geradoEm }: AtaPDFProps) {
               const dd = daysDiff(t.dataAlvo, t.dataFinal);
               const temImpacto = !!t.impacto && t.impacto !== "sem_impacto";
               return (
-                <View key={i} style={i % 2 === 1 ? styles.rowAlt : undefined} wrap={false}>
+                <View key={i} style={i % 2 === 1 ? [styles.topicoBlock, styles.rowAlt] : styles.topicoBlock} wrap={false}>
                   <View style={styles.row}>
                     <Text style={[styles.cell, styles.tOrdem]}>{i + 1}</Text>
                     <View style={styles.tTema}>
-                      {t.disciplina ? <Text style={styles.disciplina}>{t.disciplina}</Text> : null}
                       <Text style={styles.temaTxt}>{t.tema || "—"}</Text>
-                      {(t.changeOrder || temImpacto) ? (
+                      {(t.disciplina || t.changeOrder || temImpacto) ? (
                         <View style={styles.chipRow}>
+                          {t.disciplina ? <Text style={[styles.chip, styles.chipDisc]}>{t.disciplina}</Text> : null}
                           {t.changeOrder ? <Text style={[styles.chip, styles.chipCO]}>CHANGE ORDER</Text> : null}
                           {temImpacto ? <Text style={[styles.chip, styles.chipImpacto]}>{IMPACTO[t.impacto] ?? t.impacto}</Text> : null}
                         </View>
