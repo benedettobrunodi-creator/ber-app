@@ -1,22 +1,63 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
-import { ArrowLeft, Rocket, Save, X, Plus } from 'lucide-react';
+import { ArrowLeft, Rocket, FileDown } from 'lucide-react';
 import api from '@/lib/api';
 
-interface Participante { nome: string; papel?: string | null }
-interface Kickoff {
-  id: string;
-  dataRealizada: string | null;
-  participantes: Participante[];
-  pautaCoberta: string | null;
-  decisoes: string | null;
-  premissas: string | null;
-  riscosIniciais: string | null;
+// ── Tipos ───────────────────────────────────────────────────────────────
+interface KickoffHeader {
+  coordenador: string | null;
+  engenheiro: string | null;
+  supervisor: string | null;
+  inicioObra: string | null;
+  terminoObra: string | null;
+  dataKickoff: string | null;
+  participantesDeptos: Record<string, string> | null;
 }
+interface KickoffItem {
+  id: string;
+  secao: string;
+  item: string;
+  ordem: number;
+  responsavel: string | null;
+  naRede: string | null;
+  dataAlvo: string | null;
+  status: string | null;
+  observacoes: string | null;
+}
+interface KickoffData {
+  obra: { id: string; name: string };
+  header: KickoffHeader | null;
+  itens: KickoffItem[];
+}
+
+const DEPTOS: { key: string; label: string }[] = [
+  { key: 'comercial', label: 'Comercial' },
+  { key: 'pmo', label: 'PMO' },
+  { key: 'suprimentos', label: 'Suprimentos' },
+  { key: 'orcamentos', label: 'Orçamentos' },
+  { key: 'financeiro', label: 'Financeiro' },
+  { key: 'coordenador', label: 'Coordenador' },
+  { key: 'engenheiro', label: 'Engenheiro' },
+];
+
+const NAREDE_OPTS = [
+  { value: '', label: '—' },
+  { value: 'sim', label: 'Sim' },
+  { value: 'nao', label: 'Não' },
+  { value: 'na', label: 'N/A' },
+];
+const STATUS_OPTS: { value: string; label: string; cls: string }[] = [
+  { value: '', label: '—', cls: 'bg-ber-offwhite/40 text-ber-gray' },
+  { value: 'concluido', label: 'Concluído', cls: 'bg-green-100 text-green-700' },
+  { value: 'em_andamento', label: 'Em andamento', cls: 'bg-blue-100 text-blue-700' },
+  { value: 'atrasado', label: 'Atrasado', cls: 'bg-red-100 text-red-700' },
+  { value: 'na', label: 'N/A', cls: 'bg-ber-offwhite/40 text-ber-gray' },
+];
+const statusCls = (s: string | null) => STATUS_OPTS.find(o => o.value === (s ?? ''))?.cls ?? STATUS_OPTS[0].cls;
 
 const errMsg = (err: unknown, fallback: string) => {
   const msg = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
@@ -27,139 +68,225 @@ export default function KickoffPage() {
   const params = useParams<{ id: string }>();
   const obraId = params.id;
   const backHref = useBackToObra();
-  const [obraName, setObraName] = useState('');
-  const [data, setData] = useState({
-    dataRealizada: '',
-    pautaCoberta: '',
-    decisoes: '',
-    premissas: '',
-    riscosIniciais: '',
-  });
-  const [participantes, setParticipantes] = useState<Participante[]>([]);
-  const [novoPart, setNovoPart] = useState({ nome: '', papel: '' });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
 
-  async function fetchAll() {
+  const [data, setData] = useState<KickoffData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [k, obraRes] = await Promise.all([
-        api.get<{ data: Kickoff | null }>(`/obras/${obraId}/kickoff`),
-        api.get(`/obras/${obraId}`),
-      ]);
-      setObraName(obraRes.data.data.name);
-      const kk = k.data.data;
-      if (kk) {
-        setData({
-          dataRealizada: kk.dataRealizada ? kk.dataRealizada.slice(0, 10) : '',
-          pautaCoberta: kk.pautaCoberta ?? '',
-          decisoes: kk.decisoes ?? '',
-          premissas: kk.premissas ?? '',
-          riscosIniciais: kk.riscosIniciais ?? '',
-        });
-        setParticipantes(kk.participantes || []);
-      }
-    } finally { setLoading(false); }
-  }
+      const res = await api.get<{ data: KickoffData }>(`/obras/${obraId}/kickoff`);
+      setData(res.data.data);
+      setError('');
+    } catch (err) {
+      setError(errMsg(err, 'Erro ao carregar o kickoff'));
+    } finally {
+      setLoading(false);
+    }
+  }, [obraId]);
 
-  useEffect(() => { fetchAll(); }, [obraId]);
+  useEffect(() => { load(); }, [load]);
 
-  function addParticipante() {
-    if (!novoPart.nome.trim()) return;
-    setParticipantes(p => [...p, { nome: novoPart.nome.trim(), papel: novoPart.papel.trim() || null }]);
-    setNovoPart({ nome: '', papel: '' });
-  }
+  // Agrupa itens por seção preservando a ordem
+  const secoes = useMemo(() => {
+    const map = new Map<string, KickoffItem[]>();
+    for (const it of data?.itens ?? []) {
+      if (!map.has(it.secao)) map.set(it.secao, []);
+      map.get(it.secao)!.push(it);
+    }
+    return Array.from(map.entries());
+  }, [data]);
 
-  async function handleSave() {
-    setSaving(true);
-    setError('');
-    setMsg('');
+  // ── Salvar cabeçalho (auto-save por campo) ──
+  async function saveHeader(patch: Record<string, unknown>) {
+    setData(prev => prev ? { ...prev, header: { ...(prev.header ?? emptyHeader()), ...patch } as KickoffHeader } : prev);
     try {
-      await api.put(`/obras/${obraId}/kickoff`, {
-        dataRealizada: data.dataRealizada || null,
-        participantes,
-        pautaCoberta: data.pautaCoberta || null,
-        decisoes: data.decisoes || null,
-        premissas: data.premissas || null,
-        riscosIniciais: data.riscosIniciais || null,
-      });
-      setMsg('✓ Salvo');
-      setTimeout(() => setMsg(''), 2500);
-    } catch (err) { setError(errMsg(err, 'Erro ao salvar')); }
-    finally { setSaving(false); }
+      await api.put(`/obras/${obraId}/kickoff`, patch);
+    } catch (err) { alert(errMsg(err, 'Erro ao salvar')); load(); }
   }
+  function saveDepto(key: string, value: string) {
+    const atual = data?.header?.participantesDeptos ?? {};
+    saveHeader({ participantesDeptos: { ...atual, [key]: value } });
+  }
+
+  // ── Salvar item (auto-save inline) ──
+  async function saveItem(id: string, patch: Partial<KickoffItem>) {
+    setData(prev => prev ? { ...prev, itens: prev.itens.map(i => i.id === id ? { ...i, ...patch } : i) } : prev);
+    try {
+      await api.patch(`/obras/${obraId}/kickoff/itens/${id}`, patch);
+    } catch (err) { alert(errMsg(err, 'Erro ao salvar item')); load(); }
+  }
+
+  async function gerarPdf() {
+    setGeneratingPdf(true);
+    try {
+      const res = await api.get(`/obras/${obraId}/kickoff/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert(errMsg(err, 'Não consegui gerar o PDF do kickoff.'));
+    } finally { setGeneratingPdf(false); }
+  }
+
+  const h = data?.header;
+  const deptos = h?.participantesDeptos ?? {};
 
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex items-center gap-2 text-sm text-ber-gray">
         <Link href={backHref} className="inline-flex items-center gap-1 hover:text-ber-carbon">
-          <ArrowLeft size={14} /> {obraName || 'Obra'}
+          <ArrowLeft size={14} /> {data?.obra.name || 'Obra'}
         </Link>
-        <span>/</span><span className="text-ber-carbon font-medium">Kick-Off</span>
+        <span>/</span>
+        <span className="font-medium text-ber-carbon">Kickoff</span>
       </div>
 
-      <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <Rocket size={20} className="text-ber-teal" />
-          <h1 className="text-xl font-black text-ber-carbon">Kick-Off</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {msg && <span className="text-xs text-green-700">{msg}</span>}
-          <button onClick={handleSave} disabled={saving || loading} className="flex items-center gap-1.5 rounded-lg bg-ber-carbon px-3 py-2 text-sm font-medium text-white hover:bg-ber-black disabled:opacity-50">
-            <Save size={14} /> {saving ? 'Salvando…' : 'Salvar'}
-          </button>
-        </div>
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <Rocket size={20} className="text-ber-teal" />
+        <h1 className="text-xl font-black text-ber-carbon">Kickoff da Obra</h1>
+        <button onClick={gerarPdf} disabled={generatingPdf || !data}
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-ber-carbon px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-carbon hover:text-white disabled:opacity-50">
+          <FileDown size={14} /> {generatingPdf ? 'Gerando…' : 'Gerar PDF'}
+        </button>
       </div>
-
-      {error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {loading ? (
         <div className="rounded-xl border-2 border-dashed border-ber-gray/20 py-12 text-center text-sm text-ber-gray">Carregando…</div>
-      ) : (
-        <div className="space-y-5 max-w-3xl">
-          <div className="rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm">
-            <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide mb-1">Data realizada</label>
-            <input type="date" value={data.dataRealizada} onChange={e => setData(p => ({ ...p, dataRealizada: e.target.value }))} className={`${inputCls} max-w-xs`} />
-          </div>
-
-          <div className="rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-ber-carbon mb-3">Participantes</h2>
-            {participantes.length > 0 && (
-              <ul className="mb-3 space-y-1">
-                {participantes.map((p, i) => (
-                  <li key={i} className="flex items-center justify-between text-xs bg-ber-bg/40 rounded border border-ber-gray/15 px-2 py-1">
-                    <span><strong>{p.nome}</strong>{p.papel ? ` · ${p.papel}` : ''}</span>
-                    <button type="button" onClick={() => setParticipantes(arr => arr.filter((_, j) => j !== i))} className="text-ber-gray hover:text-red-600"><X size={11} /></button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="grid grid-cols-5 gap-2">
-              <input value={novoPart.nome} onChange={e => setNovoPart(p => ({ ...p, nome: e.target.value }))} placeholder="Nome" className={`${inputCls} col-span-2`} />
-              <input value={novoPart.papel} onChange={e => setNovoPart(p => ({ ...p, papel: e.target.value }))} placeholder="Papel" className={`${inputCls} col-span-2`} />
-              <button type="button" onClick={addParticipante} className="inline-flex items-center justify-center gap-1 rounded-md border border-ber-gray/30 text-sm text-ber-carbon hover:bg-ber-offwhite"><Plus size={12} /> Add</button>
+      ) : error ? (
+        <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50 py-8 text-center text-sm text-red-700">{error}</div>
+      ) : data ? (
+        <>
+          {/* Cabeçalho */}
+          <div className="rounded-xl border border-ber-gray/15 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ber-gray">Dados do Kickoff</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <HField label="Coordenador" value={h?.coordenador} onSave={v => saveHeader({ coordenador: v })} />
+              <HField label="Engenheiro" value={h?.engenheiro} onSave={v => saveHeader({ engenheiro: v })} />
+              <HField label="Supervisor / Estagiário" value={h?.supervisor} onSave={v => saveHeader({ supervisor: v })} />
+              <HDate label="Início da obra" value={h?.inicioObra} onSave={v => saveHeader({ inicioObra: v })} />
+              <HDate label="Término da obra" value={h?.terminoObra} onSave={v => saveHeader({ terminoObra: v })} />
+              <HDate label="Data do Kick Off" value={h?.dataKickoff} onSave={v => saveHeader({ dataKickoff: v })} />
             </div>
           </div>
 
-          {[
-            { key: 'pautaCoberta',   label: 'Pauta coberta',   placeholder: 'O que foi discutido no kick-off.' },
-            { key: 'decisoes',       label: 'Decisões',        placeholder: 'Decisões tomadas com cliente / gerenciadora.' },
-            { key: 'premissas',      label: 'Premissas',       placeholder: 'Premissas combinadas que sustentam o plano.' },
-            { key: 'riscosIniciais', label: 'Riscos iniciais', placeholder: 'Riscos mapeados no início, com mitigação se houver.' },
-          ].map(f => (
-            <div key={f.key} className="rounded-xl bg-white border border-ber-gray/15 p-5 shadow-sm">
-              <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide mb-1">{f.label}</label>
-              <textarea rows={3} value={(data as Record<string, string>)[f.key]}
-                onChange={e => setData(p => ({ ...p, [f.key]: e.target.value }))}
-                placeholder={f.placeholder} className={inputCls} />
+          {/* Comercial x Engenharia */}
+          <div className="mt-4 rounded-xl border border-ber-gray/15 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ber-gray">Comercial × Engenharia</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {DEPTOS.map(d => (
+                <HField key={d.key} label={d.label} value={deptos[d.key] ?? ''} onSave={v => saveDepto(d.key, v ?? '')} />
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+
+          {/* Checklist por seção */}
+          <div className="mt-6 space-y-5">
+            {secoes.map(([secao, itens]) => (
+              <div key={secao} className="overflow-hidden rounded-xl border border-ber-gray/15 bg-white shadow-sm">
+                <div className="border-b border-ber-gray/15 bg-ber-bg px-4 py-2 text-xs font-bold uppercase tracking-wide text-ber-carbon">
+                  {secao}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-[900px] w-full text-xs">
+                    <thead className="bg-ber-bg/50 text-left">
+                      <tr className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">
+                        <th className="px-3 py-2 w-[32%]">Documento / Ação</th>
+                        <th className="px-2 py-2 w-[16%]">Responsável</th>
+                        <th className="px-2 py-2 w-[10%]">Na Rede</th>
+                        <th className="px-2 py-2 w-[12%]">Data Alvo</th>
+                        <th className="px-2 py-2 w-[14%]">Status</th>
+                        <th className="px-2 py-2 w-[16%]">Observações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map(it => (
+                        <tr key={it.id} className="border-b border-ber-gray/10 align-top">
+                          <td className="px-3 py-2 text-ber-carbon">{it.item}</td>
+                          <td className="px-2 py-2">
+                            <TextCell value={it.responsavel} onSave={v => saveItem(it.id, { responsavel: v })} placeholder="—" />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select value={it.naRede ?? ''} onChange={e => saveItem(it.id, { naRede: e.target.value || null })}
+                              className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[11px] hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none">
+                              {NAREDE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <DateCell value={it.dataAlvo} onSave={v => saveItem(it.id, { dataAlvo: v })} />
+                          </td>
+                          <td className="px-2 py-2">
+                            <select value={it.status ?? ''} onChange={e => saveItem(it.id, { status: e.target.value || null })}
+                              className={`w-full rounded px-1.5 py-1 text-[11px] font-semibold border border-transparent focus:border-ber-teal focus:outline-none ${statusCls(it.status)}`}>
+                              {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2">
+                            <TextCell value={it.observacoes} onSave={v => saveItem(it.id, { observacoes: v })} placeholder="—" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
 
-const inputCls = 'mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none';
+function emptyHeader(): KickoffHeader {
+  return { coordenador: null, engenheiro: null, supervisor: null, inicioObra: null, terminoObra: null, dataKickoff: null, participantesDeptos: {} };
+}
+
+function HField({ label, value, onSave }: { label: string; value: string | null | undefined; onSave: (v: string | null) => void }) {
+  const [draft, setDraft] = useState(value ?? '');
+  useEffect(() => setDraft(value ?? ''), [value]);
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-ber-gray">{label}</span>
+      <input value={draft} onChange={e => setDraft(e.target.value)}
+        onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
+        className="w-full rounded-md border border-ber-gray/30 px-2 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+    </label>
+  );
+}
+
+function HDate({ label, value, onSave }: { label: string; value: string | null | undefined; onSave: (v: string | null) => void }) {
+  const initial = value ? value.slice(0, 10) : '';
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => setDraft(initial), [initial]);
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-ber-gray">{label}</span>
+      <input type="date" value={draft} onChange={e => { setDraft(e.target.value); onSave(e.target.value || null); }}
+        className="w-full rounded-md border border-ber-gray/30 px-2 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+    </label>
+  );
+}
+
+function TextCell({ value, onSave, placeholder }: { value: string | null; onSave: (v: string | null) => void; placeholder?: string }) {
+  const [draft, setDraft] = useState(value ?? '');
+  useEffect(() => setDraft(value ?? ''), [value]);
+  return (
+    <textarea rows={1} value={draft} onChange={e => setDraft(e.target.value)}
+      onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
+      placeholder={placeholder}
+      className="w-full resize-y rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
+  );
+}
+
+function DateCell({ value, onSave }: { value: string | null; onSave: (v: string | null) => void }) {
+  const initial = value ? value.slice(0, 10) : '';
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => setDraft(initial), [initial]);
+  return (
+    <input type="date" value={draft} onChange={e => { setDraft(e.target.value); onSave(e.target.value || null); }}
+      className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[11px] hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
+  );
+}

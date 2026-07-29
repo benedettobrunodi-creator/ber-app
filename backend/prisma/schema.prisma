@@ -201,6 +201,7 @@ model Obra {
   documentos         ObraDocumento[]
   stakeholders       ObraStakeholder[]
   kickoff            ObraKickoff?
+  kickoffItens       ObraKickoffItem[]
   raciItens          ObraRaci[]
   contratacaoPlanos  ObraContratacaoPlano[]
   histograma         ObraHistograma[]
@@ -2296,17 +2297,47 @@ model ObraKickoff {
   id             String    @id @default(uuid()) @db.Uuid
   obraId         String    @unique @map("obra_id") @db.Uuid
   dataRealizada  DateTime? @map("data_realizada") @db.Date
-  participantes  Json      @default("[]") // [{ nome, papel }]
+  participantes  Json      @default("[]") // [{ nome, papel }] — legado
   pautaCoberta   String?   @map("pauta_coberta")
   decisoes       String?
   premissas      String?
   riscosIniciais String?   @map("riscos_iniciais")
+  // Cabeçalho do kickoff (planilha "Kickoff obra")
+  coordenador    String?
+  engenheiro     String?
+  supervisor     String?
+  inicioObra     DateTime? @map("inicio_obra") @db.Date
+  terminoObra    DateTime? @map("termino_obra") @db.Date
+  dataKickoff    DateTime? @map("data_kickoff") @db.Date
+  // Comercial x Engenharia: nome por departamento { comercial, pmo, suprimentos, orcamentos, financeiro, coordenador, engenheiro }
+  participantesDeptos Json @default("{}") @map("participantes_deptos")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
   @@map("obra_kickoffs")
+}
+
+// Itens do checklist de kickoff (seções + itens da planilha), preenchidos por obra.
+model ObraKickoffItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  secao       String    @db.VarChar(255)
+  item        String    @db.Text
+  ordem       Int       @default(0)
+  responsavel String?   @db.VarChar(255)
+  naRede      String?   @map("na_rede") @db.VarChar(10)   // sim | nao | na
+  dataAlvo    DateTime? @map("data_alvo") @db.Date
+  status      String?   @db.VarChar(20)                    // concluido | em_andamento | atrasado | na
+  observacoes String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@map("obra_kickoff_itens")
 }
 
 // ─── ObraRaci (matriz de responsabilidades) ──────────────────────────────
