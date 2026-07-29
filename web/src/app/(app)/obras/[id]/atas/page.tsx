@@ -396,9 +396,9 @@ function TopicosTable({
             <Th className="w-16 text-center">CO</Th>
             <Th className="w-40">Disciplina</Th>
             <Th className="w-56">Tema</Th>
-            <Th className="w-64">Observações</Th>
+            <Th className="w-96">Observações</Th>
             <Th className="w-40">Responsável</Th>
-            <Th className="w-56">Informação / Ação</Th>
+            <Th className="w-72">Informação / Ação</Th>
             <Th className="w-28">Data Info</Th>
             <Th className="w-28">Data Alvo</Th>
             <Th className="w-28">Data Final</Th>
@@ -419,35 +419,35 @@ function TopicosTable({
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
                   </td>
-                  <td className="px-2 py-1"><StatusSelect value={t.status} onChange={v => onUpdateTopico(t.id, 'status', v)} /></td>
-                  <td className="px-2 py-1"><ImpactoSelect value={t.impacto} onChange={v => onUpdateTopico(t.id, 'impacto', v)} /></td>
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-2 py-2 align-top"><StatusSelect value={t.status} onChange={v => onUpdateTopico(t.id, 'status', v)} /></td>
+                  <td className="px-2 py-2 align-top"><ImpactoSelect value={t.impacto} onChange={v => onUpdateTopico(t.id, 'impacto', v)} /></td>
+                  <td className="px-2 py-2 text-center align-top">
                     <input type="checkbox" checked={t.changeOrder}
                       onChange={e => onUpdateTopico(t.id, 'changeOrder', e.target.checked)}
                       className="h-4 w-4 accent-ber-teal" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <TextField value={t.disciplina} onSave={v => onUpdateTopico(t.id, 'disciplina', v)} placeholder="Disciplina…" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <TextField value={t.tema} onSave={v => onUpdateTopico(t.id, 'tema', v)} placeholder="Tema…" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <TextAreaField value={t.observacoes} onSave={v => onUpdateTopico(t.id, 'observacoes', v)} placeholder="Observações livres…" />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <UserSelect value={t.responsavelId} users={users} onChange={v => onUpdateTopico(t.id, 'responsavelId', v)} />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <TextAreaField value={t.acao} onSave={v => onUpdateTopico(t.id, 'acao', v)} placeholder="Informação ou ação…" />
                   </td>
-                  <td className="px-2 py-1"><DateField value={t.dataInfo} onSave={v => onUpdateTopico(t.id, 'dataInfo', v)} /></td>
-                  <td className="px-2 py-1"><DateField value={t.dataAlvo} onSave={v => onUpdateTopico(t.id, 'dataAlvo', v)} /></td>
-                  <td className="px-2 py-1"><DateField value={t.dataFinal} onSave={v => onUpdateTopico(t.id, 'dataFinal', v)} /></td>
+                  <td className="px-2 py-2 align-top"><DateField value={t.dataInfo} onSave={v => onUpdateTopico(t.id, 'dataInfo', v)} /></td>
+                  <td className="px-2 py-2 align-top"><DateField value={t.dataAlvo} onSave={v => onUpdateTopico(t.id, 'dataAlvo', v)} /></td>
+                  <td className="px-2 py-2 align-top"><DateField value={t.dataFinal} onSave={v => onUpdateTopico(t.id, 'dataFinal', v)} /></td>
                   <td className={`px-2 py-1 text-center font-mono ${dd === null ? 'text-ber-gray/50' : dd > 0 ? 'text-red-600' : 'text-green-700'}`}>
                     {dd === null ? '—' : dd}
                   </td>
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-2 py-2 text-center align-top">
                     <button onClick={() => toggle(t.id)}
                       className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
                         t.atualizacoes.length > 0
@@ -458,7 +458,7 @@ function TopicosTable({
                       {t.atualizacoes.length} {t.atualizacoes.length === 1 ? 'entrada' : 'entradas'}
                     </button>
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-2 align-top">
                     <div className="flex items-center justify-center gap-1">
                       {!t.confirmado && (
                         <button onClick={() => onUpdateTopico(t.id, 'confirmado', true)}
@@ -618,8 +618,8 @@ function TextAreaField({ value, onSave, placeholder }: { value: string | null; o
     <textarea value={draft} onChange={e => setDraft(e.target.value)}
       onBlur={() => { const next = draft.trim(); if (next !== (value ?? '')) onSave(next || null); }}
       placeholder={placeholder}
-      rows={2}
-      className="w-full resize-y rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
+      rows={3}
+      className="w-full resize-y rounded border border-transparent bg-transparent px-1.5 py-1 text-xs leading-relaxed text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
   );
 }
 
