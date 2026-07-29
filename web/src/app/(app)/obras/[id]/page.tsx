@@ -558,9 +558,13 @@ export default function ObraDetailPage() {
     if (allUsers.length) return;
     setLoadingUsers(true);
     try {
-      const res = await api.get('/users', { params: { limit: 200 } });
+      // Lista leve liberada a todos os autenticados. Antes usava /users (admin-only),
+      // que dava 403 pra coordenação/gestão e deixava a lista vazia sem avisar.
+      const res = await api.get('/users/responsaveis');
       setAllUsers(res.data.data ?? res.data);
-    } catch {} finally { setLoadingUsers(false); }
+    } catch (e) {
+      alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui carregar a lista de colaboradores. Tente novamente.');
+    } finally { setLoadingUsers(false); }
   }
 
   async function handleAddMember() {
@@ -570,7 +574,9 @@ export default function ObraDetailPage() {
       await api.post(`/obras/${params.id}/members`, { userId: selectedUserId, role: memberRole });
       setShowAddMemberModal(false);
       fetchData();
-    } catch {} finally { setAddingMember(false); }
+    } catch (e) {
+      alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui adicionar o membro. Verifique sua permissão e tente novamente.');
+    } finally { setAddingMember(false); }
   }
 
   async function handleRemoveMember(userId: string) {

@@ -20,7 +20,7 @@ const userSelect = {
 export async function listResponsaveis() {
   return prisma.user.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, role: true },
+    select: { id: true, name: true, email: true, role: true },
     orderBy: { name: 'asc' },
   });
 }
