@@ -118,12 +118,21 @@ const styles = StyleSheet.create({
   tDatas: { width: "16%" },
   tDelta: { width: "8%", textAlign: "right" },
 
-  disciplina: { fontSize: 7, color: BER.teal, fontFamily: "Helvetica-Bold" },
-  temaTxt: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BER.carbon },
-  badge: { fontSize: 7, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 3, borderRadius: 2, alignSelf: "flex-start" },
-  impactoTxt: { fontSize: 6.5, color: BER.gray, marginTop: 1 },
-  obs: { fontSize: 7.5, color: "#5a5a5a", marginTop: 2, marginLeft: "4%", fontStyle: "italic" },
-  co: { fontSize: 6.5, color: BER.olive, fontFamily: "Helvetica-Bold" },
+  rowAlt: { backgroundColor: "#FAFAF8" },
+  disciplina: { fontSize: 7, color: BER.teal, fontFamily: "Helvetica-Bold", marginBottom: 1 },
+  temaTxt: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: BER.carbon },
+  badge: { fontSize: 7, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 4, borderRadius: 2, alignSelf: "flex-start" },
+  // Etiquetas (chips) — mantidas, mas compactas e nítidas
+  chipRow: { flexDirection: "row", marginTop: 3 },
+  chip: { fontSize: 6, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 4, borderRadius: 2, marginRight: 3, letterSpacing: 0.3 },
+  chipCO: { color: "#6E7A0E", backgroundColor: "#F1F2D4" },
+  chipImpacto: { color: "#8A6D1E", backgroundColor: "#F6EFDD" },
+  // Observação — recuada, sem itálico, com respiro e um filete à esquerda
+  obs: { fontSize: 8, color: "#555555", marginTop: 4, marginBottom: 3, marginLeft: 16, paddingLeft: 6, borderLeft: `1.5pt solid ${BER.offwhite}`, lineHeight: 1.35 },
+  respNome: { fontSize: 8, color: BER.carbon },
+  respEmpresa: { fontSize: 7, color: BER.gray },
+  dateAlvo: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BER.carbon },
+  dateSub: { fontSize: 7, color: BER.gray },
   emissao: { position: "absolute", bottom: 18, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: BER.gray, borderTop: `0.5pt solid ${BER.border}`, paddingTop: 5 },
   empty: { fontSize: 9, color: BER.gray, fontStyle: "italic", paddingVertical: 8 },
 });
@@ -206,32 +215,42 @@ export function AtaPDF({ obra, stakeholders, topicos, geradoEm }: AtaPDFProps) {
               <Text style={[styles.th, styles.tStatus]}>STATUS</Text>
               <Text style={[styles.th, styles.tResp]}>RESPONSÁVEL</Text>
               <Text style={[styles.th, styles.tAcao]}>TIPO</Text>
-              <Text style={[styles.th, styles.tDatas]}>INFO / ALVO / FINAL</Text>
-              <Text style={[styles.th, styles.tDelta]}>Δ DIAS</Text>
+              <Text style={[styles.th, styles.tDatas]}>PRAZOS</Text>
+              <Text style={[styles.th, styles.tDelta]}>DESVIO (d)</Text>
             </View>
             {ordered.map((t, i) => {
               const sc = statusOf(t.status);
               const dd = daysDiff(t.dataAlvo, t.dataFinal);
+              const temImpacto = !!t.impacto && t.impacto !== "sem_impacto";
               return (
-                <View key={i} wrap={false}>
+                <View key={i} style={i % 2 === 1 ? styles.rowAlt : undefined} wrap={false}>
                   <View style={styles.row}>
                     <Text style={[styles.cell, styles.tOrdem]}>{i + 1}</Text>
                     <View style={styles.tTema}>
                       {t.disciplina ? <Text style={styles.disciplina}>{t.disciplina}</Text> : null}
                       <Text style={styles.temaTxt}>{t.tema || "—"}</Text>
-                      {t.changeOrder ? <Text style={styles.co}>CHANGE ORDER</Text> : null}
-                      {t.impacto && t.impacto !== "sem_impacto" ? <Text style={styles.impactoTxt}>Impacto: {IMPACTO[t.impacto] ?? t.impacto}</Text> : null}
+                      {(t.changeOrder || temImpacto) ? (
+                        <View style={styles.chipRow}>
+                          {t.changeOrder ? <Text style={[styles.chip, styles.chipCO]}>CHANGE ORDER</Text> : null}
+                          {temImpacto ? <Text style={[styles.chip, styles.chipImpacto]}>{IMPACTO[t.impacto] ?? t.impacto}</Text> : null}
+                        </View>
+                      ) : null}
                     </View>
                     <View style={styles.tStatus}>
                       <Text style={[styles.badge, { color: sc.cor, backgroundColor: sc.bg }]}>{sc.label}</Text>
                     </View>
-                    <Text style={[styles.cell, styles.tResp]}>
-                      {t.responsavelStakeholder ? t.responsavelStakeholder.nome : "—"}
-                      {t.responsavelStakeholder?.empresa ? `\n${t.responsavelStakeholder.empresa}` : ""}
-                    </Text>
+                    <View style={styles.tResp}>
+                      <Text style={styles.respNome}>{t.responsavelStakeholder ? t.responsavelStakeholder.nome : "—"}</Text>
+                      {t.responsavelStakeholder?.empresa ? <Text style={styles.respEmpresa}>{t.responsavelStakeholder.empresa}</Text> : null}
+                    </View>
                     <Text style={[styles.cell, styles.tAcao]}>{t.acao ? (ACAO[t.acao] ?? t.acao) : "—"}</Text>
-                    <Text style={[styles.cell, styles.tDatas]}>{fmtDate(t.dataInfo)} / {fmtDate(t.dataAlvo)} / {fmtDate(t.dataFinal)}</Text>
-                    <Text style={[styles.cell, styles.tDelta, { color: dd === null ? "#a3a3a3" : dd > 0 ? "#b91c1c" : "#15803d" }]}>{dd === null ? "—" : dd}</Text>
+                    <View style={styles.tDatas}>
+                      {t.dataAlvo ? <Text style={styles.dateAlvo}>Alvo {fmtDate(t.dataAlvo)}</Text> : null}
+                      {t.dataInfo ? <Text style={styles.dateSub}>Info {fmtDate(t.dataInfo)}</Text> : null}
+                      {t.dataFinal ? <Text style={styles.dateSub}>Final {fmtDate(t.dataFinal)}</Text> : null}
+                      {!t.dataAlvo && !t.dataInfo && !t.dataFinal ? <Text style={styles.dateSub}>—</Text> : null}
+                    </View>
+                    <Text style={[styles.cell, styles.tDelta, { color: dd === null ? BER.gray : dd > 0 ? BER.red : BER.green }]}>{dd === null ? "—" : (dd > 0 ? `+${dd}` : dd)}</Text>
                   </View>
                   {t.observacoes ? <Text style={styles.obs}>{t.observacoes}</Text> : null}
                 </View>
