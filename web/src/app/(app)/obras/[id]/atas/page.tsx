@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Users, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Users, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronRight, Check, FileDown } from 'lucide-react';
 import api from '@/lib/api';
 import { useBackToObra } from '@/hooks/useBackToObra';
 
@@ -140,6 +140,21 @@ export default function AtaCorridaPage() {
   const [ata, setAta] = useState<AtaCorrida | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  async function gerarPdf() {
+    setGeneratingPdf(true);
+    try {
+      const res = await api.get(`/obras/${obraId}/atas/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert(errMsg(err, 'Não consegui gerar o PDF da ata.'));
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -235,10 +250,17 @@ export default function AtaCorridaPage() {
         <span className="font-medium text-ber-carbon">Atas de Reunião</span>
       </div>
 
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
         <FileSpreadsheet size={20} className="text-ber-teal" />
         <h1 className="text-xl font-black text-ber-carbon">Ata Corrida</h1>
         <span className="text-xs text-ber-gray">— Um documento vivo, ordenado por prioridade</span>
+        <button
+          onClick={gerarPdf}
+          disabled={generatingPdf || !ata}
+          className="ml-auto flex items-center gap-1.5 rounded-lg border border-ber-carbon px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-carbon hover:text-white disabled:opacity-50"
+        >
+          <FileDown size={14} /> {generatingPdf ? 'Gerando…' : 'Gerar PDF'}
+        </button>
       </div>
 
       {loading ? (
