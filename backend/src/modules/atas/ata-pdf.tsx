@@ -160,7 +160,7 @@ export function AtaPDF({ obra, stakeholders, topicos, geradoEm }: AtaPDFProps) {
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>BÈR Engenharia</Text>
-            <Text style={styles.brandSub}>CONSTRUÇÃO E INTERIORES CORPORATIVOS</Text>
+            <Text style={styles.brandSub}>CONSTRUÇÃO E INTERIORES CORPORATIVOS E RESIDENCIAIS</Text>
           </View>
           <View>
             <Text style={styles.docTitle}>Ata de Reunião</Text>
