@@ -11,13 +11,15 @@ export const createTopicoSchema = z.object({
   tema:          z.string().optional().nullable(),
   observacoes:   z.string().optional().nullable(),
   responsavelId: z.string().uuid().optional().nullable(),
+  acao:          z.string().optional().nullable(),
   dataInfo:      z.string().optional().nullable(),
   dataAlvo:      z.string().optional().nullable(),
   dataFinal:     z.string().optional().nullable(),
 });
 
 export const updateTopicoSchema = createTopicoSchema.extend({
-  ordem: z.number().int().optional(),
+  ordem:      z.number().int().optional(),
+  confirmado: z.boolean().optional(),
 });
 
 export const reorderTopicosSchema = z.object({

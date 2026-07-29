@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Users, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Users, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronRight, Check } from 'lucide-react';
 import api from '@/lib/api';
 import { useBackToObra } from '@/hooks/useBackToObra';
 
@@ -52,6 +52,8 @@ interface Topico {
   tema: string | null;
   observacoes: string | null;
   responsavelId: string | null;
+  acao: string | null;
+  confirmado: boolean;
   dataInfo: string | null;
   dataAlvo: string | null;
   dataFinal: string | null;
@@ -106,11 +108,18 @@ const priorityTs = (t: Topico) => {
 };
 
 const sortTopicos = (topicos: Topico[]): Topico[] => {
-  return [...topicos].sort((a, b) => {
+  // Itens confirmados entram na ordenação por prioridade (status + data).
+  // Itens ainda NÃO confirmados ficam fixos no fim, em ordem de criação, pra não
+  // "pular de lugar" enquanto o usuário preenche (só entram na ordem ao confirmar).
+  const confirmados = topicos.filter(t => t.confirmado);
+  const pendentes = topicos.filter(t => !t.confirmado);
+  confirmados.sort((a, b) => {
     const rankDiff = statusOf(a.status).rank - statusOf(b.status).rank;
     if (rankDiff !== 0) return rankDiff;
     return priorityTs(a) - priorityTs(b);
   });
+  pendentes.sort((a, b) => a.ordem - b.ordem);
+  return [...confirmados, ...pendentes];
 };
 
 // ── Página ────────────────────────────────────────────────────────────────
@@ -131,7 +140,9 @@ export default function AtaCorridaPage() {
     try {
       const [ataRes, usersRes] = await Promise.all([
         api.get<{ data: AtaCorrida }>(`/obras/${obraId}/atas`),
-        api.get<{ data: UserOption[] }>('/users', { params: { limit: 200 } }).then(
+        // Lista leve pra dropdown de responsável — liberada a todos os usuários
+        // autenticados (o endpoint /users é admin-only e dava 403 pra coordenação).
+        api.get<{ data: UserOption[] }>('/users/responsaveis').then(
           r => ({ ok: true as const, list: r.data.data }),
           e => ({ ok: false as const, error: errMsg(e, 'Não consegui carregar a lista de responsáveis') }),
         ),
@@ -387,12 +398,13 @@ function TopicosTable({
             <Th className="w-56">Tema</Th>
             <Th className="w-64">Observações</Th>
             <Th className="w-40">Responsável</Th>
+            <Th className="w-56">Informação / Ação</Th>
             <Th className="w-28">Data Info</Th>
             <Th className="w-28">Data Alvo</Th>
             <Th className="w-28">Data Final</Th>
             <Th className="w-16 text-center">Δ dias</Th>
             <Th className="w-24 text-center">Histórico</Th>
-            <Th className="w-10" />
+            <Th className="w-20 text-center" />
           </tr>
         </thead>
         <tbody>
@@ -401,7 +413,7 @@ function TopicosTable({
             const isOpen = expanded.has(t.id);
             return (
               <Fragment key={t.id}>
-                <tr className="border-b border-ber-gray/10 hover:bg-ber-bg/30">
+                <tr className={`border-b border-ber-gray/10 hover:bg-ber-bg/30 ${!t.confirmado ? 'bg-amber-50/70' : ''}`}>
                   <td className="px-1 py-1 text-center">
                     <button onClick={() => toggle(t.id)} className="rounded p-1 text-ber-gray hover:bg-ber-bg" title="Ver histórico">
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -426,6 +438,9 @@ function TopicosTable({
                   <td className="px-2 py-1">
                     <UserSelect value={t.responsavelId} users={users} onChange={v => onUpdateTopico(t.id, 'responsavelId', v)} />
                   </td>
+                  <td className="px-2 py-1">
+                    <TextAreaField value={t.acao} onSave={v => onUpdateTopico(t.id, 'acao', v)} placeholder="Informação ou ação…" />
+                  </td>
                   <td className="px-2 py-1"><DateField value={t.dataInfo} onSave={v => onUpdateTopico(t.id, 'dataInfo', v)} /></td>
                   <td className="px-2 py-1"><DateField value={t.dataAlvo} onSave={v => onUpdateTopico(t.id, 'dataAlvo', v)} /></td>
                   <td className="px-2 py-1"><DateField value={t.dataFinal} onSave={v => onUpdateTopico(t.id, 'dataFinal', v)} /></td>
@@ -443,17 +458,26 @@ function TopicosTable({
                       {t.atualizacoes.length} {t.atualizacoes.length === 1 ? 'entrada' : 'entradas'}
                     </button>
                   </td>
-                  <td className="px-2 py-1 text-center">
-                    <button onClick={() => onRemoveTopico(t.id)}
-                      className="rounded p-1 text-ber-gray/50 hover:bg-red-50 hover:text-red-600"
-                      title="Excluir tópico">
-                      <Trash2 size={12} />
-                    </button>
+                  <td className="px-2 py-1">
+                    <div className="flex items-center justify-center gap-1">
+                      {!t.confirmado && (
+                        <button onClick={() => onUpdateTopico(t.id, 'confirmado', true)}
+                          className="flex items-center gap-1 rounded bg-green-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-green-700"
+                          title="Confirmar item — entra na ordenação por prioridade">
+                          <Check size={12} /> Confirmar
+                        </button>
+                      )}
+                      <button onClick={() => onRemoveTopico(t.id)}
+                        className="rounded p-1 text-ber-gray/50 hover:bg-red-50 hover:text-red-600"
+                        title="Excluir tópico">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {isOpen && (
                   <tr className="bg-ber-bg/30">
-                    <td colSpan={14} className="px-4 py-3">
+                    <td colSpan={15} className="px-4 py-3">
                       <HistoricoBlock
                         atualizacoes={t.atualizacoes}
                         onAdd={(data, texto) => onAddAtualizacao(t.id, data, texto)}

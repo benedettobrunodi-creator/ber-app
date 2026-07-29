@@ -2362,6 +2362,11 @@ model ObraAtaTopico {
   tema          String?
   observacoes   String?
   responsavelId String?   @map("responsavel_id") @db.Uuid
+  acao          String?
+  // Texto livre da ação/informação do item (ex: "mandar email para fornecedor")
+  confirmado    Boolean   @default(true)
+  // Item novo nasce como false (fica fixo no fim até o usuário confirmar);
+  // linhas antigas assumem true. Controla se entra na ordenação por prioridade.
   dataInfo      DateTime? @map("data_info") @db.Date
   dataAlvo      DateTime? @map("data_alvo") @db.Date
   dataFinal     DateTime? @map("data_final") @db.Date
