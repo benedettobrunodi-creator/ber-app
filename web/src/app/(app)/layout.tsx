@@ -77,9 +77,9 @@ const NAV_GROUPS: NavGroup[] = [
 
 const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
   { label: 'Obras', href: '/obras' },
-  { label: 'Checklists', href: '/checklists' },
   { label: 'Ponto', href: '/ponto' },
 ];
+// Checklists saiu do menu horizontal do topo (segue acessível pelo menu lateral).
 
 /* ─── Route → permission map for access guard ─── */
 
