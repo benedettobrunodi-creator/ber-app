@@ -42,10 +42,24 @@ export interface AtaPDFProps {
 const fmtDate = (d: Date | string | null) =>
   d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
 
+// Paleta da identidade BÈR (globals.css)
+const BER = {
+  carbon: "#2D2D2D",
+  teal: "#5A7A7A",
+  olive: "#B5B820",
+  gray: "#868686",
+  offwhite: "#D8DDD8",
+  surface: "#F7F7F5",
+  border: "#E8E8E4",
+  red: "#E05555",
+  green: "#3D9E5F",
+  amber: "#E6A23C",
+};
+
 const STATUS: Record<string, { label: string; cor: string; bg: string; rank: number }> = {
-  atrasado:     { label: "Atrasado",     cor: "#b91c1c", bg: "#fee2e2", rank: 0 },
-  em_andamento: { label: "Em andamento", cor: "#1d4ed8", bg: "#dbeafe", rank: 1 },
-  concluido:    { label: "Concluído",    cor: "#15803d", bg: "#dcfce7", rank: 2 },
+  atrasado:     { label: "Atrasado",     cor: "#B23B3B", bg: "#FBE9E9", rank: 0 },
+  em_andamento: { label: "Em andamento", cor: BER.teal, bg: "#EAF0F0", rank: 1 },
+  concluido:    { label: "Concluído",    cor: BER.green, bg: "#E7F3EC", rank: 2 },
 };
 const IMPACTO: Record<string, string> = {
   sem_impacto: "Sem impacto", custo: "Custo", cronograma: "Cronograma", projeto: "Projeto",
@@ -71,23 +85,25 @@ function sortTopicos(ts: Topico[]): Topico[] {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 32, paddingBottom: 40, paddingHorizontal: 32, fontFamily: "Helvetica", fontSize: 9, color: "#171717" },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottom: "1pt solid #e5e5e5", paddingBottom: 8, marginBottom: 12 },
-  brand: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#111" },
-  brandSub: { fontSize: 7, color: "#737373", marginTop: 1, letterSpacing: 0.5 },
-  docTitle: { fontSize: 13, fontFamily: "Helvetica-Bold", textAlign: "right" },
-  docMeta: { fontSize: 8, color: "#737373", textAlign: "right", marginTop: 2 },
+  page: { paddingTop: 26, paddingBottom: 40, paddingHorizontal: 32, fontFamily: "Helvetica", fontSize: 9, color: BER.carbon },
+  topBar: { position: "absolute", top: 0, left: 0, right: 0, height: 5, backgroundColor: BER.teal },
+  topBarOlive: { position: "absolute", top: 5, left: 0, right: 0, height: 2, backgroundColor: BER.olive },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottom: `1pt solid ${BER.border}`, paddingBottom: 10, marginBottom: 12 },
+  brand: { fontSize: 17, fontFamily: "Helvetica-Bold", color: BER.carbon, letterSpacing: 0.3 },
+  brandSub: { fontSize: 6.5, color: BER.teal, marginTop: 2, letterSpacing: 1 },
+  docTitle: { fontSize: 13, fontFamily: "Helvetica-Bold", color: BER.carbon, textAlign: "right" },
+  docMeta: { fontSize: 8, color: BER.gray, textAlign: "right", marginTop: 2 },
 
-  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#737373", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 14, marginBottom: 5 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BER.teal, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 14, marginBottom: 5, borderLeft: `2pt solid ${BER.olive}`, paddingLeft: 5 },
 
   infoGrid: { flexDirection: "row", flexWrap: "wrap" },
   infoCell: { width: "50%", flexDirection: "row", paddingVertical: 2 },
-  infoLabel: { width: 78, fontSize: 8, color: "#737373" },
+  infoLabel: { width: 78, fontSize: 8, color: BER.gray },
   infoValue: { flex: 1, fontSize: 9, paddingRight: 8 },
 
-  tableHeader: { flexDirection: "row", backgroundColor: "#f5f5f5", borderBottom: "1pt solid #d4d4d4", paddingVertical: 4, paddingHorizontal: 3 },
-  th: { fontFamily: "Helvetica-Bold", fontSize: 7, color: "#525252" },
-  row: { flexDirection: "row", borderBottom: "0.5pt solid #f0f0f0", paddingVertical: 4, paddingHorizontal: 3 },
+  tableHeader: { flexDirection: "row", backgroundColor: BER.surface, borderTop: `1.5pt solid ${BER.teal}`, borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 4, paddingHorizontal: 3 },
+  th: { fontFamily: "Helvetica-Bold", fontSize: 7, color: BER.carbon },
+  row: { flexDirection: "row", borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 4, paddingHorizontal: 3 },
   cell: { fontSize: 8, paddingRight: 4 },
 
   // stakeholders cols
@@ -102,14 +118,14 @@ const styles = StyleSheet.create({
   tDatas: { width: "16%" },
   tDelta: { width: "8%", textAlign: "right" },
 
-  disciplina: { fontSize: 7, color: "#737373" },
-  temaTxt: { fontSize: 8, fontFamily: "Helvetica-Bold" },
+  disciplina: { fontSize: 7, color: BER.teal, fontFamily: "Helvetica-Bold" },
+  temaTxt: { fontSize: 8, fontFamily: "Helvetica-Bold", color: BER.carbon },
   badge: { fontSize: 7, fontFamily: "Helvetica-Bold", paddingVertical: 1, paddingHorizontal: 3, borderRadius: 2, alignSelf: "flex-start" },
-  impactoTxt: { fontSize: 6.5, color: "#737373", marginTop: 1 },
-  obs: { fontSize: 7.5, color: "#525252", marginTop: 2, marginLeft: "4%", fontStyle: "italic" },
-  co: { fontSize: 6.5, color: "#b45309", fontFamily: "Helvetica-Bold" },
-  emissao: { position: "absolute", bottom: 20, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: "#a3a3a3", borderTop: "0.5pt solid #e5e5e5", paddingTop: 5 },
-  empty: { fontSize: 9, color: "#737373", fontStyle: "italic", paddingVertical: 8 },
+  impactoTxt: { fontSize: 6.5, color: BER.gray, marginTop: 1 },
+  obs: { fontSize: 7.5, color: "#5a5a5a", marginTop: 2, marginLeft: "4%", fontStyle: "italic" },
+  co: { fontSize: 6.5, color: BER.olive, fontFamily: "Helvetica-Bold" },
+  emissao: { position: "absolute", bottom: 18, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: BER.gray, borderTop: `0.5pt solid ${BER.border}`, paddingTop: 5 },
+  empty: { fontSize: 9, color: BER.gray, fontStyle: "italic", paddingVertical: 8 },
 });
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -126,10 +142,14 @@ export function AtaPDF({ obra, stakeholders, topicos, geradoEm }: AtaPDFProps) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* Faixas da identidade BÈR no topo (repetem em toda página) */}
+        <View style={styles.topBar} fixed />
+        <View style={styles.topBarOlive} fixed />
+
         {/* Cabeçalho */}
-        <View style={styles.header} fixed>
+        <View style={styles.header}>
           <View>
-            <Text style={styles.brand}>BER Engenharia</Text>
+            <Text style={styles.brand}>BÈR Engenharia</Text>
             <Text style={styles.brandSub}>CONSTRUÇÃO E INTERIORES CORPORATIVOS</Text>
           </View>
           <View>
