@@ -84,6 +84,12 @@ const IMPACTO_OPTIONS: { value: Impacto; label: string; cls: string }[] = [
   { value: 'projeto',     label: 'Projeto',     cls: 'bg-indigo-100 text-indigo-700' },
 ];
 
+// Classificação do item: informação registrada ou ação a executar.
+const ACAO_OPTIONS: { value: string; label: string }[] = [
+  { value: 'informacao', label: 'Informação' },
+  { value: 'acao',       label: 'Ação' },
+];
+
 const statusOf  = (s: Status)  => STATUS_OPTIONS.find(o => o.value === s) ?? STATUS_OPTIONS[1];
 const impactoOf = (i: Impacto) => IMPACTO_OPTIONS.find(o => o.value === i) ?? IMPACTO_OPTIONS[0];
 
@@ -385,7 +391,7 @@ function TopicosTable({
             <Th className="w-56">Tema</Th>
             <Th className="w-96">Observações</Th>
             <Th className="w-40">Responsável</Th>
-            <Th className="w-72">Informação / Ação</Th>
+            <Th className="w-36">Informação / Ação</Th>
             <Th className="w-28">Data Info</Th>
             <Th className="w-28">Data Alvo</Th>
             <Th className="w-28">Data Final</Th>
@@ -426,7 +432,7 @@ function TopicosTable({
                     <StakeholderSelect value={t.responsavelStakeholderId} stakeholders={stakeholders} onChange={v => onUpdateTopico(t.id, 'responsavelStakeholderId', v)} />
                   </td>
                   <td className="px-2 py-2 align-top">
-                    <TextAreaField value={t.acao} onSave={v => onUpdateTopico(t.id, 'acao', v)} placeholder="Informação ou ação…" />
+                    <AcaoSelect value={t.acao} onChange={v => onUpdateTopico(t.id, 'acao', v)} />
                   </td>
                   <td className="px-2 py-2 align-top"><DateField value={t.dataInfo} onSave={v => onUpdateTopico(t.id, 'dataInfo', v)} /></td>
                   <td className="px-2 py-2 align-top"><DateField value={t.dataAlvo} onSave={v => onUpdateTopico(t.id, 'dataAlvo', v)} /></td>
@@ -571,6 +577,16 @@ function ImpactoSelect({ value, onChange }: { value: Impacto; onChange: (v: Impa
     <select value={value} onChange={e => onChange(e.target.value as Impacto)}
       className={`w-full rounded px-1.5 py-1 text-[11px] font-semibold ${opt.cls} border border-transparent focus:border-ber-teal focus:outline-none`}>
       {IMPACTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function AcaoSelect({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <select value={value ?? ''} onChange={e => onChange(e.target.value || null)}
+      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon focus:border-ber-teal focus:outline-none">
+      <option value="">—</option>
+      {ACAO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
 }
