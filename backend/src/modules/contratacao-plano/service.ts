@@ -1,8 +1,16 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import type { CreatePlanoInput, UpdatePlanoInput } from './types';
+import { CONTRATACAO_TEMPLATE } from './template';
 
 const parseDate = (d: string | null | undefined) => (d ? new Date(d) : null);
+
+/** Semeia os pacotes do template padrão (coluna A) numa obra sem planos. */
+async function seedTemplate(obraId: string) {
+  await prisma.obraContratacaoPlano.createMany({
+    data: CONTRATACAO_TEMPLATE.map((pacote, i) => ({ obraId, pacote, ordem: i })),
+  });
+}
 
 /** Calcula status real considerando atraso vs status armazenado */
 function effectiveStatus(p: { status: string; dataLimite: Date | null; contratacaoId: string | null }) {
@@ -13,10 +21,13 @@ function effectiveStatus(p: { status: string; dataLimite: Date | null; contratac
 }
 
 export async function listByObra(obraId: string) {
+  const total = await prisma.obraContratacaoPlano.count({ where: { obraId } });
+  if (total === 0) await seedTemplate(obraId);
+
   const rows = await prisma.obraContratacaoPlano.findMany({
     where: { obraId },
     include: { contratacao: { select: { id: true, fornecedor: true, valor: true, status: true } } },
-    orderBy: [{ dataIdeal: 'asc' }, { dataLimite: 'asc' }, { pacote: 'asc' }],
+    orderBy: [{ dataIdeal: 'asc' }, { dataLimite: 'asc' }, { ordem: 'asc' }, { pacote: 'asc' }],
   });
   return rows.map(r => ({ ...r, statusEfetivo: effectiveStatus(r) }));
 }
@@ -24,10 +35,12 @@ export async function listByObra(obraId: string) {
 export async function create(obraId: string, input: CreatePlanoInput) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
   if (!obra) throw AppError.notFound('Obra');
+  const max = await prisma.obraContratacaoPlano.aggregate({ where: { obraId }, _max: { ordem: true } });
   return prisma.obraContratacaoPlano.create({
     data: {
       obraId,
       pacote:     input.pacote,
+      ordem:      (max._max.ordem ?? -1) + 1,
       dataIdeal:  parseDate(input.dataIdeal),
       dataLimite: parseDate(input.dataLimite),
       observacoes: input.observacoes ?? null,

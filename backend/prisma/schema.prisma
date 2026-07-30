@@ -2209,6 +2209,7 @@ model ObraContratacaoPlano {
   id            String    @id @default(uuid()) @db.Uuid
   obraId        String    @map("obra_id") @db.Uuid
   pacote        String    @db.VarChar(150) // disciplina ou etapa
+  ordem         Int       @default(0)
   dataIdeal     DateTime? @map("data_ideal") @db.Date
   dataLimite    DateTime? @map("data_limite") @db.Date
   contratacaoId String?   @unique @map("contratacao_id") @db.Uuid
