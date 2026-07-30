@@ -142,6 +142,12 @@ export default function KickoffPage() {
 
   const h = data?.header;
   const deptos = h?.participantesDeptos ?? {};
+  // Pessoas cadastradas no cabeçalho do kickoff — viram sugestões da coluna Responsável.
+  const pessoas = Array.from(new Set(
+    [h?.coordenador, h?.engenheiro, h?.supervisor, h?.mestreEncarregado, ...Object.values(deptos)]
+      .map(x => (x ?? '').trim())
+      .filter(Boolean),
+  ));
 
   return (
     <div className="p-4 md:p-6">
@@ -216,7 +222,7 @@ export default function KickoffPage() {
                         <tr key={it.id} className="border-b border-ber-gray/10 align-top">
                           <td className="px-3 py-2 text-ber-carbon">{it.item}</td>
                           <td className="px-2 py-2">
-                            <TextCell value={it.responsavel} onSave={v => saveItem(it.id, { responsavel: v })} placeholder="—" />
+                            <PessoaCell value={it.responsavel} onSave={v => saveItem(it.id, { responsavel: v })} options={pessoas} />
                           </td>
                           <td className="px-2 py-2">
                             <select value={it.naRede ?? ''} onChange={e => saveItem(it.id, { naRede: e.target.value || null })}
@@ -296,6 +302,28 @@ function TextCell({ value, onSave, placeholder }: { value: string | null; onSave
       onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
       placeholder={placeholder}
       className="w-full resize-y rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
+  );
+}
+
+// Célula de Responsável — sugere as pessoas do cabeçalho do kickoff (datalist),
+// mas também aceita digitar um nome à mão.
+function PessoaCell({ value, onSave, options }: { value: string | null; onSave: (v: string | null) => void; options: string[] }) {
+  const [draft, setDraft] = useState(value ?? '');
+  useEffect(() => setDraft(value ?? ''), [value]);
+  const listId = useId();
+  return (
+    <>
+      <input value={draft} onChange={e => setDraft(e.target.value)}
+        list={options.length ? listId : undefined}
+        placeholder={options.length ? 'Selecione ou digite…' : '—'}
+        onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
+        className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
+      {options.length > 0 && (
+        <datalist id={listId}>
+          {options.map(o => <option key={o} value={o} />)}
+        </datalist>
+      )}
+    </>
   );
 }
 

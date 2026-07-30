@@ -42,11 +42,14 @@ export default function StakeholdersPage() {
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }
 
-  // group by empresa for visualization
+  // Agrupa por empresa (normalizando maiúsculas/espaços pra não duplicar o card
+  // quando a mesma empresa é digitada com grafias diferentes, ex: "BÈR Engenharia"
+  // vs "BÈR ENGENHARIA").
   const groups = items.reduce((acc, s) => {
-    (acc[s.empresa] ||= []).push(s);
+    const key = (s.empresa ?? '').trim().toLowerCase();
+    (acc[key] ??= { label: (s.empresa ?? '').trim() || 'Sem empresa', list: [] }).list.push(s);
     return acc;
-  }, {} as Record<string, Stakeholder[]>);
+  }, {} as Record<string, { label: string; list: Stakeholder[] }>);
 
   return (
     <div className="p-4 md:p-6">
@@ -78,11 +81,11 @@ export default function StakeholdersPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(groups).map(([empresa, list]) => (
-            <div key={empresa} className="rounded-xl border border-ber-gray/15 bg-white shadow-sm overflow-hidden">
-              <div className="bg-ber-carbon px-4 py-2 text-xs font-bold text-white uppercase tracking-wide">{empresa}</div>
+          {Object.values(groups).map((g) => (
+            <div key={g.label} className="rounded-xl border border-ber-gray/15 bg-white shadow-sm overflow-hidden">
+              <div className="bg-ber-carbon px-4 py-2 text-xs font-bold text-white uppercase tracking-wide">{g.label}</div>
               <ul className="divide-y divide-ber-gray/10">
-                {list.map(s => (
+                {g.list.map(s => (
                   <li key={s.id} className="px-4 py-3 flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ber-carbon">{s.nome}</p>
