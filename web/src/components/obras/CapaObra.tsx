@@ -508,29 +508,16 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               )}
             </p>
 
-            {/* Régua Início → Hoje → Prazo.
-                Faixa cinza = tempo consumido. Faixa colorida = avanço real do relatório. */}
+            {/* Régua Início → Hoje → Prazo — só tempo consumido (sem comparar com
+                execução, que era um comparativo linear enganoso). */}
             {tempoPct != null && (
               <div className="mt-3">
                 <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-ber-offwhite">
-                  <div className="h-full rounded-full bg-ber-carbon/20" style={{ width: `${tempoPct}%` }} />
-                  {avancoPct != null && (
-                    <div
-                      className="absolute top-0 h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, avancoPct))}%`,
-                        background: relStatus?.bar ?? 'linear-gradient(90deg,#B5B820,#8a8c10)',
-                        opacity: 0.9,
-                      }}
-                    />
-                  )}
+                  <div className="h-full rounded-full bg-ber-carbon/25" style={{ width: `${tempoPct}%` }} />
                 </div>
                 <div className="mt-1 flex justify-between text-[9px] text-ber-gray">
                   <span>Início</span>
-                  <span className="font-semibold text-ber-carbon">
-                    Hoje · {tempoPct}% do prazo
-                    {avancoPct != null && ` · ${avancoPct}% executado`}
-                  </span>
+                  <span className="font-semibold text-ber-carbon">Hoje · {tempoPct}% do prazo</span>
                   <span>Prazo</span>
                 </div>
               </div>
