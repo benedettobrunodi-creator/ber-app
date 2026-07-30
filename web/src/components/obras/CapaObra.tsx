@@ -296,7 +296,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const avancoPct = ultimoRelatorio ? Number(ultimoRelatorio.avancoPct) : null;
   const avancoDelta = ultimoRelatorio?.avancoDelta != null ? Number(ultimoRelatorio.avancoDelta) : null;
   const relStatus = ultimoRelatorio ? (RELATORIO_STATUS[ultimoRelatorio.status] ?? null) : null;
-  const desvio = avancoPct != null && planejadoHoje != null ? avancoPct - planejadoHoje : null;
 
   // ─── Atividades do período (do último relatório) ────────────────────────
   const atividades = ultimoRelatorio?.atividadesSemana ?? [];
@@ -445,7 +444,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               </div>
 
               <div className="min-w-0">
-                {/* Barra + marcador do planejado */}
+                {/* Barra de avanço (do relatório semanal) */}
                 <div className="relative h-3 w-full overflow-hidden rounded-full bg-ber-offwhite">
                   <div
                     className="h-full rounded-full transition-all"
@@ -454,13 +453,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                       background: relStatus?.bar ?? 'linear-gradient(90deg,#B5B820,#8a8c10)',
                     }}
                   />
-                  {planejadoHoje != null && (
-                    <div
-                      className="absolute top-0 h-full w-0.5 bg-ber-carbon/70"
-                      style={{ left: `${Math.min(100, Math.max(0, planejadoHoje))}%` }}
-                      title={`Planejado para hoje: ${planejadoHoje}%`}
-                    />
-                  )}
                 </div>
 
                 {/* Legenda */}
@@ -473,16 +465,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${relStatus.badge}`}>
                       {relStatus.label}
                     </span>
-                  )}
-                  {desvio != null ? (
-                    <span>
-                      Cronograma:{' '}
-                      <span className={`font-bold ${desvio >= 0 ? 'text-ber-olive' : 'text-red-600'}`}>
-                        {desvio >= 0 ? '▲ Adiantado' : '▼ Atrasado'} ({planejadoHoje}% planejado)
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="italic">Sem cronograma parseado — sem comparativo de planejado</span>
                   )}
                   {ultimoRelatorio!.responsavelNome && (
                     <span>por {ultimoRelatorio!.responsavelNome}</span>
