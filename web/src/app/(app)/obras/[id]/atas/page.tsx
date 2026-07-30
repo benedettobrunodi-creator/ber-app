@@ -138,7 +138,6 @@ export default function AtaCorridaPage() {
   const backHref = useBackToObra();
 
   const [ata, setAta] = useState<AtaCorrida | null>(null);
-  const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -171,13 +170,6 @@ export default function AtaCorridaPage() {
   }, [obraId]);
 
   useEffect(() => { load(); }, [load]);
-
-  // Responsável do tópico = usuários cadastrados no app BÈR (sem misturar stakeholder).
-  useEffect(() => {
-    api.get<{ data: UserOption[] }>('/users/responsaveis')
-      .then(r => setUsers(r.data.data ?? []))
-      .catch(() => setUsers([]));
-  }, []);
 
   const sortedTopicos = useMemo(() => ata ? sortTopicos(ata.topicos) : [], [ata]);
 
@@ -281,10 +273,10 @@ export default function AtaCorridaPage() {
           <div className="mt-6 flex items-center justify-between flex-wrap gap-3">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Tópicos</h2>
-              {users.length === 0 && (
+              {ata.stakeholders.length === 0 && (
                 <p className="mt-1 text-xs text-amber-700">
                   <AlertTriangle size={12} className="inline mr-1" />
-                  Nenhum usuário cadastrado no app para definir como responsável.
+                  Nenhum stakeholder cadastrado — adicione em "Gerenciar" pra poder definir responsáveis.
                 </p>
               )}
             </div>
@@ -303,7 +295,7 @@ export default function AtaCorridaPage() {
           ) : (
             <TopicosTable
               topicos={sortedTopicos}
-              users={users}
+              stakeholders={ata.stakeholders}
               onUpdateTopico={updateTopicoField}
               onRemoveTopico={removeTopico}
               onAddAtualizacao={addAtualizacao}
@@ -389,11 +381,11 @@ function StakeholdersBox({ stakeholders, obraId }: { stakeholders: Stakeholder[]
 // ── Tabela de tópicos ────────────────────────────────────────────────────
 
 function TopicosTable({
-  topicos, users,
+  topicos, stakeholders,
   onUpdateTopico, onRemoveTopico, onAddAtualizacao, onRemoveAtualizacao,
 }: {
   topicos: Topico[];
-  users: UserOption[];
+  stakeholders: Stakeholder[];
   onUpdateTopico: <K extends keyof Topico>(id: string, field: K, value: Topico[K]) => void;
   onRemoveTopico: (id: string) => void;
   onAddAtualizacao: (topicoId: string, data: string, texto: string) => void;
@@ -457,7 +449,7 @@ function TopicosTable({
                     <TextAreaField value={t.observacoes} onSave={v => onUpdateTopico(t.id, 'observacoes', v)} placeholder="Observações livres…" />
                   </td>
                   <td className="px-2 py-2 align-top">
-                    <UserSelect value={t.responsavelId} users={users} onChange={v => onUpdateTopico(t.id, 'responsavelId', v)} />
+                    <StakeholderSelect value={t.responsavelStakeholderId} stakeholders={stakeholders} onChange={v => onUpdateTopico(t.id, 'responsavelStakeholderId', v)} />
                   </td>
                   <td className="px-2 py-2 align-top">
                     <AcaoSelect value={t.acao} onChange={v => onUpdateTopico(t.id, 'acao', v)} />
@@ -619,15 +611,15 @@ function AcaoSelect({ value, onChange }: { value: string | null; onChange: (v: s
   );
 }
 
-function UserSelect({ value, users, onChange }: { value: string | null; users: UserOption[]; onChange: (v: string | null) => void }) {
-  const emptyHint = users.length === 0 ? 'Sem usuários' : '—';
+function StakeholderSelect({ value, stakeholders, onChange }: { value: string | null; stakeholders: Stakeholder[]; onChange: (v: string | null) => void }) {
+  const emptyHint = stakeholders.length === 0 ? 'Sem stakeholders' : '—';
   return (
     <select value={value ?? ''} onChange={e => onChange(e.target.value || null)}
       className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon focus:border-ber-teal focus:outline-none"
-      disabled={users.length === 0 && !value}>
+      disabled={stakeholders.length === 0 && !value}>
       <option value="">{emptyHint}</option>
-      {users.map(u => (
-        <option key={u.id} value={u.id}>{u.name}</option>
+      {stakeholders.map(s => (
+        <option key={s.id} value={s.id}>{s.nome}{s.empresa ? ` — ${s.empresa}` : ''}</option>
       ))}
     </select>
   );
