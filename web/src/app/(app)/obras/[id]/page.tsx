@@ -633,13 +633,35 @@ export default function ObraDetailPage() {
 
   const statusCfg = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
 
-  const TABS: { key: TabKey; label: string }[] = [
-    { key: 'capa', label: '📋 Capa' },
-    { key: 'fvs', label: `Passo a Passo (${obraFvsList.length})` },
-    { key: 'checklists', label: `Checklists (${checklists.length})` },
-    { key: 'equipe', label: `Equipe (${obra.members.length})` },
-    { key: 'diario', label: `📓 Diário` },
-    { key: 'relatorios', label: `📋 Relatórios` },
+  // Abas da obra agrupadas pelo ciclo de vida (com rótulo de grupo, sem emojis).
+  // type 'tab' = aba interna (activeTab); type 'link' = página dedicada (rota relativa a /obras/:id).
+  type ObraTab =
+    | { type: 'tab'; key: TabKey; label: string }
+    | { type: 'link'; href: string; label: string };
+  const TAB_GROUPS: { grupo: string; tabs: ObraTab[] }[] = [
+    { grupo: 'Visão Geral', tabs: [
+      { type: 'tab', key: 'capa', label: 'Cockpit' },
+    ] },
+    { grupo: 'Início & Setup', tabs: [
+      { type: 'link', href: 'kickoff', label: 'Kick-Off' },
+      { type: 'link', href: 'stakeholders', label: 'Stakeholders' },
+      { type: 'tab', key: 'equipe', label: `Equipe (${obra.members.length})` },
+      { type: 'link', href: 'raci', label: 'RACI' },
+    ] },
+    { grupo: 'Planejamento', tabs: [
+      { type: 'tab', key: 'fvs', label: `Passo a Passo (${obraFvsList.length})` },
+      { type: 'link', href: 'cronograma', label: 'Cronograma' },
+      { type: 'link', href: 'cronograma-contratacoes', label: 'Crn. Contratações' },
+    ] },
+    { grupo: 'Execução & Acompanhamento', tabs: [
+      { type: 'link', href: 'aditivos', label: 'Aditivos' },
+      { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
+      { type: 'tab', key: 'diario', label: 'Diário' },
+      { type: 'link', href: 'atas', label: 'Atas' },
+    ] },
+    { grupo: 'Saída', tabs: [
+      { type: 'tab', key: 'relatorios', label: 'Relatórios' },
+    ] },
   ];
 
 
@@ -1110,55 +1132,40 @@ export default function ObraDetailPage() {
 
       </div>
 
-      {/* Tabs */}
-      <div className="mt-6 flex items-center gap-1 border-b border-ber-gray/20 overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`shrink-0 px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'border-b-2 border-ber-olive text-ber-carbon'
-                : 'text-ber-gray hover:text-ber-carbon'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-        {/* Cronograma — página dedicada (saiu do Gestão 360) */}
-        <Link
-          href={`/obras/${params.id}/cronograma`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1 ml-2"
-        >
-          📅 Cronograma
-        </Link>
-        {/* Compras saiu da obra — virou módulo restrito no menu (Metas de Compra) */}
-        {/* Aditivos — página dedicada */}
-        <Link
-          href={`/obras/${params.id}/aditivos`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
-        >
-          📝 Aditivos
-        </Link>
-        {/* Atas — página dedicada */}
-        <Link
-          href={`/obras/${params.id}/atas`}
-          className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1"
-        >
-          📋 Atas
-        </Link>
-        <Link href={`/obras/${params.id}/stakeholders`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          👥 Stakeholders
-        </Link>
-        <Link href={`/obras/${params.id}/kickoff`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          🚀 Kick-Off
-        </Link>
-        <Link href={`/obras/${params.id}/raci`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          🧩 RACI
-        </Link>
-        <Link href={`/obras/${params.id}/cronograma-contratacoes`} className="shrink-0 px-4 py-2.5 text-sm font-medium text-ber-gray hover:text-ber-carbon transition-colors flex items-center gap-1">
-          📆 Crn. Contratações
-        </Link>
+      {/* Tabs — agrupadas por fase do ciclo de vida da obra */}
+      <div className="mt-6 overflow-x-auto border-b border-ber-gray/20">
+        <div className="flex items-stretch">
+          {TAB_GROUPS.map((g, gi) => (
+            <div key={g.grupo} className={`flex shrink-0 flex-col ${gi > 0 ? 'ml-2 border-l border-ber-gray/15 pl-2' : ''}`}>
+              <span className="px-3 pb-0.5 pt-1 text-[9px] font-bold uppercase tracking-wider text-ber-gray/50 whitespace-nowrap">
+                {g.grupo}
+              </span>
+              <div className="flex items-end gap-1">
+                {g.tabs.map((t) => t.type === 'tab' ? (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key)}
+                    className={`shrink-0 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                      activeTab === t.key
+                        ? 'border-b-2 border-ber-olive text-ber-carbon'
+                        : 'text-ber-gray hover:text-ber-carbon'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ) : (
+                  <Link
+                    key={t.href}
+                    href={`/obras/${params.id}/${t.href}`}
+                    className="shrink-0 px-3 py-2 text-sm font-medium whitespace-nowrap text-ber-gray hover:text-ber-carbon transition-colors"
+                  >
+                    {t.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
