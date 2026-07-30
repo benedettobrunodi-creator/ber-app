@@ -166,8 +166,7 @@ export default function FeriasPage() {
                 <div className="relative flex flex-1">
                   {MESES.map((m, i) => (
                     <div key={m} style={{ flexGrow: dim[i], flexBasis: 0 }}
-                      onClick={() => setPeriodoForm({ colab: c, edit: null, prefill: `${year}-${String(i + 1).padStart(2, '0')}-01` })}
-                      className="cursor-pointer border-l border-ber-gray/10 first:border-l-0 hover:bg-ber-teal/5" title="Adicionar período" />
+                      className="border-l border-ber-gray/10 first:border-l-0" />
                   ))}
                   {/* Barras */}
                   {c.ferias.map(p => {
@@ -194,7 +193,7 @@ export default function FeriasPage() {
         </div>
       )}
 
-      <p className="mt-3 text-xs text-ber-gray/70">Clique num mês na linha do colaborador para adicionar um período; clique numa barra para editar. Desconto em dias corridos.</p>
+      <p className="mt-3 text-xs text-ber-gray/70">Clique no nome do colaborador para adicionar um período; clique numa barra para editar. Desconto em dias corridos.</p>
 
       {detailColab && (
         <ColabDetail colab={detailColab}
