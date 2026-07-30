@@ -11,7 +11,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, DollarSign,
+  ShoppingCart, DollarSign, Palmtree,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
       { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
       { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
+      { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
@@ -93,6 +94,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/instrucoes', perm: 'instrucoes' },
   { prefix: '/ponto', perm: 'ponto' },
   { prefix: '/compras', perm: 'comprasDashboard' },
+  { prefix: '/ferias', perm: 'ferias' },
   { prefix: '/configuracoes', perm: 'admin' },
   { prefix: '/organograma', perm: 'organograma' },
   { prefix: '/financeiro', perm: 'financeiro' },

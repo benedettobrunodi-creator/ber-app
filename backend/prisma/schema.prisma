@@ -2587,3 +2587,38 @@ model FinValor {
   @@index([linhaId])
   @@map("fin_valores")
 }
+
+// ─── Controle de Férias ──────────────────────────────────────────────────
+// Lista própria de colaboradores (registro dedicado, independente de User/login)
+// com saldo manual de férias; períodos consomem o saldo (dias corridos).
+model Colaborador {
+  id               String   @id @default(uuid()) @db.Uuid
+  nome             String   @db.VarChar(150)
+  cargo            String?  @db.VarChar(120)
+  feriasATirarDias Int      @default(30) @map("ferias_a_tirar_dias") // saldo total a gozar (manual)
+  ativo            Boolean  @default(true)
+  ordem            Int      @default(0)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  ferias FeriasPeriodo[]
+
+  @@index([ativo])
+  @@map("colaboradores")
+}
+
+model FeriasPeriodo {
+  id            String   @id @default(uuid()) @db.Uuid
+  colaboradorId String   @map("colaborador_id") @db.Uuid
+  dataInicio    DateTime @map("data_inicio") @db.Date
+  dataFim       DateTime @map("data_fim") @db.Date
+  dias          Int // dias corridos (inclusivo) — desconta do saldo
+  observacoes   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  colaborador Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  @@index([colaboradorId])
+  @@map("ferias_periodos")
+}
