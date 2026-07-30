@@ -48,7 +48,8 @@ async function syncFromUsers() {
 export async function listColaboradores() {
   await syncFromUsers();
   const rows = await prisma.colaborador.findMany({
-    orderBy: [{ ativo: 'desc' }, { ordem: 'asc' }, { nome: 'asc' }],
+    where: { ativo: true }, // inativos (excluídos) não aparecem na timeline
+    orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
     include: { ferias: { orderBy: { dataInicio: 'asc' } } },
   });
   return rows.map(c => {

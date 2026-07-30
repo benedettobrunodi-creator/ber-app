@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Palmtree, Plus, Trash2, X, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Palmtree, Plus, Trash2, X, ChevronLeft, ChevronRight, Users, Pencil } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 
@@ -66,6 +66,7 @@ export default function FeriasPage() {
   const [year, setYear] = useState(new Date().getUTCFullYear());
   const [showColabForm, setShowColabForm] = useState<Colaborador | true | null>(null);
   const [periodoForm, setPeriodoForm] = useState<{ colab: Colaborador; edit: Periodo | null; prefill?: string } | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -76,6 +77,7 @@ export default function FeriasPage() {
   useEffect(() => { load(); }, [load]);
 
   const dim = useMemo(() => daysInMonth(year), [year]);
+  const detailColab = detailId ? colabs.find(c => c.id === detailId) ?? null : null;
 
   async function saveFeriasATirar(id: string, dias: number) {
     setColabs(prev => prev.map(c => c.id === id
@@ -86,10 +88,7 @@ export default function FeriasPage() {
   }
 
   async function deleteColab(c: Colaborador) {
-    const msg = c.userId
-      ? `Inativar ${c.nome}? (colaborador do app — some da lista, mas pode reativar depois em Editar)`
-      : `Remover ${c.nome} e todos os períodos de férias dele?`;
-    if (!confirm(msg)) return;
+    if (!confirm(`Remover ${c.nome} da lista de férias?`)) return;
     try { await api.delete(`/ferias/colaboradores/${c.id}`); load(); }
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }
@@ -141,11 +140,11 @@ export default function FeriasPage() {
 
             {/* Rows */}
             {colabs.map(c => (
-              <div key={c.id} className={`flex items-stretch border-b border-ber-gray/8 ${c.ativo ? '' : 'opacity-50'} hover:bg-ber-bg/30`}>
-                {/* Nome + cargo */}
+              <div key={c.id} className="flex items-stretch border-b border-ber-gray/8 hover:bg-ber-bg/30">
+                {/* Nome + cargo — clique abre o painel do colaborador (add período) */}
                 <div className="w-56 shrink-0 px-3 py-2">
-                  <button onClick={() => setShowColabForm(c)} className="block text-left">
-                    <p className="text-sm font-medium text-ber-carbon leading-tight hover:text-ber-teal">{c.nome}</p>
+                  <button onClick={() => setDetailId(c.id)} className="block text-left w-full group">
+                    <p className="text-sm font-medium text-ber-carbon leading-tight group-hover:text-ber-teal">{c.nome}</p>
                     {c.cargo && <p className="text-[11px] text-ber-gray">{c.cargo}</p>}
                   </button>
                 </div>
@@ -197,6 +196,13 @@ export default function FeriasPage() {
 
       <p className="mt-3 text-xs text-ber-gray/70">Clique num mês na linha do colaborador para adicionar um período; clique numa barra para editar. Desconto em dias corridos.</p>
 
+      {detailColab && (
+        <ColabDetail colab={detailColab}
+          onClose={() => setDetailId(null)}
+          onAddPeriodo={() => setPeriodoForm({ colab: detailColab, edit: null })}
+          onEditPeriodo={(p) => setPeriodoForm({ colab: detailColab, edit: p })}
+          onEditColab={() => setShowColabForm(detailColab)} />
+      )}
       {showColabForm !== null && (
         <ColabForm edit={showColabForm === true ? null : showColabForm}
           onClose={() => setShowColabForm(null)}
@@ -208,6 +214,60 @@ export default function FeriasPage() {
           onSaved={() => { setPeriodoForm(null); load(); }} />
       )}
     </div>
+  );
+}
+
+/* ─── Painel do colaborador: saldo + adicionar/editar períodos ─── */
+function ColabDetail({ colab, onClose, onAddPeriodo, onEditPeriodo, onEditColab }: {
+  colab: Colaborador;
+  onClose: () => void;
+  onAddPeriodo: () => void;
+  onEditPeriodo: (p: Periodo) => void;
+  onEditColab: () => void;
+}) {
+  return (
+    <Modal title={colab.nome} onClose={onClose}>
+      <div className="space-y-4 px-6 py-5">
+        <div className="flex items-start justify-between">
+          <div>
+            {colab.cargo && <p className="text-sm text-ber-gray">{colab.cargo}</p>}
+            <p className="mt-0.5 text-xs text-ber-gray/70">Férias a tirar: <b className="text-ber-carbon">{colab.feriasATirarDias}</b> · usadas: <b className="text-ber-carbon">{colab.diasUsados}</b></p>
+          </div>
+          <div className="text-right">
+            <p className={`text-2xl font-black tabular-nums ${colab.saldoEmAberto < 0 ? 'text-red-600' : colab.saldoEmAberto === 0 ? 'text-ber-gray' : 'text-green-600'}`}>{colab.saldoEmAberto}</p>
+            <p className="text-[10px] uppercase tracking-wide text-ber-gray">dias em aberto</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-ber-offwhite pt-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-ber-gray">Períodos de férias</h3>
+          <button onClick={onAddPeriodo} className="flex items-center gap-1 rounded-lg bg-ber-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-ber-teal/90">
+            <Plus size={13} /> Adicionar período
+          </button>
+        </div>
+
+        {colab.ferias.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-ber-gray/25 py-6 text-center text-xs text-ber-gray">Nenhum período lançado ainda. Clique em “Adicionar período” e informe as datas.</p>
+        ) : (
+          <ul className="divide-y divide-ber-gray/10 overflow-hidden rounded-lg border border-ber-gray/15">
+            {colab.ferias.map(p => (
+              <li key={p.id} className="flex items-center justify-between px-3 py-2 hover:bg-ber-bg/40">
+                <div>
+                  <p className="text-sm font-medium text-ber-carbon">{fmtBR(p.dataInicio)} – {fmtBR(p.dataFim)}</p>
+                  <p className="text-[11px] text-ber-gray">{p.dias} dias corridos{p.observacoes ? ` · ${p.observacoes}` : ''}</p>
+                </div>
+                <button onClick={() => onEditPeriodo(p)} title="Editar período" className="rounded p-1 text-ber-gray hover:bg-ber-bg hover:text-ber-teal"><Pencil size={14} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex items-center justify-between pt-1">
+          <button onClick={onEditColab} className="text-xs font-medium text-ber-teal hover:underline">Editar dados do colaborador</button>
+          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Fechar</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
