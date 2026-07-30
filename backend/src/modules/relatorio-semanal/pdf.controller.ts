@@ -173,7 +173,7 @@ function buildCurvaSvg(
     if (p.realizadoPct != null) parts.push(`<text x="${x.toFixed(1)}" y="${(toY(p.realizadoPct) + 12).toFixed(1)}" text-anchor="middle" fill="#16a34a" font-size="7" font-weight="bold">${Math.round(p.realizadoPct)}%</text>`);
     return parts.join('');
   }).join('')}
-  <g transform="translate(${PAD.left + 4},8)">
+  <g transform="translate(${((W - 190) / 2).toFixed(0)},8)">
     <line x1="0" y1="0" x2="12" y2="0" stroke="#3b82f6" stroke-width="1.8" stroke-dasharray="4 2"/><text x="15" y="3" fill="#6b7280" font-size="7">Planejado acumulado</text>
     <line x1="110" y1="0" x2="122" y2="0" stroke="#22c55e" stroke-width="2.4"/><text x="125" y="3" fill="#6b7280" font-size="7">Realizado acumulado</text>
   </g>
@@ -234,7 +234,7 @@ function buildHtml(
   const fotosSection = Array.from(grupos.values()).map(({ nome, fotos }) => {
     // Foto do mesmo ambiente no relatório anterior (comparação), casando pelo NOME do ângulo.
     const prevFoto = prevRel?.fotos?.find((f: any) => f.angulo?.nome && f.angulo.nome === nome) ?? null;
-    // Cada card = uma foto INTEIRA (sem crop). height:auto preserva a proporção original.
+    // Grid uniforme: todas as fotos no mesmo tamanho (tile 4:3, object-fit:cover).
     const cards: { url: string; cap: string; prev?: boolean }[] = [
       ...fotos.map((ft: any) => ({
         url: ft.url,
@@ -243,14 +243,13 @@ function buildHtml(
       })),
       ...(prevFoto ? [{ url: prevFoto.url, cap: `RT-${String(rel.numero - 1).padStart(3, '0')} (anterior)`, prev: true }] : []),
     ];
-    const cols = cards.length === 1 ? '1fr' : '1fr 1fr';
     return `
       <div style="margin-bottom:16px;">
         <p style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b7280;margin-bottom:6px;break-after:avoid;">${nome}</p>
-        <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:start;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;">
           ${cards.map(c => `
             <div style="break-inside:avoid;${c.prev ? 'opacity:0.6;' : ''}">
-              <img src="${c.url}" style="width:100%;height:auto;border-radius:4px;display:block;background:#f9fafb;" />
+              <img src="${c.url}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block;background:#f9fafb;" />
               ${c.cap ? `<p style="font-size:7px;color:#9ca3af;margin-top:2px;">${c.cap}</p>` : ''}
             </div>`).join('')}
         </div>
