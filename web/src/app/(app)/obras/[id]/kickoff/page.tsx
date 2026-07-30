@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ interface KickoffHeader {
   coordenador: string | null;
   engenheiro: string | null;
   supervisor: string | null;
+  mestreEncarregado: string | null;
   inicioObra: string | null;
   terminoObra: string | null;
   dataKickoff: string | null;
@@ -70,6 +71,7 @@ export default function KickoffPage() {
   const backHref = useBackToObra();
 
   const [data, setData] = useState<KickoffData | null>(null);
+  const [users, setUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -88,6 +90,13 @@ export default function KickoffPage() {
   }, [obraId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Usuários cadastrados no app — sugestões pros campos de pessoas (datalist).
+  useEffect(() => {
+    api.get<{ data: { name: string }[] }>('/users/responsaveis')
+      .then(r => setUsers((r.data.data ?? []).map(u => u.name).filter(Boolean)))
+      .catch(() => setUsers([]));
+  }, []);
 
   // Agrupa itens por seção preservando a ordem
   const secoes = useMemo(() => {
@@ -163,9 +172,10 @@ export default function KickoffPage() {
           <div className="rounded-xl border border-ber-gray/15 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ber-gray">Dados do Kickoff</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <HField label="Coordenador" value={h?.coordenador} onSave={v => saveHeader({ coordenador: v })} />
-              <HField label="Engenheiro" value={h?.engenheiro} onSave={v => saveHeader({ engenheiro: v })} />
-              <HField label="Supervisor / Estagiário" value={h?.supervisor} onSave={v => saveHeader({ supervisor: v })} />
+              <HField label="Coordenador" value={h?.coordenador} onSave={v => saveHeader({ coordenador: v })} options={users} />
+              <HField label="Engenheiro" value={h?.engenheiro} onSave={v => saveHeader({ engenheiro: v })} options={users} />
+              <HField label="Supervisor / Estagiário" value={h?.supervisor} onSave={v => saveHeader({ supervisor: v })} options={users} />
+              <HField label="Mestre / Encarregado de Obras" value={h?.mestreEncarregado} onSave={v => saveHeader({ mestreEncarregado: v })} options={users} />
               <HDate label="Início da obra" value={h?.inicioObra} onSave={v => saveHeader({ inicioObra: v })} />
               <HDate label="Término da obra" value={h?.terminoObra} onSave={v => saveHeader({ terminoObra: v })} />
               <HDate label="Data do Kick Off" value={h?.dataKickoff} onSave={v => saveHeader({ dataKickoff: v })} />
@@ -177,7 +187,7 @@ export default function KickoffPage() {
             <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ber-gray">Comercial × Engenharia</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {DEPTOS.map(d => (
-                <HField key={d.key} label={d.label} value={deptos[d.key] ?? ''} onSave={v => saveDepto(d.key, v ?? '')} />
+                <HField key={d.key} label={d.label} value={deptos[d.key] ?? ''} onSave={v => saveDepto(d.key, v ?? '')} options={users} />
               ))}
             </div>
           </div>
@@ -241,18 +251,26 @@ export default function KickoffPage() {
 }
 
 function emptyHeader(): KickoffHeader {
-  return { coordenador: null, engenheiro: null, supervisor: null, inicioObra: null, terminoObra: null, dataKickoff: null, participantesDeptos: {} };
+  return { coordenador: null, engenheiro: null, supervisor: null, mestreEncarregado: null, inicioObra: null, terminoObra: null, dataKickoff: null, participantesDeptos: {} };
 }
 
-function HField({ label, value, onSave }: { label: string; value: string | null | undefined; onSave: (v: string | null) => void }) {
+function HField({ label, value, onSave, options }: { label: string; value: string | null | undefined; onSave: (v: string | null) => void; options?: string[] }) {
   const [draft, setDraft] = useState(value ?? '');
   useEffect(() => setDraft(value ?? ''), [value]);
+  const listId = useId();
   return (
     <label className="block">
       <span className="mb-1 block text-[11px] font-medium text-ber-gray">{label}</span>
       <input value={draft} onChange={e => setDraft(e.target.value)}
+        list={options && options.length ? listId : undefined}
+        placeholder={options && options.length ? 'Selecione ou digite…' : undefined}
         onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
         className="w-full rounded-md border border-ber-gray/30 px-2 py-1.5 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none" />
+      {options && options.length > 0 && (
+        <datalist id={listId}>
+          {options.map(o => <option key={o} value={o} />)}
+        </datalist>
+      )}
     </label>
   );
 }

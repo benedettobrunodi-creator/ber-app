@@ -11,6 +11,7 @@ export const upsertKickoffSchema = z.object({
   coordenador:    z.string().optional().nullable(),
   engenheiro:     z.string().optional().nullable(),
   supervisor:     z.string().optional().nullable(),
+  mestreEncarregado: z.string().optional().nullable(),
   inicioObra:     z.string().optional().nullable(),
   terminoObra:    z.string().optional().nullable(),
   dataKickoff:    z.string().optional().nullable(),

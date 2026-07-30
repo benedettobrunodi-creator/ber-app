@@ -2306,6 +2306,7 @@ model ObraKickoff {
   coordenador    String?
   engenheiro     String?
   supervisor     String?
+  mestreEncarregado String? @map("mestre_encarregado")
   inicioObra     DateTime? @map("inicio_obra") @db.Date
   terminoObra    DateTime? @map("termino_obra") @db.Date
   dataKickoff    DateTime? @map("data_kickoff") @db.Date

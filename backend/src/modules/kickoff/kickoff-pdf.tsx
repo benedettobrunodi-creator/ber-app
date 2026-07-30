@@ -9,6 +9,7 @@ const BER = {
 
 interface Header {
   coordenador: string | null; engenheiro: string | null; supervisor: string | null;
+  mestreEncarregado: string | null;
   inicioObra: Date | string | null; terminoObra: Date | string | null; dataKickoff: Date | string | null;
   participantesDeptos: Record<string, string> | null;
 }
@@ -111,6 +112,7 @@ export function KickoffPDF({ obra, header, itens, geradoEm }: KickoffPDFProps) {
           <Info label="Coordenador" value={header?.coordenador} />
           <Info label="Engenheiro" value={header?.engenheiro} />
           <Info label="Supervisor" value={header?.supervisor} />
+          <Info label="Mestre / Enc." value={header?.mestreEncarregado} />
           <Info label="Início" value={fmtDate(header?.inicioObra ?? null)} />
           <Info label="Término" value={fmtDate(header?.terminoObra ?? null)} />
           <Info label="Data Kick Off" value={fmtDate(header?.dataKickoff ?? null)} />
