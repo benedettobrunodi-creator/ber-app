@@ -404,6 +404,7 @@ function TopicosTable({
         <thead className="bg-ber-bg sticky top-0 z-10">
           <tr className="border-b border-ber-gray/20 text-left">
             <Th className="w-8" />
+            <Th className="w-10 text-center">#</Th>
             <Th className="w-32">Status</Th>
             <Th className="w-32">Impacto</Th>
             <Th className="w-16 text-center">CO</Th>
@@ -421,7 +422,7 @@ function TopicosTable({
           </tr>
         </thead>
         <tbody>
-          {topicos.map(t => {
+          {topicos.map((t, i) => {
             const dd = daysDiff(t.dataAlvo, t.dataFinal);
             const isOpen = expanded.has(t.id);
             return (
@@ -432,6 +433,7 @@ function TopicosTable({
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
                   </td>
+                  <td className="px-1 py-2 text-center align-top text-xs font-bold text-ber-gray">{i + 1}</td>
                   <td className="px-2 py-2 align-top"><StatusSelect value={t.status} onChange={v => onUpdateTopico(t.id, 'status', v)} /></td>
                   <td className="px-2 py-2 align-top"><ImpactoSelect value={t.impacto} onChange={v => onUpdateTopico(t.id, 'impacto', v)} /></td>
                   <td className="px-2 py-2 text-center align-top">
@@ -490,7 +492,7 @@ function TopicosTable({
                 </tr>
                 {isOpen && (
                   <tr className="bg-ber-bg/30">
-                    <td colSpan={15} className="px-4 py-3">
+                    <td colSpan={16} className="px-4 py-3">
                       <HistoricoBlock
                         atualizacoes={t.atualizacoes}
                         onAdd={(data, texto) => onAddAtualizacao(t.id, data, texto)}

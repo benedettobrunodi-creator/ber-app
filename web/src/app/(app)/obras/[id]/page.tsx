@@ -1662,7 +1662,7 @@ export default function ObraDetailPage() {
               {/* Header */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Sequenciamento da Obra — Controle de Coordenação</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Sequenciamento da Obra — Controle de Sequenciamento</h3>
                   <p className="mt-0.5 text-xs text-ber-gray/70">
                     O que precisa estar feito em cada altura da obra. Cada item é verificado pelo gestor e depois pelo coordenador.
                   </p>
