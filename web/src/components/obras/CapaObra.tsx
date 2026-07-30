@@ -749,7 +749,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                     <Tooltip
                       formatter={((v: unknown, name: unknown) => [
                         `${typeof v === 'number' ? v.toFixed(1) : String(v)}%`,
-                        name === 'planejado' ? 'Planejado acumulado' : 'Realizado acumulado',
+                        String(name),
                       ]) as never}
                       labelFormatter={(l, payload) => {
                         const first = (payload as unknown as { payload?: CurvaPt }[] | undefined)?.[0];
@@ -758,9 +758,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                       }}
                       contentStyle={{ fontSize: 11, padding: '6px 10px' }} />
                     <Line type="monotone" dataKey="planejado" stroke="#3B82F6" strokeDasharray="4 2" strokeWidth={2}
-                      dot={{ r: 2.5, fill: '#3B82F6' }} name="Planejado" connectNulls />
+                      dot={{ r: 2.5, fill: '#3B82F6' }} name="Planejado acumulado" connectNulls />
                     <Line type="monotone" dataKey="realizado" stroke="#22C55E" strokeWidth={3}
-                      dot={{ r: 3.5, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado" connectNulls />
+                      dot={{ r: 3.5, fill: '#22C55E' }} activeDot={{ r: 5 }} name="Realizado acumulado" connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

@@ -342,7 +342,7 @@ export default function ObraDetailPage() {
   const [addingMember, setAddingMember] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
-  const canManageMembers = user?.role ? ['diretoria', 'coordenacao'].includes(user.role) : false;
+  const canManageMembers = user?.role ? ['socio', 'diretoria', 'coordenacao'].includes(user.role) : false;
 
   async function fetchChecklists() {
     setLoadingChecklists(true);
