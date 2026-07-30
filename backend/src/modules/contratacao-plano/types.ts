@@ -6,6 +6,9 @@ export const createPlanoSchema = z.object({
   pacote:     z.string().min(1),
   dataIdeal:  z.string().optional().nullable(),
   dataLimite: z.string().optional().nullable(),
+  contato:    z.string().optional().nullable(),
+  telefone:   z.string().optional().nullable(),
+  email:      z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
 });
 

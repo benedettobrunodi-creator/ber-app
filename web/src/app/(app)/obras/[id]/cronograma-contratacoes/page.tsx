@@ -22,6 +22,9 @@ interface Plano {
   contratacaoId: string | null;
   status: keyof typeof STATUS_META;
   statusEfetivo: keyof typeof STATUS_META;
+  contato: string | null;
+  telefone: string | null;
+  email: string | null;
   observacoes: string | null;
   contratacao: { id: string; fornecedor: string; valor: string | number; status: string } | null;
 }
@@ -65,6 +68,13 @@ export default function CronogramaContratacoesPage() {
   async function updateStatus(id: string, status: string) {
     try { await api.patch(`/contratacao-plano/${id}`, { status }); fetchAll(); }
     catch (err) { alert(errMsg(err, 'Erro ao atualizar')); }
+  }
+
+  async function saveField(id: string, patch: Record<string, string | null>) {
+    // Atualiza local otimista (sem refetch pra não perder o foco) e persiste.
+    setPlanos(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
+    try { await api.patch(`/contratacao-plano/${id}`, patch); }
+    catch (err) { alert(errMsg(err, 'Erro ao salvar')); fetchAll(); }
   }
 
   async function linkContratacao(id: string, contratacaoId: string | null) {
@@ -135,6 +145,9 @@ export default function CronogramaContratacoesPage() {
                 <th className="px-3 py-3 text-center w-32">Data ideal</th>
                 <th className="px-3 py-3 text-center w-32">Data limite</th>
                 <th className="px-3 py-3 text-center w-32">Status</th>
+                <th className="px-3 py-3 text-left w-40">Contato</th>
+                <th className="px-3 py-3 text-left w-36">Telefone</th>
+                <th className="px-3 py-3 text-left w-48">E-mail</th>
                 <th className="px-3 py-3 text-left w-56">Vínculo c/ Contratação</th>
                 <th className="px-3 py-3 w-20"></th>
               </tr>
@@ -156,9 +169,18 @@ export default function CronogramaContratacoesPage() {
                       ) : (
                         <select value={p.status} onChange={e => updateStatus(p.id, e.target.value)}
                           className={`rounded-full px-2 py-0.5 text-[10px] font-medium border-0 focus:outline-none focus:ring-1 focus:ring-ber-teal ${meta.color}`}>
-                          {(['a_contratar', 'em_cotacao'] as const).map(k => (<option key={k} value={k}>{STATUS_META[k].label}</option>))}
+                          {(['a_contratar', 'em_cotacao', 'contratado'] as const).map(k => (<option key={k} value={k}>{STATUS_META[k].label}</option>))}
                         </select>
                       )}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineText value={p.contato} placeholder="Nome…" onSave={v => saveField(p.id, { contato: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineText value={p.telefone} placeholder="Telefone…" type="tel" onSave={v => saveField(p.id, { telefone: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineText value={p.email} placeholder="E-mail…" type="email" onSave={v => saveField(p.id, { email: v })} />
                     </td>
                     <td className="px-3 py-2.5">
                       <select value={p.contratacaoId || ''} onChange={e => linkContratacao(p.id, e.target.value || null)}
@@ -195,6 +217,9 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
     pacote: edit?.pacote || '',
     dataIdeal: edit?.dataIdeal ? edit.dataIdeal.slice(0, 10) : '',
     dataLimite: edit?.dataLimite ? edit.dataLimite.slice(0, 10) : '',
+    contato: edit?.contato || '',
+    telefone: edit?.telefone || '',
+    email: edit?.email || '',
     observacoes: edit?.observacoes || '',
   });
   const [saving, setSaving] = useState(false);
@@ -209,6 +234,9 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
         pacote: f.pacote.trim(),
         dataIdeal: f.dataIdeal || null,
         dataLimite: f.dataLimite || null,
+        contato: f.contato.trim() || null,
+        telefone: f.telefone.trim() || null,
+        email: f.email.trim() || null,
         observacoes: f.observacoes.trim() || null,
       };
       if (edit) await api.patch(`/contratacao-plano/${edit.id}`, body);
@@ -232,6 +260,11 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
             <Field label="Data ideal de contratação"><input type="date" value={f.dataIdeal} onChange={e => setF(p => ({ ...p, dataIdeal: e.target.value }))} className={inputCls} /></Field>
             <Field label="Data limite"><input type="date" value={f.dataLimite} onChange={e => setF(p => ({ ...p, dataLimite: e.target.value }))} className={inputCls} /></Field>
           </div>
+          <Field label="Contato (fornecedor)"><input value={f.contato} onChange={e => setF(p => ({ ...p, contato: e.target.value }))} placeholder="Nome do contato" className={inputCls} /></Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Telefone"><input type="tel" value={f.telefone} onChange={e => setF(p => ({ ...p, telefone: e.target.value }))} placeholder="(11) 90000-0000" className={inputCls} /></Field>
+            <Field label="E-mail"><input type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} placeholder="contato@fornecedor.com" className={inputCls} /></Field>
+          </div>
           <Field label="Observações"><textarea rows={2} value={f.observacoes} onChange={e => setF(p => ({ ...p, observacoes: e.target.value }))} className={inputCls} /></Field>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
@@ -246,4 +279,18 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
 const inputCls = 'mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none';
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">{label}</label>{children}</div>;
+}
+
+// Célula editável inline — salva no blur (só se mudou), não controlada pra não perder foco.
+function InlineText({ value, placeholder, type, onSave }: { value: string | null; placeholder?: string; type?: string; onSave: (v: string | null) => void }) {
+  return (
+    <input
+      key={value ?? ''}
+      defaultValue={value ?? ''}
+      type={type || 'text'}
+      placeholder={placeholder}
+      onBlur={e => { const v = e.target.value.trim(); if (v !== (value ?? '')) onSave(v || null); }}
+      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-ber-carbon placeholder:text-ber-gray/40 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none"
+    />
+  );
 }

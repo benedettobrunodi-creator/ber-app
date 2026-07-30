@@ -15,7 +15,7 @@ async function seedTemplate(obraId: string) {
 /** Calcula status real considerando atraso vs status armazenado */
 function effectiveStatus(p: { status: string; dataLimite: Date | null; contratacaoId: string | null }) {
   if (p.contratacaoId) return 'contratado';
-  if (p.status === 'contratado' && !p.contratacaoId) return 'a_contratar';
+  // status "contratado" pode ser marcado manualmente (sem vínculo a uma contratação)
   if (p.dataLimite && p.dataLimite.getTime() < Date.now() && p.status !== 'contratado') return 'atrasado';
   return p.status;
 }
@@ -43,6 +43,9 @@ export async function create(obraId: string, input: CreatePlanoInput) {
       ordem:      (max._max.ordem ?? -1) + 1,
       dataIdeal:  parseDate(input.dataIdeal),
       dataLimite: parseDate(input.dataLimite),
+      contato:    input.contato ?? null,
+      telefone:   input.telefone ?? null,
+      email:      input.email ?? null,
       observacoes: input.observacoes ?? null,
     },
   });
@@ -70,6 +73,9 @@ export async function update(id: string, input: UpdatePlanoInput) {
       pacote:        input.pacote,
       dataIdeal:     'dataIdeal'  in input ? parseDate(input.dataIdeal)  : undefined,
       dataLimite:    'dataLimite' in input ? parseDate(input.dataLimite) : undefined,
+      contato:       'contato'  in input ? (input.contato  ?? null) : undefined,
+      telefone:      'telefone' in input ? (input.telefone ?? null) : undefined,
+      email:         'email'    in input ? (input.email    ?? null) : undefined,
       observacoes:   input.observacoes,
       status:        input.contratacaoId ? 'contratado' : input.status,
       contratacaoId: input.contratacaoId,

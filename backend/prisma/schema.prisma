@@ -2215,6 +2215,9 @@ model ObraContratacaoPlano {
   contratacaoId String?   @unique @map("contratacao_id") @db.Uuid
   status        String    @default("a_contratar") @db.VarChar(20)
   // a_contratar | em_cotacao | contratado | atrasado
+  contato       String?   @db.VarChar(150) // nome do contato do fornecedor
+  telefone      String?   @db.VarChar(40)
+  email         String?   @db.VarChar(150)
   observacoes   String?
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
