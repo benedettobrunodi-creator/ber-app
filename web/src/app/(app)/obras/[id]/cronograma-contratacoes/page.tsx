@@ -25,6 +25,11 @@ interface Plano {
   contato: string | null;
   telefone: string | null;
   email: string | null;
+  responsavel: string | null;
+  empresaContratada: string | null;
+  tempoEntrega: string | null;
+  dataEmissaoPedido: string | null;
+  inicioMobilizacao: string | null;
   observacoes: string | null;
   contratacao: { id: string; fornecedor: string; valor: string | number; status: string } | null;
 }
@@ -141,14 +146,19 @@ export default function CronogramaContratacoesPage() {
           <table className="w-full text-sm">
             <thead className="bg-ber-carbon text-xs text-white">
               <tr>
-                <th className="px-3 py-3 text-left">Pacote</th>
+                <th className="px-3 py-3 text-left min-w-[170px]">Disciplina / Serviço</th>
+                <th className="px-3 py-3 text-left w-40">Responsável</th>
+                <th className="px-3 py-3 text-center w-32">Tempo entrega / mob.</th>
                 <th className="px-3 py-3 text-center w-32">Data ideal</th>
                 <th className="px-3 py-3 text-center w-32">Data limite</th>
                 <th className="px-3 py-3 text-center w-32">Status</th>
-                <th className="px-3 py-3 text-left w-40">Contato</th>
-                <th className="px-3 py-3 text-left w-36">Telefone</th>
+                <th className="px-3 py-3 text-center w-32">Data emissão pedido</th>
+                <th className="px-3 py-3 text-left w-44">Empresa contratada</th>
+                <th className="px-3 py-3 text-left w-36">Contato</th>
+                <th className="px-3 py-3 text-left w-36">WhatsApp</th>
                 <th className="px-3 py-3 text-left w-48">E-mail</th>
-                <th className="px-3 py-3 text-left w-56">Vínculo c/ Contratação</th>
+                <th className="px-3 py-3 text-center w-32">Início mobilização</th>
+                <th className="px-3 py-3 text-left w-52">Vínculo c/ Contratação</th>
                 <th className="px-3 py-3 w-20"></th>
               </tr>
             </thead>
@@ -159,8 +169,18 @@ export default function CronogramaContratacoesPage() {
                 return (
                   <tr key={p.id} className={`border-t border-ber-gray/10 hover:bg-ber-bg/40 ${limitePassed ? 'bg-red-50/30' : ''}`}>
                     <td className="px-3 py-2.5 font-medium text-ber-carbon">{p.pacote}</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-ber-gray">{fmtDate(p.dataIdeal)}</td>
-                    <td className={`px-3 py-2.5 text-center text-xs ${limitePassed ? 'text-red-700 font-semibold' : 'text-ber-gray'}`}>{fmtDate(p.dataLimite)}</td>
+                    <td className="px-2 py-1.5">
+                      <InlineText value={p.responsavel} placeholder="Responsável…" onSave={v => saveField(p.id, { responsavel: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineDate value={p.tempoEntrega} onSave={v => saveField(p.id, { tempoEntrega: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineDate value={p.dataIdeal} onSave={v => saveField(p.id, { dataIdeal: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineDate value={p.dataLimite} onSave={v => saveField(p.id, { dataLimite: v })} highlight={!!limitePassed} />
+                    </td>
                     <td className="px-3 py-2.5 text-center">
                       {p.contratacaoId ? (
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${meta.color}`}>
@@ -174,13 +194,22 @@ export default function CronogramaContratacoesPage() {
                       )}
                     </td>
                     <td className="px-2 py-1.5">
+                      <InlineDate value={p.dataEmissaoPedido} onSave={v => saveField(p.id, { dataEmissaoPedido: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineText value={p.empresaContratada} placeholder="Empresa…" onSave={v => saveField(p.id, { empresaContratada: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
                       <InlineText value={p.contato} placeholder="Nome…" onSave={v => saveField(p.id, { contato: v })} />
                     </td>
                     <td className="px-2 py-1.5">
-                      <InlineText value={p.telefone} placeholder="Telefone…" type="tel" onSave={v => saveField(p.id, { telefone: v })} />
+                      <InlineText value={p.telefone} placeholder="WhatsApp…" type="tel" onSave={v => saveField(p.id, { telefone: v })} />
                     </td>
                     <td className="px-2 py-1.5">
                       <InlineText value={p.email} placeholder="E-mail…" type="email" onSave={v => saveField(p.id, { email: v })} />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <InlineDate value={p.inicioMobilizacao} onSave={v => saveField(p.id, { inicioMobilizacao: v })} />
                     </td>
                     <td className="px-3 py-2.5">
                       <select value={p.contratacaoId || ''} onChange={e => linkContratacao(p.id, e.target.value || null)}
@@ -215,8 +244,13 @@ export default function CronogramaContratacoesPage() {
 function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: Plano | null; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({
     pacote: edit?.pacote || '',
+    responsavel: edit?.responsavel || '',
+    tempoEntrega: edit?.tempoEntrega ? edit.tempoEntrega.slice(0, 10) : '',
     dataIdeal: edit?.dataIdeal ? edit.dataIdeal.slice(0, 10) : '',
     dataLimite: edit?.dataLimite ? edit.dataLimite.slice(0, 10) : '',
+    dataEmissaoPedido: edit?.dataEmissaoPedido ? edit.dataEmissaoPedido.slice(0, 10) : '',
+    empresaContratada: edit?.empresaContratada || '',
+    inicioMobilizacao: edit?.inicioMobilizacao ? edit.inicioMobilizacao.slice(0, 10) : '',
     contato: edit?.contato || '',
     telefone: edit?.telefone || '',
     email: edit?.email || '',
@@ -232,8 +266,13 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
     try {
       const body = {
         pacote: f.pacote.trim(),
+        responsavel: f.responsavel.trim() || null,
+        tempoEntrega: f.tempoEntrega || null,
         dataIdeal: f.dataIdeal || null,
         dataLimite: f.dataLimite || null,
+        dataEmissaoPedido: f.dataEmissaoPedido || null,
+        empresaContratada: f.empresaContratada.trim() || null,
+        inicioMobilizacao: f.inicioMobilizacao || null,
         contato: f.contato.trim() || null,
         telefone: f.telefone.trim() || null,
         email: f.email.trim() || null,
@@ -255,14 +294,23 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
         </div>
         <form onSubmit={submit} className="space-y-4 px-6 py-5">
           {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-          <Field label="Pacote *"><input value={f.pacote} onChange={e => setF(p => ({ ...p, pacote: e.target.value }))} placeholder="Ex: Civil, Elétrica, Marmoraria…" className={inputCls} required /></Field>
+          <Field label="Disciplina / Serviço *"><input value={f.pacote} onChange={e => setF(p => ({ ...p, pacote: e.target.value }))} placeholder="Ex: Civil, Elétrica, Marmoraria…" className={inputCls} required /></Field>
+          <Field label="Responsável pela contratação"><input value={f.responsavel} onChange={e => setF(p => ({ ...p, responsavel: e.target.value }))} placeholder="Ex: Émerson Machado" className={inputCls} /></Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Tempo de entrega / mobilização"><input type="date" value={f.tempoEntrega} onChange={e => setF(p => ({ ...p, tempoEntrega: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Início da mobilização"><input type="date" value={f.inicioMobilizacao} onChange={e => setF(p => ({ ...p, inicioMobilizacao: e.target.value }))} className={inputCls} /></Field>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Data ideal de contratação"><input type="date" value={f.dataIdeal} onChange={e => setF(p => ({ ...p, dataIdeal: e.target.value }))} className={inputCls} /></Field>
             <Field label="Data limite"><input type="date" value={f.dataLimite} onChange={e => setF(p => ({ ...p, dataLimite: e.target.value }))} className={inputCls} /></Field>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Data emissão do pedido"><input type="date" value={f.dataEmissaoPedido} onChange={e => setF(p => ({ ...p, dataEmissaoPedido: e.target.value }))} className={inputCls} /></Field>
+            <Field label="Empresa contratada"><input value={f.empresaContratada} onChange={e => setF(p => ({ ...p, empresaContratada: e.target.value }))} placeholder="Ex: LM Empreiteira" className={inputCls} /></Field>
+          </div>
           <Field label="Contato (fornecedor)"><input value={f.contato} onChange={e => setF(p => ({ ...p, contato: e.target.value }))} placeholder="Nome do contato" className={inputCls} /></Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Telefone"><input type="tel" value={f.telefone} onChange={e => setF(p => ({ ...p, telefone: e.target.value }))} placeholder="(11) 90000-0000" className={inputCls} /></Field>
+            <Field label="WhatsApp"><input type="tel" value={f.telefone} onChange={e => setF(p => ({ ...p, telefone: e.target.value }))} placeholder="(11) 90000-0000" className={inputCls} /></Field>
             <Field label="E-mail"><input type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} placeholder="contato@fornecedor.com" className={inputCls} /></Field>
           </div>
           <Field label="Observações"><textarea rows={2} value={f.observacoes} onChange={e => setF(p => ({ ...p, observacoes: e.target.value }))} className={inputCls} /></Field>
@@ -291,6 +339,20 @@ function InlineText({ value, placeholder, type, onSave }: { value: string | null
       placeholder={placeholder}
       onBlur={e => { const v = e.target.value.trim(); if (v !== (value ?? '')) onSave(v || null); }}
       className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-ber-carbon placeholder:text-ber-gray/40 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none"
+    />
+  );
+}
+
+// Célula de data editável inline (salva no change).
+function InlineDate({ value, onSave, highlight }: { value: string | null; onSave: (v: string | null) => void; highlight?: boolean }) {
+  const iso = value ? value.slice(0, 10) : '';
+  return (
+    <input
+      key={iso}
+      type="date"
+      defaultValue={iso}
+      onChange={e => { const v = e.target.value || null; if ((v ?? '') !== iso) onSave(v); }}
+      className={`w-full rounded border bg-transparent px-1 py-1 text-xs tabular-nums focus:border-ber-teal focus:outline-none ${highlight ? 'border-red-300 text-red-700 font-semibold' : 'border-transparent text-ber-carbon hover:border-ber-gray/20'}`}
     />
   );
 }

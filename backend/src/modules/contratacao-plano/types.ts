@@ -9,6 +9,11 @@ export const createPlanoSchema = z.object({
   contato:    z.string().optional().nullable(),
   telefone:   z.string().optional().nullable(),
   email:      z.string().optional().nullable(),
+  responsavel:       z.string().optional().nullable(),
+  empresaContratada: z.string().optional().nullable(),
+  tempoEntrega:      z.string().optional().nullable(),
+  dataEmissaoPedido: z.string().optional().nullable(),
+  inicioMobilizacao: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
 });
 
