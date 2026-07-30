@@ -14,8 +14,39 @@ export function diasCorridos(inicio: string, fim: string): number {
 
 const toISO = (d: Date) => d.toISOString().slice(0, 10);
 
+/** Mapa role → cargo legível (default do seed; editável depois). */
+const ROLE_CARGO: Record<string, string> = {
+  socio: 'Sócio', diretoria: 'Diretoria', coordenacao: 'Coordenação', pmo: 'PMO',
+  engenharia: 'Engenharia', financeiro: 'Financeiro', gestor: 'Gestor',
+  compras: 'Compras', orcamentos: 'Orçamentos', campo: 'Campo',
+};
+
+/** Garante que todo usuário do app tenha um Colaborador vinculado (auto-populate
+ *  da timeline). Só cria os que faltam — não mexe em quem já existe. */
+async function syncFromUsers() {
+  const [users, existentes] = await Promise.all([
+    prisma.user.findMany({ select: { id: true, name: true, role: true }, orderBy: { name: 'asc' } }),
+    prisma.colaborador.findMany({ where: { userId: { not: null } }, select: { userId: true } }),
+  ]);
+  const jaTem = new Set(existentes.map(c => c.userId));
+  const faltantes = users.filter(u => !jaTem.has(u.id));
+  if (faltantes.length === 0) return;
+  const maxAgg = await prisma.colaborador.aggregate({ _max: { ordem: true } });
+  let ordem = (maxAgg._max.ordem ?? -1) + 1;
+  await prisma.colaborador.createMany({
+    data: faltantes.map(u => ({
+      userId: u.id,
+      nome: u.name,
+      cargo: ROLE_CARGO[u.role] ?? null,
+      feriasATirarDias: 30,
+      ordem: ordem++,
+    })),
+  });
+}
+
 /** Lista colaboradores (ativos + inativos) com períodos e saldo em aberto calculado. */
 export async function listColaboradores() {
+  await syncFromUsers();
   const rows = await prisma.colaborador.findMany({
     orderBy: [{ ativo: 'desc' }, { ordem: 'asc' }, { nome: 'asc' }],
     include: { ferias: { orderBy: { dataInicio: 'asc' } } },
@@ -24,6 +55,7 @@ export async function listColaboradores() {
     const diasUsados = c.ferias.reduce((s, p) => s + p.dias, 0);
     return {
       id: c.id,
+      userId: c.userId,
       nome: c.nome,
       cargo: c.cargo,
       feriasATirarDias: c.feriasATirarDias,
@@ -74,7 +106,13 @@ export async function updateColaborador(id: string, input: UpdateColaboradorInpu
 export async function removeColaborador(id: string) {
   const existing = await prisma.colaborador.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Colaborador');
-  await prisma.colaborador.delete({ where: { id } }); // cascade apaga os períodos
+  // Colaborador vinculado a usuário do app não é apagado (o sync recriaria) —
+  // vira inativo. Manual (terceirizado) é apagado de fato.
+  if (existing.userId) {
+    await prisma.colaborador.update({ where: { id }, data: { ativo: false } });
+  } else {
+    await prisma.colaborador.delete({ where: { id } }); // cascade apaga os períodos
+  }
 }
 
 export async function createPeriodo(input: CreatePeriodoInput) {

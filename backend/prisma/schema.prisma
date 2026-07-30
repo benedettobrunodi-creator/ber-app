@@ -2593,6 +2593,7 @@ model FinValor {
 // com saldo manual de férias; períodos consomem o saldo (dias corridos).
 model Colaborador {
   id               String   @id @default(uuid()) @db.Uuid
+  userId           String?  @unique @map("user_id") @db.Uuid // vínculo com usuário do app (null = manual/terceirizado)
   nome             String   @db.VarChar(150)
   cargo            String?  @db.VarChar(120)
   feriasATirarDias Int      @default(30) @map("ferias_a_tirar_dias") // saldo total a gozar (manual)

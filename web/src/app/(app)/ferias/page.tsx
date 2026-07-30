@@ -17,6 +17,7 @@ interface Periodo {
 }
 interface Colaborador {
   id: string;
+  userId: string | null;
   nome: string;
   cargo: string | null;
   feriasATirarDias: number;
@@ -84,9 +85,12 @@ export default function FeriasPage() {
     catch (err) { alert(errMsg(err, 'Erro ao salvar')); load(); }
   }
 
-  async function deleteColab(id: string) {
-    if (!confirm('Remover este colaborador e todos os períodos de férias dele?')) return;
-    try { await api.delete(`/ferias/colaboradores/${id}`); load(); }
+  async function deleteColab(c: Colaborador) {
+    const msg = c.userId
+      ? `Inativar ${c.nome}? (colaborador do app — some da lista, mas pode reativar depois em Editar)`
+      : `Remover ${c.nome} e todos os períodos de férias dele?`;
+    if (!confirm(msg)) return;
+    try { await api.delete(`/ferias/colaboradores/${c.id}`); load(); }
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }
 
@@ -183,7 +187,7 @@ export default function FeriasPage() {
                 </div>
                 {/* Ações */}
                 <div className="w-10 shrink-0 flex items-center justify-center">
-                  <button onClick={() => deleteColab(c.id)} title="Remover colaborador" className="rounded p-1 text-ber-gray/50 hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
+                  <button onClick={() => deleteColab(c)} title={c.userId ? 'Inativar colaborador' : 'Remover colaborador'} className="rounded p-1 text-ber-gray/50 hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>
                 </div>
               </div>
             ))}
