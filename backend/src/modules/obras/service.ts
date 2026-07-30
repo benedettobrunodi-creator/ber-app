@@ -197,6 +197,13 @@ export async function removeMember(obraId: string, userId: string) {
   await prisma.obraMember.delete({
     where: { obraId_userId: { obraId, userId } },
   });
+
+  // Se o removido era o coordenador da obra, limpa o coordenador também — senão
+  // ele continua aparecendo na lista de obras como coordenador mesmo após sair.
+  await prisma.obra.updateMany({
+    where: { id: obraId, coordinatorId: userId },
+    data: { coordinatorId: null },
+  });
 }
 
 export async function getCounts(userId: string, userRole: string) {

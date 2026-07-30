@@ -99,6 +99,13 @@ const RELATORIO_STATUS: Record<string, { label: string; badge: string; bar: stri
   atrasado: { label: 'ATRASADO', badge: 'bg-red-100 text-red-800',        bar: 'linear-gradient(90deg,#f87171,#dc2626)' },
 };
 
+const OBRA_STATUS: Record<string, { label: string; cor: string }> = {
+  planejamento: { label: 'Planejamento', cor: 'text-ber-gray' },
+  em_andamento: { label: 'Em andamento', cor: 'text-ber-teal' },
+  pausada:      { label: 'Pausada',      cor: 'text-amber-600' },
+  concluida:    { label: 'Concluída',    cor: 'text-ber-olive' },
+};
+
 /** Fase do Passo a Passo (obra_fvs) — só o que a Capa precisa pra dar o status. */
 interface FaseLite {
   id: string;
@@ -399,7 +406,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
           <div className="flex items-center justify-center min-w-[120px]">
             <div className="text-right">
               <div className="text-[10px] tracking-widest text-ber-gray font-bold">STATUS</div>
-              <div className="text-4xl font-black text-ber-carbon">OBRA</div>
+              <div className={`text-2xl font-black uppercase leading-tight ${OBRA_STATUS[obra.status]?.cor ?? 'text-ber-carbon'}`}>
+                {OBRA_STATUS[obra.status]?.label ?? obra.status.replace(/_/g, ' ')}
+              </div>
             </div>
           </div>
         </div>
