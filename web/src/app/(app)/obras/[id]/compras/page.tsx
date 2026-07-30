@@ -122,7 +122,11 @@ export default function ComprasPage() {
   const toggleCollapse = (etapaN: string) =>
     setCollapsed(prev => ({ ...prev, [etapaN]: !prev[etapaN] }));
 
-  const etapaKeys = items.filter(i => i.tipo === 'etapa').map(i => i.n || '');
+  const etapaKeys = [
+    ...items.filter(i => i.tipo === 'etapa').map(i => i.n || ''),
+    // Change Orders também são recolhíveis (chave co:<id>), entram no "recolher tudo".
+    ...items.filter(i => i.tipo === 'co' && i.splits.length > 0).map(i => 'co:' + i.id),
+  ];
   const allCollapsed = etapaKeys.length > 0 && etapaKeys.every(k => collapsed[k]);
   const toggleAll = () => {
     const next = !allCollapsed;
@@ -754,6 +758,8 @@ export default function ComprasPage() {
                   // Change Order row — always visible, never child of an etapa
                   if (item.tipo === 'co') {
                     const coSplits = item.splits.filter(s => s.coTipo !== null);
+                    const coKey = 'co:' + item.id;
+                    const isCoCollapsed = collapsed[coKey] ?? false;
                     const coNet = coSplits.length > 0
                       ? coSplits.reduce((sum, s) => sum + (s.coTipo === 'credito' ? s.valor : -s.valor), 0)
                       : null;
@@ -777,7 +783,15 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-center">
                           <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white">CO</span>
                         </td>
-                        <td className="px-3 py-2 text-ber-gray text-xs" />
+                        <td className="px-3 py-2">
+                          {item.splits.length > 0 && (
+                            <button onClick={() => toggleCollapse(coKey)}
+                              className="flex items-center text-amber-600 hover:text-amber-700"
+                              title={isCoCollapsed ? 'Expandir linhas' : 'Recolher linhas'}>
+                              {isCoCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                            </button>
+                          )}
+                        </td>
                         <td className="px-3 py-2">
                           <input type="text" value={item.categoria}
                             onChange={e => saveItem(item.id, { categoria: e.target.value })}
@@ -871,7 +885,7 @@ export default function ComprasPage() {
                           </button>
                         </td>
                       </tr>
-                      {item.splits.map(sp => sp.coTipo !== null ? (
+                      {!isCoCollapsed && item.splits.map(sp => sp.coTipo !== null ? (
                         // Crédito / Débito sub-line — item de compra completo
                         (() => {
                           // Defensivos: se o backend não devolver os novos campos (deploy desalinhado),
