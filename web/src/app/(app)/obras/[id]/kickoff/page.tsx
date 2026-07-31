@@ -305,25 +305,17 @@ function TextCell({ value, onSave, placeholder }: { value: string | null; onSave
   );
 }
 
-// Célula de Responsável — sugere as pessoas do cabeçalho do kickoff (datalist),
-// mas também aceita digitar um nome à mão.
+// Célula de Responsável — dropdown com as pessoas cadastradas no cabeçalho do
+// kickoff (Dados do Kickoff + Comercial × Engenharia). Preserva valor legado.
 function PessoaCell({ value, onSave, options }: { value: string | null; onSave: (v: string | null) => void; options: string[] }) {
-  const [draft, setDraft] = useState(value ?? '');
-  useEffect(() => setDraft(value ?? ''), [value]);
-  const listId = useId();
+  const opts = value && !options.includes(value) ? [value, ...options] : options;
   return (
-    <>
-      <input value={draft} onChange={e => setDraft(e.target.value)}
-        list={options.length ? listId : undefined}
-        placeholder={options.length ? 'Selecione ou digite…' : '—'}
-        onBlur={() => { const n = draft.trim(); if (n !== (value ?? '')) onSave(n || null); }}
-        className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon placeholder-ber-gray/50 hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none" />
-      {options.length > 0 && (
-        <datalist id={listId}>
-          {options.map(o => <option key={o} value={o} />)}
-        </datalist>
-      )}
-    </>
+    <select value={value ?? ''} onChange={e => onSave(e.target.value || null)}
+      title={options.length ? undefined : 'Cadastre os nomes nos quadros do topo do kickoff'}
+      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-[11px] text-ber-carbon hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none">
+      <option value="">—</option>
+      {opts.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
   );
 }
 
