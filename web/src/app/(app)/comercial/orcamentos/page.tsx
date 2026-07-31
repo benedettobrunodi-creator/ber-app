@@ -243,6 +243,7 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
   const [editDataFim, setEditDataFim] = useState(orc?.dataFim?.slice(0, 10) ?? '');
   const [editDataEntrega, setEditDataEntrega] = useState(orc?.dataEntrega?.slice(0, 10) ?? '');
   const [editResponsavelId, setEditResponsavelId] = useState(orc?.responsavel?.id ?? '');
+  const [editTipo, setEditTipo] = useState(orc?.tipo ?? 'NOVO');
   const [editObservacoes, setEditObservacoes] = useState(orc?.observacoes ?? '');
   // New orçamento create-only fields
   const [cliente, setCliente] = useState('');
@@ -253,6 +254,7 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
   const [dataFim, setDataFim] = useState('');
   const [dataEntrega, setDataEntrega] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
+  const [tipo, setTipo] = useState('');
   const [crmCtx, setCrmCtx] = useState<{ oportunidade: { id: string; titulo: string; etapa: string; empresa: { razaoSocial: string } | null } | null; obra: { id: string; name: string; status: string; fase: string } | null } | null>(null);
   const [criandoOp, setCriandoOp] = useState(false);
   const [showCriarOp, setShowCriarOp] = useState(false);
@@ -291,6 +293,8 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
     e.preventDefault();
     if (!numero.trim()) { setError('Número obrigatório'); return; }
     if (!cliente.trim()) { setError('Cliente obrigatório'); return; }
+    if (!tipo) { setError('Indique o tipo: Novo, Revisão ou Change Order'); return; }
+    if (!responsavelId) { setError('Selecione o responsável'); return; }
     setSaving(true);
     setError('');
     try {
@@ -298,6 +302,7 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
         numero: numero.trim(),
         cliente: cliente.trim(),
         status: 'A_INICIAR',
+        tipo,
         valorVenda: valorVenda ? Number(valorVenda.replace(/\D/g, '')) || undefined : undefined,
         m2: m2 ? Number(m2) || undefined : undefined,
         segmento: segmento || undefined,
@@ -358,12 +363,24 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!orc || !editCliente.trim()) { setError('Cliente obrigatório'); return; }
+    if (!editResponsavelId) { setError('Selecione o responsável'); return; }
+    // Alterar as datas exige indicar que é uma Revisão (ou Change Order) — não pode
+    // mexer nas datas de um orçamento mantendo o tipo "Novo".
+    const datasMudaram =
+      editDataInicio !== (orc.dataInicio?.slice(0, 10) ?? '') ||
+      editDataFim !== (orc.dataFim?.slice(0, 10) ?? '') ||
+      editDataEntrega !== (orc.dataEntrega?.slice(0, 10) ?? '');
+    if (datasMudaram && editTipo === 'NOVO') {
+      setError('Para alterar as datas, marque o tipo como Revisão ou Change Order.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const res = await api.patch(`/orcamentos/${orc.id}`, {
         cliente: editCliente.trim(),
         status: editStatus,
+        tipo: editTipo,
         valorVenda: editValorVenda ? Number(editValorVenda) || undefined : undefined,
         m2: editM2 ? Number(editM2) || undefined : undefined,
         segmento: editSegmento || undefined,
@@ -453,6 +470,15 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
                 </div>
               </div>
               <div>
+                <label className={labelCls}>Tipo *</label>
+                <select className={inputCls} value={tipo} onChange={e => setTipo(e.target.value)} required>
+                  <option value="">Selecione…</option>
+                  <option value="NOVO">Novo orçamento</option>
+                  <option value="REVISAO">Revisão</option>
+                  <option value="CHANGE_ORDER">Change Order</option>
+                </select>
+              </div>
+              <div>
                 <label className={labelCls}>Cliente *</label>
                 <input className={inputCls} value={cliente} onChange={e => setCliente(e.target.value)}
                   placeholder="Nome do cliente ou empresa" required />
@@ -484,8 +510,8 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Responsável</label>
-                <select className={inputCls} value={responsavelId} onChange={e => setResponsavelId(e.target.value)}>
+                <label className={labelCls}>Responsável *</label>
+                <select className={inputCls} value={responsavelId} onChange={e => setResponsavelId(e.target.value)} required>
                   <option value="">Nenhum</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
@@ -512,10 +538,21 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
           {/* Detalhes — edição para existentes */}
           {!isNew && tab === 'detalhes' && (
             <form id="orc-edit-form" onSubmit={handleUpdate} className="space-y-3">
-              <div>
-                <label className={labelCls}>Cliente *</label>
-                <input className={inputCls} value={editCliente} onChange={e => setEditCliente(e.target.value)} required />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Cliente *</label>
+                  <input className={inputCls} value={editCliente} onChange={e => setEditCliente(e.target.value)} required />
+                </div>
+                <div>
+                  <label className={labelCls}>Tipo *</label>
+                  <select className={inputCls} value={editTipo} onChange={e => setEditTipo(e.target.value)} required>
+                    <option value="NOVO">Novo orçamento</option>
+                    <option value="REVISAO">Revisão</option>
+                    <option value="CHANGE_ORDER">Change Order</option>
+                  </select>
+                </div>
               </div>
+              <p className="text-[11px] text-ber-gray/70">Para alterar as datas, marque o Tipo como Revisão (ou Change Order).</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Status</label>
@@ -564,8 +601,8 @@ function OrcamentoDrawer({ orc, users, allOrcs: _allOrcs, canWrite, onClose, onS
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Responsável</label>
-                  <select className={inputCls} value={editResponsavelId} onChange={e => setEditResponsavelId(e.target.value)}>
+                  <label className={labelCls}>Responsável *</label>
+                  <select className={inputCls} value={editResponsavelId} onChange={e => setEditResponsavelId(e.target.value)} required>
                     <option value="">Nenhum</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>

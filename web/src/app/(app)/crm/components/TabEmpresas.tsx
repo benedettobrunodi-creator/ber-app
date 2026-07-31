@@ -99,6 +99,7 @@ function EmpresaDrawer({
 
   const handleSave = async () => {
     if (!form.razaoSocial.trim()) { setErr('Razão social obrigatória'); return; }
+    if (!form.segmento) { setErr('Selecione o segmento'); return; }
     setSaving(true);
     try {
       const payload = { ...form, cnpj: form.cnpj || null, segmento: form.segmento || null, classificacao: form.classificacao || null, setor: form.setor || null, cidade: form.cidade || null };
@@ -144,7 +145,7 @@ function EmpresaDrawer({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Segmento</label>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Segmento *</label>
               <select className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal" value={form.segmento} onChange={(e) => setForm((f) => ({ ...f, segmento: e.target.value }))}>
                 <option value="">--</option>
                 {SEGMENTOS.map((s) => <option key={s} value={s}>{s}</option>)}
