@@ -234,70 +234,6 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     <div className="space-y-6">
       {drill && <DrilldownModal title={drill.title} oportunidades={drill.ops} onClose={() => setDrill(null)} />}
 
-      {/* ── Produtividade dos Orçamentistas (base: esteira de orçamentos) ── */}
-      <Section title="Produtividade dos Orçamentistas" subtitle="Novos + Revisões + Change Orders — por orçamentista">
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <select value={prodAno} onChange={(e) => setProdAno(Number(e.target.value))}
-            className="rounded-lg border border-ber-border px-2 py-1.5 text-sm focus:border-ber-teal focus:outline-none">
-            {[ano, ano - 1, ano - 2].map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <select value={prodMes} onChange={(e) => setProdMes(Number(e.target.value))}
-            className="rounded-lg border border-ber-border px-2 py-1.5 text-sm focus:border-ber-teal focus:outline-none">
-            <option value={0}>Ano todo</option>
-            {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-          <label className="flex items-center gap-1.5 text-sm text-ber-gray cursor-pointer">
-            <input type="checkbox" checked={prodEnviados} onChange={(e) => setProdEnviados(e.target.checked)} className="h-4 w-4 accent-ber-teal" />
-            Só enviados
-          </label>
-          <span className="text-xs text-ber-gray/60">Período pela data de entrega</span>
-        </div>
-        {produtividade.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ber-gray">Sem orçamentos no período.</p>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ResponsiveContainer width="100%" height={Math.max(200, produtividade.length * 44)}>
-              <BarChart layout="vertical" data={produtividade} margin={{ left: 10, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="nome" width={130} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="novos" stackId="a" name="Novos" fill="#5A7A7A" />
-                <Bar dataKey="revisoes" stackId="a" name="Revisões" fill="#B5B820" />
-                <Bar dataKey="changeOrders" stackId="a" name="Change Orders" fill="#0EA5E9">
-                  <LabelList dataKey="total" position="right" style={{ fontSize: 11, fontWeight: 700, fill: '#2D2D2D' }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-ber-gray border-b border-ber-border">
-                    <th className="py-2">Orçamentista</th>
-                    <th className="py-2 text-center">Novos</th>
-                    <th className="py-2 text-center">Revisões</th>
-                    <th className="py-2 text-center">Change Orders</th>
-                    <th className="py-2 text-center font-bold">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {produtividade.map((r) => (
-                    <tr key={r.responsavelId ?? r.nome} className="border-b border-ber-border/50">
-                      <td className="py-2 font-medium text-ber-carbon">{r.nome}</td>
-                      <td className="py-2 text-center tabular-nums">{r.novos}</td>
-                      <td className="py-2 text-center tabular-nums">{r.revisoes}</td>
-                      <td className="py-2 text-center tabular-nums">{r.changeOrders}</td>
-                      <td className="py-2 text-center tabular-nums font-bold text-ber-carbon">{r.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </Section>
-
       {/* ── Win Rate ─────────────────────────────────────────────── */}
       {winRate && (
         <Section title="Win Rate" subtitle={String(ano)}>
@@ -700,6 +636,70 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
           </div>
         </Section>
       )}
+
+      {/* ── Produtividade dos Orçamentistas (base: esteira de orçamentos) ── */}
+      <Section title="Produtividade dos Orçamentistas" subtitle="Novos + Revisões + Change Orders — por orçamentista">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <select value={prodAno} onChange={(e) => setProdAno(Number(e.target.value))}
+            className="rounded-lg border border-ber-border px-2 py-1.5 text-sm focus:border-ber-teal focus:outline-none">
+            {[ano, ano - 1, ano - 2].map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select value={prodMes} onChange={(e) => setProdMes(Number(e.target.value))}
+            className="rounded-lg border border-ber-border px-2 py-1.5 text-sm focus:border-ber-teal focus:outline-none">
+            <option value={0}>Ano todo</option>
+            {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-ber-gray cursor-pointer">
+            <input type="checkbox" checked={prodEnviados} onChange={(e) => setProdEnviados(e.target.checked)} className="h-4 w-4 accent-ber-teal" />
+            Só enviados
+          </label>
+          <span className="text-xs text-ber-gray/60">Período pela data de entrega</span>
+        </div>
+        {produtividade.length === 0 ? (
+          <p className="py-8 text-center text-sm text-ber-gray">Sem orçamentos no período.</p>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ResponsiveContainer width="100%" height={Math.max(200, produtividade.length * 44)}>
+              <BarChart layout="vertical" data={produtividade} margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="nome" width={130} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="novos" stackId="a" name="Novos" fill="#5A7A7A" />
+                <Bar dataKey="revisoes" stackId="a" name="Revisões" fill="#B5B820" />
+                <Bar dataKey="changeOrders" stackId="a" name="Change Orders" fill="#0EA5E9">
+                  <LabelList dataKey="total" position="right" style={{ fontSize: 11, fontWeight: 700, fill: '#2D2D2D' }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ber-gray border-b border-ber-border">
+                    <th className="py-2">Orçamentista</th>
+                    <th className="py-2 text-center">Novos</th>
+                    <th className="py-2 text-center">Revisões</th>
+                    <th className="py-2 text-center">Change Orders</th>
+                    <th className="py-2 text-center font-bold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {produtividade.map((r) => (
+                    <tr key={r.responsavelId ?? r.nome} className="border-b border-ber-border/50">
+                      <td className="py-2 font-medium text-ber-carbon">{r.nome}</td>
+                      <td className="py-2 text-center tabular-nums">{r.novos}</td>
+                      <td className="py-2 text-center tabular-nums">{r.revisoes}</td>
+                      <td className="py-2 text-center tabular-nums">{r.changeOrders}</td>
+                      <td className="py-2 text-center tabular-nums font-bold text-ber-carbon">{r.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Section>
 
       {/* ── Win Rate por Segmento ───────────────────────────────── */}
       {winRateSegmento.length > 0 && (
