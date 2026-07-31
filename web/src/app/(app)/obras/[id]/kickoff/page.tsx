@@ -207,32 +207,29 @@ export default function KickoffPage() {
                   {secao}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-[900px] w-full text-xs">
+                  <table className="min-w-[1000px] w-full text-xs">
                     <thead className="bg-ber-bg/50 text-left">
                       <tr className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">
-                        <th className="px-3 py-2 w-[32%]">Documento / Ação</th>
-                        <th className="px-2 py-2 w-[16%]">Responsável</th>
-                        <th className="px-2 py-2 w-[10%]">Na Rede</th>
-                        <th className="px-2 py-2 w-[12%]">Data Alvo</th>
-                        <th className="px-2 py-2 w-[14%]">Status</th>
-                        <th className="px-2 py-2 w-[16%]">Observações</th>
+                        <th className="px-3 py-2 w-[28%]">Documento / Ação</th>
+                        <th className="px-2 py-2 w-[9%] text-center">Sim / Não</th>
+                        <th className="px-2 py-2 w-[15%]">Responsável</th>
+                        <th className="px-2 py-2 w-[9%]">Na Rede</th>
+                        <th className="px-2 py-2 w-[11%]">Data Alvo</th>
+                        <th className="px-2 py-2 w-[13%]">Status</th>
+                        <th className="px-2 py-2 w-[15%]">Observações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {itens.map(it => (
                         <tr key={it.id} className="border-b border-ber-gray/10 align-top">
-                          <td className="px-3 py-2 text-ber-carbon">
-                            <div className="flex items-center gap-2">
-                              <span>{it.item}</span>
-                              {/gest[ãa]o de gerenciadora/i.test(it.item) && (
-                                <select value={it.resposta ?? ''} onChange={e => saveItem(it.id, { resposta: e.target.value || null })}
-                                  className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-semibold focus:border-ber-teal focus:outline-none ${it.resposta === 'sim' ? 'border-green-300 bg-green-50 text-green-700' : it.resposta === 'nao' ? 'border-red-300 bg-red-50 text-red-700' : 'border-ber-gray/30 text-ber-gray'}`}>
-                                  <option value="">Sim/Não?</option>
-                                  <option value="sim">Sim</option>
-                                  <option value="nao">Não</option>
-                                </select>
-                              )}
-                            </div>
+                          <td className="px-3 py-2 text-ber-carbon">{it.item}</td>
+                          <td className="px-2 py-2">
+                            <select value={it.resposta ?? ''} onChange={e => saveItem(it.id, { resposta: e.target.value || null })}
+                              className={`w-full rounded border px-1 py-1 text-[11px] font-semibold focus:border-ber-teal focus:outline-none ${it.resposta === 'sim' ? 'border-green-300 bg-green-50 text-green-700' : it.resposta === 'nao' ? 'border-red-300 bg-red-50 text-red-700' : 'border-transparent text-ber-gray hover:border-ber-gray/20'}`}>
+                              <option value="">—</option>
+                              <option value="sim">Sim</option>
+                              <option value="nao">Não</option>
+                            </select>
                           </td>
                           <td className="px-2 py-2">
                             <PessoaCell value={it.responsavel} onSave={v => saveItem(it.id, { responsavel: v })} options={pessoas} />
