@@ -50,20 +50,20 @@ export default function CronogramaContratacoesPage() {
   const backHref = useBackToObra();
   const [obraName, setObraName] = useState('');
   const [planos, setPlanos] = useState<Plano[]>([]);
-  const [contratacoes, setContratacoes] = useState<Contratacao[]>([]);
+  const [comprasPeople, setComprasPeople] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState<Plano | true | null>(null);
 
   async function fetchAll() {
     setLoading(true);
     try {
-      const [p, c, obraRes] = await Promise.all([
+      const [p, u, obraRes] = await Promise.all([
         api.get<{ data: Plano[] }>(`/obras/${obraId}/contratacao-plano`),
-        api.get<{ data: { contratacoes: Contratacao[] } }>(`/obras/${obraId}/contratacoes`),
+        api.get<{ data: { id: string; name: string; role: string }[] }>(`/users/responsaveis`),
         api.get(`/obras/${obraId}`),
       ]);
       setPlanos(p.data.data);
-      setContratacoes(c.data.data.contratacoes);
+      setComprasPeople(u.data.data.filter(x => x.role === 'compras').map(x => x.name));
       setObraName(obraRes.data.data.name);
     } finally { setLoading(false); }
   }
@@ -80,11 +80,6 @@ export default function CronogramaContratacoesPage() {
     setPlanos(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
     try { await api.patch(`/contratacao-plano/${id}`, patch); }
     catch (err) { alert(errMsg(err, 'Erro ao salvar')); fetchAll(); }
-  }
-
-  async function linkContratacao(id: string, contratacaoId: string | null) {
-    try { await api.patch(`/contratacao-plano/${id}`, { contratacaoId }); fetchAll(); }
-    catch (err) { alert(errMsg(err, 'Erro ao vincular')); }
   }
 
   async function handleDelete(id: string) {
@@ -143,22 +138,21 @@ export default function CronogramaContratacoesPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-ber-gray/10 bg-white shadow-sm">
-          <table className="w-full text-sm">
+          <table className="w-max min-w-full text-sm">
             <thead className="bg-ber-carbon text-xs text-white">
               <tr>
-                <th className="px-3 py-3 text-left min-w-[170px]">Disciplina / Serviço</th>
-                <th className="px-3 py-3 text-left w-40">Responsável</th>
-                <th className="px-3 py-3 text-center w-32">Tempo entrega / mob.</th>
-                <th className="px-3 py-3 text-center w-32">Data ideal</th>
-                <th className="px-3 py-3 text-center w-32">Data limite</th>
-                <th className="px-3 py-3 text-center w-32">Status</th>
-                <th className="px-3 py-3 text-center w-32">Data emissão pedido</th>
-                <th className="px-3 py-3 text-left w-44">Empresa contratada</th>
-                <th className="px-3 py-3 text-left w-36">Contato</th>
-                <th className="px-3 py-3 text-left w-36">WhatsApp</th>
-                <th className="px-3 py-3 text-left w-48">E-mail</th>
-                <th className="px-3 py-3 text-center w-32">Início mobilização</th>
-                <th className="px-3 py-3 text-left w-52">Vínculo c/ Contratação</th>
+                <th className="px-3 py-3 text-left w-64">Disciplina / Serviço</th>
+                <th className="px-3 py-3 text-left w-52">Responsável</th>
+                <th className="px-3 py-3 text-center w-44">Tempo entrega / mob.</th>
+                <th className="px-3 py-3 text-center w-44">Data ideal</th>
+                <th className="px-3 py-3 text-center w-44">Data limite</th>
+                <th className="px-3 py-3 text-center w-36">Status</th>
+                <th className="px-3 py-3 text-center w-44">Data emissão pedido</th>
+                <th className="px-3 py-3 text-left w-60">Empresa contratada</th>
+                <th className="px-3 py-3 text-left w-52">Contato</th>
+                <th className="px-3 py-3 text-left w-44">WhatsApp</th>
+                <th className="px-3 py-3 text-left w-64">E-mail</th>
+                <th className="px-3 py-3 text-center w-44">Início mobilização</th>
                 <th className="px-3 py-3 w-20"></th>
               </tr>
             </thead>
@@ -170,7 +164,7 @@ export default function CronogramaContratacoesPage() {
                   <tr key={p.id} className={`border-t border-ber-gray/10 hover:bg-ber-bg/40 ${limitePassed ? 'bg-red-50/30' : ''}`}>
                     <td className="px-3 py-2.5 font-medium text-ber-carbon">{p.pacote}</td>
                     <td className="px-2 py-1.5">
-                      <InlineText value={p.responsavel} placeholder="Responsável…" onSave={v => saveField(p.id, { responsavel: v })} />
+                      <InlineResponsavel value={p.responsavel} options={comprasPeople} onSave={v => saveField(p.id, { responsavel: v })} />
                     </td>
                     <td className="px-2 py-1.5">
                       <InlineDate value={p.tempoEntrega} onSave={v => saveField(p.id, { tempoEntrega: v })} />
@@ -211,15 +205,6 @@ export default function CronogramaContratacoesPage() {
                     <td className="px-2 py-1.5">
                       <InlineDate value={p.inicioMobilizacao} onSave={v => saveField(p.id, { inicioMobilizacao: v })} />
                     </td>
-                    <td className="px-3 py-2.5">
-                      <select value={p.contratacaoId || ''} onChange={e => linkContratacao(p.id, e.target.value || null)}
-                        className="w-full rounded-md border border-ber-gray/30 px-2 py-1 text-xs focus:border-ber-teal focus:outline-none">
-                        <option value="">— Não vinculado —</option>
-                        {contratacoes.map(c => (
-                          <option key={c.id} value={c.id}>{c.fornecedor}{c.disciplina ? ` · ${c.disciplina}` : ''}</option>
-                        ))}
-                      </select>
-                    </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => setShowForm(p)} title="Editar" className="rounded p-1 text-ber-gray hover:bg-ber-bg hover:text-ber-carbon"><Pencil size={14} /></button>
@@ -235,13 +220,13 @@ export default function CronogramaContratacoesPage() {
       )}
 
       {showForm !== null && (
-        <PlanoForm obraId={obraId} edit={showForm === true ? null : showForm} onClose={() => setShowForm(null)} onSaved={() => { setShowForm(null); fetchAll(); }} />
+        <PlanoForm obraId={obraId} edit={showForm === true ? null : showForm} comprasPeople={comprasPeople} onClose={() => setShowForm(null)} onSaved={() => { setShowForm(null); fetchAll(); }} />
       )}
     </div>
   );
 }
 
-function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: Plano | null; onClose: () => void; onSaved: () => void }) {
+function PlanoForm({ obraId, edit, comprasPeople, onClose, onSaved }: { obraId: string; edit: Plano | null; comprasPeople: string[]; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({
     pacote: edit?.pacote || '',
     responsavel: edit?.responsavel || '',
@@ -295,7 +280,12 @@ function PlanoForm({ obraId, edit, onClose, onSaved }: { obraId: string; edit: P
         <form onSubmit={submit} className="space-y-4 px-6 py-5">
           {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
           <Field label="Disciplina / Serviço *"><input value={f.pacote} onChange={e => setF(p => ({ ...p, pacote: e.target.value }))} placeholder="Ex: Civil, Elétrica, Marmoraria…" className={inputCls} required /></Field>
-          <Field label="Responsável pela contratação"><input value={f.responsavel} onChange={e => setF(p => ({ ...p, responsavel: e.target.value }))} placeholder="Ex: Émerson Machado" className={inputCls} /></Field>
+          <Field label="Responsável pela contratação">
+            <select value={f.responsavel} onChange={e => setF(p => ({ ...p, responsavel: e.target.value }))} className={inputCls}>
+              <option value="">—</option>
+              {(f.responsavel && !comprasPeople.includes(f.responsavel) ? [f.responsavel, ...comprasPeople] : comprasPeople).map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Tempo de entrega / mobilização"><input type="date" value={f.tempoEntrega} onChange={e => setF(p => ({ ...p, tempoEntrega: e.target.value }))} className={inputCls} /></Field>
             <Field label="Início da mobilização"><input type="date" value={f.inicioMobilizacao} onChange={e => setF(p => ({ ...p, inicioMobilizacao: e.target.value }))} className={inputCls} /></Field>
@@ -354,5 +344,17 @@ function InlineDate({ value, onSave, highlight }: { value: string | null; onSave
       onChange={e => { const v = e.target.value || null; if ((v ?? '') !== iso) onSave(v); }}
       className={`w-full rounded border bg-transparent px-1 py-1 text-xs tabular-nums focus:border-ber-teal focus:outline-none ${highlight ? 'border-red-300 text-red-700 font-semibold' : 'border-transparent text-ber-carbon hover:border-ber-gray/20'}`}
     />
+  );
+}
+
+// Dropdown do responsável — pessoal de compras. Mantém valor legado fora da lista.
+function InlineResponsavel({ value, options, onSave }: { value: string | null; options: string[]; onSave: (v: string | null) => void }) {
+  const opts = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <select value={value ?? ''} onChange={e => onSave(e.target.value || null)}
+      className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-xs text-ber-carbon hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none">
+      <option value="">—</option>
+      {opts.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
   );
 }
