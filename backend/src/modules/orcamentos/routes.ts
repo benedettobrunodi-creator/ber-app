@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/stats',       controller.getStats);
+router.get('/produtividade', controller.getProdutividade);
 router.get('/timeline',    controller.getTimeline);
 router.get('/',            controller.listOrcamentos);
 router.get('/:id',         controller.getOrcamento);

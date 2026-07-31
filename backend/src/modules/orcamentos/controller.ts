@@ -61,3 +61,12 @@ export async function getStats(_req: Request, res: Response) {
   const data = await service.stats();
   sendSuccess(res, data);
 }
+
+export async function getProdutividade(req: Request, res: Response) {
+  const ano = Number(req.query.ano) || new Date().getFullYear();
+  const mesRaw = req.query.mes ? Number(req.query.mes) : null;
+  const mes = mesRaw && mesRaw >= 1 && mesRaw <= 12 ? mesRaw : null;
+  const enviadosOnly = req.query.enviados === 'true';
+  const data = await service.produtividadeOrcamentistas(ano, mes, enviadosOnly);
+  sendSuccess(res, data);
+}

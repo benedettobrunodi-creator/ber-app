@@ -280,3 +280,40 @@ export async function stats() {
     bySegmento,
   };
 }
+
+// Status considerados "enviados" (efetivamente entregues ao cliente).
+const ENVIADOS_STATUSES = ['ENVIADO', 'AGUARDANDO', 'APROVADO', 'ENTREGUE'];
+
+/** Produtividade dos orçamentistas: nº de orçamentos produzidos por responsável,
+ *  quebrado por tipo (Novos / Revisões / Change Orders). Período pela data de
+ *  entrega (fallback: data de criação). `enviadosOnly` filtra só os enviados. */
+export async function produtividadeOrcamentistas(ano: number, mes: number | null, enviadosOnly: boolean) {
+  const rows = await prisma.orcamento.findMany({
+    where: enviadosOnly ? { status: { in: ENVIADOS_STATUSES } } : {},
+    select: {
+      tipo: true,
+      dataEntrega: true,
+      createdAt: true,
+      responsavelId: true,
+      responsavel: { select: { id: true, name: true } },
+    },
+  });
+
+  const start = Date.UTC(ano, mes ? mes - 1 : 0, 1);
+  const end = mes ? Date.UTC(ano, mes, 1) : Date.UTC(ano + 1, 0, 1);
+
+  type Row = { responsavelId: string | null; nome: string; novos: number; revisoes: number; changeOrders: number; total: number };
+  const map = new Map<string, Row>();
+  for (const o of rows) {
+    const anchor = (o.dataEntrega ?? o.createdAt).getTime();
+    if (anchor < start || anchor >= end) continue;
+    const key = o.responsavelId ?? 'sem';
+    const e = map.get(key) ?? { responsavelId: o.responsavelId, nome: o.responsavel?.name ?? 'Sem responsável', novos: 0, revisoes: 0, changeOrders: 0, total: 0 };
+    if (o.tipo === 'REVISAO') e.revisoes++;
+    else if (o.tipo === 'CHANGE_ORDER') e.changeOrders++;
+    else e.novos++;
+    e.total++;
+    map.set(key, e);
+  }
+  return [...map.values()].sort((a, b) => b.total - a.total);
+}

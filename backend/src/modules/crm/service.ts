@@ -992,13 +992,14 @@ export async function getPerformanceResponsavel(ano?: number) {
 
   const [todosGanhos, perdas] = await Promise.all([
     prisma.crmOportunidade.findMany({
-      where: { etapa: 'ganho', responsavelId: { not: null } },
+      where: { etapa: 'ganho', responsavelId: { not: null }, NOT: { origem: 'change_order' } },
       select: { valor: true, dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true, responsavelId: true, responsavel: { select: { id: true, name: true } } },
     }),
     prisma.crmOportunidade.findMany({
       where: {
         etapa: { in: ['perdido', 'declinado', 'cancelado'] },
         responsavelId: { not: null },
+        NOT: { origem: 'change_order' },
         ...(createdRange ? { createdAt: createdRange } : {}),
       },
       select: { responsavelId: true, responsavel: { select: { id: true, name: true } } },
@@ -1148,7 +1149,7 @@ export async function getWinRateSegmento(ano?: number) {
 
   // Ganhos: busca todos e filtra por refDate (dataGanho ?? dataFechamentoPrevisto ?? updatedAt)
   const todosGanhos = await prisma.crmOportunidade.findMany({
-    where: { etapa: 'ganho' },
+    where: { etapa: 'ganho', NOT: { origem: 'change_order' } },
     select: { valor: true, dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true, empresa: { select: { segmento: true } } },
   });
   const ganhos = ano ? todosGanhos.filter(op => refDateAno(op) === ano) : todosGanhos;
@@ -1156,6 +1157,7 @@ export async function getWinRateSegmento(ano?: number) {
   const perdas = await prisma.crmOportunidade.findMany({
     where: {
       etapa: { in: ['perdido', 'declinado', 'cancelado'] },
+      NOT: { origem: 'change_order' },
       ...(createdRange ? { createdAt: createdRange } : {}),
     },
     select: { empresa: { select: { segmento: true } } },
