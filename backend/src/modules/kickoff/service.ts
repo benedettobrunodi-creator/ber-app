@@ -80,6 +80,7 @@ export async function updateItem(itemId: string, input: UpdateKickoffItemInput) 
     where: { id: itemId },
     data: {
       ...(input.responsavel !== undefined && { responsavel: input.responsavel }),
+      ...(input.resposta    !== undefined && { resposta:    input.resposta }),
       ...(input.naRede      !== undefined && { naRede:      input.naRede }),
       ...(input.dataAlvo    !== undefined && { dataAlvo:    parseDate(input.dataAlvo) }),
       ...(input.status      !== undefined && { status:      input.status }),

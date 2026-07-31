@@ -2337,6 +2337,7 @@ model ObraKickoffItem {
   item        String    @db.Text
   ordem       Int       @default(0)
   responsavel String?   @db.VarChar(255)
+  resposta    String?   @db.VarChar(10)                    // sim | nao (p/ itens que são pergunta, ex: gerenciadora)
   naRede      String?   @map("na_rede") @db.VarChar(10)   // sim | nao | na
   dataAlvo    DateTime? @map("data_alvo") @db.Date
   status      String?   @db.VarChar(20)                    // concluido | em_andamento | atrasado | na

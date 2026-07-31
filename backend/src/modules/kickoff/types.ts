@@ -21,6 +21,7 @@ export const upsertKickoffSchema = z.object({
 
 export const updateKickoffItemSchema = z.object({
   responsavel: z.string().optional().nullable(),
+  resposta:    z.enum(['sim', 'nao']).optional().nullable(),
   naRede:      z.enum(['sim', 'nao', 'na']).optional().nullable(),
   dataAlvo:    z.string().optional().nullable(),
   status:      z.enum(['concluido', 'em_andamento', 'atrasado', 'na']).optional().nullable(),

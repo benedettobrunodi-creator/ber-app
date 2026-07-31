@@ -24,6 +24,7 @@ interface KickoffItem {
   item: string;
   ordem: number;
   responsavel: string | null;
+  resposta: string | null;
   naRede: string | null;
   dataAlvo: string | null;
   status: string | null;
@@ -220,7 +221,19 @@ export default function KickoffPage() {
                     <tbody>
                       {itens.map(it => (
                         <tr key={it.id} className="border-b border-ber-gray/10 align-top">
-                          <td className="px-3 py-2 text-ber-carbon">{it.item}</td>
+                          <td className="px-3 py-2 text-ber-carbon">
+                            <div className="flex items-center gap-2">
+                              <span>{it.item}</span>
+                              {/gest[ãa]o de gerenciadora/i.test(it.item) && (
+                                <select value={it.resposta ?? ''} onChange={e => saveItem(it.id, { resposta: e.target.value || null })}
+                                  className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-semibold focus:border-ber-teal focus:outline-none ${it.resposta === 'sim' ? 'border-green-300 bg-green-50 text-green-700' : it.resposta === 'nao' ? 'border-red-300 bg-red-50 text-red-700' : 'border-ber-gray/30 text-ber-gray'}`}>
+                                  <option value="">Sim/Não?</option>
+                                  <option value="sim">Sim</option>
+                                  <option value="nao">Não</option>
+                                </select>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-2 py-2">
                             <PessoaCell value={it.responsavel} onSave={v => saveItem(it.id, { responsavel: v })} options={pessoas} />
                           </td>
