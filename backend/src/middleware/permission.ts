@@ -9,7 +9,7 @@ const ALL_OFF: Record<string, boolean> = {
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
   contratacaoPlano: false, histograma: false, gestao360: false,
-  financeiro: false, ferias: false,
+  financeiro: false, ferias: false, bancoHoras: false,
 };
 
 const ALL_ON: Record<string, boolean> = Object.fromEntries(
@@ -41,7 +41,8 @@ const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
   engenharia:  { ...OBRA_OPS },
   gestor:      { ...OBRA_OPS },
   financeiro:  { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
-                 comprasDashboard: true, aditivos: true, contratacoes: true, documentos: true, gestao360: true },
+                 comprasDashboard: true, aditivos: true, contratacoes: true, documentos: true, gestao360: true,
+                 bancoHoras: true },
   compras:     { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
                  comprasDashboard: true, contratacoes: true, contratacaoPlano: true, documentos: true },
   orcamentos:  { ...ALL_OFF, dashboard: true, obras: true, orcamentos: true, ponto: true, diario: true },

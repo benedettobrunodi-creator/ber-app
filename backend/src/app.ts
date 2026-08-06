@@ -54,6 +54,7 @@ import relatorioRouter from './modules/relatorio-semanal/routes';
 import crmRoutes from './modules/crm/routes';
 import comprasDashboardRoutes from './modules/compras-dashboard/routes';
 import feriasRoutes from './modules/ferias/routes';
+import bancoHorasRoutes from './modules/banco-horas/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 import { requirePermission } from './middleware/permission';
@@ -176,6 +177,9 @@ app.use('/v1/compras-dashboard', ...perm('comprasDashboard'), comprasDashboardRo
 
 // — Módulo: férias (controle global de férias dos colaboradores) —
 app.use('/v1/ferias', ...perm('ferias'), feriasRoutes);
+
+// — Módulo: banco de horas (Ponto → excedente vira crédito, domingo/feriado vira extra) —
+app.use('/v1/banco-horas', ...perm('bancoHoras'), bancoHorasRoutes);
 
 // — Módulo: orçamentos / CRM —
 app.use('/v1/proposals', ...perm('orcamentos'), proposalRoutes);

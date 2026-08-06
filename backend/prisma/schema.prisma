@@ -22,82 +22,87 @@ model User {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relations
-  coordinatedObras        Obra[]                  @relation("ObraCoordinator")
-  obraMembers             ObraMember[]
-  assignedTasks           ObraTask[]              @relation("TaskAssignee")
-  createdTasks            ObraTask[]              @relation("TaskCreator")
-  proposals               Proposal[]
-  meetingsCreated         Meeting[]
-  announcements           Announcement[]
-  announcementReads       AnnouncementRead[]
-  chatRoomMembers         ChatRoomMember[]
-  chatMessages            ChatMessage[]
-  photos                  Photo[]
-  photoComments           PhotoComment[]
-  notifications           Notification[]
-  timeEntries             TimeEntry[]
-  createdChecklists       Checklist[]             @relation("ChecklistCreator")
-  responsibleItems        ChecklistItem[]         @relation("ChecklistItemResponsible")
-  answeredItems           ChecklistItem[]         @relation("ChecklistItemAnswerer")
-  canteiroCreated         CanteiroChecklist[]     @relation("CanteiroCreator")
-  canteiroApproved        CanteiroChecklist[]     @relation("CanteiroApprover")
-  canteiroAnswered        CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
-  aprsCreated             APR[]                   @relation("APRCreator")
-  aprsApproved            APR[]                   @relation("APRApprover")
-  epiControls             EPIControl[]            @relation("EPIUser")
-  incidentsReported       Incident[]              @relation("IncidentReporter")
-  incidentsInjured        Incident[]              @relation("IncidentInjured")
-  trainings               Training[]              @relation("TrainingUser")
-  sequenciamentosCreated  ObraSequenciamento[]    @relation("SeqCreator")
-  etapasSubmitted         ObraEtapa[]             @relation("EtapaSubmitter")
-  etapasApproved          ObraEtapa[]             @relation("EtapaApprover")
-  etapasRejected          ObraEtapa[]             @relation("EtapaRejecter")
-  instrucoesCreated       InstrucaoTecnica[]      @relation("ITCreator")
-  instrucoesUpdated       InstrucaoTecnica[]      @relation("ITUpdater")
-  recebimentosRegistrados RecebimentoMaterial[]   @relation("RecebimentoRegistrador")
-  faseHistoryChanged      ObraFaseHistory[]       @relation("FaseHistoryChanger")
-  obraFaseUpdated         Obra[]                  @relation("ObraFaseUpdater")
-  conductedTouchpoints    ClientTouchpoint[]      @relation("TouchpointConductor")
-  touchpointNextActions   ClientTouchpoint[]      @relation("TouchpointNextOwner")
-  createdTouchpoints      ClientTouchpoint[]      @relation("TouchpointCreator")
-  createdPunchLists       PunchList[]             @relation("PunchListCreator")
-  punchListItems          PunchListItem[]         @relation("PunchListResponsible")
-  etapaEditRequests       EtapaEditRequest[]      @relation("EtapaEditRequester")
-  etapaEditResolved       EtapaEditRequest[]      @relation("EtapaEditResolver")
-  filledFvs               ObraFvs[]               @relation("FvsFiller")
-  gestorFvs               ObraFvs[]               @relation("FvsGestorApprover")
-  coordFvs                ObraFvs[]               @relation("FvsCoordApprover")
-  rejectedFvs             ObraFvs[]               @relation("FvsRejector")
-  aditivosDecididos       ObraAditivo[]           @relation("AditivoDecididoPor")
-  documentosAprovados     ObraDocumento[]         @relation("DocumentoAprovadoPor")
-  filledFvsItems          ObraFvsItem[]           @relation("FvsItemFiller")
-  filledBerChecklists     ObraBerChecklist[]      @relation("BerChecklistFiller")
-  fotosEnviadas           ObraFoto[]              @relation("FotoAutor")
-  filledBerItems          ObraBerChecklistItem[]  @relation("BerChecklistItemFiller")
-  dreUpdates              DreValue[]              @relation("DreUpdater")
-  alocacoes               Alocacao[]              @relation("AlocacaoUser")
-  recursosExternosCriados RecursoExterno[]        @relation("RecursoExternoCreator")
-  customRole              CustomRole?             @relation(fields: [customRoleId], references: [id])
-  customRoleId            String?                 @map("custom_role_id") @db.Uuid
-  orcamentosResponsavel   Orcamento[]             @relation("OrcResp")
-  orcamentosCriados       Orcamento[]             @relation("OrcCriador")
-  quantitativosCriados    Quantitativo[]          @relation("QuantCriador")
-  quantitativoItensRevs   QuantitativoItem[]      @relation("QuantItemRevisor")
-  apiKeys                 ApiKey[]                @relation("ApiKeyCreator")
-  diariosCriados          DiarioObra[]            @relation("DiarioCriadoPor")
-  diariosFechados         DiarioObra[]            @relation("DiarioFechadoPor")
-  diarioFotos             DiarioFoto[]            @relation("DiarioFotoUploader")
-  diarioEfetivos          DiarioEfetivo[]         @relation("DiarioEfetivoUser")
-  crmOportunidadesResp    CrmOportunidade[]       @relation("CrmOportResponsavel")
-  crmOportunidadesCriadas CrmOportunidade[]       @relation("CrmOportCreator")
-  crmAtividades           CrmAtividade[]          @relation("CrmAtividadeUsuario")
-  crmCampanhas            CrmCampanha[]           @relation("CrmCampanhaResponsavel")
-  relatorios              RelatorioSemanal[]      @relation("RelatorioResponsavel")
-  resetTokens             PasswordResetToken[]
-  orgChartUpdates         OrgChart[]
-  temperaturasPreenchidas ObraTemperatura[]       @relation("TemperaturaCreator")
-  medicaoTransicoes       MedicaoTransicao[]      @relation("MedicaoTransicaoUser")
-  ataTopicosResponsavel   ObraAtaTopico[]         @relation("AtaTopicoResponsavel")
+  coordinatedObras         Obra[]                  @relation("ObraCoordinator")
+  obraMembers              ObraMember[]
+  assignedTasks            ObraTask[]              @relation("TaskAssignee")
+  createdTasks             ObraTask[]              @relation("TaskCreator")
+  proposals                Proposal[]
+  meetingsCreated          Meeting[]
+  announcements            Announcement[]
+  announcementReads        AnnouncementRead[]
+  chatRoomMembers          ChatRoomMember[]
+  chatMessages             ChatMessage[]
+  photos                   Photo[]
+  photoComments            PhotoComment[]
+  notifications            Notification[]
+  timeEntries              TimeEntry[]
+  createdChecklists        Checklist[]             @relation("ChecklistCreator")
+  responsibleItems         ChecklistItem[]         @relation("ChecklistItemResponsible")
+  answeredItems            ChecklistItem[]         @relation("ChecklistItemAnswerer")
+  canteiroCreated          CanteiroChecklist[]     @relation("CanteiroCreator")
+  canteiroApproved         CanteiroChecklist[]     @relation("CanteiroApprover")
+  canteiroAnswered         CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
+  aprsCreated              APR[]                   @relation("APRCreator")
+  aprsApproved             APR[]                   @relation("APRApprover")
+  epiControls              EPIControl[]            @relation("EPIUser")
+  incidentsReported        Incident[]              @relation("IncidentReporter")
+  incidentsInjured         Incident[]              @relation("IncidentInjured")
+  trainings                Training[]              @relation("TrainingUser")
+  sequenciamentosCreated   ObraSequenciamento[]    @relation("SeqCreator")
+  etapasSubmitted          ObraEtapa[]             @relation("EtapaSubmitter")
+  etapasApproved           ObraEtapa[]             @relation("EtapaApprover")
+  etapasRejected           ObraEtapa[]             @relation("EtapaRejecter")
+  instrucoesCreated        InstrucaoTecnica[]      @relation("ITCreator")
+  instrucoesUpdated        InstrucaoTecnica[]      @relation("ITUpdater")
+  recebimentosRegistrados  RecebimentoMaterial[]   @relation("RecebimentoRegistrador")
+  faseHistoryChanged       ObraFaseHistory[]       @relation("FaseHistoryChanger")
+  obraFaseUpdated          Obra[]                  @relation("ObraFaseUpdater")
+  conductedTouchpoints     ClientTouchpoint[]      @relation("TouchpointConductor")
+  touchpointNextActions    ClientTouchpoint[]      @relation("TouchpointNextOwner")
+  createdTouchpoints       ClientTouchpoint[]      @relation("TouchpointCreator")
+  createdPunchLists        PunchList[]             @relation("PunchListCreator")
+  punchListItems           PunchListItem[]         @relation("PunchListResponsible")
+  etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
+  etapaEditResolved        EtapaEditRequest[]      @relation("EtapaEditResolver")
+  filledFvs                ObraFvs[]               @relation("FvsFiller")
+  gestorFvs                ObraFvs[]               @relation("FvsGestorApprover")
+  coordFvs                 ObraFvs[]               @relation("FvsCoordApprover")
+  rejectedFvs              ObraFvs[]               @relation("FvsRejector")
+  aditivosDecididos        ObraAditivo[]           @relation("AditivoDecididoPor")
+  documentosAprovados      ObraDocumento[]         @relation("DocumentoAprovadoPor")
+  filledFvsItems           ObraFvsItem[]           @relation("FvsItemFiller")
+  filledBerChecklists      ObraBerChecklist[]      @relation("BerChecklistFiller")
+  fotosEnviadas            ObraFoto[]              @relation("FotoAutor")
+  filledBerItems           ObraBerChecklistItem[]  @relation("BerChecklistItemFiller")
+  dreUpdates               DreValue[]              @relation("DreUpdater")
+  alocacoes                Alocacao[]              @relation("AlocacaoUser")
+  recursosExternosCriados  RecursoExterno[]        @relation("RecursoExternoCreator")
+  customRole               CustomRole?             @relation(fields: [customRoleId], references: [id])
+  customRoleId             String?                 @map("custom_role_id") @db.Uuid
+  orcamentosResponsavel    Orcamento[]             @relation("OrcResp")
+  orcamentosCriados        Orcamento[]             @relation("OrcCriador")
+  quantitativosCriados     Quantitativo[]          @relation("QuantCriador")
+  quantitativoItensRevs    QuantitativoItem[]      @relation("QuantItemRevisor")
+  apiKeys                  ApiKey[]                @relation("ApiKeyCreator")
+  diariosCriados           DiarioObra[]            @relation("DiarioCriadoPor")
+  diariosFechados          DiarioObra[]            @relation("DiarioFechadoPor")
+  diarioFotos              DiarioFoto[]            @relation("DiarioFotoUploader")
+  diarioEfetivos           DiarioEfetivo[]         @relation("DiarioEfetivoUser")
+  crmOportunidadesResp     CrmOportunidade[]       @relation("CrmOportResponsavel")
+  crmOportunidadesCriadas  CrmOportunidade[]       @relation("CrmOportCreator")
+  crmAtividades            CrmAtividade[]          @relation("CrmAtividadeUsuario")
+  crmCampanhas             CrmCampanha[]           @relation("CrmCampanhaResponsavel")
+  relatorios               RelatorioSemanal[]      @relation("RelatorioResponsavel")
+  resetTokens              PasswordResetToken[]
+  orgChartUpdates          OrgChart[]
+  temperaturasPreenchidas  ObraTemperatura[]       @relation("TemperaturaCreator")
+  medicaoTransicoes        MedicaoTransicao[]      @relation("MedicaoTransicaoUser")
+  ataTopicosResponsavel    ObraAtaTopico[]         @relation("AtaTopicoResponsavel")
+  bancoHorasLotes          BancoHorasLote[]        @relation("BancoHorasLoteUser")
+  bancoHorasConsumosFeitos BancoHorasConsumo[]     @relation("BancoHorasConsumoRegistrador")
+  horaExtraRegistros       HoraExtraRegistro[]     @relation("HoraExtraUser")
+  ajustesPontoRecebidos    AjustePonto[]           @relation("AjustePontoUser")
+  ajustesPontoFeitos       AjustePonto[]           @relation("AjustePontoAjustador")
 
   @@map("users")
 }
@@ -1897,22 +1902,24 @@ model CrmContato {
   @@map("crm_contatos")
 }
 
-/** Templates de mensagem por etapa da nutrição.
- *  Bruno/Marco preenchem manualmente. Cada template é um "touchpoint"
- *  que a pessoa aciona pra executar a jornada. */
+/**
+ * Templates de mensagem por etapa da nutrição.
+ * Bruno/Marco preenchem manualmente. Cada template é um "touchpoint"
+ * que a pessoa aciona pra executar a jornada.
+ */
 model CrmNutricaoTemplate {
-  id          String   @id @default(uuid()) @db.Uuid
-  etapa       String   @db.VarChar(30)
-  canal       String   @db.VarChar(20)
+  id         String   @id @default(uuid()) @db.Uuid
+  etapa      String   @db.VarChar(30)
+  canal      String   @db.VarChar(20)
   // linkedin | email | whatsapp | ligacao | reuniao
-  titulo      String   @db.VarChar(200)
-  corpo       String
-  perfilAlvo  String?  @map("perfil_alvo") @db.VarChar(30)
+  titulo     String   @db.VarChar(200)
+  corpo      String
+  perfilAlvo String?  @map("perfil_alvo") @db.VarChar(30)
   // null = aplica a todos os perfis
-  ordem       Int      @default(0)
-  ativo       Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  ordem      Int      @default(0)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([etapa, canal])
   @@map("crm_nutricao_templates")
@@ -2206,26 +2213,26 @@ model OrgChart {
 
 // ─── ObraContratacaoPlano (cronograma de contratações) ──────────────────
 model ObraContratacaoPlano {
-  id            String    @id @default(uuid()) @db.Uuid
-  obraId        String    @map("obra_id") @db.Uuid
-  pacote        String    @db.VarChar(150) // disciplina ou etapa
-  ordem         Int       @default(0)
-  dataIdeal     DateTime? @map("data_ideal") @db.Date
-  dataLimite    DateTime? @map("data_limite") @db.Date
-  contratacaoId String?   @unique @map("contratacao_id") @db.Uuid
-  status        String    @default("a_contratar") @db.VarChar(20)
+  id                String    @id @default(uuid()) @db.Uuid
+  obraId            String    @map("obra_id") @db.Uuid
+  pacote            String    @db.VarChar(150) // disciplina ou etapa
+  ordem             Int       @default(0)
+  dataIdeal         DateTime? @map("data_ideal") @db.Date
+  dataLimite        DateTime? @map("data_limite") @db.Date
+  contratacaoId     String?   @unique @map("contratacao_id") @db.Uuid
+  status            String    @default("a_contratar") @db.VarChar(20)
   // a_contratar | em_cotacao | contratado | atrasado
   contato           String?   @db.VarChar(150) // nome do contato do fornecedor
-  telefone          String?   @db.VarChar(40)  // WhatsApp
+  telefone          String?   @db.VarChar(40) // WhatsApp
   email             String?   @db.VarChar(150)
   responsavel       String?   @db.VarChar(150) // responsável pela contratação (BÈR)
   empresaContratada String?   @map("empresa_contratada") @db.VarChar(150)
   tempoEntrega      DateTime? @map("tempo_entrega") @db.Date // tempo de entrega e/ou mobilização
   dataEmissaoPedido DateTime? @map("data_emissao_pedido") @db.Date
   inicioMobilizacao DateTime? @map("inicio_mobilizacao") @db.Date
-  observacoes   String?
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  observacoes       String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra        Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
   contratacao ObraContratacao? @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
@@ -2294,7 +2301,7 @@ model ObraStakeholder {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  obra                  Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
   ataTopicosResponsavel ObraAtaTopico[] @relation("AtaTopicoResponsavelStakeholder")
 
   @@index([obraId])
@@ -2303,26 +2310,26 @@ model ObraStakeholder {
 
 // ─── ObraKickoff (1:1 com a obra) ────────────────────────────────────────
 model ObraKickoff {
-  id             String    @id @default(uuid()) @db.Uuid
-  obraId         String    @unique @map("obra_id") @db.Uuid
-  dataRealizada  DateTime? @map("data_realizada") @db.Date
-  participantes  Json      @default("[]") // [{ nome, papel }] — legado
-  pautaCoberta   String?   @map("pauta_coberta")
-  decisoes       String?
-  premissas      String?
-  riscosIniciais String?   @map("riscos_iniciais")
+  id                  String    @id @default(uuid()) @db.Uuid
+  obraId              String    @unique @map("obra_id") @db.Uuid
+  dataRealizada       DateTime? @map("data_realizada") @db.Date
+  participantes       Json      @default("[]") // [{ nome, papel }] — legado
+  pautaCoberta        String?   @map("pauta_coberta")
+  decisoes            String?
+  premissas           String?
+  riscosIniciais      String?   @map("riscos_iniciais")
   // Cabeçalho do kickoff (planilha "Kickoff obra")
-  coordenador    String?
-  engenheiro     String?
-  supervisor     String?
-  mestreEncarregado String? @map("mestre_encarregado")
-  inicioObra     DateTime? @map("inicio_obra") @db.Date
-  terminoObra    DateTime? @map("termino_obra") @db.Date
-  dataKickoff    DateTime? @map("data_kickoff") @db.Date
+  coordenador         String?
+  engenheiro          String?
+  supervisor          String?
+  mestreEncarregado   String?   @map("mestre_encarregado")
+  inicioObra          DateTime? @map("inicio_obra") @db.Date
+  terminoObra         DateTime? @map("termino_obra") @db.Date
+  dataKickoff         DateTime? @map("data_kickoff") @db.Date
   // Comercial x Engenharia: nome por departamento { comercial, pmo, suprimentos, orcamentos, financeiro, coordenador, engenheiro }
-  participantesDeptos Json @default("{}") @map("participantes_deptos")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  participantesDeptos Json      @default("{}") @map("participantes_deptos")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
@@ -2337,10 +2344,10 @@ model ObraKickoffItem {
   item        String    @db.Text
   ordem       Int       @default(0)
   responsavel String?   @db.VarChar(255)
-  resposta    String?   @db.VarChar(10)                    // sim | nao (p/ itens que são pergunta, ex: gerenciadora)
-  naRede      String?   @map("na_rede") @db.VarChar(10)   // sim | nao | na
+  resposta    String?   @db.VarChar(10) // sim | nao (p/ itens que são pergunta, ex: gerenciadora)
+  naRede      String?   @map("na_rede") @db.VarChar(10) // sim | nao | na
   dataAlvo    DateTime? @map("data_alvo") @db.Date
-  status      String?   @db.VarChar(20)                    // concluido | em_andamento | atrasado | na
+  status      String?   @db.VarChar(20) // concluido | em_andamento | atrasado | na
   observacoes String?   @db.Text
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
@@ -2393,35 +2400,35 @@ model ObraTemperatura {
 // Estrutura: tópicos perenes (linhas) × reuniões (colunas). Notas vivem
 // na junção topico×reuniao.
 model ObraAtaTopico {
-  id            String    @id @default(uuid()) @db.Uuid
-  obraId        String    @map("obra_id") @db.Uuid
-  ordem         Int       @default(0)
-  status        String    @default("em_andamento") @db.VarChar(20)
+  id                       String    @id @default(uuid()) @db.Uuid
+  obraId                   String    @map("obra_id") @db.Uuid
+  ordem                    Int       @default(0)
+  status                   String    @default("em_andamento") @db.VarChar(20)
   // concluido | em_andamento | atrasado
-  impacto       String    @default("sem_impacto") @db.VarChar(20)
+  impacto                  String    @default("sem_impacto") @db.VarChar(20)
   // sem_impacto | custo | cronograma | projeto
-  changeOrder   Boolean   @default(false) @map("change_order")
-  disciplina    String?   @db.VarChar(150)
-  tema          String?
-  observacoes   String?
-  responsavelId String?   @map("responsavel_id") @db.Uuid
+  changeOrder              Boolean   @default(false) @map("change_order")
+  disciplina               String?   @db.VarChar(150)
+  tema                     String?
+  observacoes              String?
+  responsavelId            String?   @map("responsavel_id") @db.Uuid
   // (legado, não usado na UI — responsável agora aponta pro stakeholder da obra)
-  responsavelStakeholderId String? @map("responsavel_stakeholder_id") @db.Uuid
-  acao          String?
+  responsavelStakeholderId String?   @map("responsavel_stakeholder_id") @db.Uuid
+  acao                     String?
   // Texto livre da ação/informação do item (ex: "mandar email para fornecedor")
-  confirmado    Boolean   @default(true)
+  confirmado               Boolean   @default(true)
   // Item novo nasce como false (fica fixo no fim até o usuário confirmar);
   // linhas antigas assumem true. Controla se entra na ordenação por prioridade.
-  dataInfo      DateTime? @map("data_info") @db.Date
-  dataAlvo      DateTime? @map("data_alvo") @db.Date
-  dataFinal     DateTime? @map("data_final") @db.Date
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  dataInfo                 DateTime? @map("data_info") @db.Date
+  dataAlvo                 DateTime? @map("data_alvo") @db.Date
+  dataFinal                DateTime? @map("data_final") @db.Date
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra          Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  responsavel   User?                      @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
-  responsavelStakeholder ObraStakeholder?  @relation("AtaTopicoResponsavelStakeholder", fields: [responsavelStakeholderId], references: [id], onDelete: SetNull)
-  atualizacoes  ObraAtaTopicoAtualizacao[]
+  obra                   Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel            User?                      @relation("AtaTopicoResponsavel", fields: [responsavelId], references: [id])
+  responsavelStakeholder ObraStakeholder?           @relation("AtaTopicoResponsavelStakeholder", fields: [responsavelStakeholderId], references: [id], onDelete: SetNull)
+  atualizacoes           ObraAtaTopicoAtualizacao[]
 
   @@index([obraId])
   @@map("obra_ata_topicos")
@@ -2541,35 +2548,35 @@ model Attachment {
 // FinValor guarda o valor por linha × mês (1..12) + coluna orçamento anual.
 
 model FinCiclo {
-  id              String     @id @default(uuid()) @db.Uuid
-  nome            String     @db.VarChar(120)
-  ano             Int
-  ordem           Int        @default(0)
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  nome      String   @db.VarChar(120)
+  ano       Int
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  linhas          FinLinha[]
+  linhas FinLinha[]
 
   @@index([ano])
   @@map("fin_ciclos")
 }
 
 model FinLinha {
-  id             String     @id @default(uuid()) @db.Uuid
-  cicloId        String     @map("ciclo_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  cicloId        String   @map("ciclo_id") @db.Uuid
   ordem          Int
-  rotulo         String     @db.VarChar(200)
-  kpiPct         Decimal?   @map("kpi_pct") @db.Decimal(6, 4)
-  orcamentoAnual Decimal?   @map("orcamento_anual") @db.Decimal(14, 2)
-  isTotal        Boolean    @default(false) @map("is_total")
-  isHeader       Boolean    @default(false) @map("is_header")
-  grupoId        String?    @map("grupo_id") @db.Uuid
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at")
+  rotulo         String   @db.VarChar(200)
+  kpiPct         Decimal? @map("kpi_pct") @db.Decimal(6, 4)
+  orcamentoAnual Decimal? @map("orcamento_anual") @db.Decimal(14, 2)
+  isTotal        Boolean  @default(false) @map("is_total")
+  isHeader       Boolean  @default(false) @map("is_header")
+  grupoId        String?  @map("grupo_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
-  ciclo   FinCiclo    @relation(fields: [cicloId], references: [id], onDelete: Cascade)
-  grupo   FinLinha?   @relation("FinLinhaGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
-  filhas  FinLinha[]  @relation("FinLinhaGrupo")
+  ciclo   FinCiclo   @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  grupo   FinLinha?  @relation("FinLinhaGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
+  filhas  FinLinha[] @relation("FinLinhaGrupo")
   valores FinValor[]
 
   @@index([cicloId])
@@ -2580,9 +2587,11 @@ model FinLinha {
 model FinValor {
   id        String   @id @default(uuid()) @db.Uuid
   linhaId   String   @map("linha_id") @db.Uuid
-  mes       Int      // 1..12
+  mes       Int // 1..12
   valor     Decimal? @db.Decimal(16, 2)
-  /** Se preenchido, célula é fórmula-soma: array de refs {linhaId, mes}. */
+  /**
+   * Se preenchido, célula é fórmula-soma: array de refs {linhaId, mes}.
+   */
   formula   Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
@@ -2628,4 +2637,97 @@ model FeriasPeriodo {
 
   @@index([colaboradorId])
   @@map("ferias_periodos")
+}
+
+// ─── Banco de Horas ───────────────────────────────────────────────────────
+// Jornada esperada é a mesma pra todo mundo (regra CLT 44h/semana): seg-sex
+// 8h/dia, sáb 4h, dom/feriado 0h — não precisa de tabela, é constante no
+// service. Domingo/feriado trabalhado NUNCA vira banco, sempre HoraExtraRegistro.
+
+model Feriado {
+  id        String   @id @default(uuid()) @db.Uuid
+  data      DateTime @unique @db.Date
+  nome      String   @db.VarChar(150)
+  tipo      String   @default("nacional") @db.VarChar(20) // nacional | estadual | municipal
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("feriados")
+}
+
+// Lote de crédito de banco de horas (um por dia com excedente). Consumido em
+// ordem FIFO pelas compensações (BancoHorasConsumo). Expira em 6 meses.
+model BancoHorasLote {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  data              DateTime @db.Date // dia trabalhado que gerou o crédito
+  minutosCredito    Int      @map("minutos_credito")
+  minutosConsumidos Int      @default(0) @map("minutos_consumidos")
+  dataExpiracao     DateTime @map("data_expiracao") @db.Date // data + 6 meses
+  status            String   @default("pendente") @db.VarChar(20) // pendente | parcial | consumido | expirado
+  observacoes       String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user     User                @relation("BancoHorasLoteUser", fields: [userId], references: [id], onDelete: Cascade)
+  consumos BancoHorasConsumo[]
+
+  @@index([userId])
+  @@index([dataExpiracao])
+  @@map("banco_horas_lotes")
+}
+
+// Cada compensação (folga/saída antecipada) registrada contra um lote específico.
+model BancoHorasConsumo {
+  id              String   @id @default(uuid()) @db.Uuid
+  loteId          String   @map("lote_id") @db.Uuid
+  data            DateTime @db.Date // dia em que a compensação ocorreu
+  minutos         Int
+  motivo          String?
+  registradoPorId String   @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  lote          BancoHorasLote @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  registradoPor User           @relation("BancoHorasConsumoRegistrador", fields: [registradoPorId], references: [id])
+
+  @@index([loteId])
+  @@map("banco_horas_consumos")
+}
+
+// Horas extras a pagar (não entram no banco): domingo/feriado trabalhado,
+// ou excedente além do teto de saldo acumulado do banco de horas.
+model HoraExtraRegistro {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  data        DateTime @db.Date
+  minutos     Int
+  motivo      String   @db.VarChar(30) // domingo | feriado | teto_banco_atingido
+  pago        Boolean  @default(false)
+  observacoes String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation("HoraExtraUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("hora_extra_registros")
+}
+
+// Correção manual de um dia de ponto (bateu errado / esqueceu de bater).
+// Substitui o ajuste no Excel — fica auditado (quem, quando, por quê).
+model AjustePonto {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  data             DateTime @db.Date
+  minutosOriginais Int?     @map("minutos_originais") // calculado do ponto bruto; null se não bateu
+  minutosAjustados Int      @map("minutos_ajustados") // valor final considerado no cálculo
+  motivo           String
+  ajustadoPorId    String   @map("ajustado_por_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user        User @relation("AjustePontoUser", fields: [userId], references: [id], onDelete: Cascade)
+  ajustadoPor User @relation("AjustePontoAjustador", fields: [ajustadoPorId], references: [id])
+
+  @@unique([userId, data])
+  @@index([userId])
+  @@map("ajustes_ponto")
 }
