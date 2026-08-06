@@ -21,7 +21,7 @@ const ALL_OFF: Record<string, boolean> = {
   comprasDashboard: false, aditivos: false, contratacoes: false, atas: false,
   documentos: false, stakeholders: false, kickoff: false, raci: false,
   contratacaoPlano: false, histograma: false, gestao360: false,
-  financeiro: false, ferias: false,
+  financeiro: false, ferias: false, bancoHoras: false,
 };
 
 const ALL_ON: Record<string, boolean> = Object.fromEntries(
