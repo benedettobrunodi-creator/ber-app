@@ -11,7 +11,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, DollarSign, Palmtree, Timer,
+  ShoppingCart, DollarSign, Palmtree, Timer, Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -63,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     section: 'FINANCEIRO',
     items: [
       { label: 'DRE', href: '/financeiro/dre', icon: DollarSign, perm: 'financeiro' },
+      { label: 'Capital de Giro', href: '/financeiro/capital-giro', icon: Wallet, perm: 'capitalGiro' },
       { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
     ],
   },
@@ -97,6 +98,7 @@ const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/compras', perm: 'comprasDashboard' },
   { prefix: '/ferias', perm: 'ferias' },
   { prefix: '/banco-horas', perm: 'bancoHoras' },
+  { prefix: '/financeiro/capital-giro', perm: 'capitalGiro' },
   { prefix: '/configuracoes', perm: 'admin' },
   { prefix: '/organograma', perm: 'organograma' },
   { prefix: '/financeiro', perm: 'financeiro' },

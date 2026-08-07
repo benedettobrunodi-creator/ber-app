@@ -2732,3 +2732,18 @@ model AjustePonto {
   @@index([userId])
   @@map("ajustes_ponto")
 }
+
+// ─── Capital de Giro ────────────────────────────────────────────────────
+// Estado do simulador de fluxo de caixa/capital de giro (portado de um
+// protótipo HTML autônomo, 06/08/2026). Linha única (singleton) — o app
+// inteiro (obras + premissas) roda em JSON, mesma forma que estava no
+// localStorage do protótipo. Sócio-only (dado sensível: margem/comissão/lucro).
+model CapitalGiroState {
+  id        String   @id @default(uuid()) @db.Uuid
+  obras     Json     @default("[]")
+  premissas Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("capital_giro_state")
+}
