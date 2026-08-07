@@ -55,7 +55,7 @@ const DEFAULT_PERMS: Record<UserRole, Record<string, boolean>> = {
   gestor:      { ...OBRA_OPS },
   financeiro:  { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
                  comprasDashboard: true, aditivos: true, contratacoes: true, documentos: true, gestao360: true,
-                 bancoHoras: true },
+                 bancoHoras: true, capitalGiro: true },
   compras:     { ...ALL_OFF, dashboard: true, obras: true, ponto: true, diario: true,
                  comprasDashboard: true, contratacoes: true, contratacaoPlano: true, documentos: true },
   orcamentos:  { ...ALL_OFF, dashboard: true, obras: true, orcamentos: true, ponto: true, diario: true },
