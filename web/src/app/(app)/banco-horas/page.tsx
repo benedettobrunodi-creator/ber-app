@@ -64,7 +64,7 @@ export default function BancoHorasPage() {
   const [showConsumir, setShowConsumir] = useState<PainelRow | null>(null);
   const [showLotes, setShowLotes] = useState<PainelRow | null>(null);
   const [showFeriadoForm, setShowFeriadoForm] = useState(false);
-  const [showAjusteForm, setShowAjusteForm] = useState(false);
+  const [showAjusteForm, setShowAjusteForm] = useState<false | { userId?: string }>(false);
   const [showProcessar, setShowProcessar] = useState(false);
 
   const load = useCallback(() => {
@@ -152,6 +152,7 @@ export default function BancoHorasPage() {
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setShowAjusteForm({ userId: r.userId })} title="Corrigir horas trabalhadas deste colaborador" className="rounded p-1 text-ber-gray hover:bg-ber-bg hover:text-ber-carbon"><Pencil size={14} /></button>
                       <button onClick={() => setShowLotes(r)} title="Ver lotes" className="rounded p-1 text-ber-gray hover:bg-ber-bg hover:text-ber-carbon"><CalendarClock size={14} /></button>
                       <button onClick={() => setShowConsumir(r)} title="Registrar compensação" className="flex items-center gap-1 rounded bg-ber-teal/10 px-2 py-1 text-[11px] font-semibold text-ber-teal hover:bg-ber-teal/20"><Wallet size={12} /> Compensar</button>
                     </div>
@@ -199,7 +200,7 @@ export default function BancoHorasPage() {
         <div>
           <div className="mb-3 flex items-center justify-between">
             <p className="text-xs text-ber-gray">Ajustes do mês atual — corrige um dia em que o ponto ficou errado ou não foi batido.</p>
-            <button onClick={() => setShowAjusteForm(true)} className="flex items-center gap-1.5 rounded-lg bg-ber-carbon px-3 py-2 text-sm font-medium text-white hover:bg-ber-black">
+            <button onClick={() => setShowAjusteForm({})} className="flex items-center gap-1.5 rounded-lg bg-ber-carbon px-3 py-2 text-sm font-medium text-white hover:bg-ber-black">
               <Pencil size={14} /> Corrigir dia
             </button>
           </div>
@@ -275,7 +276,7 @@ export default function BancoHorasPage() {
         <FeriadoModal onClose={() => setShowFeriadoForm(false)} onSaved={() => { setShowFeriadoForm(false); load(); }} />
       )}
       {showAjusteForm && (
-        <AjusteModal users={users} onClose={() => setShowAjusteForm(false)} onSaved={() => { setShowAjusteForm(false); load(); }} />
+        <AjusteModal users={users} initialUserId={showAjusteForm.userId} onClose={() => setShowAjusteForm(false)} onSaved={() => { setShowAjusteForm(false); load(); }} />
       )}
       {showProcessar && (
         <ProcessarModal onClose={() => setShowProcessar(false)} onSaved={() => { setShowProcessar(false); load(); }} />
@@ -407,14 +408,16 @@ function FeriadoModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   );
 }
 
-function AjusteModal({ users, onClose, onSaved }: { users: { id: string; name: string }[]; onClose: () => void; onSaved: () => void }) {
-  const [userId, setUserId] = useState('');
+function AjusteModal({ users, initialUserId, onClose, onSaved }: { users: { id: string; name: string }[]; initialUserId?: string; onClose: () => void; onSaved: () => void }) {
+  const [userId, setUserId] = useState(initialUserId || '');
+  const [trocarColaborador, setTrocarColaborador] = useState(!initialUserId);
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [horas, setHoras] = useState('');
   const [motivo, setMotivo] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<{ minutosTrabalhados: number; incompleto: boolean } | null>(null);
+  const nomeInicial = users.find((u) => u.id === initialUserId)?.name;
 
   useEffect(() => {
     setPreview(null);
@@ -440,12 +443,21 @@ function AjusteModal({ users, onClose, onSaved }: { users: { id: string; name: s
     <Modal title="Corrigir dia de ponto" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4 px-6 py-5">
         {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        <Field label="Colaborador">
-          <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inputCls} required>
-            <option value="">Selecione…</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
-        </Field>
+        {trocarColaborador ? (
+          <Field label="Colaborador">
+            <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inputCls} required autoFocus={!initialUserId}>
+              <option value="">Selecione…</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </Field>
+        ) : (
+          <Field label="Colaborador">
+            <div className="mt-1 flex items-center justify-between rounded-md border border-ber-gray/30 bg-ber-bg px-3 py-2 text-sm">
+              <span className="font-medium text-ber-carbon">{nomeInicial}</span>
+              <button type="button" onClick={() => setTrocarColaborador(true)} className="text-xs font-semibold text-ber-teal hover:underline">trocar</button>
+            </div>
+          </Field>
+        )}
         <Field label="Data"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} required /></Field>
         {preview && (
           <p className="rounded-lg bg-ber-bg px-3 py-2 text-xs text-ber-gray">
@@ -453,7 +465,7 @@ function AjusteModal({ users, onClose, onSaved }: { users: { id: string; name: s
             {preview.incompleto && <span className="ml-1 text-amber-600 font-semibold">— batida incompleta</span>}
           </p>
         )}
-        <Field label="Horas trabalhadas (corrigido)"><input type="number" step="0.5" min="0" value={horas} onChange={(e) => setHoras(e.target.value)} placeholder="Ex: 8" className={inputCls} required /></Field>
+        <Field label="Horas trabalhadas (corrigido)"><input type="number" step="0.5" min="0" value={horas} onChange={(e) => setHoras(e.target.value)} placeholder="Ex: 8" className={inputCls} required autoFocus={!!initialUserId} /></Field>
         <Field label="Motivo"><input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex: esqueceu de bater o checkout" className={inputCls} required /></Field>
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>
