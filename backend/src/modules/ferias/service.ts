@@ -14,6 +14,18 @@ export function diasCorridos(inicio: string, fim: string): number {
 
 const toISO = (d: Date) => d.toISOString().slice(0, 10);
 
+/** Próximo aniversário de admissão a partir de hoje — marca o fim do período
+ *  aquisitivo corrente (quando um novo período de férias passa a valer). */
+function proximoVencimento(dataAdmissao: Date | null): string | null {
+  if (!dataAdmissao) return null;
+  const hoje = new Date();
+  const hojeUTC = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate());
+  let ano = hoje.getUTCFullYear();
+  let prox = Date.UTC(ano, dataAdmissao.getUTCMonth(), dataAdmissao.getUTCDate());
+  if (prox < hojeUTC) prox = Date.UTC(++ano, dataAdmissao.getUTCMonth(), dataAdmissao.getUTCDate());
+  return new Date(prox).toISOString().slice(0, 10);
+}
+
 /** Mapa role → cargo legível (default do seed; editável depois). */
 const ROLE_CARGO: Record<string, string> = {
   socio: 'Sócio', diretoria: 'Diretoria', coordenacao: 'Coordenação', pmo: 'PMO',
@@ -59,6 +71,8 @@ export async function listColaboradores() {
       userId: c.userId,
       nome: c.nome,
       cargo: c.cargo,
+      dataAdmissao: c.dataAdmissao ? toISO(c.dataAdmissao) : null,
+      proximoVencimento: proximoVencimento(c.dataAdmissao),
       feriasATirarDias: c.feriasATirarDias,
       ativo: c.ativo,
       ordem: c.ordem,
@@ -82,6 +96,7 @@ export async function createColaborador(input: CreateColaboradorInput) {
     data: {
       nome: input.nome.trim(),
       cargo: input.cargo?.trim() || null,
+      dataAdmissao: input.dataAdmissao ? new Date(input.dataAdmissao + 'T00:00:00Z') : null,
       feriasATirarDias: input.feriasATirarDias ?? 30,
       ativo: input.ativo ?? true,
       ordem: (max._max.ordem ?? -1) + 1,
@@ -97,6 +112,7 @@ export async function updateColaborador(id: string, input: UpdateColaboradorInpu
     data: {
       nome:             input.nome?.trim(),
       cargo:            'cargo' in input ? (input.cargo?.trim() || null) : undefined,
+      dataAdmissao:     'dataAdmissao' in input ? (input.dataAdmissao ? new Date(input.dataAdmissao + 'T00:00:00Z') : null) : undefined,
       feriasATirarDias: input.feriasATirarDias,
       ativo:            input.ativo,
       ordem:            input.ordem,

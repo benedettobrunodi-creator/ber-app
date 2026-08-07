@@ -20,6 +20,8 @@ interface Colaborador {
   userId: string | null;
   nome: string;
   cargo: string | null;
+  dataAdmissao: string | null;
+  proximoVencimento: string | null;
   feriasATirarDias: number;
   ativo: boolean;
   ordem: number;
@@ -129,6 +131,7 @@ export default function FeriasPage() {
             {/* Header */}
             <div className="flex items-stretch border-b border-ber-gray/15 bg-ber-bg text-[10px] font-bold uppercase tracking-wide text-ber-gray">
               <div className="w-56 shrink-0 px-3 py-2">Colaborador</div>
+              <div className="w-28 shrink-0 px-2 py-2 text-center">Admissão</div>
               <div className="w-24 shrink-0 px-2 py-2 text-center">A tirar</div>
               <div className="w-24 shrink-0 px-2 py-2 text-center">Em aberto</div>
               <div className="flex flex-1">
@@ -147,6 +150,17 @@ export default function FeriasPage() {
                     <p className="text-sm font-medium text-ber-carbon leading-tight group-hover:text-ber-teal">{c.nome}</p>
                     {c.cargo && <p className="text-[11px] text-ber-gray">{c.cargo}</p>}
                   </button>
+                </div>
+                {/* Admissão + próximo vencimento (aniversário do período aquisitivo) */}
+                <div className="w-28 shrink-0 px-2 py-2 text-center">
+                  {c.dataAdmissao ? (
+                    <>
+                      <p className="text-xs font-medium text-ber-carbon">{fmtBR(c.dataAdmissao)}</p>
+                      {c.proximoVencimento && <p className="text-[9px] text-ber-gray/70">vence {fmtBR(c.proximoVencimento)}</p>}
+                    </>
+                  ) : (
+                    <span className="text-xs text-ber-gray/40">—</span>
+                  )}
                 </div>
                 {/* Férias a tirar (editável) */}
                 <div className="w-24 shrink-0 px-2 py-2 text-center">
@@ -275,6 +289,7 @@ function ColabForm({ edit, onClose, onSaved }: { edit: Colaborador | null; onClo
   const [f, setF] = useState({
     nome: edit?.nome || '',
     cargo: edit?.cargo || '',
+    dataAdmissao: edit?.dataAdmissao || '',
     feriasATirarDias: edit?.feriasATirarDias ?? 30,
     ativo: edit?.ativo ?? true,
   });
@@ -286,7 +301,7 @@ function ColabForm({ edit, onClose, onSaved }: { edit: Colaborador | null; onClo
     if (!f.nome.trim()) { setError('Informe o nome.'); return; }
     setSaving(true);
     try {
-      const body = { nome: f.nome.trim(), cargo: f.cargo.trim() || null, feriasATirarDias: Number(f.feriasATirarDias) || 0, ativo: f.ativo };
+      const body = { nome: f.nome.trim(), cargo: f.cargo.trim() || null, dataAdmissao: f.dataAdmissao || null, feriasATirarDias: Number(f.feriasATirarDias) || 0, ativo: f.ativo };
       if (edit) await api.patch(`/ferias/colaboradores/${edit.id}`, body);
       else await api.post('/ferias/colaboradores', body);
       onSaved();
@@ -300,6 +315,7 @@ function ColabForm({ edit, onClose, onSaved }: { edit: Colaborador | null; onClo
         {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         <Field label="Nome *"><input value={f.nome} onChange={e => setF(p => ({ ...p, nome: e.target.value }))} className={inputCls} required /></Field>
         <Field label="Cargo"><input value={f.cargo} onChange={e => setF(p => ({ ...p, cargo: e.target.value }))} placeholder="Ex: Engenheiro, Mestre de obras…" className={inputCls} /></Field>
+        <Field label="Data de admissão (início na BÈR)"><input type="date" value={f.dataAdmissao} onChange={e => setF(p => ({ ...p, dataAdmissao: e.target.value }))} className={inputCls} /></Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Férias a tirar (dias)"><input type="number" min={0} max={365} value={f.feriasATirarDias} onChange={e => setF(p => ({ ...p, feriasATirarDias: Number(e.target.value) }))} className={inputCls} /></Field>
           <Field label="Situação">

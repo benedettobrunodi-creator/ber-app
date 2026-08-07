@@ -5,6 +5,7 @@ const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve estar no form
 export const createColaboradorSchema = z.object({
   nome:             z.string().min(1, 'Informe o nome'),
   cargo:            z.string().optional().nullable(),
+  dataAdmissao:     dateStr.optional().nullable(),
   feriasATirarDias: z.number().int().min(0).max(365).optional(),
   ativo:            z.boolean().optional(),
 });

@@ -2611,6 +2611,7 @@ model Colaborador {
   userId           String?  @unique @map("user_id") @db.Uuid // vínculo com usuário do app (null = manual/terceirizado)
   nome             String   @db.VarChar(150)
   cargo            String?  @db.VarChar(120)
+  dataAdmissao     DateTime? @map("data_admissao") @db.Date // início na BÈR — base do período aquisitivo de férias
   feriasATirarDias Int      @default(30) @map("ferias_a_tirar_dias") // saldo total a gozar (manual)
   ativo            Boolean  @default(true)
   ordem            Int      @default(0)
