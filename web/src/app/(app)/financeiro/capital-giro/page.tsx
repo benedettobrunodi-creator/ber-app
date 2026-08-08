@@ -100,7 +100,7 @@ const BODY_HTML = `
           <div class="field"><label>Valor do contrato (R$)</label><input id="o_contrato" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">venda total pro cliente</div></div>
           <div class="field"><label>Fatia BER (%)</label><input id="o_agio" type="number" step="1" oninput="updateFlow()"><div class="hint">% do contrato que a BER fatura · o resto o cliente compra direto</div></div>
           <div class="field"><label>Custo orçado da obra (R$)</label><input id="o_budgetTotal" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">quanto você orçou de custo pra obra toda</div></div>
-          <div class="field"><label>Savings geral da obra (%)</label><input id="o_savings" type="number" step="0.5" oninput="updateFlow()"><div class="hint">único · margem da obra (não separa mais direto/fatia)</div></div>
+          <div class="field"><label>Savings geral da obra (%)</label><input id="o_savings" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% sobre contrato − imposto − equipe − taxa de adm</div></div>
           <div class="field"><label>Mão de obra direta · equipe (R$)</label><input id="o_mod" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">custo da equipe · à vista</div></div>
           <input id="o_fornMat" type="hidden">
           <div class="calc-flow">
@@ -118,10 +118,10 @@ const BODY_HTML = `
             <div class="cf-row"><span class="cf-lbl">Custo orçado da obra</span><span class="cf-val" id="cb_orcado">—</span></div>
             <div class="cf-row"><span class="cf-lbl">(−) MOD · equipe</span><span class="cf-val neg" id="cb_mod">—</span></div>
             <div class="cf-row"><span class="cf-lbl">(−) Savings geral <span id="cb_savpct">—</span></span><span class="cf-val neg" id="cb_sav">—</span></div>
-            <div class="cf-row cf-sub"><span class="cf-lbl">savings = % × budget de compras · vira margem no resultado</span><span id="cb_savbase">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">savings = % × (contrato − imposto − equipe − adm) · vira margem no resultado</span><span id="cb_savbase">—</span></div>
             <div class="cf-arrow">↓</div>
             <div class="cf-row cf-eq cf-total"><span class="cf-lbl">= Budget de compras</span><span class="cf-val" id="cb_result">—</span></div>
-            <div class="cf-row cf-eq"><span class="cf-lbl">× (100 − Fatia BER <span id="cb_agiopct">—</span>)</span><span class="cf-val" id="cb_direta">—</span></div>
+            <div class="cf-row cf-eq"><span class="cf-lbl">× Fatia BER <span id="cb_agiopct">—</span> · só essa parte entra no caixa</span><span class="cf-val" id="cb_direta">—</span></div>
           </div>
           <div class="calc-flow">
             <div class="cf-cap">Saídas da obra · custo real</div>

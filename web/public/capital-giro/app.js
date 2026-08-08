@@ -125,24 +125,30 @@ function computeObra(o, prem){
   const agioPct = (o.agio ?? prem.agio)/100;
   const impPct = (o.imposto ?? prem.imposto)/100;
   const faturamento = o.contrato * agioPct;                          // fatia agio = faturamento (já inclui a taxa de adm)
-  const faturamentoNet = faturamento * (1 - impPct);                 // − imposto (só sobre a fatia BER)
+  const impV = faturamento * impPct;                                 // imposto (só sobre a fatia BER faturada)
+  const faturamentoNet = faturamento - impV;                         // − imposto (só sobre a fatia BER)
   const faturamentoDireto = o.contrato - faturamento;                // contrato − fatia BER (o que o cliente compra direto)
+  const admV = o.contrato * ((o.adm ?? prem.adm)/100);               // taxa de administração — sobre o contrato total
   // === BUDGET DA OBRA ===
   const savPct = (o.savings ?? prem.savings)/100;
-  const custoOrcado = (o.budget!=null ? o.budget : 0);               // Custo orçado da obra (digitado)
-  const modV = (o.mod!=null ? o.mod : 0);                            // Mão de obra direta · equipe (digitado)
-  const savingsGeral = savPct * Math.max(0, custoOrcado - modV);     // savings geral (unificado) = % sobre o budget de compras → margem retida (independe de fatia/direto)
+  const custoOrcado = (o.budget!=null ? o.budget : 0);               // Custo orçado da obra (digitado, projeto inteiro)
+  const modV = (o.mod!=null ? o.mod : 0);                            // Mão de obra direta · equipe (digitado, integral — sempre da BER)
+  // FIX 2026-08-08 (Bruno): savings de compras = % sobre (contrato total − imposto − equipe − taxa de adm),
+  // não mais sobre (custo orçado − MOD). Base maior e alinhada ao que sobra pra BER reter como margem.
+  const savingsBase = Math.max(0, o.contrato - impV - modV - admV);
+  const savingsGeral = savPct * savingsBase;                         // savings geral (unificado) → margem retida
   const savingsVal = savingsGeral;                                   // (compat p/ referências antigas)
-  const budgetCompras = Math.max(0, custoOrcado - modV - savingsGeral); // Budget de compras = orçado − MOD − savings (DERIVADO)
-  // só a parte NÃO-fatia das compras passa pelo caixa da BER; a fatia o cliente paga direto ao fornecedor (fora do fluxo)
-  const comprasNoFluxo = budgetCompras * Math.max(0, 1 - agioPct);
-  const fornV = comprasNoFluxo;                                      // compras que a BER financia/paga — entra no fluxo
-  const agioVal = modV + fornV;                                      // custo da BER = MOD + compras no fluxo (a fatia é do cliente)
+  const budgetCompras = Math.max(0, custoOrcado - modV - savingsGeral); // Budget de compras = orçado − MOD − savings (DERIVADO, projeto inteiro)
+  // FIX 2026-08-08: só a FATIA BER das compras passa pelo caixa da BER; o resto é relação direta
+  // cliente↔parceiro/subcontratado (fora do caixa/exposição da BER). Fórmula antiga usava (1-fatia),
+  // invertida — jogava a maior parte do custo de terceiros pro caixa da BER. Corrigido pra usar a fatia.
+  const comprasNoFluxo = budgetCompras * agioPct;
+  const fornV = comprasNoFluxo;                                      // compras (fatia BER) que a BER financia/paga — entra no fluxo
+  const agioVal = modV + fornV;                                      // custo da BER = MOD (integral) + compras (fatia BER)
   const ret = (o.ret ?? prem.ret)/100;
   const sinalVal = o.contrato * ((o.sinal||0)/100);
   // comissão e RT: base = contrato − adm − imposto (mesma base do bloco de entrada); saídas
-  const admV = o.contrato * ((o.adm ?? prem.adm)/100);
-  const baseComRT = o.contrato - admV - (faturamento * impPct);
+  const baseComRT = o.contrato - admV - impV;
   const comissaoTotal = baseComRT * ((o.comissao||0)/100);
   const rtTotal       = baseComRT * ((o.reservaTecnica||0)/100);
 
@@ -477,8 +483,12 @@ function renderPortfolio(){
     const isOpen = expandedObra===o.id;
     // usa caixa do pool (precisa de giro) E dá prejuízo (mesmo com o pool de graça) → desistir
     const desistir = (CALC.picosInd[i] > 1) && (CALC.resultadoFinalObra[i] < 0);
+    // FIX 2026-08-08 (Bruno): alerta se despesa/capital de giro da obra ultrapassar contrato × fatia BER —
+    // pega descasamento de base (custo escopado pra BER maior que a própria fatia dela no contrato).
+    const fatiaValor = o.contrato * ((o.agio ?? PREM.agio)/100);
+    const descasado = (CALC.despesaObra[i] > fatiaValor) || (pico > fatiaValor);
     return `<tr onclick="toggleObra('${o.id}')" class="${isOpen?'is-open':''}" style="cursor:pointer">
-      <td class="cell-name">${o.nome}${desistir?' <span class="badge badge-danger" style="margin-left:6px"><span class="badge-dot"></span>desistir da obra</span>':''}</td>
+      <td class="cell-name">${o.nome}${desistir?' <span class="badge badge-danger" style="margin-left:6px"><span class="badge-dot"></span>desistir da obra</span>':''}${(!desistir && descasado)?' <span class="badge badge-warning" style="margin-left:6px" title="Despesa ou capital de giro maior que a fatia BER no contrato — confira o cadastro de custo da obra (mão de obra/compras podem estar computando escopo de terceiros)"><span class="badge-dot"></span>confira o custo cadastrado</span>':''}</td>
       <td class="num mono">${fmtK(o.contrato)}</td>
       <td class="num mono">${fmtK(o.contrato*((o.agio ?? PREM.agio)/100))} · ${o.agio ?? PREM.agio}%</td>
       <td class="num mono cell-muted">${o.inicioMes?indexToMes(mesToIndex(o.inicioMes)).label:('M'+(o._inicioG||o.inicio||1))}</td>
@@ -769,10 +779,10 @@ function updateFlow(){
   const comV = comissao/100*fatLiq, rtV = rt/100*fatLiq;
   const entrada = fat - impV - comV - rtV;     // Entrada da obra (receita) — sem savings (savings vira custo menor)
   const direto = contrato - fat;
-  const baseCompras = Math.max(0, custoOrcado - mod);
-  const savGeral = sav/100*baseCompras;        // savings geral = % sobre o budget de compras (orçado − MOD)
+  const baseSavings = Math.max(0, contrato - impV - mod - admV); // FIX 2026-08-08: base = contrato − imposto − equipe − adm
+  const savGeral = sav/100*baseSavings;        // savings geral = % sobre essa base
   const budgetCompras = Math.max(0, custoOrcado - mod - savGeral);   // DERIVADO = orçado − MOD − savings
-  const comprasNoFluxo = budgetCompras * Math.max(0, 100 - agio)/100; // só a parte não-fatia entra no caixa (a fatia o cliente paga direto)
+  const comprasNoFluxo = budgetCompras * agio/100; // só a FATIA BER das compras entra no caixa da BER (o resto é direto cliente↔parceiro)
   const custoReal = mod + comprasNoFluxo;      // custo que passa pelo caixa da BER
   const R = v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
   const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
@@ -782,15 +792,14 @@ function updateFlow(){
   set('cf_ent', R(entrada));
   // budget da obra
   set('cb_orcado', R(custoOrcado)); set('cb_mod', '− '+R(mod));
-  set('cb_savpct', sav+'%'); set('cb_sav', '− '+R(savGeral)); set('cb_savbase', 'sobre budget de compras: '+R(baseCompras));
+  set('cb_savpct', sav+'%'); set('cb_sav', '− '+R(savGeral)); set('cb_savbase', 'sobre contrato−imp.−equipe−adm: '+R(baseSavings));
   set('cb_result', R(budgetCompras));
-  const dirPct = Math.max(0, 100 - agio);                 // 100 − Fatia BER
-  set('cb_agiopct', agio+'% → '+dirPct+'%'); set('cb_direta', R(budgetCompras*dirPct/100));
+  set('cb_agiopct', agio+'%'); set('cb_direta', R(comprasNoFluxo));
   const hid = document.getElementById('o_fornMat'); if(hid) hid.value = budgetCompras;
   // saídas (custo real)
   set('cs_mod', '− '+R(mod)); set('cs_forn', '− '+R(comprasNoFluxo)); set('cs_budget', '− '+R(custoReal));
   set('cs_modsub', dur+'× de '+R(mod/dur)+'/mês');
-  set('cs_fornsub', 'só × (100−fatia) · '+dur+'× de '+R(comprasNoFluxo/dur)+'/mês');
+  set('cs_fornsub', 'só × fatia BER · '+dur+'× de '+R(comprasNoFluxo/dur)+'/mês');
   set('cs_com', 'na entrada'); set('cs_comsub', 'comissão deduzida no faturamento (acima)');
   set('cs_tot', '− '+R(custoReal));
 }
