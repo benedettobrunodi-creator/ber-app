@@ -323,6 +323,11 @@ function computePortfolio(){
   const receitaObraTotal = receitaObra.reduce((s,v)=>s+v,0);
   const despesaObraTotal = despesaObra.reduce((s,v)=>s+v,0);
   const lucroObraTotal   = lucroObra.reduce((s,v)=>s+v,0);
+  // FIX 2026-08-08 (Bruno): savings é "resultado adicional" — BER compra mais barato mas o cliente
+  // paga o valor vendido (a receita não muda). Já está embutido na despesa menor (economia real de
+  // caixa, ajuda o capital de giro) — aqui só exponho como linha própria/visível, sem somar de novo.
+  const savingsObra = per.map(p => p.r.savingsGeral);
+  const savingsObraTotal = savingsObra.reduce((s,v)=>s+v,0);
 
   // === ACERTO FINAL (quita empréstimos internos · empréstimo interno de graça) ===
   // a obra pagava o juro como se isolada; no caixa único paga só a fatia do juro do POOL DE OBRAS. A diferença é economia (≥ 0).
@@ -348,6 +353,7 @@ function computePortfolio(){
     lucroLiquido,
     comissaoObra, rtObra, receitaObra, despesaObra, lucroObra,
     receitaObraTotal, despesaObraTotal, lucroObraTotal,
+    savingsObra, savingsObraTotal,
     custoFinPoolObra, economiaJuroObra, resultadoFinalObra, economiaJuroTotal,
     resultadoObrasTotal, backofficeJuro, resultadoFinalTotal,
     contratoTotal
@@ -474,6 +480,11 @@ function renderKPIs(){
       <div class="kpi-label">Lucro da obra</div>
       <div class="kpi-value ${lucroPos?'pos':'neg'}">${fmtK(c.lucroObraTotal)}</div>
       <div class="kpi-sub">receita − despesa · ${margemPct.toFixed(1)}% do contrato</div>
+    </div>
+    <div class="kpi-card good">
+      <div class="kpi-label">Savings (resultado adicional)</div>
+      <div class="kpi-value pos">${fmtK(c.savingsObraTotal)}</div>
+      <div class="kpi-sub">BER compra mais barato, cliente paga o valor vendido · já embutido na despesa menor acima (economia real de caixa)</div>
     </div>`;
 }
 
