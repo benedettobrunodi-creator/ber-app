@@ -280,14 +280,18 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr.peak td { background: var(--danger-bg); }
 tbody tr.peak:hover td { background: var(--danger-bg); }
 tfoot td { padding: var(--space-md) var(--space-lg); font-size: 13px; font-weight: 700; border-top: 2px solid var(--border); background: var(--bg-elevated); font-variant-numeric: tabular-nums; }
+#obrasTable td:last-child, #obrasTable th:last-child { position: sticky; right: 0; z-index: 1; background: var(--bg-card); box-shadow: -6px 0 6px -6px rgba(0,0,0,0.15); }
+#obrasTable thead th:last-child { background: var(--bg-elevated); }
+#obrasTable tfoot td:last-child { background: var(--bg-elevated); box-shadow: none; }
+#obrasTable tbody tr:hover td:last-child { background: var(--bg-hover); }
+#obrasTable tr.peak td:last-child { background: var(--danger-bg); }
+#obrasTable td[colspan]:last-child { position: static; box-shadow: none; }
 .cell-name { font-weight: 600; }
 .cell-neg { color: var(--danger); font-weight: 600; }
 .cell-pos { color: var(--success); font-weight: 600; }
 .cell-muted { color: var(--text-tertiary); }
-.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
-tr:hover .row-actions { opacity: 1; }
-.row-act { display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--transition); }
-tbody tr:hover .row-act { opacity: 1; }
+.row-actions { display: flex; gap: 4px; opacity: 1; transition: opacity var(--transition); }
+.row-act { display: inline-flex; gap: 2px; opacity: 1; transition: opacity var(--transition); }
 .row-act button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-tertiary); cursor: pointer; transition: all var(--transition); }
 .row-act button:hover { background: var(--bg-hover); color: var(--brand); }
 .row-act button.del:hover { color: var(--danger); background: var(--danger-bg); }
