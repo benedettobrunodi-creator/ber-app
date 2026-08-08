@@ -143,6 +143,7 @@ const BODY_HTML = `
         <section class="obra-col">
           <div class="cfg-head">Custos e retenções</div>
           <div class="field"><label>Custo do dinheiro (%/mês)</label><input id="o_juros" type="number" step="0.1"><div class="hint">juros sobre o saldo negativo, no fluxo</div></div>
+          <div class="field"><label>Fornecedor — % que é despesa real da BER</label><input id="o_despesaFornPct" type="number" step="5" min="0" max="100"><div class="hint">o resto é passa-repasse (cliente reembolsa) · varia por obra, ajuste aqui</div></div>
           <div class="field"><label>Retenção / retainer (%)</label><input id="o_ret" type="number" step="1"><div class="hint">segurado, pago após o último mês</div></div>
           <div class="field"><label>Curva de avanço</label><select id="o_curva"><option value="linear">Linear (uniforme)</option><option value="s">Curva S (lento-rápido-lento)</option><option value="front">Front-loaded (forte no início)</option><option value="back">Back-loaded (forte no fim)</option></select><div class="hint">como execução/medição se distribui na duração · muda o pico de giro</div></div>
         </section>

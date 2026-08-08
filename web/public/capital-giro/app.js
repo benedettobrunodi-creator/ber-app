@@ -230,6 +230,7 @@ function computeObra(o, prem){
     receitaLiquida: (faturamentoNet - agioVal),  // margem: fatia BER líq. − custo real (savings já embutido no custo menor)
     receitaObra: faturamentoNet, custoObra: agioVal,  // receita (fatia líq. imposto) e custo real (MOD + compras), p/ Receita/Despesa/Lucro
     admLiq: (faturamentoNet - agioVal), savingsLiq: savingsGeral, budgetCompras: budgetCompras, savingsGeral: savingsGeral,
+    admV, fornV, modV, impV, impPct,   // expostos pro novo cálculo de lucro (2026-08-08): taxa adm + savings, não custo total
     firstG: start, lastG: lastExecG + lagReceb
   };
 }
@@ -315,20 +316,25 @@ function computePortfolio(){
   const lucroLiquido  = margemContrib - despesasFixas;
 
   // === Receita / Despesa / Lucro DA OBRA (visão simples: entra, sai, sobra) ===
-  const comissaoObra = per.map(p => p.r.comissaoVal);                             // comissão (base contrato−adm−imposto) = SAÍDA
+  // REESTRUTURADO 2026-08-08 (Bruno, com base no DRE real da BÈR): o dinheiro de fornecedor/equipe
+  // que passa pelo caixa da BER é, em regra, passa-repasse (o cliente reembolsa o custo) — não é
+  // despesa que consome lucro. O lucro de verdade vem só da Taxa de Administração + Savings (líquidos
+  // de imposto sobre cada um), menos comissão/RT/custo financeiro. Fornecedor É parcialmente despesa
+  // real (Bruno confirmou: varia por obra) — campo novo despesaFornPct por obra (padrão 40%, igual à
+  // referência do DRE) captura essa fatia que NÃO é reembolsada.
+  const comissaoObra = per.map(p => p.r.comissaoVal);                             // comissão (base contrato−imposto−equipe−adm) = SAÍDA
   const rtObra       = per.map(p => p.r.rtVal);                                   // reserva técnica (mesma base) = SAÍDA
-  const receitaObra  = per.map(p => p.r.receitaObra);                             // bruto: fatia líq. imposto + savings
-  // FIX 2026-08-08 (Bruno): removida a "Estrutura" (fixaObra) daqui — é redundante com a Taxa de
-  // administração (já embutida no faturamento da fatia BER, cobre o custo fixo da empresa). Contava
-  // a mesma coisa duas vezes. fixaObra/despesasFixas seguem calculados só pro readout informativo do Setup.
-  const despesaObra  = per.map((p,i)=> p.r.custoObra + custoFinObra[i] + comissaoObra[i] + rtObra[i]); // custo + juros + comissão + RT
+  const admLiqObra   = per.map(p => p.r.admV - p.r.admV * p.r.impPct);            // taxa de adm líq. de imposto
+  const savingsLiqObra = per.map(p => p.r.savingsGeral - p.r.savingsGeral * p.r.impPct); // savings líq. de imposto
+  const fornDespesaObra = per.map((p,i)=> p.r.fornV * ((OBRAS[i].despesaFornPct ?? 40)/100)); // fatia do fornecedor que É despesa real
+  const receitaObra  = per.map((p,i)=> admLiqObra[i] + savingsLiqObra[i]);        // taxa adm + savings, líquidos de imposto
+  const despesaObra  = per.map((p,i)=> custoFinObra[i] + comissaoObra[i] + rtObra[i] + fornDespesaObra[i]); // juros + comissão + RT + fatia real do fornecedor
   const lucroObra    = per.map((p,i)=> receitaObra[i] - despesaObra[i]);
   const receitaObraTotal = receitaObra.reduce((s,v)=>s+v,0);
   const despesaObraTotal = despesaObra.reduce((s,v)=>s+v,0);
   const lucroObraTotal   = lucroObra.reduce((s,v)=>s+v,0);
-  // FIX 2026-08-08 (Bruno): savings é "resultado adicional" — BER compra mais barato mas o cliente
-  // paga o valor vendido (a receita não muda). Já está embutido na despesa menor (economia real de
-  // caixa, ajuda o capital de giro) — aqui só exponho como linha própria/visível, sem somar de novo.
+  // Savings (bruto, antes do imposto) exposto separado pro KPI "Savings (resultado adicional)".
+  // Desde a reestruturação acima, savings líquido de imposto já faz parte direta da Receita da obra.
   const savingsObra = per.map(p => p.r.savingsGeral);
   const savingsObraTotal = savingsObra.reduce((s,v)=>s+v,0);
 
@@ -356,7 +362,7 @@ function computePortfolio(){
     lucroLiquido,
     comissaoObra, rtObra, receitaObra, despesaObra, lucroObra,
     receitaObraTotal, despesaObraTotal, lucroObraTotal,
-    savingsObra, savingsObraTotal,
+    savingsObra, savingsObraTotal, admLiqObra, savingsLiqObra, fornDespesaObra,
     custoFinPoolObra, economiaJuroObra, resultadoFinalObra, economiaJuroTotal,
     resultadoObrasTotal, backofficeJuro, resultadoFinalTotal,
     contratoTotal
@@ -472,12 +478,12 @@ function renderKPIs(){
     <div class="kpi-card brand">
       <div class="kpi-label">Receita da obra</div>
       <div class="kpi-value">${fmtK(c.receitaObraTotal)}</div>
-      <div class="kpi-sub">o que entra: fatia BER (pós-imposto) · savings vira custo menor</div>
+      <div class="kpi-sub">taxa de administração + savings, líquidos de imposto (fornecedor/equipe é passa-repasse)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Despesa da obra</div>
       <div class="kpi-value">${fmtK(c.despesaObraTotal)}</div>
-      <div class="kpi-sub">o que sai: custo (fatia BER) + juros + comissão + RT</div>
+      <div class="kpi-sub">juros + comissão + RT + fatia do fornecedor que é despesa real (não repasse)</div>
     </div>
     <div class="kpi-card good">
       <div class="kpi-label">Lucro da obra</div>
@@ -501,12 +507,14 @@ function renderPortfolio(){
     const isOpen = expandedObra===o.id;
     // usa caixa do pool (precisa de giro) E dá prejuízo (mesmo com o pool de graça) → desistir
     const desistir = (CALC.picosInd[i] > 1) && (CALC.resultadoFinalObra[i] < 0);
-    // FIX 2026-08-08 (Bruno): alerta se despesa/capital de giro da obra ultrapassar contrato × fatia BER —
-    // pega descasamento de base (custo escopado pra BER maior que a própria fatia dela no contrato).
+    // Alerta se o capital de giro exigido ultrapassar a fatia BER no contrato — sinal de descasamento
+    // de base no cadastro de custo (mão de obra/compras computando escopo de terceiros).
+    // FIX 2026-08-08: removida a checagem de "despesa > fatia" — despesaObra foi reestruturada (agora
+    // é taxa adm+savings-comissão-RT-juros-parte do fornecedor), não é mais comparável à fatia bruta.
     const fatiaValor = o.contrato * ((o.agio ?? PREM.agio)/100);
-    const descasado = (CALC.despesaObra[i] > fatiaValor) || (pico > fatiaValor);
+    const descasado = pico > fatiaValor;
     return `<tr onclick="toggleObra('${o.id}')" class="${isOpen?'is-open':''}" style="cursor:pointer">
-      <td class="cell-name">${o.nome}${desistir?' <span class="badge badge-danger" style="margin-left:6px"><span class="badge-dot"></span>desistir da obra</span>':''}${(!desistir && descasado)?' <span class="badge badge-warning" style="margin-left:6px" title="Despesa ou capital de giro maior que a fatia BER no contrato — confira o cadastro de custo da obra (mão de obra/compras podem estar computando escopo de terceiros)"><span class="badge-dot"></span>confira o custo cadastrado</span>':''}</td>
+      <td class="cell-name">${o.nome}${desistir?' <span class="badge badge-danger" style="margin-left:6px"><span class="badge-dot"></span>desistir da obra</span>':''}${(!desistir && descasado)?' <span class="badge badge-warning" style="margin-left:6px" title="Capital de giro exigido maior que a fatia BER no contrato — confira o cadastro de custo da obra (mão de obra/compras podem estar computando escopo de terceiros)"><span class="badge-dot"></span>confira o custo cadastrado</span>':''}</td>
       <td class="num mono">${fmtK(o.contrato)}</td>
       <td class="num mono">${fmtK(o.contrato*((o.agio ?? PREM.agio)/100))} · ${o.agio ?? PREM.agio}%</td>
       <td class="num mono cell-muted">${o.inicioMes?indexToMes(mesToIndex(o.inicioMes)).label:('M'+(o._inicioG||o.inicio||1))}</td>
@@ -755,6 +763,7 @@ function openObra(id){
   document.getElementById('o_savings').value   = o?(o.savings ?? PREM.savings):PREM.savings;
   document.getElementById('o_agio').value      = o?(o.agio ?? PREM.agio):PREM.agio;
   document.getElementById('o_ret').value       = o?(o.ret ?? PREM.ret):PREM.ret;
+  document.getElementById('o_despesaFornPct').value = o?(o.despesaFornPct ?? 40):40;
   document.getElementById('o_prazoSinal').value = o?(o.prazoSinal!=null?o.prazoSinal:PREM.receb):PREM.receb;
   document.getElementById('o_formaReceb').value = o?(o.formaReceb||'prazo'):'prazo';
   document.getElementById('o_prazoReceb').value = o?(o.prazoReceb!=null?o.prazoReceb:PREM.receb):PREM.receb;
@@ -841,7 +850,8 @@ function saveObra(){
     juros:val('o_juros'), imposto:val('o_imposto'), adm:val('o_adm'), savings:val('o_savings'), agio:val('o_agio'), ret:val('o_ret'),
     prazoSinal:val('o_prazoSinal'), formaReceb:document.getElementById('o_formaReceb').value, prazoReceb:val('o_prazoReceb'), parcelasN:val('o_parcN'), parcelasValor:parseNum(document.getElementById('o_parcV').value),
     fornTipo:document.getElementById('o_fornTipo').value, fornDias:val('o_fornDias'), comissao:val('o_comissao'), reservaTecnica:val('o_reservaTecnica'),
-    curva:document.getElementById('o_curva').value, fornSinalPct:val('o_fornSinalPct'), fornPrazo1:val('o_fornPrazo1'), fornPrazo2:val('o_fornPrazo2') };
+    curva:document.getElementById('o_curva').value, fornSinalPct:val('o_fornSinalPct'), fornPrazo1:val('o_fornPrazo1'), fornPrazo2:val('o_fornPrazo2'),
+    despesaFornPct:val('o_despesaFornPct') };
   if(editingId){ const o=OBRAS.find(x=>x.id===editingId); Object.assign(o,data); }
   else { data.id = 'o'+Date.now(); OBRAS.push(data); }
   closeObra(); render();
