@@ -39,6 +39,13 @@ function apiHeaders(){
   if(t) h['Authorization'] = 'Bearer '+t;
   return h;
 }
+// Trava de segurança: NUNCA deixar salvar antes de um load bem-sucedido —
+// se o load falhar (rede, deploy em andamento, 401 etc.), OBRAS fica no
+// padrão (SEED_OBRAS) e o render() automático no final do CGInit chamaria
+// save(), sobrescrevendo o dado real do banco com o exemplo. Já aconteceu
+// (2026-08-08, perdeu obra real durante uma janela de deploy) — daqui pra
+// frente save() é um no-op até _loadOk virar true.
+let _loadOk = false;
 async function loadState(){
   try {
     const res = await fetch(apiBase() + '/capital-giro/state', { headers: apiHeaders() });
@@ -47,11 +54,16 @@ async function loadState(){
     const data = json.data || {};
     if(Array.isArray(data.obras) && data.obras.length) OBRAS = data.obras;
     if(data.premissas && Object.keys(data.premissas).length) PREM = Object.assign(structuredClone(DEFAULT_PREM), data.premissas);
-  } catch(e){ console.error('[capital-giro] erro ao carregar estado, usando padrão local:', e); }
+    _loadOk = true;
+  } catch(e){
+    console.error('[capital-giro] erro ao carregar estado — edição bloqueada até recarregar com sucesso:', e);
+    alert('Não consegui carregar os dados salvos do Capital de Giro (falha de rede ou servidor). Pra sua segurança, edições ficam bloqueadas até recarregar a página com sucesso — nada será sobrescrito.');
+  }
   PREM.backofficeMes = DEFAULT_PREM.backofficeMes; // constante do negócio, nunca vem do salvo
 }
 let _saveTimer = null;
 function save(){
+  if(!_loadOk){ console.warn('[capital-giro] save() ignorado — load inicial ainda não confirmado.'); return; }
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(()=>{
     fetch(apiBase() + '/capital-giro/state', {
