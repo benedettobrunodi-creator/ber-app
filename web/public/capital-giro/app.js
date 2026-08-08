@@ -147,8 +147,9 @@ function computeObra(o, prem){
   const agioVal = modV + fornV;                                      // custo da BER = MOD (integral) + compras (fatia BER)
   const ret = (o.ret ?? prem.ret)/100;
   const sinalVal = o.contrato * ((o.sinal||0)/100);
-  // comissão e RT: base = contrato − adm − imposto (mesma base do bloco de entrada); saídas
-  const baseComRT = o.contrato - admV - impV;
+  // FIX 2026-08-08 (Bruno): comissão e RT usam a MESMA base do savings — contrato total
+  // (não a fatia — comissão é sobre o negócio inteiro) − imposto − equipe − taxa de adm.
+  const baseComRT = savingsBase;
   const comissaoTotal = baseComRT * ((o.comissao||0)/100);
   const rtTotal       = baseComRT * ((o.reservaTecnica||0)/100);
 
@@ -775,11 +776,11 @@ function updateFlow(){
   const rt = parseFloat(document.getElementById('o_reservaTecnica').value)||0;
   const dur = Math.max(1, parseInt(document.getElementById('o_duracao').value)||1);
   const fat = contrato*agio/100, admV = contrato*adm/100, impV = fat*imp/100;
-  const fatLiq = contrato - admV - impV;       // base de comissão e RT = contrato − adm − imposto
+  const fatLiq = Math.max(0, contrato - impV - mod - admV); // FIX 2026-08-08: base comissão/RT/savings = contrato − imposto − equipe − adm
   const comV = comissao/100*fatLiq, rtV = rt/100*fatLiq;
   const entrada = fat - impV - comV - rtV;     // Entrada da obra (receita) — sem savings (savings vira custo menor)
   const direto = contrato - fat;
-  const baseSavings = Math.max(0, contrato - impV - mod - admV); // FIX 2026-08-08: base = contrato − imposto − equipe − adm
+  const baseSavings = fatLiq;                  // mesma base de comissão/RT (contrato − imposto − equipe − adm)
   const savGeral = sav/100*baseSavings;        // savings geral = % sobre essa base
   const budgetCompras = Math.max(0, custoOrcado - mod - savGeral);   // DERIVADO = orçado − MOD − savings
   const comprasNoFluxo = budgetCompras * agio/100; // só a FATIA BER das compras entra no caixa da BER (o resto é direto cliente↔parceiro)

@@ -109,7 +109,7 @@ const BODY_HTML = `
             <div class="cf-row"><span class="cf-lbl">(−) Imposto <input id="o_imposto" type="number" step="0.5" oninput="updateFlow()">%</span><span class="cf-val neg" id="cf_imp">—</span></div>
             <div class="cf-row"><span class="cf-lbl">(−) Comissão <span id="cf_compct">—</span></span><span class="cf-val neg" id="cf_com">—</span></div>
             <div class="cf-row"><span class="cf-lbl">(−) Reserva Técnica <span id="cf_rtpct">—</span></span><span class="cf-val neg" id="cf_rt">—</span></div>
-            <div class="cf-row cf-sub"><span class="cf-lbl">comissão e RT sobre contrato − adm − imposto</span><span id="cf_liqbase">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">comissão e RT sobre contrato − imposto − equipe − adm</span><span id="cf_liqbase">—</span></div>
             <div class="cf-arrow">↓</div>
             <div class="cf-row cf-eq cf-total"><span class="cf-lbl">= Entrada da obra</span><span class="cf-val" id="cf_ent">—</span></div>
           </div>
@@ -169,8 +169,8 @@ const BODY_HTML = `
             </div>
             <div class="hint">sinal % na largada · saldo dividido nos 2 prazos · alonga o PMP e minimiza o giro</div>
           </div>
-          <div class="field"><label>Comissão (%)</label><input id="o_comissao" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − adm − imposto</div></div>
-          <div class="field"><label>Reserva Técnica (%)</label><input id="o_reservaTecnica" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − adm − imposto</div></div>
+          <div class="field"><label>Comissão (%)</label><input id="o_comissao" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − imposto − equipe − adm</div></div>
+          <div class="field"><label>Reserva Técnica (%)</label><input id="o_reservaTecnica" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − imposto − equipe − adm</div></div>
         </section>
       </div>
     </div>
