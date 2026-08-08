@@ -148,7 +148,7 @@ const BODY_HTML = `
         </section>
         <section class="obra-col">
           <div class="cfg-head">Fluxo de pagamentos</div>
-          <div class="field"><label>Sinal / adiantamento (%)</label><input id="o_sinal" type="number" step="1"><div class="hint">% do contrato</div></div>
+          <div class="field"><label>Sinal / adiantamento (%)</label><input id="o_sinal" type="number" step="1"><div class="hint">% do faturamento BER (fatia)</div></div>
           <div class="field"><label>Prazo do sinal (dias)</label><input id="o_prazoSinal" type="number" step="5"><div class="hint">0 = à vista (cash)</div></div>
           <div class="field"><label>Fluxo de recebimento</label><select id="o_formaReceb" onchange="toggleFormaReceb()"><option value="prazo">Por prazo (dias)</option><option value="parcelas">Parcelas fixas</option></select></div>
           <div class="field" id="wrap_prazoReceb"><label>Recebimento das medições (dias)</label><input id="o_prazoReceb" type="number" step="5"><div class="hint">medição paga X dias após a execução</div></div>

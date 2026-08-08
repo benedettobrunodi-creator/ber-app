@@ -146,7 +146,10 @@ function computeObra(o, prem){
   const fornV = comprasNoFluxo;                                      // compras (fatia BER) que a BER financia/paga — entra no fluxo
   const agioVal = modV + fornV;                                      // custo da BER = MOD (integral) + compras (fatia BER)
   const ret = (o.ret ?? prem.ret)/100;
-  const sinalVal = o.contrato * ((o.sinal||0)/100);
+  // FIX 2026-08-08 (Bruno): "o fluxo todo deveria ser sobre o que é pago e faturado pela BER" — sinal
+  // é adiantamento sobre o FATURAMENTO da BER (fatia), não sobre o contrato cheio. Bug igual ao das
+  // compras: tava usando o.contrato (14,3M) e não faturamento (fatia, 2,44M) — inflava a entrada em 6x.
+  const sinalVal = faturamento * ((o.sinal||0)/100);
   // FIX 2026-08-08 (Bruno): comissão e RT usam a MESMA base do savings — contrato total
   // (não a fatia — comissão é sobre o negócio inteiro) − imposto − equipe − taxa de adm.
   const baseComRT = savingsBase;
@@ -397,7 +400,7 @@ function renderObraFluxo(i){
     <td class="num mono" style="font-weight:600;color:${x.cum<0?'var(--danger)':'var(--text-primary)'}">${fmt(x.cum)}</td>
   </tr>`).join('');
   return `<div class="obra-fluxo">
-    <div class="obra-fluxo-head">Fluxo de caixa · ${p.o.nome} · aporte máximo <strong style="color:var(--danger)">${aporte>1?fmtK(aporte):'R$ 0'}</strong>${mnG?(' em '+monthLabel(mnG)):''} · lucro <strong style="color:${lucro>=0?'var(--success)':'var(--danger)'}">${fmtK(lucro)}</strong><span class="info-i">i<span class="tip"><b>Como esta análise é calculada.</b><br><b>Aporte máximo</b> = ponto mais fundo do caixa acumulado (quanto injetar até a retenção final).<br><br><b>Entradas:</b> reembolso do custo + <b>adm + savings diluídos igualmente</b> (no prazo de recebimento) · sinal · retenção no fim.<br><b>Saídas:</b> MOD à vista · Fornecedor (prazo único ou escalonado) · comissão · RT.<br><br><b>Custo do dinheiro:</b> ${PREM.juros}%/mês sobre o saldo negativo, cobrado <b>dentro do fluxo</b> mês a mês (coluna Custo $).<br><b>Imposto:</b> só sobre a fatia BER.<br><b>Comissão e RT:</b> base = contrato − adm − imposto, fracionadas na duração + 1 mês (saídas no fluxo).<br><b>Curva de avanço:</b> distribui execução/medição (linear, S, front ou back-loaded).<br><br><b>Lucro = saldo final</b> (já traz custo do dinheiro, comissão e RT dentro).</span></span></div>
+    <div class="obra-fluxo-head">Fluxo de caixa · ${p.o.nome} · aporte máximo <strong style="color:var(--danger)">${aporte>1?fmtK(aporte):'R$ 0'}</strong>${mnG?(' em '+monthLabel(mnG)):''} · lucro <strong style="color:${lucro>=0?'var(--success)':'var(--danger)'}">${fmtK(lucro)}</strong><span class="info-i">i<span class="tip"><b>Como esta análise é calculada.</b><br><b>Aporte máximo</b> = ponto mais fundo do caixa acumulado (quanto injetar até a retenção final).<br><br><b>Entradas:</b> reembolso do custo + <b>adm + savings diluídos igualmente</b> (no prazo de recebimento) · sinal · retenção no fim.<br><b>Saídas:</b> MOD à vista · Fornecedor (prazo único ou escalonado) · comissão · RT.<br><br><b>Custo do dinheiro:</b> ${PREM.juros}%/mês sobre o saldo negativo, cobrado <b>dentro do fluxo</b> mês a mês (coluna Custo $).<br><b>Imposto:</b> só sobre a fatia BER.<br><b>Comissão e RT:</b> base = contrato − imposto − equipe − adm, fracionadas na duração + 1 mês (saídas no fluxo). <b>Sinal:</b> % sobre o faturamento da fatia BER (não o contrato cheio).<br><b>Curva de avanço:</b> distribui execução/medição (linear, S, front ou back-loaded).<br><br><b>Lucro = saldo final</b> (já traz custo do dinheiro, comissão e RT dentro).</span></span></div>
     <div class="table-wrapper"><table class="mini">
       <thead><tr><th>Mês</th><th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Custo $</th><th class="num">Saldo do mês</th><th class="num">Saldo acumulado</th></tr></thead>
       <tbody>${body}</tbody>
