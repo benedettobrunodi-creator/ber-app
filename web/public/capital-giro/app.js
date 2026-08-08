@@ -315,7 +315,10 @@ function computePortfolio(){
   const comissaoObra = per.map(p => p.r.comissaoVal);                             // comissão (base contrato−adm−imposto) = SAÍDA
   const rtObra       = per.map(p => p.r.rtVal);                                   // reserva técnica (mesma base) = SAÍDA
   const receitaObra  = per.map(p => p.r.receitaObra);                             // bruto: fatia líq. imposto + savings
-  const despesaObra  = per.map((p,i)=> p.r.custoObra + custoFinObra[i] + comissaoObra[i] + rtObra[i] + fixaObra[i]); // custo + juros + comissão + RT + estrutura
+  // FIX 2026-08-08 (Bruno): removida a "Estrutura" (fixaObra) daqui — é redundante com a Taxa de
+  // administração (já embutida no faturamento da fatia BER, cobre o custo fixo da empresa). Contava
+  // a mesma coisa duas vezes. fixaObra/despesasFixas seguem calculados só pro readout informativo do Setup.
+  const despesaObra  = per.map((p,i)=> p.r.custoObra + custoFinObra[i] + comissaoObra[i] + rtObra[i]); // custo + juros + comissão + RT
   const lucroObra    = per.map((p,i)=> receitaObra[i] - despesaObra[i]);
   const receitaObraTotal = receitaObra.reduce((s,v)=>s+v,0);
   const despesaObraTotal = despesaObra.reduce((s,v)=>s+v,0);
@@ -465,7 +468,7 @@ function renderKPIs(){
     <div class="kpi-card">
       <div class="kpi-label">Despesa da obra</div>
       <div class="kpi-value">${fmtK(c.despesaObraTotal)}</div>
-      <div class="kpi-sub">o que sai: custo + juros + comissão + RT + estrutura</div>
+      <div class="kpi-sub">o que sai: custo (fatia BER) + juros + comissão + RT</div>
     </div>
     <div class="kpi-card good">
       <div class="kpi-label">Lucro da obra</div>
