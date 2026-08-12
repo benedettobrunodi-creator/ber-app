@@ -26,10 +26,33 @@ export async function listObras(page: number, limit: number, status?: string, us
     }),
     prisma.obra.count({ where }),
   ]);
+
+  // Progresso "de verdade": avanço acumulado (%) do relatório semanal mais recente
+  // de cada obra — é a mesma fonte que o Cockpit (CapaObra) usa. O campo legado
+  // obra.progressPercent é escrito por fontes desencontradas (ClickUp, IA de
+  // cronograma, diário de obra) e não reflete o que aparece no Cockpit.
+  const obraIds = obras.map(o => o.id);
+  const ultimosRelatorios = obraIds.length
+    ? await prisma.relatorioSemanal.findMany({
+        where: { obraId: { in: obraIds } },
+        orderBy: [{ obraId: 'asc' }, { numero: 'desc' }],
+        distinct: ['obraId'],
+        select: { obraId: true, avancoPct: true },
+      })
+    : [];
+  const avancoPorObra = new Map(ultimosRelatorios.map(r => [r.obraId, Number(r.avancoPct)]));
+
+  const obrasComProgresso = obras.map(o => ({
+    ...o,
+    // null quando a obra ainda não tem nenhum relatório semanal — o frontend
+    // deve exibir "—" nesse caso, não "0%" (0% sugeriria progresso real zerado).
+    progressoRelatorio: avancoPorObra.has(o.id) ? avancoPorObra.get(o.id)! : null,
+  }));
+
   // Arquivadas sempre por último
   const sorted = [
-    ...obras.filter(o => o.status !== 'cancelada'),
-    ...obras.filter(o => o.status === 'cancelada'),
+    ...obrasComProgresso.filter(o => o.status !== 'cancelada'),
+    ...obrasComProgresso.filter(o => o.status === 'cancelada'),
   ];
   return { obras: sorted, total };
 }

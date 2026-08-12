@@ -15,6 +15,7 @@ interface Obra {
   address: string | null;
   status: ObraStatus;
   progressPercent: number;
+  progressoRelatorio: number | null;
   startDate: string | null;
   expectedEndDate: string | null;
   situacaoAtual: string | null;
@@ -239,13 +240,22 @@ export default function ObrasPage() {
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  <span className="text-xs font-bold text-ber-olive">{obra.progressPercent}%</span>
-                  <div className="h-1 w-full rounded-full bg-ber-offwhite">
-                    <div
-                      className="h-full rounded-full bg-ber-olive transition-all"
-                      style={{ width: `${obra.progressPercent}%` }}
-                    />
-                  </div>
+                  {obra.progressoRelatorio === null ? (
+                    <>
+                      <span className="text-xs font-bold text-ber-gray/40">—</span>
+                      <div className="h-1 w-full rounded-full bg-ber-offwhite" title="Sem relatório semanal ainda" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs font-bold text-ber-olive">{obra.progressoRelatorio}%</span>
+                      <div className="h-1 w-full rounded-full bg-ber-offwhite">
+                        <div
+                          className="h-full rounded-full bg-ber-olive transition-all"
+                          style={{ width: `${obra.progressoRelatorio}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
