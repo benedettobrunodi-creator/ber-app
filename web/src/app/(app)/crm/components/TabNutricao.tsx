@@ -784,7 +784,7 @@ export default function TabNutricao({ contatos: contatosProp, onRefresh }: Props
 
   // Contadores por segmento (pra mostrar nas sub-abas)
   const contadoresSegmento = useMemo(() => {
-    const c: Record<Segmento, number> = { todos: 0, cliente_direto: 0, arquitetura: 0, gerenciadora: 0, broker: 0, incorporadora: 0, fundo: 0 };
+    const c: Record<Segmento, number> = { todos: 0, cliente_direto: 0, arquitetura: 0, gerenciadora: 0, broker: 0, incorporadora: 0, fundo: 0, administradora: 0 };
     for (const ct of contatos) {
       if (!ct.nutricao) continue;
       c.todos++;

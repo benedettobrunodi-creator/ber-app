@@ -1878,7 +1878,7 @@ model CrmContato {
   estrela             Boolean   @default(false)
   // Funil de nutrição
   perfil              String?   @db.VarChar(30)
-  // cliente_direto | arquitetura | gerenciadora | broker | incorporadora | fundo
+  // cliente_direto | arquitetura | gerenciadora | broker | incorporadora | fundo | administradora
   potencial           String?   @db.VarChar(20)
   // estrategico | padrao | prospect
   etapaNutricao       String?   @map("etapa_nutricao") @db.VarChar(30)

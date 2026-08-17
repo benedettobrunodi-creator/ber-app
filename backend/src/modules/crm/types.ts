@@ -105,7 +105,7 @@ export const CRM_SETORES = [
 
 // ── Nutrição enums (usados por vários schemas abaixo) ───────────────────────
 export const NUTRICAO_ETAPAS      = ['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda'] as const;
-export const NUTRICAO_PERFIS      = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo'] as const;
+export const NUTRICAO_PERFIS      = ['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo','administradora'] as const;
 export const NUTRICAO_POTENCIAIS  = ['estrategico','padrao','prospect'] as const;
 export const NUTRICAO_CANAIS      = ['linkedin','email','whatsapp','ligacao','reuniao'] as const;
 
@@ -147,7 +147,7 @@ export const createContatoSchema = z.object({
   nutricao: z.boolean().optional(),
   papel: z.enum(['decisor','influenciador','neutro']).optional().nullable(),
   estrela: z.boolean().optional(),
-  perfil: z.enum(['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo']).optional().nullable(),
+  perfil: z.enum(['cliente_direto','arquitetura','gerenciadora','broker','incorporadora','fundo','administradora']).optional().nullable(),
   potencial: z.enum(['estrategico','padrao','prospect']).optional().nullable(),
   etapaNutricao: z.enum(['descoberta','consciencia','engajamento','consideracao','ativo','pos_venda']).optional().nullable(),
   ordemNutricao: z.number().int().optional().nullable(),

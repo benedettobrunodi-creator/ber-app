@@ -112,7 +112,7 @@ export interface Contato {
 
 export type PapelContato    = 'decisor' | 'influenciador' | 'neutro';
 export type NutricaoEtapa    = 'descoberta' | 'consciencia' | 'engajamento' | 'consideracao' | 'ativo' | 'pos_venda';
-export type NutricaoPerfil   = 'cliente_direto' | 'arquitetura' | 'gerenciadora' | 'broker' | 'incorporadora' | 'fundo';
+export type NutricaoPerfil   = 'cliente_direto' | 'arquitetura' | 'gerenciadora' | 'broker' | 'incorporadora' | 'fundo' | 'administradora';
 export type NutricaoPotencial = 'estrategico' | 'padrao' | 'prospect';
 export type NutricaoCanal    = 'linkedin' | 'email' | 'whatsapp' | 'ligacao' | 'reuniao';
 
@@ -132,6 +132,7 @@ export const NUTRICAO_PERFIS: { value: NutricaoPerfil; label: string }[] = [
   { value: 'broker',         label: 'Broker' },
   { value: 'incorporadora',  label: 'Incorporadora' },
   { value: 'fundo',          label: 'Fundo' },
+  { value: 'administradora', label: 'Administradora' },
 ];
 
 export const NUTRICAO_POTENCIAIS: { value: NutricaoPotencial; label: string; cls: string }[] = [
