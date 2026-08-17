@@ -71,6 +71,7 @@ export const CRM_CLASSIFICACOES = [
   'End User',
   'Fundo',
   'Fornecedor',
+  'Administradora',
 ] as const;
 
 /** Setores de mercado da empresa cliente. */

@@ -38,7 +38,7 @@ export const TIPOS_ATIVIDADE = [
 ] as const;
 
 export const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel'];
-export const CLASSIFICACOES = ['Gerenciadora', 'Arquitetura', 'Broker', 'Incorporadora', 'End User', 'Fundo', 'Fornecedor'] as const;
+export const CLASSIFICACOES = ['Gerenciadora', 'Arquitetura', 'Broker', 'Incorporadora', 'End User', 'Fundo', 'Fornecedor', 'Administradora'] as const;
 
 /** Setores de mercado da empresa cliente. */
 export const CRM_SETORES = [
