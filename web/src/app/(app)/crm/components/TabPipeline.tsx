@@ -1069,6 +1069,16 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/50 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar título ou empresa…"
+              value={filters.search}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              className="w-56 rounded-lg border border-ber-border bg-white pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
+            />
+          </div>
           <button
             onClick={() => setSoEstrategicos(v => !v)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${soEstrategicos ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-ber-border bg-white text-ber-gray hover:text-ber-carbon'}`}
@@ -1119,16 +1129,6 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
           {/* Filter bar */}
           {showFilters && (
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-ber-border bg-white px-4 py-3">
-              <div className="relative flex-1 min-w-[180px]">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/50 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Buscar título ou empresa…"
-                  value={filters.search}
-                  onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                  className="w-full rounded-lg border border-ber-border pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-ber-teal"
-                />
-              </div>
               <div ref={etapaDropRef} className="relative">
                 <button
                   type="button"
