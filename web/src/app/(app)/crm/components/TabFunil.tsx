@@ -141,28 +141,26 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     ? funil.taxaConversaoPropostas
     : (winRateApi && winRateApi.rate > 0.01 ? winRateApi.rate : 0.3);
 
-  // Pace to Target: ritmo necessário dos meses restantes pra ainda bater a meta anual.
-  // Recalcula toda vez que a página carrega — reage a como o ano está indo de verdade,
-  // ao contrário da "Meta" mensal que é o plano fixo traçado em janeiro.
-  const mesesRestantes = Math.max(0, 12 - mesAtual);
-  const paceMensalNecessario = mesesRestantes > 0 ? Math.max(0, totalMeta - totalRealizado) / mesesRestantes : 0;
+  // Meta mensal adaptativa: pro mês atual em diante, a meta não é mais o valor fixo
+  // digitado em janeiro — é o que falta da meta anual dividido pelos meses que restam
+  // (mês atual incluso). Recalcula sozinha toda vez que a página carrega, absorvendo
+  // automaticamente o que já fechou (ou não) nos meses anteriores.
+  const mesesParaDistribuir = 13 - mesAtual; // mês atual + os que faltam até dezembro
+  const metaMensalAdaptativa = Math.max(0, totalMeta - totalRealizado) / mesesParaDistribuir;
 
-  // Gráfico 1: Vendas vs Meta — valores mensais + pace necessário pros meses restantes
+  // Gráfico 1: Vendas vs Meta — valores mensais (meta futura já ajustada ao ritmo real)
   const vendasMesAMesData = MESES.map((m, i) => {
     const mesIdx = i + 1;
     const vRow = vendas.find((v) => v.mes === mesIdx);
     return {
       mes: m,
       realizado: vRow ? Number(vRow.realizado) : 0,
-      meta: vRow ? Number(vRow.meta) : 0,
+      meta: mesIdx >= mesAtual ? metaMensalAdaptativa : (vRow ? Number(vRow.meta) : 0),
       // Só plota o realizado acumulado até o mês atual — meses futuros ficam null
       // (sem isso, a linha "flatlinava" nos meses futuros e disfarçava o gap real)
       realizadoAcum: vRow && mesIdx <= mesAtual ? Number(vRow.realizadoAcum) : null,
       // Projeção acumulada ideal: soma linear até atingir 100% da meta anual (plano estático de início do ano)
       projecao: vRow ? Number(vRow.metaAcum) : 0,
-      // Pace necessário: quanto precisa fechar POR MÊS (não acumulado) do mês atual em diante
-      // pra ainda bater a meta anual — mesmo valor pra todos os meses restantes
-      paceMensal: mesesRestantes > 0 && mesIdx >= mesAtual ? paceMensalNecessario : null,
     };
   });
 
@@ -288,7 +286,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
             </div>
           )}
         </div>
-        <p className="text-xs text-ber-gray mb-4">Valor fechado por mês vs meta mensal — deals marcados como ganho</p>
+        <p className="text-xs text-ber-gray mb-4">Valor fechado por mês vs meta mensal — do mês atual em diante a meta se reajusta sozinha pra ainda bater a meta anual</p>
 
         {editMetas ? (
           <div className="grid grid-cols-6 gap-2">
@@ -305,29 +303,17 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
             ))}
           </div>
         ) : (
-          <>
-            <ResponsiveContainer width="100%" height={220}>
-              <ComposedChart data={vendasMesAMesData} barGap={2}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="realizado" name="Realizado" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
-                <Line type="monotone" dataKey="meta" name="Meta" stroke="#6B7280" strokeWidth={2} strokeDasharray="5 3" dot={false} />
-                <Line type="monotone" dataKey="paceMensal" name="Pace Necessário" stroke="#E05555" strokeWidth={2.5} strokeDasharray="8 3" dot={{ fill: '#E05555', r: 3 }} connectNulls={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-
-            {mesesRestantes > 0 && (
-              <div className="mt-3 flex items-center gap-2 bg-ber-red/10 border border-ber-red/30 rounded-lg px-3 py-2 text-xs text-ber-red">
-                <TrendingUp size={14} />
-                <span>
-                  Pace necessário: <b>{fmt(paceMensalNecessario)}/mês</b> em {MESES.slice(mesAtual - 1, 12).join('–')} pra bater a meta de {fmt(totalMeta)}
-                </span>
-              </div>
-            )}
-          </>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={vendasMesAMesData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v, name) => [fmt(Number(v)), name]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="realizado" name="Realizado" fill="#3D9E5F" radius={[3, 3, 0, 0]} />
+              <Line type="monotone" dataKey="meta" name="Meta" stroke="#6B7280" strokeWidth={2} strokeDasharray="5 3" dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
         )}
       </div>
 
