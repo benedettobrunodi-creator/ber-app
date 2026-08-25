@@ -141,12 +141,12 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     ? funil.taxaConversaoPropostas
     : (winRateApi && winRateApi.rate > 0.01 ? winRateApi.rate : 0.3);
 
-  // Meta mensal adaptativa: pro mês atual em diante, a meta não é mais o valor fixo
-  // digitado em janeiro — é o que falta da meta anual dividido pelos meses que restam
-  // (mês atual incluso). Recalcula sozinha toda vez que a página carrega, absorvendo
-  // automaticamente o que já fechou (ou não) nos meses anteriores.
-  const mesesParaDistribuir = 13 - mesAtual; // mês atual + os que faltam até dezembro
-  const metaMensalAdaptativa = Math.max(0, totalMeta - totalRealizado) / mesesParaDistribuir;
+  // Meta mensal adaptativa: só mexe nos meses AINDA NÃO COMEÇADOS (mês atual fica
+  // intocado — já era o que era, não dá pra "recuperar" dias que já passaram dele).
+  // Todo o gap acumulado até agora (inclusive o que faltou no mês atual) é jogado
+  // pros meses 100% futuros. Recalcula sozinha a cada carregamento.
+  const mesesFuturos = Math.max(0, 12 - mesAtual);
+  const metaMensalAdaptativa = mesesFuturos > 0 ? Math.max(0, totalMeta - totalRealizado) / mesesFuturos : 0;
 
   // Gráfico 1: Vendas vs Meta — valores mensais (meta futura já ajustada ao ritmo real)
   const vendasMesAMesData = MESES.map((m, i) => {
@@ -155,7 +155,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
     return {
       mes: m,
       realizado: vRow ? Number(vRow.realizado) : 0,
-      meta: mesIdx >= mesAtual ? metaMensalAdaptativa : (vRow ? Number(vRow.meta) : 0),
+      meta: mesIdx > mesAtual ? metaMensalAdaptativa : (vRow ? Number(vRow.meta) : 0),
       // Só plota o realizado acumulado até o mês atual — meses futuros ficam null
       // (sem isso, a linha "flatlinava" nos meses futuros e disfarçava o gap real)
       realizadoAcum: vRow && mesIdx <= mesAtual ? Number(vRow.realizadoAcum) : null,
