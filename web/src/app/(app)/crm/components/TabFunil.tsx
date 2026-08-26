@@ -159,14 +159,13 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       // Só plota o realizado acumulado até o mês atual — meses futuros ficam null
       // (sem isso, a linha "flatlinava" nos meses futuros e disfarçava o gap real)
       realizadoAcum: vRow && mesIdx <= mesAtual ? Number(vRow.realizadoAcum) : null,
-      // Meta acumulada: só até o mês ANTERIOR ao atual é o plano original (histórico,
-      // não mexe). No mês atual em diante, ancora no realizado de HOJE (não no plano
-      // antigo) e projeta com o pace corrigido — por isso o mês atual já "encosta" na
-      // linha verde em vez de manter o valor otimista antigo, que criava um degrau pra
-      // baixo estranho um mês depois (a meta "caindo" de um mês pro outro).
-      projecao: mesIdx >= mesAtual
-        ? totalRealizado + metaMensalAdaptativa * (mesIdx - mesAtual)
-        : (vRow ? Number(vRow.metaAcum) : 0),
+      // Meta acumulada: SEMPRE o plano original (soma cumulativa das metas mensais
+      // digitadas em janeiro). Por definição matemática isso é monotônico — nunca cai,
+      // porque é soma de valores não-negativos. Não faz sentido "corrigir" essa linha
+      // pra refletir o atraso: ela é a régua fixa de comparação (por isso o gap com o
+      // Realizado é visível). A correção de ritmo mora só no gráfico "Vendas Mês a Mês"
+      // (campo `meta`, que não é cumulativo e por isso pode subir sem quebrar nada).
+      projecao: vRow ? Number(vRow.metaAcum) : 0,
     };
   });
 
@@ -338,7 +337,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
             </div>
           )}
         </div>
-        <p className="text-xs text-ber-gray mb-4">Realizado acumulado vs meta acumulada — do mês atual em diante a meta se reajusta pra fechar em 100% em dezembro</p>
+        <p className="text-xs text-ber-gray mb-4">Realizado acumulado vs meta acumulada — plano original, fixo (a correção de ritmo está no gráfico "Vendas Mês a Mês")</p>
 
         {editMetasAcum ? (
           <div className="grid grid-cols-6 gap-2">
