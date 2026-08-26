@@ -159,10 +159,12 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       // Só plota o realizado acumulado até o mês atual — meses futuros ficam null
       // (sem isso, a linha "flatlinava" nos meses futuros e disfarçava o gap real)
       realizadoAcum: vRow && mesIdx <= mesAtual ? Number(vRow.realizadoAcum) : null,
-      // Meta acumulada: até o mês atual é o plano original (histórico, não mexe).
-      // Dali em diante, mesmo racional da meta mensal — projeta a partir do realizado
-      // de hoje usando o pace corrigido, sempre fechando em exatamente 100% da meta em dezembro.
-      projecao: mesIdx > mesAtual
+      // Meta acumulada: só até o mês ANTERIOR ao atual é o plano original (histórico,
+      // não mexe). No mês atual em diante, ancora no realizado de HOJE (não no plano
+      // antigo) e projeta com o pace corrigido — por isso o mês atual já "encosta" na
+      // linha verde em vez de manter o valor otimista antigo, que criava um degrau pra
+      // baixo estranho um mês depois (a meta "caindo" de um mês pro outro).
+      projecao: mesIdx >= mesAtual
         ? totalRealizado + metaMensalAdaptativa * (mesIdx - mesAtual)
         : (vRow ? Number(vRow.metaAcum) : 0),
     };
