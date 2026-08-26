@@ -159,8 +159,12 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
       // Só plota o realizado acumulado até o mês atual — meses futuros ficam null
       // (sem isso, a linha "flatlinava" nos meses futuros e disfarçava o gap real)
       realizadoAcum: vRow && mesIdx <= mesAtual ? Number(vRow.realizadoAcum) : null,
-      // Projeção acumulada ideal: soma linear até atingir 100% da meta anual (plano estático de início do ano)
-      projecao: vRow ? Number(vRow.metaAcum) : 0,
+      // Meta acumulada: até o mês atual é o plano original (histórico, não mexe).
+      // Dali em diante, mesmo racional da meta mensal — projeta a partir do realizado
+      // de hoje usando o pace corrigido, sempre fechando em exatamente 100% da meta em dezembro.
+      projecao: mesIdx > mesAtual
+        ? totalRealizado + metaMensalAdaptativa * (mesIdx - mesAtual)
+        : (vRow ? Number(vRow.metaAcum) : 0),
     };
   });
 
@@ -332,7 +336,7 @@ export default function TabFunil({ oportunidades }: { oportunidades: Oportunidad
             </div>
           )}
         </div>
-        <p className="text-xs text-ber-gray mb-4">Realizado acumulado vs projeção necessária para bater a meta anual</p>
+        <p className="text-xs text-ber-gray mb-4">Realizado acumulado vs meta acumulada — do mês atual em diante a meta se reajusta pra fechar em 100% em dezembro</p>
 
         {editMetasAcum ? (
           <div className="grid grid-cols-6 gap-2">
