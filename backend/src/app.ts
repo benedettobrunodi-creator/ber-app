@@ -41,6 +41,7 @@ import normasRouter from './modules/normas/routes';
 import instrucoesRouter from './modules/instrucoes/routes';
 import touchpointRoutes, { obraTouchpointRouter } from './modules/touchpoints/routes';
 import { obraPunchListRouter, punchListRouter, punchListItemRouter } from './modules/punch-lists/routes';
+import { obraPendenciasRouter } from './modules/pendencias/routes';
 import dashboardRoutes from './modules/dashboard/routes';
 import rolesRoutes from './modules/roles/routes';
 import alocacoesRoutes from './modules/alocacoes/routes';
@@ -142,6 +143,7 @@ app.use('/v1/sequenciamento/edit-requests', ...perm('obras'), globalEditReqRoute
 app.use('/v1/obras/:id/touchpoints', ...perm('obras'), obraTouchpointRouter);
 app.use('/v1/touchpoints', ...perm('obras'), touchpointRoutes);
 app.use('/v1/obras/:id/punch-lists', ...perm('obras'), obraPunchListRouter);
+app.use('/v1/obras/:id/pendencias', ...perm('obras'), obraPendenciasRouter);
 app.use('/v1/punch-lists', ...perm('obras'), punchListRouter);
 app.use('/v1/punch-list-items', ...perm('obras'), punchListItemRouter);
 

@@ -61,6 +61,8 @@ model User {
   touchpointNextActions    ClientTouchpoint[]      @relation("TouchpointNextOwner")
   createdTouchpoints       ClientTouchpoint[]      @relation("TouchpointCreator")
   createdPunchLists        PunchList[]             @relation("PunchListCreator")
+  pendenciasResponsavel    ObraPendencia[]         @relation("PendenciaResponsavel")
+  pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
   etapaEditResolved        EtapaEditRequest[]      @relation("EtapaEditResolver")
@@ -180,6 +182,7 @@ model Obra {
   touchpoints        ClientTouchpoint[]
   announcements      Announcement[]
   punchLists         PunchList[]
+  pendencias         ObraPendencia[]
   obraFvs            ObraFvs[]
   temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
@@ -944,6 +947,42 @@ model PunchListItem {
 
   @@index([punchListId])
   @@map("punch_list_items")
+}
+
+// ─── Pós-Obra · Pendências (Ficha de Pendências digitalizada, 27/08/26) ───
+// Decisões do Bruno: fotos em 2 momentos (abertura + conclusão obrigatória),
+// tipo pendencia × solicitacao (nova solicitação do cliente = só classificação),
+// criticidade 3 níveis, mobile+web (engenheiro residente aponta em campo).
+model ObraPendencia {
+  id             String    @id @default(uuid()) @db.Uuid
+  obraId         String    @map("obra_id") @db.Uuid
+  ambiente       String    @db.VarChar(120)
+  atividade      String
+  disciplina     String?   @db.VarChar(60)
+  fornecedor     String?   @db.VarChar(120)
+  apontadoPor    String    @default("ber") @map("apontado_por") @db.VarChar(10) // ber | cliente
+  responsavelId  String?   @map("responsavel_id") @db.Uuid
+  tipo           String    @default("pendencia") @db.VarChar(15) // pendencia | solicitacao
+  criticidade    String    @default("media") @db.VarChar(10) // baixa | media | alta
+  status         String    @default("aberta") @db.VarChar(15) // aberta | em_andamento | concluida | bloqueada
+  motivoBloqueio String?   @map("motivo_bloqueio")
+  dataInicio     DateTime? @map("data_inicio") @db.Date
+  dataTermino    DateTime? @map("data_termino") @db.Date
+  fotoAberturaUrl  String? @map("foto_abertura_url")
+  fotoConclusaoUrl String? @map("foto_conclusao_url")
+  observacoes    String?
+  concluidaEm    DateTime? @map("concluida_em")
+  createdBy      String?   @map("created_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel User? @relation("PendenciaResponsavel", fields: [responsavelId], references: [id])
+  criador     User? @relation("PendenciaCriador", fields: [createdBy], references: [id])
+
+  @@index([obraId])
+  @@index([obraId, status])
+  @@map("obra_pendencias")
 }
 
 model ObraFaseHistory {
