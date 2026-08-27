@@ -65,6 +65,7 @@ model User {
   folhasFechadas           FolhaFechamento[]       @relation("FolhaFechadoPor")
   folhasReabertas          FolhaFechamento[]       @relation("FolhaReabertoPor")
   folhaLinhas              FolhaFechamentoLinha[]  @relation("FolhaLinhaUser")
+  faltaDescontos           FaltaDesconto[]         @relation("FaltaDescontoUser")
   pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
@@ -190,6 +191,7 @@ model Obra {
   closeOutItens      ObraCloseOutItem[]
   folhaLinhas        FolhaFechamentoLinha[]
   ajustesPonto       AjustePonto[]
+  horasExtras        HoraExtraRegistro[]
   obraFvs            ObraFvs[]
   temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
@@ -2811,14 +2813,32 @@ model HoraExtraRegistro {
   data        DateTime @db.Date
   minutos     Int
   motivo      String   @db.VarChar(30) // domingo | feriado | teto_banco_atingido
+  obraId      String?  @map("obra_id") @db.Uuid // obra predominante do dia (rateio de custo)
   pago        Boolean  @default(false)
   observacoes String?
   createdAt   DateTime @default(now()) @map("created_at")
 
-  user User @relation("HoraExtraUser", fields: [userId], references: [id], onDelete: Cascade)
+  user User  @relation("HoraExtraUser", fields: [userId], references: [id], onDelete: Cascade)
+  obra Obra? @relation(fields: [obraId], references: [id])
 
   @@index([userId])
   @@map("hora_extra_registros")
+}
+
+// Falta sem saldo no banco → desconto em folha (política Bruno 27/08:
+// falta desconta 1º do banco; o residual vira desconto salarial).
+model FaltaDesconto {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  data      DateTime @db.Date
+  minutos   Int      // minutos a descontar em folha
+  detalhe   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation("FaltaDescontoUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, data])
+  @@map("falta_descontos")
 }
 
 // Correção manual de um dia de ponto (bateu errado / esqueceu de bater).

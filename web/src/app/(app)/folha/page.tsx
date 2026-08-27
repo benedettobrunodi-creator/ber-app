@@ -14,7 +14,7 @@ import HorasTabs from '@/components/HorasTabs';
 interface PorObra { obraId: string | null; obraNome: string; minutos: number }
 interface UsuarioLinha {
   userId: string; nome: string; porObra: PorObra[];
-  totalMinutos: number; minutosExtras: number; diasIncompletos: string[]; minutosSemObra: number;
+  totalMinutos: number; minutosExtras: number; minutosExtrasPagar: number; minutosDesconto: number; diasIncompletos: string[]; minutosSemObra: number;
 }
 interface Preview {
   competencia: string;
@@ -137,6 +137,8 @@ export default function FolhaPage() {
                 ))}
                 <th className="text-right px-3 py-2.5 font-bold bg-ber-card">Total (h)</th>
                 <th className="text-right px-3 py-2.5 font-bold text-amber-700">Extras (h)</th>
+                <th className="text-right px-3 py-2.5 font-bold text-amber-700 whitespace-nowrap">A pagar (h)</th>
+                <th className="text-right px-3 py-2.5 font-bold text-red-700 whitespace-nowrap">Desconto (h)</th>
               </tr>
             </thead>
             <tbody>
@@ -153,6 +155,8 @@ export default function FolhaPage() {
                     ))}
                     <td className="px-3 py-2.5 text-right tabular-nums font-bold bg-ber-card">{h(u.totalMinutos)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700">{h(u.minutosExtras)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700">{h(u.minutosExtrasPagar)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-red-700">{h(u.minutosDesconto)}</td>
                   </tr>
                 );
               })}
@@ -165,6 +169,8 @@ export default function FolhaPage() {
                 ))}
                 <td className="px-3 py-2.5 text-right tabular-nums bg-ber-card">{h(data.usuarios.reduce((s, u) => s + u.totalMinutos, 0))}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{h(data.usuarios.reduce((s, u) => s + u.minutosExtras, 0))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{h(data.usuarios.reduce((s, u) => s + u.minutosExtrasPagar, 0))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-red-700">{h(data.usuarios.reduce((s, u) => s + u.minutosDesconto, 0))}</td>
               </tr>
             </tbody>
           </table>
@@ -174,6 +180,7 @@ export default function FolhaPage() {
       <p className="text-[11px] text-ber-gray mt-3">
         Rateio: cada intervalo de ponto vai pra obra do check-in; ajustes manuais do dia são distribuídos proporcionalmente entre as obras daquele dia.
         Horas em "Sem obra / Interno" = batidas sem obra selecionada. Extras = domingos, feriados e estouro do teto do banco (24h).
+        A pagar = extras valorizadas (domingo/feriado em dobro, estouro de teto ×1,5 — CLT). Desconto = faltas que o banco de horas não cobriu, política: falta desconta primeiro do banco, o resto vai pra folha.
       </p>
     </div>
   );

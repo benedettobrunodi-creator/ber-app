@@ -196,6 +196,60 @@ async function saldoAtualMinutos(userId: string, referencia: Date) {
  *  nesse caso loga e pula (exige ajuste manual).
  *  NOTA: dia com déficit (faltou) não gera débito automático no banco — a
  *  política de desconto de falta ainda não foi definida com o Bruno. */
+/** Obra predominante do dia: prioriza ajuste com obra; senão, a obra com mais
+ *  minutos entre os pares checkin/checkout (intervalo atribuído à obra do checkin). */
+async function obraPredominanteDoDia(userId: string, dateStr: string): Promise<string | null> {
+  const ajuste = await prisma.ajustePonto.findUnique({
+    where: { userId_data: { userId, data: toDateOnlyUTC(dateStr) } },
+  });
+  if (ajuste?.obraId) return ajuste.obraId;
+
+  const { start, end } = brtDayRange(dateStr);
+  const entries = await prisma.timeEntry.findMany({
+    where: { userId, timestamp: { gte: start, lt: end } },
+    orderBy: { timestamp: 'asc' },
+  });
+  const porObra = new Map<string | null, number>();
+  let aberto: { ts: Date; obraId: string | null } | null = null;
+  for (const e of entries) {
+    if (e.type === 'checkin') aberto = { ts: e.timestamp, obraId: e.obraId ?? null };
+    else if (e.type === 'checkout' && aberto) {
+      const min = (e.timestamp.getTime() - aberto.ts.getTime()) / 60000;
+      porObra.set(aberto.obraId, (porObra.get(aberto.obraId) ?? 0) + min);
+      aberto = null;
+    }
+  }
+  let melhor: string | null = null;
+  let melhorMin = 0;
+  for (const [obraId, min] of porObra) {
+    if (obraId && min > melhorMin) { melhor = obraId; melhorMin = min; }
+  }
+  return melhor;
+}
+
+/** Reverte o processamento automático de falta de um dia (consumos motivo
+ *  "falta AAAA-MM-DD" + desconto salarial residual) para reprocessar idempotente. */
+async function desfazerFaltaAutomatica(userId: string, dateStr: string) {
+  const dataDate = toDateOnlyUTC(dateStr);
+  const consumos = await prisma.bancoHorasConsumo.findMany({
+    where: { data: dataDate, motivo: `falta ${dateStr}`, lote: { userId } },
+    include: { lote: true },
+  });
+  for (const c of consumos) {
+    const novoConsumido = Math.max(0, c.lote.minutosConsumidos - c.minutos);
+    await prisma.bancoHorasLote.update({
+      where: { id: c.loteId },
+      data: {
+        minutosConsumidos: novoConsumido,
+        status: novoConsumido === 0 ? 'pendente' : novoConsumido >= c.lote.minutosCredito ? 'consumido' : 'parcial',
+      },
+    });
+    await prisma.bancoHorasConsumo.delete({ where: { id: c.id } });
+  }
+  await prisma.faltaDesconto.deleteMany({ where: { userId, data: dataDate } });
+  return consumos.length;
+}
+
 export async function processarDia(userId: string, dateStr: string) {
   const dia = await calcularDia(userId, dateStr);
   const dataDate = toDateOnlyUTC(dateStr);
@@ -206,15 +260,56 @@ export async function processarDia(userId: string, dateStr: string) {
   }
   if (loteExistente) await prisma.bancoHorasLote.delete({ where: { id: loteExistente.id } });
   await prisma.horaExtraRegistro.deleteMany({ where: { userId, data: dataDate, pago: false } });
+  await desfazerFaltaAutomatica(userId, dateStr);
 
-  if (dia.diffMinutos <= 0) {
-    return { ...dia, resultado: dia.diffMinutos < 0 ? 'falta' : 'neutro' };
+  if (dia.diffMinutos === 0) return { ...dia, resultado: 'neutro' };
+
+  if (dia.diffMinutos < 0) {
+    // Política (Bruno 27/08/2026): falta desconta primeiro do banco;
+    // sem saldo suficiente, o residual vira desconto em folha.
+    // Dia útil sem NENHUM registro não desconta automático (pode ser férias/
+    // atestado) — fica como pendência para ajuste manual.
+    if (!dia.temRegistro) return { ...dia, resultado: 'sem_registro' };
+
+    const falta = -dia.diffMinutos;
+    let restante = falta;
+    const lotes = await prisma.bancoHorasLote.findMany({
+      where: { userId, status: { in: ['pendente', 'parcial'] }, dataExpiracao: { gte: dataDate } },
+      orderBy: { data: 'asc' }, // FIFO
+    });
+    for (const lote of lotes) {
+      if (restante <= 0) break;
+      const disponivel = lote.minutosCredito - lote.minutosConsumidos;
+      if (disponivel <= 0) continue;
+      const usar = Math.min(disponivel, restante);
+      await prisma.bancoHorasConsumo.create({
+        data: { loteId: lote.id, data: dataDate, minutos: usar, motivo: `falta ${dateStr}`, registradoPorId: userId },
+      });
+      const novoConsumido = lote.minutosConsumidos + usar;
+      await prisma.bancoHorasLote.update({
+        where: { id: lote.id },
+        data: { minutosConsumidos: novoConsumido, status: novoConsumido >= lote.minutosCredito ? 'consumido' : 'parcial' },
+      });
+      restante -= usar;
+    }
+    if (restante > 0) {
+      await prisma.faltaDesconto.create({
+        data: {
+          userId,
+          data: dataDate,
+          minutos: restante,
+          detalhe: `falta de ${Math.round(falta / 60 * 10) / 10}h — banco cobriu ${Math.round((falta - restante) / 60 * 10) / 10}h`,
+        },
+      });
+    }
+    return { ...dia, resultado: 'falta', faltaMinutos: falta, cobertoPeloBanco: falta - restante, descontoSalarialMinutos: restante };
   }
 
   if (dia.ehDomingoOuFeriado) {
     const motivo = dia.ehFeriado ? 'feriado' : 'domingo';
+    const obraId = await obraPredominanteDoDia(userId, dateStr);
     await prisma.horaExtraRegistro.create({
-      data: { userId, data: dataDate, minutos: dia.diffMinutos, motivo },
+      data: { userId, data: dataDate, minutos: dia.diffMinutos, motivo, obraId },
     });
     return { ...dia, resultado: 'hora_extra', motivo };
   }
@@ -236,8 +331,9 @@ export async function processarDia(userId: string, dateStr: string) {
     });
   }
   if (paraExtra > 0) {
+    const obraId = await obraPredominanteDoDia(userId, dateStr);
     await prisma.horaExtraRegistro.create({
-      data: { userId, data: dataDate, minutos: paraExtra, motivo: 'teto_banco_atingido' },
+      data: { userId, data: dataDate, minutos: paraExtra, motivo: 'teto_banco_atingido', obraId },
     });
   }
   return { ...dia, resultado: 'processado', paraBanco, paraExtra };

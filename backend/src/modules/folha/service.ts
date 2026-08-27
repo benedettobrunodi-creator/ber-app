@@ -57,6 +57,8 @@ export interface PreviewFolha {
     porObra: { obraId: string | null; obraNome: string; minutos: number }[];
     totalMinutos: number;
     minutosExtras: number;
+    minutosExtrasPagar: number; // dom/feriado ×2 (CLT 100%), teto ×1,5 (CLT 50%)
+    minutosDesconto: number;    // faltas sem saldo no banco → desconto em folha
     diasIncompletos: string[]; // sem ajuste que resolva
     minutosSemObra: number;
   }[];
@@ -78,13 +80,22 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
   const compStart = new Date(Date.UTC(y, m - 1, 1));
   const compEnd = new Date(Date.UTC(y, m, 1));
 
-  const [ajustes, extras] = await Promise.all([
+  const [ajustes, extras, descontos] = await Promise.all([
     prisma.ajustePonto.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
     prisma.horaExtraRegistro.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
+    prisma.faltaDesconto.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
   ]);
   const ajustePorUserDia = new Map(ajustes.map((a) => [`${a.userId}:${a.data.toISOString().slice(0, 10)}`, a]));
   const extrasPorUser = new Map<string, number>();
-  for (const e of extras) extrasPorUser.set(e.userId, (extrasPorUser.get(e.userId) ?? 0) + e.minutos);
+  const extrasPagarPorUser = new Map<string, number>();
+  for (const e of extras) {
+    extrasPorUser.set(e.userId, (extrasPorUser.get(e.userId) ?? 0) + e.minutos);
+    // CLT: domingo/feriado = 100% adicional (paga em dobro); excedente de teto = 50% (×1,5).
+    const fator = e.motivo === 'domingo' || e.motivo === 'feriado' ? 2 : 1.5;
+    extrasPagarPorUser.set(e.userId, (extrasPagarPorUser.get(e.userId) ?? 0) + Math.round(e.minutos * fator));
+  }
+  const descontoPorUser = new Map<string, number>();
+  for (const d of descontos) descontoPorUser.set(d.userId, (descontoPorUser.get(d.userId) ?? 0) + d.minutos);
 
   const obraIds = new Set<string>();
   const usuarios: PreviewFolha['usuarios'] = [];
@@ -121,7 +132,7 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
     }
     for (const k of acumulado.keys()) if (k) obraIds.add(k);
     const totalMinutos = [...acumulado.values()].reduce((s, v) => s + v, 0);
-    if (totalMinutos === 0 && (extrasPorUser.get(u.id) ?? 0) === 0) continue; // sem atividade no mês
+    if (totalMinutos === 0 && (extrasPorUser.get(u.id) ?? 0) === 0 && (descontoPorUser.get(u.id) ?? 0) === 0) continue; // sem atividade no mês
     const minutosSemObra = acumulado.get(null) ?? 0;
     if (diasIncompletos.length) pendencias.push({ userId: u.id, nome: u.name, tipo: 'batida_incompleta', detalhe: `${diasIncompletos.length} dia(s): ${diasIncompletos.slice(0, 5).map((d) => d.slice(8)).join(', ')}${diasIncompletos.length > 5 ? '…' : ''}` });
     if (minutosSemObra > 0) pendencias.push({ userId: u.id, nome: u.name, tipo: 'sem_obra', detalhe: `${Math.round(minutosSemObra / 60 * 10) / 10}h sem centro de custo` });
@@ -131,6 +142,8 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
       porObra: [...acumulado.entries()].map(([obraId, minutos]) => ({ obraId, obraNome: '', minutos })),
       totalMinutos,
       minutosExtras: extrasPorUser.get(u.id) ?? 0,
+      minutosExtrasPagar: extrasPagarPorUser.get(u.id) ?? 0,
+      minutosDesconto: descontoPorUser.get(u.id) ?? 0,
       diasIncompletos,
       minutosSemObra,
     });
@@ -167,7 +180,8 @@ export async function fecharMes(competencia: string, userId: string, observacoes
       minutosExtras: 0,
       detalhe: u.diasIncompletos.length ? `atenção: ${u.diasIncompletos.length} dia(s) incompletos no mês` : null,
     })),
-    ...(u.minutosExtras > 0 ? [{ userId: u.userId, obraId: null, minutos: 0, minutosExtras: u.minutosExtras, detalhe: 'horas extras remuneradas do mês' }] : []),
+    ...(u.minutosExtras > 0 ? [{ userId: u.userId, obraId: null, minutos: 0, minutosExtras: u.minutosExtrasPagar, detalhe: `horas extras a pagar (${(u.minutosExtras / 60).toFixed(1)}h base, dom/feriado ×2, teto ×1,5)` }] : []),
+    ...(u.minutosDesconto > 0 ? [{ userId: u.userId, obraId: null, minutos: -u.minutosDesconto, minutosExtras: 0, detalhe: 'desconto de faltas sem saldo no banco' }] : []),
   ]);
 
   const fechamento = await prisma.$transaction(async (tx) => {
@@ -204,13 +218,17 @@ export async function listFechamentos() {
 
 export async function exportCsv(competencia: string): Promise<string> {
   const preview = await previewFechamento(competencia);
-  const linhas = ['colaborador;obra;horas_normais;horas_extras'];
+  const h = (min: number) => (min / 60).toFixed(2).replace('.', ',');
+  const linhas = ['colaborador;obra;horas_normais;horas_extras_base;horas_extras_a_pagar;horas_desconto'];
   for (const u of preview.usuarios) {
     for (const po of u.porObra.filter((p) => p.minutos > 0)) {
-      linhas.push(`${u.nome};${po.obraNome};${(po.minutos / 60).toFixed(2).replace('.', ',')};0`);
+      linhas.push(`${u.nome};${po.obraNome};${h(po.minutos)};0;0;0`);
     }
     if (u.minutosExtras > 0) {
-      linhas.push(`${u.nome};EXTRAS (dom/feriado/teto);0;${(u.minutosExtras / 60).toFixed(2).replace('.', ',')}`);
+      linhas.push(`${u.nome};EXTRAS (dom/feriado ×2, teto ×1,5);0;${h(u.minutosExtras)};${h(u.minutosExtrasPagar)};0`);
+    }
+    if (u.minutosDesconto > 0) {
+      linhas.push(`${u.nome};DESCONTO (faltas sem saldo no banco);0;0;0;${h(u.minutosDesconto)}`);
     }
   }
   return linhas.join('\n');
