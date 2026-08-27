@@ -110,6 +110,13 @@ export default function PendenciasPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Web (tela larga) abre em LISTA; mobile abre em CARDS — pedido do Bruno 27/08.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setViewMode('lista');
+    }
+  }, []);
+
   const visiveis = useMemo(() => {
     let lista = pendencias;
     if (filtroStatus === 'abertas') lista = lista.filter((p) => p.status !== 'concluida');
@@ -199,7 +206,7 @@ export default function PendenciasPage() {
   );
 
   return (
-    <div className="max-w-3xl pb-24">
+    <div className="w-full max-w-[1500px] pb-24">
       <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Voltar à obra
       </Link>
@@ -312,7 +319,7 @@ export default function PendenciasPage() {
         porAmbiente.map(([ambiente, itens]) => (
           <div key={ambiente} className="mb-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal mb-1.5">{ambiente}</p>
-            <div className="space-y-2">
+            <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
               {itens.map((p) => {
                 const late = atrasada(p);
                 return (

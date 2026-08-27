@@ -83,7 +83,7 @@ export default function CloseOutPage() {
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
 
   return (
-    <div className="max-w-3xl pb-24">
+    <div className="w-full max-w-[1200px] pb-24">
       <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Voltar à obra
       </Link>
