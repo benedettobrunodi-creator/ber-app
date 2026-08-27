@@ -24,6 +24,8 @@ export async function create(obraId: string, input: CreateStakeholderInput) {
       telefone: emptyToNull(input.telefone),
       funcao:   emptyToNull(input.funcao),
       ordem:    input.ordem ?? 0,
+      recebeDiario:    input.recebeDiario ?? false,
+      recebeRelatorio: input.recebeRelatorio ?? false,
     },
   });
 }
@@ -41,6 +43,8 @@ export async function update(id: string, input: UpdateStakeholderInput) {
       telefone: 'telefone' in input ? emptyToNull(input.telefone) : undefined,
       funcao:   'funcao'   in input ? emptyToNull(input.funcao)   : undefined,
       ordem:    input.ordem,
+      recebeDiario:    'recebeDiario'    in input ? input.recebeDiario    : undefined,
+      recebeRelatorio: 'recebeRelatorio' in input ? input.recebeRelatorio : undefined,
     },
   });
 }
