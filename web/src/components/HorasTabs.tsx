@@ -6,7 +6,7 @@
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock, PiggyBank, CalendarDays } from 'lucide-react';
+import { Clock, PiggyBank, CalendarDays, ArrowLeft } from 'lucide-react';
 
 const TABS = [
   { href: '/ponto', label: 'Apontamento', icon: Clock },
@@ -18,7 +18,12 @@ export default function HorasTabs() {
   const pathname = usePathname();
   return (
     <div className="mb-5 border-b border-ber-border">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ber-gray mb-1">Gestão de Horas</p>
+      <div className="flex items-center gap-3 mb-1">
+        <Link href="/" className="inline-flex items-center gap-1 text-xs text-ber-gray hover:text-ber-carbon">
+          <ArrowLeft size={13} /> Início
+        </Link>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ber-gray">Gestão de Horas</p>
+      </div>
       <nav className="flex gap-1 -mb-px overflow-x-auto">
         {TABS.map((t) => {
           const active = pathname.startsWith(t.href);
