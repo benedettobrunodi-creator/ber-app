@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Camera, CheckCircle2, PauseCircle, PlayCircle, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Camera, CheckCircle2, PauseCircle, PlayCircle, X, AlertTriangle, Pencil, LayoutGrid, List } from 'lucide-react';
 import api from '@/lib/api';
 
 interface Pendencia {
@@ -73,7 +73,10 @@ export default function PendenciasPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
+  const [filtroAmbiente, setFiltroAmbiente] = useState<string>('todos');
   const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState<Pendencia | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'lista'>('cards');
   const [busy, setBusy] = useState(false);
   const fotoConclusaoInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -113,8 +116,14 @@ export default function PendenciasPage() {
     else if (filtroStatus === 'atrasadas') lista = lista.filter(atrasada);
     else if (filtroStatus === 'concluidas') lista = lista.filter((p) => p.status === 'concluida');
     else if (filtroStatus === 'solicitacoes') lista = lista.filter((p) => p.tipo === 'solicitacao');
+    if (filtroAmbiente !== 'todos') lista = lista.filter((p) => p.ambiente === filtroAmbiente);
     return lista;
-  }, [pendencias, filtroStatus]);
+  }, [pendencias, filtroStatus, filtroAmbiente]);
+
+  const ambientes = useMemo(
+    () => [...new Set(pendencias.map((p) => p.ambiente))].sort((a, b) => a.localeCompare(b)),
+    [pendencias],
+  );
 
   const porAmbiente = useMemo(() => {
     const m = new Map<string, Pendencia[]>();
@@ -215,7 +224,11 @@ export default function PendenciasPage() {
         </div>
       )}
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 items-center">
+        <div className="flex rounded-lg border border-ber-border overflow-hidden mr-1 shrink-0">
+          <button onClick={() => setViewMode('cards')} title="Cards" className={`px-2.5 py-1.5 ${viewMode === 'cards' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray'}`}><LayoutGrid size={14} /></button>
+          <button onClick={() => setViewMode('lista')} title="Lista" className={`px-2.5 py-1.5 ${viewMode === 'lista' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray'}`}><List size={14} /></button>
+        </div>
         {([['abertas', 'Abertas'], ['atrasadas', 'Atrasadas'], ['solicitacoes', 'Solicitações'], ['concluidas', 'Concluídas'], ['todas', 'Todas']] as const).map(([k, label]) => (
           <button
             key={k}
@@ -227,6 +240,14 @@ export default function PendenciasPage() {
             {label}
           </button>
         ))}
+        <select
+          value={filtroAmbiente}
+          onChange={(e) => setFiltroAmbiente(e.target.value)}
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-full border border-ber-border bg-white text-ber-gray shrink-0 focus:outline-none"
+        >
+          <option value="todos">Todos os ambientes</option>
+          {ambientes.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
       </div>
 
       {erro && (
@@ -240,6 +261,52 @@ export default function PendenciasPage() {
       ) : visiveis.length === 0 ? (
         <div className="bg-white border border-ber-border rounded-xl p-8 text-center text-sm text-ber-gray">
           Nenhuma pendência neste filtro.
+        </div>
+      ) : viewMode === 'lista' ? (
+        <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-ber-gray bg-ber-surface border-b border-ber-border">
+                <th className="text-left px-3 py-2 font-bold">Ambiente</th>
+                <th className="text-left px-3 py-2 font-bold">Atividade</th>
+                <th className="text-left px-3 py-2 font-bold">Fornecedor</th>
+                <th className="text-left px-3 py-2 font-bold">Prazo</th>
+                <th className="text-left px-3 py-2 font-bold">Status</th>
+                <th className="px-2 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {visiveis.map((p) => {
+                const late = atrasada(p);
+                return (
+                  <tr key={p.id} className="border-b border-ber-border/60 last:border-b-0 hover:bg-ber-surface/60">
+                    <td className="px-3 py-2 text-[12px] text-ber-gray whitespace-nowrap">{p.ambiente}</td>
+                    <td className="px-3 py-2 text-[13px] text-ber-carbon">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${CRIT_DOT[p.criticidade]}`} />
+                      {p.atividade}
+                      {p.tipo === 'solicitacao' && <span className="ml-1.5 text-[8px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 align-middle">SOLIC.</span>}
+                    </td>
+                    <td className="px-3 py-2 text-[12px] text-ber-gray whitespace-nowrap">{p.fornecedor || '—'}</td>
+                    <td className={`px-3 py-2 text-[12px] whitespace-nowrap ${late ? 'text-red-600 font-bold' : 'text-ber-gray'}`}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[p.status].cls}`}>{STATUS_CFG[p.status].label}</span>
+                    </td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap">
+                      <button disabled={busy} onClick={() => setEditando(p)} className="text-ber-gray hover:text-ber-carbon p-1" title="Editar"><Pencil size={13} /></button>
+                      {p.status !== 'concluida' && (
+                        <button disabled={busy} onClick={() => fotoConclusaoInputs.current[p.id]?.click()} className="text-ber-green hover:opacity-70 p-1" title="Concluir com foto"><Camera size={14} /></button>
+                      )}
+                      <input
+                        ref={(el) => { fotoConclusaoInputs.current[p.id] = el; }}
+                        type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFotoConclusao(p, f); e.target.value = ''; }}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
         porAmbiente.map(([ambiente, itens]) => (
@@ -291,8 +358,12 @@ export default function PendenciasPage() {
                       </div>
                     )}
 
+                    <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      <button disabled={busy} onClick={() => setEditando(p)} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border text-ber-gray hover:bg-ber-surface disabled:opacity-50">
+                        <Pencil size={12} /> Editar
+                      </button>
                     {p.status !== 'concluida' && (
-                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      <>
                         {p.status === 'aberta' && (
                           <button disabled={busy} onClick={() => mudarStatus(p, 'em_andamento')} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
                             <PlayCircle size={13} /> Iniciar
@@ -334,14 +405,28 @@ export default function PendenciasPage() {
                             e.target.value = '';
                           }}
                         />
-                      </div>
+                      </>
                     )}
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
         ))
+      )}
+
+      {editando && (
+        <EditSheet
+          pendencia={editando}
+          obraId={obraId}
+          busy={busy}
+          onClose={() => setEditando(null)}
+          onSave={(patch) => run(async () => {
+            await api.patch(`/obras/${obraId}/pendencias/${editando.id}`, patch);
+            setEditando(null);
+          }, 'Erro ao salvar edição')}
+        />
       )}
 
       {/* ── Nova pendência (sheet mobile-first) ── */}
@@ -400,6 +485,89 @@ export default function PendenciasPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+function EditSheet({ pendencia, busy, onClose, onSave }: {
+  pendencia: Pendencia;
+  obraId: string;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (patch: Record<string, unknown>) => void;
+}) {
+  const [ambiente, setAmbiente] = useState(pendencia.ambiente);
+  const [atividade, setAtividade] = useState(pendencia.atividade);
+  const [disciplina, setDisciplina] = useState(pendencia.disciplina ?? '');
+  const [fornecedor, setFornecedor] = useState(pendencia.fornecedor ?? '');
+  const [apontadoPor, setApontadoPor] = useState<'ber' | 'cliente'>(pendencia.apontadoPor);
+  const [tipo, setTipo] = useState<'pendencia' | 'solicitacao'>(pendencia.tipo);
+  const [criticidade, setCriticidade] = useState<'baixa' | 'media' | 'alta'>(pendencia.criticidade);
+  const [termino, setTermino] = useState(pendencia.dataTermino?.slice(0, 10) ?? '');
+  const [obs, setObs] = useState(pendencia.observacoes ?? '');
+  const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !busy && onClose()}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-ber-carbon">Editar pendência</h2>
+          <button onClick={onClose} disabled={busy} className="text-ber-gray hover:text-ber-carbon"><X size={20} /></button>
+        </div>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(['pendencia', 'solicitacao'] as const).map((t) => (
+              <button key={t} onClick={() => setTipo(t)} className={`flex-1 text-xs font-semibold py-2 rounded-lg border ${tipo === t ? (t === 'solicitacao' ? 'bg-purple-600 text-white border-purple-600' : 'bg-ber-carbon text-white border-ber-carbon') : 'bg-white text-ber-gray border-ber-border'}`}>
+                {t === 'pendencia' ? 'Pendência' : 'Solicitação do cliente'}
+              </button>
+            ))}
+          </div>
+          <input value={ambiente} onChange={(e) => setAmbiente(e.target.value)} placeholder="Ambiente" className={inputCls} />
+          <textarea value={atividade} onChange={(e) => setAtividade(e.target.value)} rows={2} className={inputCls} />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={disciplina} onChange={(e) => setDisciplina(e.target.value)} placeholder="Disciplina" className={inputCls} />
+            <input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} placeholder="Fornecedor" className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-semibold text-ber-gray">
+              Apontado por
+              <select value={apontadoPor} onChange={(e) => setApontadoPor(e.target.value as 'ber' | 'cliente')} className={`${inputCls} mt-1`}>
+                <option value="ber">BÈR</option>
+                <option value="cliente">Cliente</option>
+              </select>
+            </label>
+            <label className="text-[11px] font-semibold text-ber-gray">
+              Criticidade
+              <select value={criticidade} onChange={(e) => setCriticidade(e.target.value as 'baixa' | 'media' | 'alta')} className={`${inputCls} mt-1`}>
+                <option value="baixa">Baixa</option>
+                <option value="media">Média</option>
+                <option value="alta">Alta</option>
+              </select>
+            </label>
+          </div>
+          <label className="block text-[11px] font-semibold text-ber-gray">
+            Prazo (término previsto)
+            <input type="date" value={termino} onChange={(e) => setTermino(e.target.value)} className={`${inputCls} mt-1`} />
+          </label>
+          <textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações" rows={2} className={inputCls} />
+          <button
+            onClick={() => onSave({
+              ambiente: ambiente.trim(),
+              atividade: atividade.trim(),
+              disciplina: disciplina.trim() || undefined,
+              fornecedor: fornecedor.trim() || undefined,
+              apontadoPor, tipo, criticidade,
+              dataTermino: termino || undefined,
+              observacoes: obs.trim() || undefined,
+            })}
+            disabled={busy || !ambiente.trim() || !atividade.trim()}
+            className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? 'Salvando…' : 'Salvar alterações'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
