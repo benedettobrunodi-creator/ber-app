@@ -310,7 +310,8 @@ export async function consumir(input: ConsumirInput, registradoPorId: string) {
 export async function painel() {
   const hoje = new Date();
   const lotes = await prisma.bancoHorasLote.findMany({
-    where: { status: { in: ['pendente', 'parcial'] } },
+    // usuários desativados saem do painel (o histórico/lotes continuam no banco)
+    where: { status: { in: ['pendente', 'parcial'] }, user: { isActive: true } },
     include: { user: { select: { id: true, name: true } } },
     orderBy: { data: 'asc' },
   });
