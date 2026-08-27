@@ -33,6 +33,7 @@ interface UserRecord {
   phone: string | null;
   avatarUrl: string | null;
   isActive: boolean;
+  isPj?: boolean;
 }
 
 interface UserFormData {
@@ -41,6 +42,7 @@ interface UserFormData {
   password: string;
   phone: string;
   role: UserRole;
+  isPj: boolean;
 }
 
 // --- Constants ---
@@ -77,6 +79,7 @@ const EMPTY_FORM: UserFormData = {
   password: '',
   phone: '',
   role: 'campo',
+  isPj: true,
 };
 
 // --- Helpers ---
@@ -239,6 +242,7 @@ export default function ConfiguracoesPage() {
       password: '',
       phone: u.phone ?? '',
       role: u.role,
+      isPj: u.isPj ?? true,
     });
     setModalOpen(true);
   }
@@ -258,6 +262,7 @@ export default function ConfiguracoesPage() {
           name: form.name,
           role: form.role,
           phone: form.phone || undefined,
+          isPj: form.isPj,
         });
       } else {
         await api.post('/users', {
@@ -786,6 +791,16 @@ export default function ConfiguracoesPage() {
                   <option value="campo">Campo</option>
                 </select>
               </div>
+
+              <label className="flex items-center gap-2 text-sm text-ber-carbon">
+                <input
+                  type="checkbox"
+                  checked={form.isPj}
+                  onChange={(e) => setForm({ ...form, isPj: e.target.checked })}
+                  className="h-4 w-4 accent-ber-olive"
+                />
+                <span><strong>PJ</strong> — emite NF mensal (desmarque para CLT)</span>
+              </label>
 
               <div className="flex justify-end gap-3 pt-2">
                 <button

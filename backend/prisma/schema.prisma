@@ -15,6 +15,7 @@ model User {
   role         String   @default("campo") @db.VarChar(50)
   phone        String?  @db.VarChar(20)
   avatarUrl    String?  @map("avatar_url")
+  isPj         Boolean  @default(true) @map("is_pj") // PJ emite NF mensal (bloco 4)
   pushToken    String?  @map("push_token")
   isActive     Boolean  @default(true) @map("is_active")
   permissions  Json     @default("{}")
@@ -66,6 +67,8 @@ model User {
   folhasReabertas          FolhaFechamento[]       @relation("FolhaReabertoPor")
   folhaLinhas              FolhaFechamentoLinha[]  @relation("FolhaLinhaUser")
   faltaDescontos           FaltaDesconto[]         @relation("FaltaDescontoUser")
+  colaboradorNfs           ColaboradorNF[]         @relation("ColaboradorNFUser")
+  nfsValidadas             ColaboradorNF[]         @relation("ColaboradorNFValidadora")
   pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
@@ -2823,6 +2826,32 @@ model HoraExtraRegistro {
 
   @@index([userId])
   @@map("hora_extra_registros")
+}
+
+// NF mensal do colaborador PJ (bloco 4, políticas Bruno 27/08):
+// libera após fechamento da competência; colaborador digita o valor;
+// Carol (financeiro) valida e marca como paga.
+model ColaboradorNF {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  competencia    DateTime  @db.Date
+  numero         String    @db.VarChar(60)
+  valorCentavos  Int       @map("valor_centavos")
+  arquivoUrl     String    @map("arquivo_url")
+  observacoes    String?
+  status         String    @default("enviada") @db.VarChar(20) // enviada | validada | paga | rejeitada
+  motivoRejeicao String?   @map("motivo_rejeicao")
+  validadaPorId  String?   @map("validada_por_id") @db.Uuid
+  validadaEm     DateTime? @map("validada_em")
+  pagaEm         DateTime? @map("paga_em")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user        User  @relation("ColaboradorNFUser", fields: [userId], references: [id], onDelete: Cascade)
+  validadaPor User? @relation("ColaboradorNFValidadora", fields: [validadaPorId], references: [id])
+
+  @@unique([userId, competencia])
+  @@map("colaborador_nfs")
 }
 
 // Falta sem saldo no banco → desconto em folha (política Bruno 27/08:

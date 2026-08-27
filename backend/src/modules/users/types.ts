@@ -15,6 +15,7 @@ export const updateUserSchema = z.object({
   role: z.enum(ROLES).optional(),
   phone: z.string().optional(),
   isActive: z.boolean().optional(),
+  isPj: z.boolean().optional(),
   permissions: z.record(z.boolean()).optional(),
 });
 

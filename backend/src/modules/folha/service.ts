@@ -6,6 +6,7 @@
  */
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
+import { notificarPjsFechamento } from './nf.service';
 
 const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -196,6 +197,10 @@ export async function fecharMes(competencia: string, userId: string, observacoes
       },
     });
   });
+  // Libera as NFs: avisa os PJ por e-mail com o resumo de horas (não bloqueia o fechamento).
+  notificarPjsFechamento(competencia)
+    .then((r) => console.log(`[folha] e-mails de NF pós-fechamento ${competencia}: ${r.enviados} enviados`, r.erros.length ? r.erros : ''))
+    .catch((e) => console.error('[folha] falha ao notificar PJs:', e));
   return { fechamento, totalLinhas: linhas.length, pendencias: preview.pendencias };
 }
 

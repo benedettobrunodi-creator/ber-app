@@ -12,6 +12,7 @@ const userSelect = {
   phone: true,
   avatarUrl: true,
   isActive: true,
+  isPj: true,
   permissions: true,
   createdAt: true,
   updatedAt: true,

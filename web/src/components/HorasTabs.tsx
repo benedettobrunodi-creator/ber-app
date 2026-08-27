@@ -6,12 +6,13 @@
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock, PiggyBank, CalendarDays, ArrowLeft } from 'lucide-react';
+import { Clock, PiggyBank, CalendarDays, Receipt, ArrowLeft } from 'lucide-react';
 
 const TABS = [
   { href: '/ponto', label: 'Apontamento', icon: Clock },
   { href: '/banco-horas', label: 'Banco de Horas', icon: PiggyBank },
   { href: '/folha', label: 'Fechamento', icon: CalendarDays },
+  { href: '/nfs', label: 'Minhas NFs', icon: Receipt },
 ];
 
 export default function HorasTabs() {
