@@ -30,6 +30,8 @@ export async function downloadPendenciasPdf(req: Request, res: Response) {
     status: i.status,
     dataTermino: i.dataTermino,
     atrasada: i.status !== "concluida" && !!i.dataTermino && i.dataTermino < hoje,
+    fotoAberturaUrl: i.fotoAberturaUrl,
+    fotoConclusaoUrl: i.fotoConclusaoUrl,
   }));
 
   const buffer = await renderToBuffer(

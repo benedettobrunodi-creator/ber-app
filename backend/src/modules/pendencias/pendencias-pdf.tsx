@@ -3,7 +3,7 @@
  * Agrupada por ambiente, abertas primeiro, com resumo no topo.
  */
 import * as React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
 const BER = {
   carbon: "#2D2D2D",
@@ -27,6 +27,8 @@ export interface PdfPendencia {
   status: string;
   dataTermino: Date | null;
   atrasada: boolean;
+  fotoAberturaUrl: string | null;
+  fotoConclusaoUrl: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -70,6 +72,17 @@ const styles = StyleSheet.create({
   cell: { fontSize: 8 },
   solTag: { fontSize: 6, color: "#7A3FB8", fontFamily: "Helvetica-Bold" },
   footer: { position: "absolute", bottom: 18, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: BER.gray, borderTop: `0.5pt solid ${BER.border}`, paddingTop: 5 },
+
+  // registro fotográfico
+  fotoBloco: { marginBottom: 12, border: `0.5pt solid ${BER.border}`, borderRadius: 3, padding: 8 },
+  fotoTitulo: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 1 },
+  fotoMeta: { fontSize: 7, color: BER.gray, marginBottom: 5 },
+  fotoRow: { flexDirection: "row", gap: 8 },
+  fotoCol: { flex: 1 },
+  fotoLabel: { fontSize: 6.5, fontFamily: "Helvetica-Bold", color: BER.teal, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
+  fotoImg: { width: "100%", height: 150, objectFit: "cover", borderRadius: 3 },
+  fotoVazia: { width: "100%", height: 150, backgroundColor: BER.surface, borderRadius: 3, alignItems: "center", justifyContent: "center" },
+  fotoVaziaTxt: { fontSize: 7, color: BER.gray },
 });
 
 function fmtBR(d: Date | null): string {
@@ -158,6 +171,36 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
             ))}
           </View>
         ))}
+
+        {itens.some((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl) && (
+          <View break>
+            <Text style={styles.ambTitle}>Registro fotográfico — antes e depois</Text>
+            {itens.filter((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl).map((i, idx) => (
+              <View key={idx} style={styles.fotoBloco} wrap={false}>
+                <Text style={styles.fotoTitulo}>{i.atividade}</Text>
+                <Text style={styles.fotoMeta}>{i.ambiente}{i.fornecedor ? ` · ${i.fornecedor}` : ""} · {STATUS_LABEL[i.status] ?? i.status}</Text>
+                <View style={styles.fotoRow}>
+                  <View style={styles.fotoCol}>
+                    <Text style={styles.fotoLabel}>Antes (ao apontar)</Text>
+                    {i.fotoAberturaUrl ? (
+                      <Image style={styles.fotoImg} src={i.fotoAberturaUrl} />
+                    ) : (
+                      <View style={styles.fotoVazia}><Text style={styles.fotoVaziaTxt}>sem foto</Text></View>
+                    )}
+                  </View>
+                  <View style={styles.fotoCol}>
+                    <Text style={styles.fotoLabel}>Depois (resolvido)</Text>
+                    {i.fotoConclusaoUrl ? (
+                      <Image style={styles.fotoImg} src={i.fotoConclusaoUrl} />
+                    ) : (
+                      <View style={styles.fotoVazia}><Text style={styles.fotoVaziaTxt}>sem foto</Text></View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.footer} fixed>
           <Text>BÈR Engenharia · Ficha de Pendências · {obraNome}</Text>
