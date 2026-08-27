@@ -7,19 +7,35 @@ import { PendenciasPDF, type PdfPendencia } from "./pendencias-pdf";
 
 export async function downloadPendenciasPdf(req: Request, res: Response) {
   const obraId = req.params.id;
-  const somenteAbertas = req.query.abertas === "1";
+  // Escopo escolhido pelo usuário antes de gerar (27/08):
+  //   filtro = todas | abertas | atrasadas | solicitacoes | alta | concluidas
+  //   ambiente = nome exato (opcional) · fotos = 0 desliga o registro fotográfico
+  const filtro = String(req.query.filtro ?? (req.query.abertas === "1" ? "abertas" : "todas"));
+  const ambiente = req.query.ambiente ? String(req.query.ambiente) : null;
+  const incluirFotos = req.query.fotos !== "0";
 
-  const [obra, itens] = await Promise.all([
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const [obra, todos] = await Promise.all([
     prisma.obra.findUnique({ where: { id: obraId }, select: { name: true } }),
     prisma.obraPendencia.findMany({
-      where: { obraId, ...(somenteAbertas ? { status: { not: "concluida" } } : {}) },
+      where: { obraId, ...(ambiente ? { ambiente } : {}) },
       orderBy: [{ ambiente: "asc" }, { status: "asc" }, { dataTermino: "asc" }],
     }),
   ]);
   if (!obra) throw AppError.notFound("Obra");
 
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  const late = (i: { status: string; dataTermino: Date | null }) =>
+    i.status !== "concluida" && !!i.dataTermino && i.dataTermino < hoje;
+  const itens = todos.filter((i) => {
+    if (filtro === "abertas") return i.status !== "concluida";
+    if (filtro === "atrasadas") return late(i);
+    if (filtro === "solicitacoes") return i.tipo === "solicitacao";
+    if (filtro === "alta") return i.criticidade === "alta" && i.status !== "concluida";
+    if (filtro === "concluidas") return i.status === "concluida";
+    return true;
+  });
   const pdfItens: PdfPendencia[] = itens.map((i) => ({
     ambiente: i.ambiente,
     atividade: i.atividade,
@@ -30,8 +46,8 @@ export async function downloadPendenciasPdf(req: Request, res: Response) {
     status: i.status,
     dataTermino: i.dataTermino,
     atrasada: i.status !== "concluida" && !!i.dataTermino && i.dataTermino < hoje,
-    fotoAberturaUrl: i.fotoAberturaUrl,
-    fotoConclusaoUrl: i.fotoConclusaoUrl,
+    fotoAberturaUrl: incluirFotos ? i.fotoAberturaUrl : null,
+    fotoConclusaoUrl: incluirFotos ? i.fotoConclusaoUrl : null,
   }));
 
   const buffer = await renderToBuffer(

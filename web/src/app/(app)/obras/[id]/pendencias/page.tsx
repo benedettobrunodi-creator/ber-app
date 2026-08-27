@@ -71,6 +71,10 @@ export default function PendenciasPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
   const [filtroAmbiente, setFiltroAmbiente] = useState<string>('todos');
   const [showForm, setShowForm] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
+  const [pdfFiltro, setPdfFiltro] = useState('abertas');
+  const [pdfAmbiente, setPdfAmbiente] = useState('todos');
+  const [pdfFotos, setPdfFotos] = useState(true);
   const [detalhe, setDetalhe] = useState<Pendencia | null>(null);
   const [editando, setEditando] = useState<Pendencia | null>(null);
   const [busy, setBusy] = useState(false);
@@ -113,6 +117,7 @@ export default function PendenciasPage() {
     else if (filtroStatus === 'atrasadas') lista = lista.filter(atrasada);
     else if (filtroStatus === 'concluidas') lista = lista.filter((p) => p.status === 'concluida');
     else if (filtroStatus === 'solicitacoes') lista = lista.filter((p) => p.tipo === 'solicitacao');
+    else if (filtroStatus === 'alta') lista = lista.filter((p) => p.criticidade === 'alta' && p.status !== 'concluida');
     if (filtroAmbiente !== 'todos') lista = lista.filter((p) => p.ambiente === filtroAmbiente);
     return lista;
   }, [pendencias, filtroStatus, filtroAmbiente]);
@@ -172,19 +177,26 @@ export default function PendenciasPage() {
   async function gerarPdf() {
     setBusy(true); setErro(null);
     try {
-      const r = await api.get(`/obras/${obraId}/pendencias/pdf`, { responseType: 'blob' });
+      const params = new URLSearchParams({ filtro: pdfFiltro, fotos: pdfFotos ? '1' : '0' });
+      if (pdfAmbiente !== 'todos') params.set('ambiente', pdfAmbiente);
+      const r = await api.get(`/obras/${obraId}/pendencias/pdf?${params}`, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([r.data as BlobPart], { type: 'application/pdf' }));
       window.open(url, '_blank');
+      setShowPdf(false);
     } catch { setErro('Erro ao gerar PDF'); }
     finally { setBusy(false); }
   }
 
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
-  const chip = (label: string, valor: number, destaque?: string) => (
-    <div className={`rounded-lg px-3 py-2 border text-center min-w-[76px] ${destaque ?? 'bg-white border-ber-border'}`}>
+  const chip = (label: string, valor: number, filtro: string, destaque?: string) => (
+    <button
+      onClick={() => setFiltroStatus(filtro)}
+      className={`rounded-lg px-3 py-2 border text-center min-w-[76px] transition-shadow ${destaque ?? 'bg-white border-ber-border'} ${filtroStatus === filtro ? 'ring-2 ring-ber-carbon' : 'hover:shadow-sm'}`}
+      title={`Filtrar: ${label}`}
+    >
       <p className="text-lg font-bold leading-tight">{valor}</p>
       <p className="text-[10px] text-ber-gray font-medium">{label}</p>
-    </div>
+    </button>
   );
 
   return (
@@ -196,7 +208,11 @@ export default function PendenciasPage() {
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h1 className="text-xl font-semibold text-ber-carbon">Pendências</h1>
         <div className="flex gap-2">
-          <button onClick={gerarPdf} disabled={busy} className="inline-flex items-center gap-1.5 text-sm font-semibold border border-ber-border bg-white rounded-lg px-3 py-2 hover:bg-ber-surface disabled:opacity-50">
+          <button
+            onClick={() => { setPdfFiltro(filtroStatus === 'todas' ? 'todas' : filtroStatus); setPdfAmbiente(filtroAmbiente); setShowPdf(true); }}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold border border-ber-border bg-white rounded-lg px-3 py-2 hover:bg-ber-surface disabled:opacity-50"
+          >
             <FileDown size={15} /> Gerar PDF
           </button>
           <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90">
@@ -207,11 +223,11 @@ export default function PendenciasPage() {
 
       {resumo && (
         <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
-          {chip('Abertas', resumo.abertas)}
-          {chip('Atrasadas', resumo.atrasadas, resumo.atrasadas > 0 ? 'bg-red-50 border-red-200 text-red-700' : undefined)}
-          {chip('Alta crit.', resumo.criticidadeAlta, resumo.criticidadeAlta > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : undefined)}
-          {chip('Solicit. cliente', resumo.solicitacoesCliente, 'bg-purple-50 border-purple-200 text-purple-700')}
-          {chip('Concluídas', resumo.concluidas, 'bg-green-50 border-green-200 text-green-700')}
+          {chip('Abertas', resumo.abertas, 'abertas')}
+          {chip('Atrasadas', resumo.atrasadas, 'atrasadas', resumo.atrasadas > 0 ? 'bg-red-50 border-red-200 text-red-700' : undefined)}
+          {chip('Alta crit.', resumo.criticidadeAlta, 'alta', resumo.criticidadeAlta > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : undefined)}
+          {chip('Solicit. cliente', resumo.solicitacoesCliente, 'solicitacoes', 'bg-purple-50 border-purple-200 text-purple-700')}
+          {chip('Concluídas', resumo.concluidas, 'concluidas', 'bg-green-50 border-green-200 text-green-700')}
         </div>
       )}
 
@@ -440,6 +456,45 @@ export default function PendenciasPage() {
             setEditando(null);
           }, 'Erro ao salvar edição')}
         />
+      )}
+
+      {/* ── Opções do PDF ── */}
+      {showPdf && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !busy && setShowPdf(false)}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-ber-carbon">Gerar PDF</h2>
+              <button onClick={() => setShowPdf(false)} disabled={busy} className="text-ber-gray hover:text-ber-carbon"><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-[11px] font-semibold text-ber-gray">
+                O que incluir
+                <select value={pdfFiltro} onChange={(e) => setPdfFiltro(e.target.value)} className={`${inputCls} mt-1`}>
+                  <option value="abertas">Só as em aberto</option>
+                  <option value="atrasadas">Só as atrasadas</option>
+                  <option value="solicitacoes">Só solicitações do cliente</option>
+                  <option value="alta">Só alta criticidade</option>
+                  <option value="concluidas">Só concluídas</option>
+                  <option value="todas">Tudo (abertas + concluídas)</option>
+                </select>
+              </label>
+              <label className="block text-[11px] font-semibold text-ber-gray">
+                Ambiente
+                <select value={pdfAmbiente} onChange={(e) => setPdfAmbiente(e.target.value)} className={`${inputCls} mt-1`}>
+                  <option value="todos">Todos os ambientes</option>
+                  {ambientes.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ber-carbon">
+                <input type="checkbox" checked={pdfFotos} onChange={(e) => setPdfFotos(e.target.checked)} className="accent-ber-carbon" />
+                Incluir registro fotográfico (antes/depois)
+              </label>
+              <button onClick={gerarPdf} disabled={busy} className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50">
+                {busy ? 'Gerando…' : 'Gerar PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Nova pendência ── */}
