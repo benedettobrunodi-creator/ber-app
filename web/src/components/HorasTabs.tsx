@@ -23,7 +23,7 @@ export default function HorasTabs() {
         <Link href="/" className="inline-flex items-center gap-1 text-xs text-ber-gray hover:text-ber-carbon">
           <ArrowLeft size={13} /> Início
         </Link>
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ber-gray">Gestão de Horas</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ber-gray">Gestão de Folha</p>
       </div>
       <nav className="flex gap-1 -mb-px overflow-x-auto">
         {TABS.map((t) => {

@@ -40,7 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
       { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
       { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
-      { label: 'Banco de Horas', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
+      { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
