@@ -75,6 +75,8 @@ export default function PendenciasPage() {
   const [editando, setEditando] = useState<Pendencia | null>(null);
   const [busy, setBusy] = useState(false);
   const fotoConclusaoInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const detFotoAberturaInput = useRef<HTMLInputElement | null>(null);
+  const detFotoConclusaoInput = useRef<HTMLInputElement | null>(null);
 
   const [fAmbiente, setFAmbiente] = useState('');
   const [fAtividade, setFAtividade] = useState('');
@@ -154,6 +156,13 @@ export default function PendenciasPage() {
       await api.post(`/obras/${obraId}/pendencias/${p.id}/foto/conclusao`, fd);
       await api.patch(`/obras/${obraId}/pendencias/${p.id}/status`, { status: 'concluida' });
     }, 'Erro ao concluir');
+  }
+
+  async function enviarFoto(p: Pendencia, tipo: 'abertura' | 'conclusao', file: File) {
+    await run(async () => {
+      const fd = new FormData(); fd.append('file', file);
+      await api.post(`/obras/${obraId}/pendencias/${p.id}/foto/${tipo}`, fd);
+    }, 'Erro ao enviar foto');
   }
 
   async function mudarStatus(p: Pendencia, status: string, motivoBloqueio?: string) {
@@ -335,28 +344,50 @@ export default function PendenciasPage() {
                 </div>
               )}
 
-              {(detalhe.fotoAberturaUrl || detalhe.fotoConclusaoUrl) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                  {detalhe.fotoAberturaUrl && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray mb-1">Estado ao apontar</p>
-                      <a href={detalhe.fotoAberturaUrl} target="_blank" rel="noopener noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={detalhe.fotoAberturaUrl} alt="Estado ao apontar" className="w-full rounded-xl border border-ber-border" />
-                      </a>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray">Foto atual (ao apontar)</p>
+                    <button disabled={busy} onClick={() => detFotoAberturaInput.current?.click()} className="text-[10px] font-bold text-ber-teal hover:underline disabled:opacity-50">
+                      {detalhe.fotoAberturaUrl ? 'Trocar' : '+ Adicionar'}
+                    </button>
+                  </div>
+                  {detalhe.fotoAberturaUrl ? (
+                    <a href={detalhe.fotoAberturaUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={detalhe.fotoAberturaUrl} alt="Estado ao apontar" className="w-full rounded-xl border border-ber-border" />
+                    </a>
+                  ) : (
+                    <button disabled={busy} onClick={() => detFotoAberturaInput.current?.click()} className="w-full h-28 rounded-xl border-2 border-dashed border-ber-border flex flex-col items-center justify-center gap-1 text-ber-gray hover:bg-ber-surface disabled:opacity-50">
+                      <Camera size={20} className="text-ber-teal" />
+                      <span className="text-[11px]">Adicionar foto do estado atual</span>
+                    </button>
                   )}
-                  {detalhe.fotoConclusaoUrl && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray mb-1">Concluído ✓</p>
-                      <a href={detalhe.fotoConclusaoUrl} target="_blank" rel="noopener noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={detalhe.fotoConclusaoUrl} alt="Concluído" className="w-full rounded-xl border border-green-300" />
-                      </a>
-                    </div>
-                  )}
+                  <input ref={detFotoAberturaInput} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'abertura', f); e.target.value = ''; }} />
                 </div>
-              )}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray">Foto do resolvido</p>
+                    <button disabled={busy} onClick={() => detFotoConclusaoInput.current?.click()} className="text-[10px] font-bold text-ber-green hover:underline disabled:opacity-50">
+                      {detalhe.fotoConclusaoUrl ? 'Trocar' : '+ Adicionar'}
+                    </button>
+                  </div>
+                  {detalhe.fotoConclusaoUrl ? (
+                    <a href={detalhe.fotoConclusaoUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={detalhe.fotoConclusaoUrl} alt="Concluído" className="w-full rounded-xl border border-green-300" />
+                    </a>
+                  ) : (
+                    <button disabled={busy} onClick={() => detFotoConclusaoInput.current?.click()} className="w-full h-28 rounded-xl border-2 border-dashed border-ber-border flex flex-col items-center justify-center gap-1 text-ber-gray hover:bg-ber-surface disabled:opacity-50">
+                      <Camera size={20} className="text-ber-green" />
+                      <span className="text-[11px]">Adicionar foto do resolvido</span>
+                    </button>
+                  )}
+                  <input ref={detFotoConclusaoInput} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'conclusao', f); e.target.value = ''; }} />
+                </div>
+              </div>
 
               <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-ber-border">
                 <button disabled={busy} onClick={() => setEditando(detalhe)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
