@@ -62,6 +62,9 @@ model User {
   createdTouchpoints       ClientTouchpoint[]      @relation("TouchpointCreator")
   createdPunchLists        PunchList[]             @relation("PunchListCreator")
   pendenciasResponsavel    ObraPendencia[]         @relation("PendenciaResponsavel")
+  folhasFechadas           FolhaFechamento[]       @relation("FolhaFechadoPor")
+  folhasReabertas          FolhaFechamento[]       @relation("FolhaReabertoPor")
+  folhaLinhas              FolhaFechamentoLinha[]  @relation("FolhaLinhaUser")
   pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
@@ -185,6 +188,7 @@ model Obra {
   punchLists         PunchList[]
   pendencias         ObraPendencia[]
   closeOutItens      ObraCloseOutItem[]
+  folhaLinhas        FolhaFechamentoLinha[]
   obraFvs            ObraFvs[]
   temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
@@ -2764,6 +2768,42 @@ model BancoHorasConsumo {
 
 // Horas extras a pagar (não entram no banco): domingo/feriado trabalhado,
 // ou excedente além do teto de saldo acumulado do banco de horas.
+// ─── Fechamento mensal de folha por centro de custo (27/08/26) ───
+model FolhaFechamento {
+  id          String    @id @default(uuid()) @db.Uuid
+  competencia DateTime  @unique @db.Date // primeiro dia do mês
+  status      String    @default("fechado") @db.VarChar(15) // fechado | reaberto
+  fechadoPorId String?  @map("fechado_por_id") @db.Uuid
+  fechadoEm   DateTime  @default(now()) @map("fechado_em")
+  reabertoPorId String? @map("reaberto_por_id") @db.Uuid
+  reabertoEm  DateTime? @map("reaberto_em")
+  observacoes String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  fechadoPor  User? @relation("FolhaFechadoPor", fields: [fechadoPorId], references: [id])
+  reabertoPor User? @relation("FolhaReabertoPor", fields: [reabertoPorId], references: [id])
+  linhas      FolhaFechamentoLinha[]
+
+  @@map("folha_fechamentos")
+}
+
+model FolhaFechamentoLinha {
+  id            String  @id @default(uuid()) @db.Uuid
+  fechamentoId  String  @map("fechamento_id") @db.Uuid
+  userId        String  @map("user_id") @db.Uuid
+  obraId        String? @map("obra_id") @db.Uuid // null = sem obra / interno
+  minutos       Int     // horas normais rateadas na obra
+  minutosExtras Int     @default(0) @map("minutos_extras") // extras remuneradas do mês (linha por usuário, obra null)
+  detalhe       String? // ex: "inclui ajustes manuais rateados"
+
+  fechamento FolhaFechamento @relation(fields: [fechamentoId], references: [id], onDelete: Cascade)
+  user       User            @relation("FolhaLinhaUser", fields: [userId], references: [id])
+  obra       Obra?           @relation(fields: [obraId], references: [id])
+
+  @@index([fechamentoId])
+  @@map("folha_fechamento_linhas")
+}
+
 model HoraExtraRegistro {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @map("user_id") @db.Uuid

@@ -57,6 +57,7 @@ import crmRoutes from './modules/crm/routes';
 import comprasDashboardRoutes from './modules/compras-dashboard/routes';
 import feriasRoutes from './modules/ferias/routes';
 import bancoHorasRoutes from './modules/banco-horas/routes';
+import folhaRoutes from './modules/folha/routes';
 import capitalGiroRoutes from './modules/capital-giro/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
@@ -185,6 +186,7 @@ app.use('/v1/ferias', ...perm('ferias'), feriasRoutes);
 
 // — Módulo: banco de horas (Ponto → excedente vira crédito, domingo/feriado vira extra) —
 app.use('/v1/banco-horas', ...perm('bancoHoras'), bancoHorasRoutes);
+app.use('/v1/folha', ...perm('bancoHoras'), folhaRoutes);
 
 // — Módulo: capital de giro (simulador de fluxo de caixa — sócio-only) —
 app.use('/v1/capital-giro', ...perm('capitalGiro'), capitalGiroRoutes);
