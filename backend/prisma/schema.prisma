@@ -183,6 +183,7 @@ model Obra {
   announcements      Announcement[]
   punchLists         PunchList[]
   pendencias         ObraPendencia[]
+  closeOutItens      ObraCloseOutItem[]
   obraFvs            ObraFvs[]
   temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
@@ -983,6 +984,29 @@ model ObraPendencia {
   @@index([obraId])
   @@index([obraId, status])
   @@map("obra_pendencias")
+}
+
+// ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───
+// Checklist de documentos da obra que compila o Manual do Proprietário.
+model ObraCloseOutItem {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  categoria     String    @db.VarChar(30) // asbuilt | art_licencas | manuais | garantias | acabamentos | contatos | fotos_finais | laudos | outros
+  titulo        String    @db.VarChar(200)
+  descricao     String?
+  fornecedor    String?   @db.VarChar(120)
+  status        String    @default("pendente") @db.VarChar(15) // pendente | recebido
+  arquivoUrl    String?   @map("arquivo_url")
+  arquivoNome   String?   @map("arquivo_nome") @db.VarChar(255)
+  validade      DateTime? @db.Date // garantias: até quando vale
+  recebidoEm    DateTime? @map("recebido_em")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@index([obraId])
+  @@map("obra_close_out_itens")
 }
 
 model ObraFaseHistory {
