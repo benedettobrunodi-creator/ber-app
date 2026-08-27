@@ -88,7 +88,14 @@ export default function StakeholdersPage() {
                 {g.list.map(s => (
                   <li key={s.id} className="px-4 py-3 flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ber-carbon">{s.nome}</p>
+                      <p className="text-sm font-medium text-ber-carbon">
+                        {s.nome}
+                        {s.recebeEmails ? (
+                          <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal align-middle">✉ RECEBE RELATÓRIOS</span>
+                        ) : (
+                          <span className="ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-ber-gray/10 text-ber-gray/70 align-middle">não recebe</span>
+                        )}
+                      </p>
                       {(s.cargo || s.funcao) && (
                         <p className="text-xs text-ber-gray">{[s.cargo, s.funcao].filter(Boolean).join(' · ')}</p>
                       )}

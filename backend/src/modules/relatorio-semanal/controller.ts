@@ -345,9 +345,10 @@ export async function getDadosPeriodo(req: Request, res: Response) {
 export async function enviarEmailCliente(req: Request, res: Response) {
   const { id: obraId, relatorioId } = req.params;
   const { buildRelatorioPdf } = await import('./pdf.controller');
-  const { sendEmailObra, relatorioClienteHtml, parseEmails } = await import('../../services/email-obras');
-  const emails = parseEmails(String(req.body?.email ?? ''));
-  if (emails.length === 0) throw AppError.badRequest('Informe pelo menos um e-mail válido (separe múltiplos por vírgula)');
+  const { sendEmailObra, relatorioClienteHtml, parseEmails, destinatariosDaObra } = await import('../../services/email-obras');
+  let emails = parseEmails(String(req.body?.email ?? ''));
+  if (emails.length === 0) emails = await destinatariosDaObra(obraId);
+  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "recebe e-mails" nos Stakeholders da obra (ou informe e-mails manualmente)');
 
   const relatorio = await prisma.relatorioSemanal.findFirst({
     where: { id: relatorioId, obraId },
@@ -365,9 +366,11 @@ export async function enviarEmailCliente(req: Request, res: Response) {
     attachments: [{ filename, content: buffer.toString('base64') }],
   });
 
-  const emailsStr = emails.join(', ');
-  if (obra.clienteEmail !== emailsStr) {
-    await prisma.obra.update({ where: { id: obraId }, data: { clienteEmail: emailsStr } });
+  if (req.body?.email) {
+    const emailsStr = emails.join(', ');
+    if (obra.clienteEmail !== emailsStr) {
+      await prisma.obra.update({ where: { id: obraId }, data: { clienteEmail: emailsStr } });
+    }
   }
   sendSuccess(res, { ok: true, enviadoPara: emails });
 }

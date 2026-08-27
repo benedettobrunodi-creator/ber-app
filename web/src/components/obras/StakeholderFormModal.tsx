@@ -10,6 +10,7 @@ export interface Stakeholder {
   nome: string;
   cargo: string | null;
   email: string | null;
+  recebeEmails?: boolean;
   telefone: string | null;
   funcao: string | null;
   ordem?: number;
@@ -34,6 +35,7 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
     cargo: edit?.cargo || '',
     funcao: edit?.funcao || '',
     email: edit?.email || '',
+    recebeEmails: edit?.recebeEmails ?? false,
     telefone: edit?.telefone || '',
   });
   const [saving, setSaving] = useState(false);
@@ -53,6 +55,7 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
         cargo: f.cargo.trim() || null,
         funcao: f.funcao.trim() || null,
         email: f.email.trim() || null,
+        recebeEmails: !!f.recebeEmails,
         telefone: f.telefone.trim() || null,
       };
       if (edit) await api.patch(`/stakeholders/${edit.id}`, body);
@@ -84,6 +87,10 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Email"><input type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} className={inputCls} /></Field>
+            <label className="flex items-center gap-2 text-sm text-ber-carbon mt-1 cursor-pointer">
+              <input type="checkbox" checked={!!f.recebeEmails} onChange={e => setF(p => ({ ...p, recebeEmails: e.target.checked }))} className="accent-ber-carbon" />
+              Recebe diários e relatórios por e-mail
+            </label>
             <Field label="Telefone"><input value={f.telefone} onChange={e => setF(p => ({ ...p, telefone: e.target.value }))} className={inputCls} /></Field>
           </div>
           <div className="flex justify-end gap-3 pt-2">

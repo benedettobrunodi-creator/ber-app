@@ -2362,6 +2362,7 @@ model ObraStakeholder {
   telefone  String?  @db.VarChar(50)
   funcao    String?  @db.VarChar(150)
   ordem     Int      @default(0)
+  recebeEmails Boolean @default(false) @map("recebe_emails") // entra na lista de envio de diários/relatórios
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 

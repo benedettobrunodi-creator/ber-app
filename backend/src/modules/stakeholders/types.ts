@@ -5,6 +5,7 @@ export const createStakeholderSchema = z.object({
   nome:     z.string().min(1),
   cargo:    z.string().optional().nullable(),
   email:    z.string().email().optional().nullable().or(z.literal('')),
+  recebeEmails: z.boolean().optional(),
   telefone: z.string().optional().nullable(),
   funcao:   z.string().optional().nullable(),
   ordem:    z.number().int().optional(),

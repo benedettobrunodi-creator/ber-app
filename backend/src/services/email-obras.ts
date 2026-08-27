@@ -5,7 +5,26 @@
  * Domínio ber-engenharia.com.br já verificado no Resend (validado 27/08/26).
  */
 
+import { prisma } from '../config/database';
+
 interface Attachment { filename: string; content: string } // base64
+
+/**
+ * Destinatários da obra: stakeholders marcados com "recebe e-mails" (com e-mail
+ * válido); fallback = obras.cliente_email (texto livre com vírgulas).
+ */
+export async function destinatariosDaObra(obraId: string): Promise<string[]> {
+  const [stk, obra] = await Promise.all([
+    prisma.obraStakeholder.findMany({
+      where: { obraId, recebeEmails: true, email: { not: null } },
+      select: { email: true },
+    }),
+    prisma.obra.findUnique({ where: { id: obraId }, select: { clienteEmail: true } }),
+  ]);
+  const fromStk = parseEmails(stk.map((s2) => s2.email).filter(Boolean).join(','));
+  if (fromStk.length) return fromStk;
+  return parseEmails(obra?.clienteEmail);
+}
 
 /** "a@x.com, b@y.com" → ["a@x.com","b@y.com"] (validados) */
 export function parseEmails(raw: string | null | undefined): string[] {

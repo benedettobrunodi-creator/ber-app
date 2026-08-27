@@ -123,13 +123,13 @@ export async function fechar(req: Request, res: Response) {
   });
 
   // Enviar e-mail ao cliente se a obra tiver e-mail cadastrado (27/08/26)
-  if (req.body?.enviarEmail !== false && (diario.obra as { clienteEmail?: string | null }).clienteEmail) {
+  if (req.body?.enviarEmail !== false) {
     try {
       const { sendEmailObra, diarioClienteHtml } = await import('../../services/email-obras');
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
       const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-      const { parseEmails } = await import('../../services/email-obras');
-      const emailsAuto = parseEmails((diario.obra as { clienteEmail?: string | null }).clienteEmail);
+      const { destinatariosDaObra } = await import('../../services/email-obras');
+      const emailsAuto = await destinatariosDaObra(diario.obraId);
       if (emailsAuto.length) await sendEmailObra({
         to: emailsAuto,
         subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
@@ -453,10 +453,6 @@ async function assertDiarioOpen(diarioId: string) {
 
 // ─── Envio/reenvio manual do diário ao cliente por e-mail (27/08/26) ───────
 export async function enviarEmailCliente(req: Request, res: Response) {
-  const { parseEmails } = await import('../../services/email-obras');
-  const emails = parseEmails(String(req.body?.email ?? ''));
-  if (emails.length === 0) throw AppError.badRequest('Informe pelo menos um e-mail válido (separe múltiplos por vírgula)');
-
   const diario = await prisma.diarioObra.findUnique({
     where: { id: req.params.diarioId },
     include: { obra: { select: { id: true, name: true, clienteEmail: true } } },
@@ -466,7 +462,10 @@ export async function enviarEmailCliente(req: Request, res: Response) {
     throw AppError.badRequest('Feche o diário antes de enviar ao cliente (o fechamento gera o link público)');
   }
 
-  const { sendEmailObra, diarioClienteHtml } = await import('../../services/email-obras');
+  const { sendEmailObra, diarioClienteHtml, parseEmails, destinatariosDaObra } = await import('../../services/email-obras');
+  let emails = parseEmails(String(req.body?.email ?? ''));
+  if (emails.length === 0) emails = await destinatariosDaObra(diario.obra.id);
+  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "recebe e-mails" nos Stakeholders da obra (ou informe e-mails manualmente)');
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
   const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   await sendEmailObra({
@@ -476,7 +475,7 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   });
 
   const emailsStr = emails.join(', ');
-  if (diario.obra.clienteEmail !== emailsStr) {
+  if (req.body?.email && diario.obra.clienteEmail !== emailsStr) {
     await prisma.obra.update({ where: { id: diario.obra.id }, data: { clienteEmail: emailsStr } });
   }
   sendSuccess(res, { ok: true, enviadoPara: emails });
