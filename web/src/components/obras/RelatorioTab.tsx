@@ -246,6 +246,20 @@ const emptyForm = (cronPct = 0, prevPct?: number): Omit<Relatorio, 'id' | 'numer
 const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: ObraInfo }) {
+  const [detalhe, setDetalhe] = useState<Relatorio | null>(null);
+
+  async function enviarRelatorioEmail(relId: string) {
+    const atual = (obra as { clienteEmail?: string | null }).clienteEmail ?? '';
+    const email = window.prompt('Enviar relatório (PDF anexo) para — separe múltiplos por vírgula:', atual);
+    if (!email?.trim()) return;
+    try {
+      await api.post(`/obras/${obraId}/relatorios/${relId}/enviar-email`, { email });
+      alert('Relatório enviado ao cliente ✓');
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      alert(m || 'Erro ao enviar e-mail');
+    }
+  }
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [curvaS, setCurvaS]         = useState<CurvaSPonto[]>([]);
   const [ambientes, setAmbientes]   = useState<ObraAmbiente[]>([]);
@@ -622,7 +636,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       {!showForm && relatorios.map(r => {
         const st = statusLabel(r.status);
         return (
-          <div key={r.id} className="rounded-xl border border-ber-border bg-white overflow-hidden">
+          <div key={r.id} onClick={() => setDetalhe(r)} className="rounded-xl border border-ber-border bg-white overflow-hidden cursor-pointer hover:border-ber-teal/50 transition-colors">
             <div className="flex items-center justify-between px-4 py-3 border-b border-ber-border">
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-black text-ber-gray">RT-{String(r.numero).padStart(3, '0')}</span>
@@ -631,24 +645,12 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                 </span>
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => window.open(`/obras/${obraId}/relatorios/${r.id}/print`, '_blank')}
                   className="flex items-center gap-1 text-[11px] text-ber-gray hover:text-ber-carbon transition-colors">
                   <Download size={12} /> PDF
                 </button>
-                <button
-                  onClick={async () => {
-                    const atual = (obra as { clienteEmail?: string | null }).clienteEmail ?? '';
-                    const email = window.prompt('Enviar relatório (PDF anexo) para — separe múltiplos por vírgula:', atual);
-                    if (!email?.trim()) return;
-                    try {
-                      await api.post(`/obras/${obraId}/relatorios/${r.id}/enviar-email`, { email });
-                      alert('Relatório enviado ao cliente ✓');
-                    } catch (e) {
-                      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-                      alert(m || 'Erro ao enviar e-mail');
-                    }
-                  }}
+                <button onClick={() => enviarRelatorioEmail(r.id)}
                   className="flex items-center gap-1 text-[11px] text-ber-teal hover:text-ber-carbon transition-colors font-semibold">
                   ✉ Cliente
                 </button>
@@ -673,6 +675,74 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
           </div>
         );
       })}
+
+      {/* ── DETALHE DO RELATÓRIO (clique no card) ─────────────────────────────── */}
+      {detalhe && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setDetalhe(null)}>
+          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-ber-border px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black text-ber-gray">RT-{String(detalhe.numero).padStart(3, '0')}</span>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusLabel(detalhe.status).color}`}>{statusLabel(detalhe.status).label}</span>
+              </div>
+              <button onClick={() => setDetalhe(null)} className="text-ber-gray hover:text-ber-carbon text-lg leading-none">✕</button>
+            </div>
+            <div className="p-5">
+              <p className="text-sm font-semibold text-ber-carbon">
+                {fmtFull(detalhe.periodoInicio.slice(0, 10))} — {fmtFull(detalhe.periodoFim.slice(0, 10))}
+              </p>
+              <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+                <div className="bg-ber-surface rounded-xl py-3">
+                  <p className="text-xl font-black text-ber-carbon">{+detalhe.avancoPct}%</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-ber-gray mt-0.5">Avanço acum.</p>
+                </div>
+                <div className="bg-ber-surface rounded-xl py-3">
+                  <p className="text-xl font-black text-ber-carbon">{detalhe.avancoDelta != null ? `+${+detalhe.avancoDelta}%` : '—'}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-ber-gray mt-0.5">Na semana</p>
+                </div>
+                <div className="bg-ber-surface rounded-xl py-3">
+                  <p className="text-xl font-black text-ber-carbon">{detalhe.efetivoMedio ?? '—'}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-ber-gray mt-0.5">Efetivo médio</p>
+                </div>
+              </div>
+              {detalhe.destaques && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-ber-teal mb-1">Destaques da semana</p>
+                  <p className="text-[13px] text-ber-carbon whitespace-pre-wrap">{detalhe.destaques}</p>
+                </div>
+              )}
+              {detalhe.pendencias?.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-ber-teal mb-1">Pendências ({detalhe.pendencias.length})</p>
+                  {detalhe.pendencias.slice(0, 5).map((pd, i) => (
+                    <p key={i} className="text-[12px] text-ber-carbon">• {(pd as { descricao?: string; titulo?: string }).descricao ?? (pd as { titulo?: string }).titulo ?? ''}</p>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-ber-border">
+                <button
+                  onClick={() => window.open(`/obras/${obraId}/relatorios/${detalhe.id}/print`, '_blank')}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface"
+                >
+                  <Download size={13} /> Baixar PDF
+                </button>
+                <button
+                  onClick={() => enviarRelatorioEmail(detalhe.id)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-ber-carbon text-white hover:opacity-90"
+                >
+                  ✉ Enviar por e-mail
+                </button>
+                <button
+                  onClick={() => { setDetalhe(null); openEdit(detalhe); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface ml-auto"
+                >
+                  Editar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── FORM ─────────────────────────────────────────────────────────────── */}
       {showForm && (
