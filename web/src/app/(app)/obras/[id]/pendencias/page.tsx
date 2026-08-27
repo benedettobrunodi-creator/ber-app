@@ -127,6 +127,42 @@ export default function PendenciasPage() {
     [pendencias],
   );
 
+  // Dados dos gráficos — calculados ao vivo do mesmo dataset da lista
+  const graficos = useMemo(() => {
+    const abertas = pendencias.filter((p) => p.status !== 'concluida');
+    const porChave = (chave: 'ambiente' | 'fornecedor') => {
+      const m = new Map<string, { abertas: number; atrasadas: number }>();
+      for (const p of abertas) {
+        const k = (chave === 'fornecedor' ? (p.fornecedor || 'Sem fornecedor') : p.ambiente);
+        const cur = m.get(k) ?? { abertas: 0, atrasadas: 0 };
+        cur.abertas++;
+        if (atrasada(p)) cur.atrasadas++;
+        m.set(k, cur);
+      }
+      const all = [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.abertas - a.abertas);
+      const top = all.slice(0, 8);
+      const resto = all.slice(8);
+      if (resto.length > 0) {
+        top.push({
+          nome: `Outros (${resto.length})`,
+          abertas: resto.reduce((s2, x) => s2 + x.abertas, 0),
+          atrasadas: resto.reduce((s2, x) => s2 + x.atrasadas, 0),
+        });
+      }
+      return top;
+    };
+    return {
+      porAmbiente: porChave('ambiente'),
+      porFornecedor: porChave('fornecedor'),
+      concluidas: pendencias.filter((p) => p.status === 'concluida').length,
+      bloqueadas: pendencias.filter((p) => p.status === 'bloqueada').length,
+      emAberto: abertas.filter((p) => p.status !== 'bloqueada').length,
+      solicAbertas: abertas.filter((p) => p.tipo === 'solicitacao').length,
+      pendAbertas: abertas.filter((p) => p.tipo === 'pendencia').length,
+      total: pendencias.length,
+    };
+  }, [pendencias]);
+
   async function run(fn: () => Promise<unknown>, errMsg: string) {
     setBusy(true); setErro(null);
     try { await fn(); await load(); }
@@ -228,6 +264,67 @@ export default function PendenciasPage() {
           {chip('Alta crit.', resumo.criticidadeAlta, 'alta', resumo.criticidadeAlta > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : undefined)}
           {chip('Solicit. cliente', resumo.solicitacoesCliente, 'solicitacoes', 'bg-purple-50 border-purple-200 text-purple-700')}
           {chip('Concluídas', resumo.concluidas, 'concluidas', 'bg-green-50 border-green-200 text-green-700')}
+        </div>
+      )}
+
+      {graficos.total > 0 && (
+        <div className="grid gap-3 lg:grid-cols-2 mb-4">
+          {/* Progresso geral — barra empilhada + hero % */}
+          <div className="lg:col-span-2 bg-white border border-ber-border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">Progresso geral</p>
+              <div className="flex items-center gap-4 text-[11px] text-ber-gray">
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-green mr-1 align-middle" />Concluídas {graficos.concluidas}</span>
+                <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9C9C9] mr-1 align-middle" />Em aberto {graficos.emAberto}</span>
+                {graficos.bloqueadas > 0 && <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-red mr-1 align-middle" />Bloqueadas {graficos.bloqueadas}</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-2.5">
+              <div className="flex-1 h-4 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
+                {graficos.concluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ width: `${(graficos.concluidas / graficos.total) * 100}%` }} title={`Concluídas: ${graficos.concluidas}`} />}
+                {graficos.emAberto > 0 && <div className="h-full bg-[#C9C9C9]" style={{ width: `${(graficos.emAberto / graficos.total) * 100}%` }} title={`Em aberto: ${graficos.emAberto}`} />}
+                {graficos.bloqueadas > 0 && <div className="h-full bg-ber-red rounded-r-full" style={{ width: `${(graficos.bloqueadas / graficos.total) * 100}%` }} title={`Bloqueadas: ${graficos.bloqueadas}`} />}
+              </div>
+              <p className="text-xl font-bold text-ber-carbon tabular-nums shrink-0">{Math.round((graficos.concluidas / graficos.total) * 100)}%</p>
+            </div>
+            <div className="flex items-center gap-3 mt-2.5">
+              <div className="flex-1 h-2 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
+                {graficos.pendAbertas > 0 && <div className="h-full bg-ber-carbon rounded-l-full" style={{ width: `${(graficos.pendAbertas / Math.max(1, graficos.pendAbertas + graficos.solicAbertas)) * 100}%` }} title={`Pendências: ${graficos.pendAbertas}`} />}
+                {graficos.solicAbertas > 0 && <div className="h-full bg-[#7A3FB8] rounded-r-full" style={{ width: `${(graficos.solicAbertas / Math.max(1, graficos.pendAbertas + graficos.solicAbertas)) * 100}%` }} title={`Solicitações: ${graficos.solicAbertas}`} />}
+              </div>
+              <p className="text-[11px] text-ber-gray shrink-0">
+                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-carbon mr-1 align-middle" />Pendências {graficos.pendAbertas}
+                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#7A3FB8] ml-3 mr-1 align-middle" />Solicit. cliente {graficos.solicAbertas}
+              </p>
+            </div>
+          </div>
+
+          {/* Abertas por ambiente / fornecedor — barras horizontais */}
+          {([['Abertas por ambiente', graficos.porAmbiente], ['Abertas por fornecedor', graficos.porFornecedor]] as const).map(([titulo, dados]) => {
+            const max = Math.max(1, ...dados.map((d) => d.abertas));
+            return (
+              <div key={titulo} className="bg-white border border-ber-border rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">{titulo}</p>
+                  <p className="text-[10px] text-ber-gray"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-olive mr-1 align-middle" />no prazo <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-red ml-2 mr-1 align-middle" />atrasadas</p>
+                </div>
+                <div className="space-y-1.5">
+                  {dados.map((d) => (
+                    <div key={d.nome} className="flex items-center gap-2" title={`${d.nome}: ${d.abertas} abertas${d.atrasadas ? `, ${d.atrasadas} atrasadas` : ''}`}>
+                      <p className="w-[38%] min-w-0 truncate text-[11px] text-ber-carbon text-right pr-1">{d.nome}</p>
+                      <div className="flex-1 h-3.5 flex items-center">
+                        <div className="h-full flex gap-[2px] rounded-r" style={{ width: `${(d.abertas / max) * 100}%`, minWidth: 6 }}>
+                          {d.abertas - d.atrasadas > 0 && <div className="h-full bg-ber-olive rounded-l-sm" style={{ flex: d.abertas - d.atrasadas }} />}
+                          {d.atrasadas > 0 && <div className="h-full bg-ber-red rounded-r-sm" style={{ flex: d.atrasadas }} />}
+                        </div>
+                        <span className="text-[10px] text-ber-gray tabular-nums pl-1.5">{d.abertas}{d.atrasadas > 0 ? <span className="text-ber-red font-bold"> ({d.atrasadas}⚠)</span> : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -73,6 +73,18 @@ const styles = StyleSheet.create({
   solTag: { fontSize: 6, color: "#7A3FB8", fontFamily: "Helvetica-Bold" },
   footer: { position: "absolute", bottom: 18, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: BER.gray, borderTop: `0.5pt solid ${BER.border}`, paddingTop: 5 },
 
+  // gráficos
+  chartCard: { border: `0.5pt solid ${BER.border}`, borderRadius: 3, padding: 8, marginBottom: 8 },
+  chartTitle: { fontSize: 7, fontFamily: "Helvetica-Bold", color: BER.teal, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5 },
+  chartLegend: { fontSize: 6.5, color: BER.gray },
+  barRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
+  barLabel: { width: "34%", fontSize: 7, textAlign: "right", paddingRight: 4, color: BER.carbon },
+  barTrack: { flex: 1, flexDirection: "row", alignItems: "center" },
+  barVal: { fontSize: 6.5, color: BER.gray, paddingLeft: 3 },
+  legSq: { width: 6, height: 6, borderRadius: 1, marginRight: 2 },
+  legRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" },
+  legItem: { flexDirection: "row", alignItems: "center" },
+
   // registro fotográfico
   fotoBloco: { marginBottom: 12, border: `0.5pt solid ${BER.border}`, borderRadius: 3, padding: 8 },
   fotoTitulo: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 1 },
@@ -138,6 +150,85 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
             <Text style={styles.resumoLabel}>Concluídas</Text>
           </View>
         </View>
+
+        {(() => {
+          const OLIVE = BER.olive, RED = BER.red, GREEN = BER.green, GRAY = "#C9C9C9", ROXO = "#7A3FB8";
+          const abertasItens = itens.filter((i) => i.status !== "concluida");
+          const porChave = (chave: "ambiente" | "fornecedor") => {
+            const m = new Map<string, { abertas: number; atrasadas: number }>();
+            for (const i of abertasItens) {
+              const k = chave === "fornecedor" ? (i.fornecedor || "Sem fornecedor") : i.ambiente;
+              const cur = m.get(k) ?? { abertas: 0, atrasadas: 0 };
+              cur.abertas++; if (i.atrasada) cur.atrasadas++;
+              m.set(k, cur);
+            }
+            const all = [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.abertas - a.abertas);
+            const top = all.slice(0, 8); const resto = all.slice(8);
+            if (resto.length) top.push({ nome: `Outros (${resto.length})`, abertas: resto.reduce((x, y) => x + y.abertas, 0), atrasadas: resto.reduce((x, y) => x + y.atrasadas, 0) });
+            return top;
+          };
+          const concl = itens.length - abertasItens.length;
+          const bloq = abertasItens.filter((i) => i.status === "bloqueada").length;
+          const emAb = abertasItens.length - bloq;
+          const solic = abertasItens.filter((i) => i.tipo === "solicitacao").length;
+          const pend = abertasItens.length - solic;
+          const pct = itens.length ? Math.round((concl / itens.length) * 100) : 0;
+          const Bar = ({ dados }: { dados: { nome: string; abertas: number; atrasadas: number }[] }) => {
+            const max = Math.max(1, ...dados.map((d) => d.abertas));
+            return (
+              <View>
+                {dados.map((d, i2) => (
+                  <View key={i2} style={styles.barRow}>
+                    <Text style={styles.barLabel}>{d.nome.length > 26 ? d.nome.slice(0, 25) + "…" : d.nome}</Text>
+                    <View style={styles.barTrack}>
+                      <View style={{ flexDirection: "row", width: `${(d.abertas / max) * 78}%`, height: 6, gap: 1 }}>
+                        {d.abertas - d.atrasadas > 0 && <View style={{ flex: d.abertas - d.atrasadas, backgroundColor: OLIVE, borderTopLeftRadius: 2, borderBottomLeftRadius: 2 }} />}
+                        {d.atrasadas > 0 && <View style={{ flex: d.atrasadas, backgroundColor: RED, borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />}
+                      </View>
+                      <Text style={styles.barVal}>{d.abertas}{d.atrasadas ? ` (${d.atrasadas}!)` : ""}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            );
+          };
+          if (!itens.length) return null;
+          return (
+            <View>
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Progresso geral — {pct}% concluído</Text>
+                <View style={styles.legRow}>
+                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: GREEN }]} /><Text style={styles.chartLegend}>Concluídas {concl}</Text></View>
+                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: GRAY }]} /><Text style={styles.chartLegend}>Em aberto {emAb}</Text></View>
+                  {bloq > 0 && <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: RED }]} /><Text style={styles.chartLegend}>Bloqueadas {bloq}</Text></View>}
+                </View>
+                <View style={{ flexDirection: "row", height: 9, gap: 1, borderRadius: 4, overflow: "hidden" }}>
+                  {concl > 0 && <View style={{ flex: concl, backgroundColor: GREEN }} />}
+                  {emAb > 0 && <View style={{ flex: emAb, backgroundColor: GRAY }} />}
+                  {bloq > 0 && <View style={{ flex: bloq, backgroundColor: RED }} />}
+                </View>
+                <View style={[styles.legRow, { marginTop: 6, marginBottom: 2 }]}>
+                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: BER.carbon }]} /><Text style={styles.chartLegend}>Pendências {pend}</Text></View>
+                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: ROXO }]} /><Text style={styles.chartLegend}>Solicitações do cliente {solic}</Text></View>
+                </View>
+                <View style={{ flexDirection: "row", height: 5, gap: 1, borderRadius: 3, overflow: "hidden" }}>
+                  {pend > 0 && <View style={{ flex: pend, backgroundColor: BER.carbon }} />}
+                  {solic > 0 && <View style={{ flex: solic, backgroundColor: ROXO }} />}
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={[styles.chartCard, { flex: 1 }]}>
+                  <Text style={styles.chartTitle}>Abertas por ambiente  ·  oliva = no prazo, vermelho = atrasada</Text>
+                  <Bar dados={porChave("ambiente")} />
+                </View>
+                <View style={[styles.chartCard, { flex: 1 }]}>
+                  <Text style={styles.chartTitle}>Abertas por fornecedor</Text>
+                  <Bar dados={porChave("fornecedor")} />
+                </View>
+              </View>
+            </View>
+          );
+        })()}
 
         {[...grupos.entries()].map(([amb, arr]) => (
           <View key={amb} wrap>
