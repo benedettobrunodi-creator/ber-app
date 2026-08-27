@@ -334,6 +334,7 @@ export default function ApontamentoPage() {
 
   return (
     <div className="p-4 md:p-6">
+      <HorasTabs />
       <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Controle de gestão de Alocação de horas nos Projetos / Obras</h1>
 
       <div className="mt-4 rounded-lg border border-ber-border bg-white px-4 py-3">
