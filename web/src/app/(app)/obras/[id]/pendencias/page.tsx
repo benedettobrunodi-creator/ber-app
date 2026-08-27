@@ -191,7 +191,7 @@ export default function PendenciasPage() {
   const chip = (label: string, valor: number, filtro: string, destaque?: string) => (
     <button
       onClick={() => setFiltroStatus(filtro)}
-      className={`rounded-lg px-3 py-2 border text-center min-w-[76px] transition-shadow ${destaque ?? 'bg-white border-ber-border'} ${filtroStatus === filtro ? 'ring-2 ring-ber-carbon' : 'hover:shadow-sm'}`}
+      className={`rounded-lg px-3 py-2 border text-center min-w-[76px] transition-shadow ${destaque ?? 'bg-white border-ber-border'} ${filtroStatus === filtro ? 'ring-2 ring-inset ring-ber-carbon' : 'hover:shadow-sm'}`}
       title={`Filtrar: ${label}`}
     >
       <p className="text-lg font-bold leading-tight">{valor}</p>
@@ -222,7 +222,7 @@ export default function PendenciasPage() {
       </div>
 
       {resumo && (
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
+        <div className="flex gap-2 overflow-x-auto p-0.5 pb-1.5 mb-3">
           {chip('Abertas', resumo.abertas, 'abertas')}
           {chip('Atrasadas', resumo.atrasadas, 'atrasadas', resumo.atrasadas > 0 ? 'bg-red-50 border-red-200 text-red-700' : undefined)}
           {chip('Alta crit.', resumo.criticidadeAlta, 'alta', resumo.criticidadeAlta > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : undefined)}
