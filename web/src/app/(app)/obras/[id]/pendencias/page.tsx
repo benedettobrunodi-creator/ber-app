@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * Pós-Obra · Pendências — Ficha de Pendências digitalizada (etapa 2, 27/08/26).
- * Decisões do Bruno: foto do estado atual na abertura + foto do concluído
- * OBRIGATÓRIA na baixa; tipo Pendência × Nova Solicitação (classificação
- * visual); criticidade 3 níveis; mobile-first (engenheiro residente em campo);
- * resumos calculados ao vivo.
+ * Pós-Obra · Pendências — Ficha de Pendências digitalizada.
+ * Iterações do Bruno 27/08: visualização ÚNICA em lista; clique na linha abre
+ * card de detalhe com infos e fotos; sem botão "Iniciar" (status simplificado);
+ * Gerar PDF no padrão BÈR; filtros por status e ambiente; edição completa;
+ * concluir exige foto (câmera no mobile).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Camera, CheckCircle2, PauseCircle, PlayCircle, X, AlertTriangle, Pencil, LayoutGrid, List } from 'lucide-react';
+import { ArrowLeft, Plus, Camera, PauseCircle, PlayCircle, X, AlertTriangle, Pencil, FileDown, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 
 interface Pendencia {
@@ -31,6 +31,7 @@ interface Pendencia {
   fotoConclusaoUrl: string | null;
   observacoes: string | null;
   responsavel: { id: string; name: string } | null;
+  criador: { id: string; name: string } | null;
 }
 
 interface Resumo {
@@ -38,10 +39,8 @@ interface Resumo {
   concluidas: number;
   abertas: number;
   atrasadas: number;
-  bloqueadas: number;
   solicitacoesCliente: number;
   criticidadeAlta: number;
-  porFornecedor: { nome: string; total: number; abertas: number; atrasadas: number }[];
 }
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
@@ -50,11 +49,8 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   concluida: { label: 'Concluída', cls: 'bg-green-100 text-green-700' },
   bloqueada: { label: 'Bloqueada', cls: 'bg-red-100 text-red-700' },
 };
-const CRIT_DOT: Record<string, string> = {
-  baixa: 'bg-gray-300',
-  media: 'bg-amber-400',
-  alta: 'bg-red-500',
-};
+const CRIT_DOT: Record<string, string> = { baixa: 'bg-gray-300', media: 'bg-amber-400', alta: 'bg-red-500' };
+const CRIT_LABEL: Record<string, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta' };
 
 function atrasada(p: Pendencia): boolean {
   if (p.status === 'concluida' || !p.dataTermino) return false;
@@ -75,12 +71,11 @@ export default function PendenciasPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
   const [filtroAmbiente, setFiltroAmbiente] = useState<string>('todos');
   const [showForm, setShowForm] = useState(false);
+  const [detalhe, setDetalhe] = useState<Pendencia | null>(null);
   const [editando, setEditando] = useState<Pendencia | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'lista'>('cards');
   const [busy, setBusy] = useState(false);
   const fotoConclusaoInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // form state
   const [fAmbiente, setFAmbiente] = useState('');
   const [fAtividade, setFAtividade] = useState('');
   const [fDisciplina, setFDisciplina] = useState('');
@@ -101,21 +96,14 @@ export default function PendenciasPage() {
       setPendencias(pRes.data.data);
       setResumo(rRes.data.data);
       setErro(null);
+      setDetalhe((d) => (d ? pRes.data.data.find((p) => p.id === d.id) ?? null : null));
     } catch {
       setErro('Erro ao carregar pendências');
     } finally {
       setLoading(false);
     }
   }, [obraId]);
-
   useEffect(() => { load(); }, [load]);
-
-  // Web (tela larga) abre em LISTA; mobile abre em CARDS — pedido do Bruno 27/08.
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
-      setViewMode('lista');
-    }
-  }, []);
 
   const visiveis = useMemo(() => {
     let lista = pendencias;
@@ -132,47 +120,26 @@ export default function PendenciasPage() {
     [pendencias],
   );
 
-  const porAmbiente = useMemo(() => {
-    const m = new Map<string, Pendencia[]>();
-    for (const p of visiveis) {
-      const arr = m.get(p.ambiente) ?? [];
-      arr.push(p);
-      m.set(p.ambiente, arr);
-    }
-    return [...m.entries()];
-  }, [visiveis]);
-
   async function run(fn: () => Promise<unknown>, errMsg: string) {
-    setBusy(true);
-    setErro(null);
-    try {
-      await fn();
-      await load();
-    } catch (e: unknown) {
+    setBusy(true); setErro(null);
+    try { await fn(); await load(); }
+    catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
       setErro(msg || errMsg);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   async function criar() {
     if (!fAmbiente.trim() || !fAtividade.trim()) { setErro('Ambiente e atividade são obrigatórios'); return; }
     await run(async () => {
       const r = await api.post<{ data: Pendencia }>(`/obras/${obraId}/pendencias`, {
-        ambiente: fAmbiente.trim(),
-        atividade: fAtividade.trim(),
-        disciplina: fDisciplina.trim() || undefined,
-        fornecedor: fFornecedor.trim() || undefined,
-        apontadoPor: fApontado,
-        tipo: fTipo,
-        criticidade: fCrit,
-        dataTermino: fTermino || undefined,
-        observacoes: fObs.trim() || undefined,
+        ambiente: fAmbiente.trim(), atividade: fAtividade.trim(),
+        disciplina: fDisciplina.trim() || undefined, fornecedor: fFornecedor.trim() || undefined,
+        apontadoPor: fApontado, tipo: fTipo, criticidade: fCrit,
+        dataTermino: fTermino || undefined, observacoes: fObs.trim() || undefined,
       });
       if (fFoto) {
-        const fd = new FormData();
-        fd.append('file', fFoto);
+        const fd = new FormData(); fd.append('file', fFoto);
         await api.post(`/obras/${obraId}/pendencias/${r.data.data.id}/foto/abertura`, fd);
       }
       setShowForm(false);
@@ -183,18 +150,24 @@ export default function PendenciasPage() {
 
   async function enviarFotoConclusao(p: Pendencia, file: File) {
     await run(async () => {
-      const fd = new FormData();
-      fd.append('file', file);
+      const fd = new FormData(); fd.append('file', file);
       await api.post(`/obras/${obraId}/pendencias/${p.id}/foto/conclusao`, fd);
       await api.patch(`/obras/${obraId}/pendencias/${p.id}/status`, { status: 'concluida' });
     }, 'Erro ao concluir');
   }
 
   async function mudarStatus(p: Pendencia, status: string, motivoBloqueio?: string) {
-    await run(
-      () => api.patch(`/obras/${obraId}/pendencias/${p.id}/status`, { status, motivoBloqueio }),
-      'Erro ao mudar status',
-    );
+    await run(() => api.patch(`/obras/${obraId}/pendencias/${p.id}/status`, { status, motivoBloqueio }), 'Erro ao mudar status');
+  }
+
+  async function gerarPdf() {
+    setBusy(true); setErro(null);
+    try {
+      const r = await api.get(`/obras/${obraId}/pendencias/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data as BlobPart], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch { setErro('Erro ao gerar PDF'); }
+    finally { setBusy(false); }
   }
 
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
@@ -211,14 +184,16 @@ export default function PendenciasPage() {
         <ArrowLeft size={16} /> Voltar à obra
       </Link>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h1 className="text-xl font-semibold text-ber-carbon">Pendências</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90"
-        >
-          <Plus size={16} /> Nova
-        </button>
+        <div className="flex gap-2">
+          <button onClick={gerarPdf} disabled={busy} className="inline-flex items-center gap-1.5 text-sm font-semibold border border-ber-border bg-white rounded-lg px-3 py-2 hover:bg-ber-surface disabled:opacity-50">
+            <FileDown size={15} /> Gerar PDF
+          </button>
+          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90">
+            <Plus size={16} /> Nova
+          </button>
+        </div>
       </div>
 
       {resumo && (
@@ -232,10 +207,6 @@ export default function PendenciasPage() {
       )}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 items-center">
-        <div className="flex rounded-lg border border-ber-border overflow-hidden mr-1 shrink-0">
-          <button onClick={() => setViewMode('cards')} title="Cards" className={`px-2.5 py-1.5 ${viewMode === 'cards' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray'}`}><LayoutGrid size={14} /></button>
-          <button onClick={() => setViewMode('lista')} title="Lista" className={`px-2.5 py-1.5 ${viewMode === 'lista' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray'}`}><List size={14} /></button>
-        </div>
         {([['abertas', 'Abertas'], ['atrasadas', 'Atrasadas'], ['solicitacoes', 'Solicitações'], ['concluidas', 'Concluídas'], ['todas', 'Todas']] as const).map(([k, label]) => (
           <button
             key={k}
@@ -269,39 +240,45 @@ export default function PendenciasPage() {
         <div className="bg-white border border-ber-border rounded-xl p-8 text-center text-sm text-ber-gray">
           Nenhuma pendência neste filtro.
         </div>
-      ) : viewMode === 'lista' ? (
+      ) : (
         <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
+          <table className="w-full text-sm min-w-[680px]">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-ber-gray bg-ber-surface border-b border-ber-border">
-                <th className="text-left px-3 py-2 font-bold">Ambiente</th>
-                <th className="text-left px-3 py-2 font-bold">Atividade</th>
-                <th className="text-left px-3 py-2 font-bold">Fornecedor</th>
-                <th className="text-left px-3 py-2 font-bold">Prazo</th>
-                <th className="text-left px-3 py-2 font-bold">Status</th>
-                <th className="px-2 py-2" />
+                <th className="text-left px-3 py-2.5 font-bold">Ambiente</th>
+                <th className="text-left px-3 py-2.5 font-bold">Atividade</th>
+                <th className="text-left px-3 py-2.5 font-bold">Fornecedor</th>
+                <th className="text-left px-3 py-2.5 font-bold">Prazo</th>
+                <th className="text-left px-3 py-2.5 font-bold">Status</th>
+                <th className="px-2 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {visiveis.map((p) => {
                 const late = atrasada(p);
                 return (
-                  <tr key={p.id} className="border-b border-ber-border/60 last:border-b-0 hover:bg-ber-surface/60">
-                    <td className="px-3 py-2 text-[12px] text-ber-gray whitespace-nowrap">{p.ambiente}</td>
-                    <td className="px-3 py-2 text-[13px] text-ber-carbon">
+                  <tr
+                    key={p.id}
+                    onClick={() => setDetalhe(p)}
+                    className="border-b border-ber-border/60 last:border-b-0 hover:bg-ber-surface/70 cursor-pointer"
+                  >
+                    <td className="px-3 py-2.5 text-[12px] text-ber-gray whitespace-nowrap">{p.ambiente}</td>
+                    <td className="px-3 py-2.5 text-[13px] text-ber-carbon">
                       <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${CRIT_DOT[p.criticidade]}`} />
                       {p.atividade}
                       {p.tipo === 'solicitacao' && <span className="ml-1.5 text-[8px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 align-middle">SOLIC.</span>}
+                      {(p.fotoAberturaUrl || p.fotoConclusaoUrl) && <Camera size={11} className="inline ml-1.5 text-ber-gray align-middle" />}
                     </td>
-                    <td className="px-3 py-2 text-[12px] text-ber-gray whitespace-nowrap">{p.fornecedor || '—'}</td>
-                    <td className={`px-3 py-2 text-[12px] whitespace-nowrap ${late ? 'text-red-600 font-bold' : 'text-ber-gray'}`}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-[12px] text-ber-gray whitespace-nowrap">{p.fornecedor || '—'}</td>
+                    <td className={`px-3 py-2.5 text-[12px] whitespace-nowrap ${late ? 'text-red-600 font-bold' : 'text-ber-gray'}`}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[p.status].cls}`}>{STATUS_CFG[p.status].label}</span>
                     </td>
-                    <td className="px-2 py-2 text-right whitespace-nowrap">
-                      <button disabled={busy} onClick={() => setEditando(p)} className="text-ber-gray hover:text-ber-carbon p-1" title="Editar"><Pencil size={13} /></button>
+                    <td className="px-2 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {p.status !== 'concluida' && (
-                        <button disabled={busy} onClick={() => fotoConclusaoInputs.current[p.id]?.click()} className="text-ber-green hover:opacity-70 p-1" title="Concluir com foto"><Camera size={14} /></button>
+                        <button disabled={busy} onClick={() => fotoConclusaoInputs.current[p.id]?.click()} className="text-ber-green hover:opacity-70 p-1" title="Concluir com foto">
+                          <Camera size={15} />
+                        </button>
                       )}
                       <input
                         ref={(el) => { fotoConclusaoInputs.current[p.id] = el; }}
@@ -315,118 +292,116 @@ export default function PendenciasPage() {
             </tbody>
           </table>
         </div>
-      ) : (
-        porAmbiente.map(([ambiente, itens]) => (
-          <div key={ambiente} className="mb-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal mb-1.5">{ambiente}</p>
-            <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
-              {itens.map((p) => {
-                const late = atrasada(p);
-                return (
-                  <div key={p.id} className={`bg-white border rounded-xl p-3.5 ${late ? 'border-red-300' : 'border-ber-border'}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-ber-carbon leading-snug">
-                          <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle ${CRIT_DOT[p.criticidade]}`} title={`Criticidade ${p.criticidade}`} />
-                          {p.atividade}
-                          {p.tipo === 'solicitacao' && (
-                            <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 align-middle">SOLICITAÇÃO CLIENTE</span>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-ber-gray mt-0.5">
-                          {p.fornecedor || 'sem fornecedor'}{p.disciplina ? ` · ${p.disciplina}` : ''} · até{' '}
-                          <span className={late ? 'text-red-600 font-bold' : ''}>{fmtBR(p.dataTermino)}</span>
-                          {late && ' ⚠'}
-                        </p>
-                        {p.status === 'bloqueada' && p.motivoBloqueio && (
-                          <p className="text-[11px] text-red-600 mt-0.5">🚫 {p.motivoBloqueio}</p>
-                        )}
-                      </div>
-                      <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[p.status].cls}`}>
-                        {STATUS_CFG[p.status].label}
-                      </span>
-                    </div>
+      )}
 
-                    {(p.fotoAberturaUrl || p.fotoConclusaoUrl) && (
-                      <div className="flex gap-2 mt-2">
-                        {p.fotoAberturaUrl && (
-                          <a href={p.fotoAberturaUrl} target="_blank" rel="noopener noreferrer" className="block">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.fotoAberturaUrl} alt="Foto do estado atual" className="h-16 w-16 object-cover rounded-lg border border-ber-border" />
-                          </a>
-                        )}
-                        {p.fotoConclusaoUrl && (
-                          <a href={p.fotoConclusaoUrl} target="_blank" rel="noopener noreferrer" className="block relative">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.fotoConclusaoUrl} alt="Foto do concluído" className="h-16 w-16 object-cover rounded-lg border border-green-300" />
-                            <CheckCircle2 size={14} className="absolute -top-1 -right-1 text-green-600 bg-white rounded-full" />
-                          </a>
-                        )}
-                      </div>
-                    )}
+      {/* ── Card de detalhe (clique na linha) ── */}
+      {detalhe && !editando && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setDetalhe(null)}>
+          <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-ber-border px-5 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[detalhe.status].cls}`}>{STATUS_CFG[detalhe.status].label}</span>
+                {detalhe.tipo === 'solicitacao' && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">SOLICITAÇÃO CLIENTE</span>}
+              </div>
+              <button onClick={() => setDetalhe(null)} className="text-ber-gray hover:text-ber-carbon"><X size={20} /></button>
+            </div>
 
-                    <div className="flex flex-wrap gap-1.5 mt-2.5">
-                      <button disabled={busy} onClick={() => setEditando(p)} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border text-ber-gray hover:bg-ber-surface disabled:opacity-50">
-                        <Pencil size={12} /> Editar
-                      </button>
-                    {p.status !== 'concluida' && (
-                      <>
-                        {p.status === 'aberta' && (
-                          <button disabled={busy} onClick={() => mudarStatus(p, 'em_andamento')} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
-                            <PlayCircle size={13} /> Iniciar
-                          </button>
-                        )}
-                        {p.status === 'bloqueada' ? (
-                          <button disabled={busy} onClick={() => mudarStatus(p, 'em_andamento')} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
-                            <PlayCircle size={13} /> Desbloquear
-                          </button>
-                        ) : (
-                          <button
-                            disabled={busy}
-                            onClick={() => {
-                              const motivo = window.prompt('Motivo do bloqueio:');
-                              if (motivo?.trim()) mudarStatus(p, 'bloqueada', motivo.trim());
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-ber-border text-ber-gray hover:bg-ber-surface disabled:opacity-50"
-                          >
-                            <PauseCircle size={13} /> Bloquear
-                          </button>
-                        )}
-                        <button
-                          disabled={busy}
-                          onClick={() => fotoConclusaoInputs.current[p.id]?.click()}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-ber-green text-white hover:opacity-90 disabled:opacity-50"
-                          title="Tira a foto do serviço concluído — a baixa exige a evidência"
-                        >
-                          <Camera size={13} /> Concluir com foto
-                        </button>
-                        <input
-                          ref={(el) => { fotoConclusaoInputs.current[p.id] = el; }}
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) enviarFotoConclusao(p, f);
-                            e.target.value = '';
-                          }}
-                        />
-                      </>
-                    )}
-                    </div>
+            <div className="p-5">
+              <p className="text-base font-semibold text-ber-carbon leading-snug">{detalhe.atividade}</p>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
+                {([
+                  ['Ambiente', detalhe.ambiente],
+                  ['Fornecedor', detalhe.fornecedor || '—'],
+                  ['Disciplina', detalhe.disciplina || '—'],
+                  ['Criticidade', CRIT_LABEL[detalhe.criticidade]],
+                  ['Apontado por', detalhe.apontadoPor === 'cliente' ? 'Cliente' : 'BÈR'],
+                  ['Prazo', `${fmtBR(detalhe.dataTermino)}${atrasada(detalhe) ? ' ⚠ atrasada' : ''}`],
+                ] as const).map(([l, v]) => (
+                  <div key={l}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray">{l}</p>
+                    <p className={`text-[13px] ${l === 'Prazo' && atrasada(detalhe) ? 'text-red-600 font-bold' : 'text-ber-carbon'}`}>{v}</p>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {detalhe.status === 'bloqueada' && detalhe.motivoBloqueio && (
+                <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">🚫 {detalhe.motivoBloqueio}</p>
+              )}
+              {detalhe.observacoes && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray mb-0.5">Observações</p>
+                  <p className="text-[13px] text-ber-carbon whitespace-pre-wrap">{detalhe.observacoes}</p>
+                </div>
+              )}
+
+              {(detalhe.fotoAberturaUrl || detalhe.fotoConclusaoUrl) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                  {detalhe.fotoAberturaUrl && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray mb-1">Estado ao apontar</p>
+                      <a href={detalhe.fotoAberturaUrl} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={detalhe.fotoAberturaUrl} alt="Estado ao apontar" className="w-full rounded-xl border border-ber-border" />
+                      </a>
+                    </div>
+                  )}
+                  {detalhe.fotoConclusaoUrl && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ber-gray mb-1">Concluído ✓</p>
+                      <a href={detalhe.fotoConclusaoUrl} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={detalhe.fotoConclusaoUrl} alt="Concluído" className="w-full rounded-xl border border-green-300" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-ber-border">
+                <button disabled={busy} onClick={() => setEditando(detalhe)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
+                  <Pencil size={13} /> Editar
+                </button>
+                {detalhe.status !== 'concluida' && (
+                  <>
+                    {detalhe.status === 'bloqueada' ? (
+                      <button disabled={busy} onClick={() => mudarStatus(detalhe, 'aberta')} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface disabled:opacity-50">
+                        <PlayCircle size={13} /> Desbloquear
+                      </button>
+                    ) : (
+                      <button
+                        disabled={busy}
+                        onClick={() => { const motivo = window.prompt('Motivo do bloqueio:'); if (motivo?.trim()) mudarStatus(detalhe, 'bloqueada', motivo.trim()); }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border text-ber-gray hover:bg-ber-surface disabled:opacity-50"
+                      >
+                        <PauseCircle size={13} /> Bloquear
+                      </button>
+                    )}
+                    <button
+                      disabled={busy}
+                      onClick={() => fotoConclusaoInputs.current[detalhe.id]?.click()}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-ber-green text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Camera size={13} /> Concluir com foto
+                    </button>
+                  </>
+                )}
+                <button
+                  disabled={busy}
+                  onClick={() => { if (confirm('Excluir esta pendência?')) run(async () => { await api.delete(`/obras/${obraId}/pendencias/${detalhe.id}`); setDetalhe(null); }, 'Sem permissão pra excluir (coordenação+)'); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-red/40 text-ber-red hover:bg-red-50 disabled:opacity-50 ml-auto"
+                >
+                  <Trash2 size={13} /> Excluir
+                </button>
+              </div>
             </div>
           </div>
-        ))
+        </div>
       )}
 
       {editando && (
         <EditSheet
           pendencia={editando}
-          obraId={obraId}
           busy={busy}
           onClose={() => setEditando(null)}
           onSave={(patch) => run(async () => {
@@ -436,7 +411,7 @@ export default function PendenciasPage() {
         />
       )}
 
-      {/* ── Nova pendência (sheet mobile-first) ── */}
+      {/* ── Nova pendência ── */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !busy && setShowForm(false)}>
           <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -452,7 +427,8 @@ export default function PendenciasPage() {
                   </button>
                 ))}
               </div>
-              <input value={fAmbiente} onChange={(e) => setFAmbiente(e.target.value)} placeholder="Ambiente (ex: Recepção)" className={inputCls} />
+              <input value={fAmbiente} onChange={(e) => setFAmbiente(e.target.value)} placeholder="Ambiente (ex: Recepção)" className={inputCls} list="ambientes-list" />
+              <datalist id="ambientes-list">{ambientes.map((a) => <option key={a} value={a} />)}</datalist>
               <textarea value={fAtividade} onChange={(e) => setFAtividade(e.target.value)} placeholder="Atividade / o que precisa ser feito" rows={2} className={inputCls} />
               <div className="grid grid-cols-2 gap-2">
                 <input value={fDisciplina} onChange={(e) => setFDisciplina(e.target.value)} placeholder="Disciplina" className={inputCls} />
@@ -496,10 +472,8 @@ export default function PendenciasPage() {
   );
 }
 
-
 function EditSheet({ pendencia, busy, onClose, onSave }: {
   pendencia: Pendencia;
-  obraId: string;
   busy: boolean;
   onClose: () => void;
   onSave: (patch: Record<string, unknown>) => void;
@@ -560,13 +534,10 @@ function EditSheet({ pendencia, busy, onClose, onSave }: {
           <textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações" rows={2} className={inputCls} />
           <button
             onClick={() => onSave({
-              ambiente: ambiente.trim(),
-              atividade: atividade.trim(),
-              disciplina: disciplina.trim() || undefined,
-              fornecedor: fornecedor.trim() || undefined,
+              ambiente: ambiente.trim(), atividade: atividade.trim(),
+              disciplina: disciplina.trim() || undefined, fornecedor: fornecedor.trim() || undefined,
               apontadoPor, tipo, criticidade,
-              dataTermino: termino || undefined,
-              observacoes: obs.trim() || undefined,
+              dataTermino: termino || undefined, observacoes: obs.trim() || undefined,
             })}
             disabled={busy || !ambiente.trim() || !atividade.trim()}
             className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50"

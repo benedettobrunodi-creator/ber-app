@@ -14,6 +14,12 @@ const obraPendenciasRouter = Router({ mergeParams: true });
 obraPendenciasRouter.use(authenticate);
 obraPendenciasRouter.get('/', controller.listByObra);
 obraPendenciasRouter.get('/resumo', controller.resumoByObra);
+obraPendenciasRouter.get('/pdf', async (req, res, next) => {
+  try {
+    const { downloadPendenciasPdf } = await import('./pdf.controller');
+    await downloadPendenciasPdf(req, res);
+  } catch (e) { next(e); }
+});
 obraPendenciasRouter.post('/', requireRole('campo'), validate(createPendenciaSchema), controller.create);
 obraPendenciasRouter.patch('/:pendenciaId', requireRole('campo'), validate(updatePendenciaSchema), controller.update);
 obraPendenciasRouter.patch('/:pendenciaId/status', requireRole('campo'), validate(mudarStatusSchema), controller.mudarStatus);
