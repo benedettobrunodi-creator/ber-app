@@ -638,29 +638,31 @@ export default function ObraDetailPage() {
   type ObraTab =
     | { type: 'tab'; key: TabKey; label: string }
     | { type: 'link'; href: string; label: string };
+  // Reorganizado 27/08/26 (decisão do Bruno): ciclo de vida da obra —
+  // Cockpit → Pré-Obra → Durante → Pós-Obra. "Relatórios vai pra durante".
   const TAB_GROUPS: { grupo: string; tabs: ObraTab[] }[] = [
-    { grupo: 'Visão Geral', tabs: [
+    { grupo: 'Cockpit', tabs: [
       { type: 'tab', key: 'capa', label: 'Cockpit' },
     ] },
-    { grupo: 'Início & Setup', tabs: [
+    { grupo: 'Pré-Obra', tabs: [
       { type: 'link', href: 'kickoff', label: 'Kick-Off' },
       { type: 'link', href: 'stakeholders', label: 'Stakeholders' },
       { type: 'tab', key: 'equipe', label: `Equipe (${obra.members.length})` },
       { type: 'link', href: 'raci', label: 'RACI' },
-    ] },
-    { grupo: 'Planejamento', tabs: [
       { type: 'tab', key: 'fvs', label: `Sequenciamento (${obraFvsList.length})` },
       { type: 'link', href: 'cronograma', label: 'Cronograma' },
       { type: 'link', href: 'cronograma-contratacoes', label: 'Crn. Contratações' },
     ] },
-    { grupo: 'Execução & Acompanhamento', tabs: [
-      { type: 'link', href: 'aditivos', label: 'Aditivos' },
-      { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
+    { grupo: 'Durante a Obra', tabs: [
       { type: 'tab', key: 'diario', label: 'Diário' },
+      { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
       { type: 'link', href: 'atas', label: 'Atas' },
-    ] },
-    { grupo: 'Saída', tabs: [
+      { type: 'link', href: 'aditivos', label: 'Aditivos' },
       { type: 'tab', key: 'relatorios', label: 'Relatórios' },
+    ] },
+    { grupo: 'Pós-Obra', tabs: [
+      { type: 'link', href: 'pendencias', label: 'Pendências' },
+      { type: 'link', href: 'close-out', label: 'Close Out' },
     ] },
   ];
 
