@@ -636,6 +636,22 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   className="flex items-center gap-1 text-[11px] text-ber-gray hover:text-ber-carbon transition-colors">
                   <Download size={12} /> PDF
                 </button>
+                <button
+                  onClick={async () => {
+                    const atual = (obra as { clienteEmail?: string | null }).clienteEmail ?? '';
+                    const email = window.prompt('Enviar relatório (PDF anexo) para — separe múltiplos por vírgula:', atual);
+                    if (!email?.trim()) return;
+                    try {
+                      await api.post(`/obras/${obraId}/relatorios/${r.id}/enviar-email`, { email });
+                      alert('Relatório enviado ao cliente ✓');
+                    } catch (e) {
+                      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+                      alert(m || 'Erro ao enviar e-mail');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-[11px] text-ber-teal hover:text-ber-carbon transition-colors font-semibold">
+                  ✉ Cliente
+                </button>
                 <button onClick={() => openEdit(r)} className="text-[11px] text-ber-gray hover:text-ber-carbon transition-colors">Editar</button>
                 <button onClick={() => deleteRelatorio(r.id)} className="text-ber-gray/40 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
               </div>

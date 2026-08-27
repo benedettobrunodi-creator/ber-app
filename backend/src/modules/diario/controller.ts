@@ -108,7 +108,7 @@ export async function update(req: Request, res: Response) {
 export async function fechar(req: Request, res: Response) {
   const diario = await prisma.diarioObra.findUnique({
     where: { id: req.params.diarioId },
-    include: { obra: { select: { name: true, whatsappCliente: true } } },
+    include: { obra: { select: { name: true, whatsappCliente: true, clienteEmail: true } } },
   });
   if (!diario) throw AppError.notFound('Diário');
   if (diario.status === 'fechado') throw AppError.badRequest('Diário já está fechado');
@@ -121,6 +121,24 @@ export async function fechar(req: Request, res: Response) {
     data: { status: 'fechado', fechadoEm: new Date(), fechadoPorId: req.user!.userId, tokenPublico },
     include: diarioInclude,
   });
+
+  // Enviar e-mail ao cliente se a obra tiver e-mail cadastrado (27/08/26)
+  if (req.body?.enviarEmail !== false && (diario.obra as { clienteEmail?: string | null }).clienteEmail) {
+    try {
+      const { sendEmailObra, diarioClienteHtml } = await import('../../services/email-obras');
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
+      const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+      const { parseEmails } = await import('../../services/email-obras');
+      const emailsAuto = parseEmails((diario.obra as { clienteEmail?: string | null }).clienteEmail);
+      if (emailsAuto.length) await sendEmailObra({
+        to: emailsAuto,
+        subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
+        html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: `${appUrl}/atualizacao/${tokenPublico}`, observacoes: diario.observacoesCliente }),
+      });
+    } catch (e) {
+      console.error('[diario] falha no e-mail ao cliente:', e);
+    }
+  }
 
   // Enviar WhatsApp se obra tiver contato e gestor não tiver desativado
   if (enviarWhatsapp && diario.obra.whatsappCliente) {
@@ -430,4 +448,36 @@ async function assertDiarioOpen(diarioId: string) {
   });
   if (!diario) throw AppError.notFound('Diário');
   if (diario.status === 'fechado') throw AppError.forbidden('Diário fechado não pode ser editado');
+}
+
+
+// ─── Envio/reenvio manual do diário ao cliente por e-mail (27/08/26) ───────
+export async function enviarEmailCliente(req: Request, res: Response) {
+  const { parseEmails } = await import('../../services/email-obras');
+  const emails = parseEmails(String(req.body?.email ?? ''));
+  if (emails.length === 0) throw AppError.badRequest('Informe pelo menos um e-mail válido (separe múltiplos por vírgula)');
+
+  const diario = await prisma.diarioObra.findUnique({
+    where: { id: req.params.diarioId },
+    include: { obra: { select: { id: true, name: true, clienteEmail: true } } },
+  });
+  if (!diario) throw AppError.notFound('Diário');
+  if (diario.status !== 'fechado' || !diario.tokenPublico) {
+    throw AppError.badRequest('Feche o diário antes de enviar ao cliente (o fechamento gera o link público)');
+  }
+
+  const { sendEmailObra, diarioClienteHtml } = await import('../../services/email-obras');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
+  const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  await sendEmailObra({
+    to: emails,
+    subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
+    html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: `${appUrl}/atualizacao/${diario.tokenPublico}`, observacoes: diario.observacoesCliente }),
+  });
+
+  const emailsStr = emails.join(', ');
+  if (diario.obra.clienteEmail !== emailsStr) {
+    await prisma.obra.update({ where: { id: diario.obra.id }, data: { clienteEmail: emailsStr } });
+  }
+  sendSuccess(res, { ok: true, enviadoPara: emails });
 }

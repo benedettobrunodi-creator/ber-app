@@ -4,6 +4,8 @@ import { uploadToR2, isR2Configured } from '../../services/storage';
 import path from 'path';
 import fs from 'fs';
 import { env } from '../../config/env';
+import { AppError } from '../../utils/errors';
+import { sendSuccess } from '../../utils/response';
 
 const include = {
   responsavel: { select: { id: true, name: true, email: true } },
@@ -335,4 +337,37 @@ export async function getDadosPeriodo(req: Request, res: Response) {
 
     return res.json({ data: { efetivos, tarefasPeriodo, tarefasProximo } });
   } catch (e: any) { return err500(res, e); }
+}
+
+
+// ─── Envio ao cliente por e-mail (27/08/26) ────────────────────────────────
+
+export async function enviarEmailCliente(req: Request, res: Response) {
+  const { id: obraId, relatorioId } = req.params;
+  const { buildRelatorioPdf } = await import('./pdf.controller');
+  const { sendEmailObra, relatorioClienteHtml, parseEmails } = await import('../../services/email-obras');
+  const emails = parseEmails(String(req.body?.email ?? ''));
+  if (emails.length === 0) throw AppError.badRequest('Informe pelo menos um e-mail válido (separe múltiplos por vírgula)');
+
+  const relatorio = await prisma.relatorioSemanal.findFirst({
+    where: { id: relatorioId, obraId },
+    select: { numero: true, periodoInicio: true, periodoFim: true },
+  });
+  const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { name: true, clienteEmail: true } });
+  if (!relatorio || !obra) throw AppError.notFound('Relatório');
+
+  const { buffer, filename } = await buildRelatorioPdf(obraId, relatorioId);
+  const fmt = (d: Date) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  await sendEmailObra({
+    to: emails,
+    subject: `Relatório Semanal nº ${String(relatorio.numero).padStart(3, '0')} — ${obra.name} · BÈR Engenharia`,
+    html: relatorioClienteHtml({ obraNome: obra.name, numero: relatorio.numero, periodo: `${fmt(relatorio.periodoInicio)} a ${fmt(relatorio.periodoFim)}` }),
+    attachments: [{ filename, content: buffer.toString('base64') }],
+  });
+
+  const emailsStr = emails.join(', ');
+  if (obra.clienteEmail !== emailsStr) {
+    await prisma.obra.update({ where: { id: obraId }, data: { clienteEmail: emailsStr } });
+  }
+  sendSuccess(res, { ok: true, enviadoPara: emails });
 }

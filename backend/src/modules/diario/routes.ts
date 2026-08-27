@@ -28,6 +28,7 @@ diarioRouter.use(authenticate);
 diarioRouter.get('/:diarioId', controller.getById);
 diarioRouter.patch('/:diarioId', validate(updateDiarioSchema), controller.update);
 diarioRouter.post('/:diarioId/fechar', controller.fechar);
+diarioRouter.post('/:diarioId/enviar-email', controller.enviarEmailCliente);
 diarioRouter.post('/:diarioId/reabrir', requireRole('gestor'), controller.reabrir);
 diarioRouter.post('/:diarioId/aprovar', requireRole('coordenacao'), controller.aprovar);
 diarioRouter.post('/:diarioId/recusar', requireRole('coordenacao'), controller.recusar);

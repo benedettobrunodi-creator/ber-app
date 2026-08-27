@@ -1039,10 +1039,27 @@ export default function DiarioObraPage() {
 
                 {/* Ver cliente */}
                 {selected.status !== 'rascunho' && selected.tokenPublico && (
+                  <>
                   <a href={`/atualizacao/${selected.tokenPublico}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
                     <Eye size={12} /> Ver cliente
                   </a>
+                  <button
+                    onClick={async () => {
+                      const email = window.prompt('Enviar atualização do dia para — separe múltiplos por vírgula:', '');
+                      if (!email?.trim()) return;
+                      try {
+                        await api.post(`/diario/${selected.id}/enviar-email`, { email });
+                        alert('Diário enviado ao cliente ✓');
+                      } catch (e) {
+                        const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+                        alert(m || 'Erro ao enviar e-mail');
+                      }
+                    }}
+                    className="flex items-center gap-1 rounded-lg bg-ber-teal/10 border border-ber-teal/30 px-2.5 py-1.5 text-xs font-semibold text-ber-teal hover:bg-ber-teal/20">
+                    ✉ Enviar ao cliente
+                  </button>
+                  </>
                 )}
 
                 {/* Ações por status */}

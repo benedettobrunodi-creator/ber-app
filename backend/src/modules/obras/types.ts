@@ -33,6 +33,7 @@ export const updateObraSchema = z.object({
   valorContrato: z.number().positive().optional().nullable(),
   situacaoAtual: z.string().optional().nullable(),
   arquiteturaEscritorio: z.string().optional().nullable(),
+  clienteEmail: z.string().optional().nullable(),
   gerenciadora: z.string().optional().nullable(),
   areaM2: z.number().positive().optional().nullable(),
   crmOportunidadeId: z.string().uuid().optional().nullable(),

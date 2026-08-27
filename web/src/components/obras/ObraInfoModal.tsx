@@ -43,6 +43,7 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
         const o = r.data.data as Partial<ObraInfoPayload>;
         setForm({
           client: o.client ?? '',
+          clienteEmail: (o as { clienteEmail?: string | null }).clienteEmail ?? '',
           address: o.address ?? '',
           arquiteturaEscritorio: o.arquiteturaEscritorio ?? '',
           gerenciadora: o.gerenciadora ?? '',
@@ -73,6 +74,7 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
     try {
       const body: Record<string, unknown> = {
         client: form.client || null,
+        clienteEmail: form.clienteEmail?.trim() || null,
         address: form.address || null,
         arquiteturaEscritorio: form.arquiteturaEscritorio || null,
         gerenciadora: form.gerenciadora || null,
@@ -115,6 +117,9 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Cliente">
                 <input value={form.client} onChange={e => update('client', e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="E-mails do cliente (recebem diários e relatórios) *">
+                <input value={form.clienteEmail ?? ''} onChange={e => update('clienteEmail', e.target.value)} placeholder="cliente@empresa.com, diretor@empresa.com" className={inputCls} />
               </Field>
               <Field label="Endereço">
                 <input value={form.address} onChange={e => update('address', e.target.value)} className={inputCls} />

@@ -555,9 +555,8 @@ ${rel.proximosSete && sec('proximosSete') ? `
 </html>`;
 }
 
-export async function generatePdf(req: Request, res: Response) {
-  try {
-    const { id: obraId, relatorioId } = req.params;
+/** Gera o PDF do relatório e devolve buffer+filename (reuso: download E e-mail). */
+export async function buildRelatorioPdf(obraId: string, relatorioId: string): Promise<{ buffer: Buffer; filename: string }> {
 
     const [relatorio, obra, curvaSPontos, allRelatorios] = await Promise.all([
       prisma.relatorioSemanal.findFirst({
@@ -587,7 +586,7 @@ export async function generatePdf(req: Request, res: Response) {
     ]);
 
     if (!relatorio || !obra) {
-      return res.status(404).json({ error: { message: 'Relatório ou obra não encontrado' } });
+      throw new Error('Relatório ou obra não encontrado');
     }
 
     const prevRel = allRelatorios.find(r => r.numero === relatorio.numero - 1) ?? null;
@@ -624,13 +623,20 @@ export async function generatePdf(req: Request, res: Response) {
       const obraNome = obra.name.replace(/[/\\:*?"<>|]/g, '-');
       const filename = `BER_${obraNome}_RT-${rtNum}_${d1}-${d2}.pdf`;
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
-      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-      res.send(Buffer.from(pdfBuffer));
+      return { buffer: Buffer.from(pdfBuffer), filename };
     } finally {
       await browser.close();
     }
+}
+
+export async function generatePdf(req: Request, res: Response) {
+  try {
+    const { id: obraId, relatorioId } = req.params;
+    const { buffer, filename } = await buildRelatorioPdf(obraId, relatorioId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(buffer);
   } catch (e: any) {
     console.error('[pdf] ERROR:', e.message);
     return res.status(500).json({ error: { message: e.message } });

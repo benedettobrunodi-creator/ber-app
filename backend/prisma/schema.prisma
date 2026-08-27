@@ -128,6 +128,7 @@ model Obra {
   client          String?   @db.VarChar(255)
   address         String?
   status          String    @default("em_andamento") @db.VarChar(50)
+  clienteEmail    String?   @map("cliente_email") // múltiplos, separados por vírgula
   startDate       DateTime? @map("start_date") @db.Date
   expectedEndDate DateTime? @map("expected_end_date") @db.Date
   actualEndDate   DateTime? @map("actual_end_date") @db.Date
