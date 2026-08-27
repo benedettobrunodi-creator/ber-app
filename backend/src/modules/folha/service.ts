@@ -97,7 +97,12 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
       const { porObra, incompleto, temRegistro } = await minutosPorObraNoDia(u.id, dia);
       const ajuste = ajustePorUserDia.get(`${u.id}:${dia}`);
       if (ajuste) {
-        // Ajuste manda no TOTAL do dia; rateia proporcional ao bruto por obra.
+        // Ajuste com obra definida: o total do dia conta inteiro nesse centro de custo.
+        if (ajuste.obraId) {
+          acumulado.set(ajuste.obraId, (acumulado.get(ajuste.obraId) ?? 0) + ajuste.minutosAjustados);
+          continue;
+        }
+        // Ajuste sem obra: rateia proporcional ao bruto por obra do dia.
         const brutoTotal = [...porObra.values()].reduce((s, v) => s + v, 0);
         if (brutoTotal > 0) {
           for (const [obraId, min] of porObra) {

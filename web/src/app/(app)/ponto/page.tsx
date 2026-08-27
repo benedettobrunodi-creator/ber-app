@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
+import HorasTabs from '@/components/HorasTabs';
 
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
@@ -322,6 +323,7 @@ export default function ApontamentoPage() {
   if (loading) {
     return (
       <div>
+        <HorasTabs />
         <h1 className="text-2xl font-black text-ber-carbon">Apontamento de Horas</h1>
         <div className="mt-6 py-12 text-center text-sm text-ber-gray">Carregando...</div>
       </div>

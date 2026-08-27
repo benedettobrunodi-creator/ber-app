@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Timer, Plus, X, CalendarClock, Wallet, PartyPopper, Pencil, PlayCircle } from 'lucide-react';
 import api from '@/lib/api';
+import HorasTabs from '@/components/HorasTabs';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 
 /* ─── Types ─── */
@@ -104,6 +105,7 @@ export default function BancoHorasPage() {
 
   return (
     <div className="p-4 md:p-6">
+      <HorasTabs />
       <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <Timer size={20} className="text-ber-teal" />
@@ -414,6 +416,8 @@ function AjusteModal({ users, initialUserId, onClose, onSaved }: { users: { id: 
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [horas, setHoras] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [obraId, setObraId] = useState('');
+  const [obras, setObras] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<{ minutosTrabalhados: number; incompleto: boolean } | null>(null);
@@ -425,6 +429,10 @@ function AjusteModal({ users, initialUserId, onClose, onSaved }: { users: { id: 
     api.get(`/banco-horas/dia?userId=${userId}&data=${data}`).then((r) => setPreview(r.data.data)).catch(() => {});
   }, [userId, data]);
 
+  useEffect(() => {
+    api.get('/time-entries/obras-disponiveis').then((r) => setObras(Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => {});
+  }, []);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!userId) { setError('Selecione o colaborador.'); return; }
@@ -433,7 +441,7 @@ function AjusteModal({ users, initialUserId, onClose, onSaved }: { users: { id: 
     if (Number.isNaN(minutosAjustados) || minutosAjustados < 0) { setError('Informe as horas trabalhadas naquele dia.'); return; }
     setSaving(true);
     try {
-      await api.post('/banco-horas/ajustes', { userId, data, minutosAjustados, motivo: motivo.trim() });
+      await api.post('/banco-horas/ajustes', { userId, data, minutosAjustados, motivo: motivo.trim(), obraId: obraId || null });
       onSaved();
     } catch (err) { setError(errMsg(err, 'Erro ao salvar')); }
     finally { setSaving(false); }
@@ -466,6 +474,12 @@ function AjusteModal({ users, initialUserId, onClose, onSaved }: { users: { id: 
           </p>
         )}
         <Field label="Horas trabalhadas (corrigido)"><input type="number" step="0.5" min="0" value={horas} onChange={(e) => setHoras(e.target.value)} placeholder="Ex: 8" className={inputCls} required autoFocus={!!initialUserId} /></Field>
+        <Field label="Centro de custo (obra) — opcional">
+          <select value={obraId} onChange={(e) => setObraId(e.target.value)} className={inputCls}>
+            <option value="">Rateio automático pelas batidas do dia</option>
+            {obras.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        </Field>
         <Field label="Motivo"><input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex: esqueceu de bater o checkout" className={inputCls} required /></Field>
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-ber-gray hover:bg-ber-offwhite">Cancelar</button>

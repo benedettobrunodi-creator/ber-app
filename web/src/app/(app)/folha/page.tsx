@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Lock, Unlock, FileDown, AlertTriangle, CalendarDays } from 'lucide-react';
 import api from '@/lib/api';
+import HorasTabs from '@/components/HorasTabs';
 
 interface PorObra { obraId: string | null; obraNome: string; minutos: number }
 interface UsuarioLinha {
@@ -74,6 +75,7 @@ export default function FolhaPage() {
 
   return (
     <div className="p-4 md:p-6 w-full max-w-[1500px]">
+      <HorasTabs />
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div className="flex items-center gap-2">
           <CalendarDays size={20} className="text-ber-teal" />

@@ -16,6 +16,7 @@ export const upsertAjusteSchema = z.object({
   userId: z.string().uuid(),
   data: dateStr,
   minutosAjustados: z.number().int().min(0).max(1440),
+  obraId: z.string().uuid().optional().nullable(),
   motivo: z.string().min(1),
 });
 

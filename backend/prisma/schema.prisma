@@ -189,6 +189,7 @@ model Obra {
   pendencias         ObraPendencia[]
   closeOutItens      ObraCloseOutItem[]
   folhaLinhas        FolhaFechamentoLinha[]
+  ajustesPonto       AjustePonto[]
   obraFvs            ObraFvs[]
   temperaturas       ObraTemperatura[]
   berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
@@ -2828,12 +2829,14 @@ model AjustePonto {
   data             DateTime @db.Date
   minutosOriginais Int?     @map("minutos_originais") // calculado do ponto bruto; null se não bateu
   minutosAjustados Int      @map("minutos_ajustados") // valor final considerado no cálculo
+  obraId           String?  @map("obra_id") @db.Uuid // se setado, o ajuste inteiro conta neste centro de custo
   motivo           String
   ajustadoPorId    String   @map("ajustado_por_id") @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at")
 
-  user        User @relation("AjustePontoUser", fields: [userId], references: [id], onDelete: Cascade)
-  ajustadoPor User @relation("AjustePontoAjustador", fields: [ajustadoPorId], references: [id])
+  user        User  @relation("AjustePontoUser", fields: [userId], references: [id], onDelete: Cascade)
+  ajustadoPor User  @relation("AjustePontoAjustador", fields: [ajustadoPorId], references: [id])
+  obra        Obra? @relation(fields: [obraId], references: [id])
 
   @@unique([userId, data])
   @@index([userId])
