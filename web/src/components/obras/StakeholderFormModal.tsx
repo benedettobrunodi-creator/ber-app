@@ -11,6 +11,8 @@ export interface Stakeholder {
   cargo: string | null;
   email: string | null;
   recebeEmails?: boolean;
+  recebeDiario?: boolean;
+  recebeRelatorio?: boolean;
   telefone: string | null;
   funcao: string | null;
   ordem?: number;
@@ -35,7 +37,8 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
     cargo: edit?.cargo || '',
     funcao: edit?.funcao || '',
     email: edit?.email || '',
-    recebeEmails: edit?.recebeEmails ?? false,
+    recebeDiario: edit?.recebeDiario ?? false,
+    recebeRelatorio: edit?.recebeRelatorio ?? false,
     telefone: edit?.telefone || '',
   });
   const [saving, setSaving] = useState(false);
@@ -55,7 +58,8 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
         cargo: f.cargo.trim() || null,
         funcao: f.funcao.trim() || null,
         email: f.email.trim() || null,
-        recebeEmails: !!f.recebeEmails,
+        recebeDiario: !!f.recebeDiario,
+        recebeRelatorio: !!f.recebeRelatorio,
         telefone: f.telefone.trim() || null,
       };
       if (edit) await api.patch(`/stakeholders/${edit.id}`, body);
@@ -87,10 +91,16 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Email"><input type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} className={inputCls} /></Field>
-            <label className="flex items-center gap-2 text-sm text-ber-carbon mt-1 cursor-pointer">
-              <input type="checkbox" checked={!!f.recebeEmails} onChange={e => setF(p => ({ ...p, recebeEmails: e.target.checked }))} className="accent-ber-carbon" />
-              Recebe diários e relatórios por e-mail
-            </label>
+            <div className="flex flex-col gap-1.5 mt-1">
+              <label className="flex items-center gap-2 text-sm text-ber-carbon cursor-pointer">
+                <input type="checkbox" checked={!!f.recebeDiario} onChange={e => setF(p => ({ ...p, recebeDiario: e.target.checked }))} className="accent-ber-carbon" />
+                Recebe diário de obra por e-mail
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ber-carbon cursor-pointer">
+                <input type="checkbox" checked={!!f.recebeRelatorio} onChange={e => setF(p => ({ ...p, recebeRelatorio: e.target.checked }))} className="accent-ber-carbon" />
+                Recebe relatório semanal por e-mail
+              </label>
+            </div>
             <Field label="Telefone"><input value={f.telefone} onChange={e => setF(p => ({ ...p, telefone: e.target.value }))} className={inputCls} /></Field>
           </div>
           <div className="flex justify-end gap-3 pt-2">

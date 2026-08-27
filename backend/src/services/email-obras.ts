@@ -13,10 +13,10 @@ interface Attachment { filename: string; content: string } // base64
  * Destinatários da obra: stakeholders marcados com "recebe e-mails" (com e-mail
  * válido); fallback = obras.cliente_email (texto livre com vírgulas).
  */
-export async function destinatariosDaObra(obraId: string): Promise<string[]> {
+export async function destinatariosDaObra(obraId: string, tipo: 'diario' | 'relatorio' = 'relatorio'): Promise<string[]> {
   const [stk, obra] = await Promise.all([
     prisma.obraStakeholder.findMany({
-      where: { obraId, recebeEmails: true, email: { not: null } },
+      where: { obraId, email: { not: null }, ...(tipo === 'diario' ? { recebeDiario: true } : { recebeRelatorio: true }) },
       select: { email: true },
     }),
     prisma.obra.findUnique({ where: { id: obraId }, select: { clienteEmail: true } }),

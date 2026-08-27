@@ -347,8 +347,8 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   const { buildRelatorioPdf } = await import('./pdf.controller');
   const { sendEmailObra, relatorioClienteHtml, parseEmails, destinatariosDaObra } = await import('../../services/email-obras');
   let emails = parseEmails(String(req.body?.email ?? ''));
-  if (emails.length === 0) emails = await destinatariosDaObra(obraId);
-  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "recebe e-mails" nos Stakeholders da obra (ou informe e-mails manualmente)');
+  if (emails.length === 0) emails = await destinatariosDaObra(obraId, 'relatorio');
+  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "Recebe relatório" nos Stakeholders da obra (ou informe e-mails manualmente)');
 
   const relatorio = await prisma.relatorioSemanal.findFirst({
     where: { id: relatorioId, obraId },

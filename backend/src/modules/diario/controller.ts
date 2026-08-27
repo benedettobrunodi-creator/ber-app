@@ -129,7 +129,7 @@ export async function fechar(req: Request, res: Response) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
       const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
       const { destinatariosDaObra } = await import('../../services/email-obras');
-      const emailsAuto = await destinatariosDaObra(diario.obraId);
+      const emailsAuto = await destinatariosDaObra(diario.obraId, 'diario');
       if (emailsAuto.length) await sendEmailObra({
         to: emailsAuto,
         subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
@@ -464,8 +464,8 @@ export async function enviarEmailCliente(req: Request, res: Response) {
 
   const { sendEmailObra, diarioClienteHtml, parseEmails, destinatariosDaObra } = await import('../../services/email-obras');
   let emails = parseEmails(String(req.body?.email ?? ''));
-  if (emails.length === 0) emails = await destinatariosDaObra(diario.obra.id);
-  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "recebe e-mails" nos Stakeholders da obra (ou informe e-mails manualmente)');
+  if (emails.length === 0) emails = await destinatariosDaObra(diario.obra.id, 'diario');
+  if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "Recebe diário" nos Stakeholders da obra (ou informe e-mails manualmente)');
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
   const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   await sendEmailObra({

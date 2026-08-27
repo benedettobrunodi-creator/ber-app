@@ -90,10 +90,14 @@ export default function StakeholdersPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ber-carbon">
                         {s.nome}
-                        {s.recebeEmails ? (
-                          <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal align-middle">✉ RECEBE RELATÓRIOS</span>
-                        ) : (
-                          <span className="ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-ber-gray/10 text-ber-gray/70 align-middle">não recebe</span>
+                        {s.recebeDiario && (
+                          <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-ber-teal/10 text-ber-teal align-middle">✉ DIÁRIO</span>
+                        )}
+                        {s.recebeRelatorio && (
+                          <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-ber-olive/20 text-[#7A7D14] align-middle">✉ RELATÓRIO</span>
+                        )}
+                        {!s.recebeDiario && !s.recebeRelatorio && (
+                          <span className="ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-ber-gray/10 text-ber-gray/70 align-middle">não recebe e-mails</span>
                         )}
                       </p>
                       {(s.cargo || s.funcao) && (
