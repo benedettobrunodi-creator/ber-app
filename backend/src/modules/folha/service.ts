@@ -83,7 +83,8 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
 
   const [ajustes, extras, descontos] = await Promise.all([
     prisma.ajustePonto.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
-    prisma.horaExtraRegistro.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
+    // pago=false: extra já quitada avulsa (fora da folha) não entra de novo no fechamento
+    prisma.horaExtraRegistro.findMany({ where: { data: { gte: compStart, lt: compEnd }, pago: false } }),
     prisma.faltaDesconto.findMany({ where: { data: { gte: compStart, lt: compEnd } } }),
   ]);
   const ajustePorUserDia = new Map(ajustes.map((a) => [`${a.userId}:${a.data.toISOString().slice(0, 10)}`, a]));
