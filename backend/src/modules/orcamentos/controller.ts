@@ -70,3 +70,9 @@ export async function getProdutividade(req: Request, res: Response) {
   const data = await service.produtividadeOrcamentistas(ano, mes, enviadosOnly);
   sendSuccess(res, data);
 }
+
+export async function getEsforco(req: Request, res: Response) {
+  const ano = Number(req.query.ano) || new Date().getFullYear();
+  const mes = req.query.mes ? Number(req.query.mes) : null;
+  sendSuccess(res, await service.esforco(ano, mes));
+}

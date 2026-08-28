@@ -40,11 +40,13 @@ export async function list(filters: {
     if (filters.fim) where.dataFim = { lte: new Date(filters.fim) };
   }
 
-  return prisma.orcamento.findMany({
+  const rows = await prisma.orcamento.findMany({
     where,
     include: INCLUDE_BASE,
     orderBy: [{ categoria: 'asc' }, { ordem: 'asc' }, { dataInicio: 'asc' }],
   });
+  const revisoes = await revisoesPorOrcamento(rows.map((r) => r.id));
+  return rows.map((r) => ({ ...r, revisoes: revisoes.get(r.id) ?? 0 }));
 }
 
 export async function timeline() {
@@ -116,7 +118,89 @@ export async function create(userId: string, input: CreateOrcamentoInput) {
 
 const TRACKED_FIELDS: Array<keyof UpdateOrcamentoInput> = [
   'status', 'responsavelId', 'valorVenda', 'dataInicio', 'dataFim',
+  'm2', 'descricaoCurta', 'dataEntrega',
 ];
+
+// ─── Revisões (definição Bruno 28/08/26) ──────────────────────────────────
+// Revisão = alteração de CONTEÚDO da proposta: valor de venda, m², escopo
+// (descrição) ou data de entrega. Datas de planejamento da esteira
+// (dataInicio/dataFim) e trocas de status/responsável NÃO contam.
+// Alterações do mesmo dia (BRT) agrupam numa única revisão.
+export const REVISAO_FIELDS = ['valorVenda', 'm2', 'descricaoCurta', 'dataEntrega'];
+const BRT_MS = 3 * 60 * 60 * 1000;
+const diaBrt = (d: Date) => new Date(d.getTime() - BRT_MS).toISOString().slice(0, 10);
+
+/** Mapa orcamentoId → nº de revisões (dias distintos com mudança de conteúdo). */
+export async function revisoesPorOrcamento(orcamentoIds?: string[]): Promise<Map<string, number>> {
+  const hist = await prisma.orcamentoHistorico.findMany({
+    where: {
+      campo: { in: REVISAO_FIELDS },
+      ...(orcamentoIds ? { orcamentoId: { in: orcamentoIds } } : {}),
+    },
+    select: { orcamentoId: true, alteradoEm: true },
+  });
+  const dias = new Map<string, Set<string>>();
+  for (const h of hist) {
+    const set = dias.get(h.orcamentoId) ?? new Set<string>();
+    set.add(diaBrt(h.alteradoEm));
+    dias.set(h.orcamentoId, set);
+  }
+  return new Map([...dias.entries()].map(([id, set]) => [id, set.size]));
+}
+
+/** Painel de esforço da esteira: propostas criadas, revisões e visão por responsável. */
+export async function esforco(ano: number, mes: number | null) {
+  const inicio = mes ? new Date(Date.UTC(ano, mes - 1, 1)) : new Date(Date.UTC(ano, 0, 1));
+  const fim = mes ? new Date(Date.UTC(ano, mes, 1)) : new Date(Date.UTC(ano + 1, 0, 1));
+
+  const [criadas, hist, orcs] = await Promise.all([
+    prisma.orcamento.count({ where: { createdAt: { gte: inicio, lt: fim } } }),
+    prisma.orcamentoHistorico.findMany({
+      where: { alteradoEm: { gte: inicio, lt: fim } },
+      select: { orcamentoId: true, campo: true, alteradoPor: true, alteradoEm: true },
+    }),
+    prisma.orcamento.findMany({ select: { id: true, numero: true, cliente: true } }),
+  ]);
+  const orcById = new Map(orcs.map((o) => [o.id, o]));
+
+  // Revisões do período: dias distintos (orc × dia) com mudança de conteúdo
+  const revDias = new Map<string, Set<string>>(); // orcId → dias
+  const porPessoa = new Map<string, { revDias: Set<string>; orcs: Set<string>; diasAtivos: Set<string> }>();
+  for (const h of hist) {
+    const dia = diaBrt(h.alteradoEm);
+    const pessoa = porPessoa.get(h.alteradoPor) ?? { revDias: new Set(), orcs: new Set(), diasAtivos: new Set() };
+    pessoa.orcs.add(h.orcamentoId);
+    pessoa.diasAtivos.add(dia);
+    if (REVISAO_FIELDS.includes(h.campo)) {
+      const set = revDias.get(h.orcamentoId) ?? new Set<string>();
+      set.add(dia);
+      revDias.set(h.orcamentoId, set);
+      pessoa.revDias.add(`${h.orcamentoId}:${dia}`);
+    }
+    porPessoa.set(h.alteradoPor, pessoa);
+  }
+  const revisoesNoPeriodo = [...revDias.values()].reduce((s, set) => s + set.size, 0);
+
+  const topRetrabalho = [...revDias.entries()]
+    .map(([id, set]) => ({
+      numero: orcById.get(id)?.numero ?? '?',
+      cliente: orcById.get(id)?.cliente ?? '?',
+      revisoes: set.size,
+    }))
+    .sort((a, b) => b.revisoes - a.revisoes)
+    .slice(0, 10);
+
+  const porResponsavel = [...porPessoa.entries()]
+    .map(([nome, p]) => ({
+      nome,
+      propostasTocadas: p.orcs.size,
+      revisoes: p.revDias.size,
+      diasAtivos: p.diasAtivos.size,
+    }))
+    .sort((a, b) => b.revisoes - a.revisoes);
+
+  return { periodo: { ano, mes }, propostasCriadas: criadas, revisoesNoPeriodo, topRetrabalho, porResponsavel };
+}
 
 export async function update(id: string, userName: string, input: UpdateOrcamentoInput) {
   const existing = await prisma.orcamento.findUnique({ where: { id } });

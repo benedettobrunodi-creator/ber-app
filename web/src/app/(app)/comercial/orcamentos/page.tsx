@@ -46,6 +46,7 @@ interface Orcamento {
   terceirizado: boolean;
   observacoes: string | null;
   changeOrderDe: string | null;
+  revisoes?: number;
   pai: { id: string; numero: string; cliente: string } | null;
   filhos: Array<{ id: string; numero: string; cliente: string; status: string }>;
   historico?: Array<{
@@ -791,6 +792,12 @@ function GanttRow({ orc, canWrite, totalW, todayOffset, barLeft, barWidth, entre
         <div className="flex items-center gap-1.5 overflow-hidden cursor-pointer flex-1 h-full min-w-0" onClick={() => onClickItem(orc)}>
           {orc.estrategico && <Star size={11} className="shrink-0 fill-yellow-400 text-yellow-400" />}
           <span className="text-xs font-semibold text-gray-800 truncate">{orc.numero}</span>
+          {(orc.revisoes ?? 0) > 0 && (
+            <span title={`${orc.revisoes} revisão(ões) — mudanças de valor, m², escopo ou data de entrega`}
+              className="shrink-0 text-[9px] font-bold px-1 py-px rounded bg-amber-100 text-amber-700">
+              R{String(orc.revisoes).padStart(2, '0')}
+            </span>
+          )}
           <span className="text-[10px] text-gray-400 truncate">{orc.cliente}</span>
         </div>
         {orc.terceirizado ? (
@@ -1138,6 +1145,108 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
   );
 }
 
+/* ─── Esforço (revisões e produtividade da esteira) ─── */
+
+interface EsforcoData {
+  periodo: { ano: number; mes: number | null };
+  propostasCriadas: number;
+  revisoesNoPeriodo: number;
+  topRetrabalho: Array<{ numero: string; cliente: string; revisoes: number }>;
+  porResponsavel: Array<{ nome: string; propostasTocadas: number; revisoes: number; diasAtivos: number }>;
+}
+
+function EsforcoButton() {
+  const [open, setOpen] = useState(false);
+  const [mes, setMes] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [data, setData] = useState<EsforcoData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const [ano, m] = mes.split('-').map(Number);
+    setLoading(true);
+    api.get<{ data: EsforcoData }>(`/orcamentos/esforco?ano=${ano}&mes=${m}`)
+      .then(r => setData(r.data.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [open, mes]);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+        <History size={13} /> Esforço
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-black text-gray-900">Esforço da esteira</h2>
+              <div className="flex items-center gap-2">
+                <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+                  className="h-8 rounded-lg border border-gray-200 px-2 text-xs focus:outline-none" />
+                <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              </div>
+            </div>
+            {loading ? (
+              <p className="text-sm text-gray-400">Carregando…</p>
+            ) : !data ? (
+              <p className="text-sm text-red-500">Erro ao carregar.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-gray-400 font-bold">Propostas criadas</p>
+                    <p className="text-2xl font-black text-gray-900">{data.propostasCriadas}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-gray-400 font-bold">Revisões no período</p>
+                    <p className="text-2xl font-black text-amber-600">{data.revisoesNoPeriodo}</p>
+                    <p className="text-[10px] text-gray-400">mudanças de valor, m², escopo ou entrega (agrupadas por dia)</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-gray-700 mb-1.5">Por pessoa</p>
+                  {data.porResponsavel.length === 0 ? <p className="text-xs text-gray-400">Sem atividade no período.</p> : (
+                    <div className="space-y-1">
+                      {data.porResponsavel.map(p => (
+                        <div key={p.nome} className="flex items-center justify-between text-xs border-b border-gray-100 py-1.5">
+                          <span className="font-semibold text-gray-800">{p.nome}</span>
+                          <span className="text-gray-500">{p.propostasTocadas} proposta(s) · <span className="text-amber-600 font-semibold">{p.revisoes} revisão(ões)</span> · {p.diasAtivos} dia(s) ativo(s)</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-gray-700 mb-1.5">Mais revisadas no período</p>
+                  {data.topRetrabalho.length === 0 ? <p className="text-xs text-gray-400">Nenhuma revisão no período.</p> : (
+                    <div className="space-y-1">
+                      {data.topRetrabalho.map(t => (
+                        <div key={t.numero} className="flex items-center justify-between text-xs border-b border-gray-100 py-1.5">
+                          <span className="font-semibold text-gray-800">{t.numero} <span className="text-gray-400 font-normal">{t.cliente}</span></span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">R{String(t.revisoes).padStart(2, '0')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-gray-400">Revisão = dia com alteração de valor de venda, m², escopo ou data de entrega. Datas de planejamento da esteira e trocas de status não contam. Histórico de valor existe desde o início; m²/escopo/entrega passam a contar a partir de 28/08/26.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ─── Tab Lista ─── */
 
 function TabLista({ items, canWrite, onClickItem, onNew }: {
@@ -1147,9 +1256,9 @@ function TabLista({ items, canWrite, onClickItem, onNew }: {
   onNew: () => void;
 }) {
   function exportCSV() {
-    const header = ['Número', 'Cliente', 'Segmento', 'm²', 'R$', 'Status', 'Responsável', 'Início', 'Fim'];
+    const header = ['Número', 'Cliente', 'Segmento', 'm²', 'R$', 'Revisões', 'Status', 'Responsável', 'Início', 'Fim'];
     const rows = items.map(o => [
-      o.numero, o.cliente, o.segmento ?? '', o.m2 ?? '', o.valorVenda ?? '',
+      o.numero, o.cliente, o.segmento ?? '', o.m2 ?? '', o.valorVenda ?? '', o.revisoes ?? 0,
       STATUS_LABELS[o.status] ?? o.status,
       o.terceirizado ? 'Terceirizado' : (o.responsavel?.name ?? ''),
       o.dataInicio?.slice(0, 10) ?? '',
@@ -1704,12 +1813,15 @@ export default function EsteiraDOrcamentosPage() {
             <h1 className="text-lg font-black text-gray-900 tracking-tight">Esteira de Orçamentos</h1>
             <p className="text-xs text-gray-400">Controle e acompanhamento do pipeline comercial</p>
           </div>
-          {canWrite && (
-            <button onClick={() => setDrawer({ open: true, orc: null })}
-              className="flex items-center gap-1.5 rounded-lg bg-[#06A99D] px-4 py-2 text-sm font-bold text-white hover:bg-[#058e83]">
-              <Plus size={15} /> Novo Orçamento
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <EsforcoButton />
+            {canWrite && (
+              <button onClick={() => setDrawer({ open: true, orc: null })}
+                className="flex items-center gap-1.5 rounded-lg bg-[#06A99D] px-4 py-2 text-sm font-bold text-white hover:bg-[#058e83]">
+                <Plus size={15} /> Novo Orçamento
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filters */}

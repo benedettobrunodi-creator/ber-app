@@ -11,6 +11,7 @@ router.use(authenticate);
 
 router.get('/stats',       controller.getStats);
 router.get('/produtividade', controller.getProdutividade);
+router.get('/esforco',     controller.getEsforco);
 router.get('/timeline',    controller.getTimeline);
 router.get('/',            controller.listOrcamentos);
 router.get('/:id',         controller.getOrcamento);
