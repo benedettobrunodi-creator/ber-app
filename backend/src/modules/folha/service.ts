@@ -136,7 +136,8 @@ export async function previewFechamento(competencia: string): Promise<PreviewFol
     if (totalMinutos === 0 && (extrasPorUser.get(u.id) ?? 0) === 0 && (descontoPorUser.get(u.id) ?? 0) === 0) continue; // sem atividade no mês
     const minutosSemObra = acumulado.get(null) ?? 0;
     if (diasIncompletos.length) pendencias.push({ userId: u.id, nome: u.name, tipo: 'batida_incompleta', detalhe: `${diasIncompletos.length} dia(s): ${diasIncompletos.slice(0, 5).map((d) => d.slice(8)).join(', ')}${diasIncompletos.length > 5 ? '…' : ''}` });
-    if (minutosSemObra > 0) pendencias.push({ userId: u.id, nome: u.name, tipo: 'sem_obra', detalhe: `${Math.round(minutosSemObra / 60 * 10) / 10}h sem centro de custo` });
+    // Resíduos de segundos (bateu sem obra e corrigiu na sequência) não viram pendência.
+    if (minutosSemObra >= 5) pendencias.push({ userId: u.id, nome: u.name, tipo: 'sem_obra', detalhe: `${Math.round(minutosSemObra / 60 * 10) / 10}h sem centro de custo` });
     usuarios.push({
       userId: u.id,
       nome: u.name,
