@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as controller from './controller';
 import * as faseController from './fase.controller';
 import { authenticate } from '../../middleware/auth';
-import { requireRole } from '../../middleware/rbac';
+import { requireRole, requireAnyRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
 import { createObraSchema, updateObraSchema, addMemberSchema } from './types';
 
@@ -15,7 +15,9 @@ router.get('/clickup-summary', requireRole('campo'), controller.getClickUpSummar
 router.get('/', requireRole('campo'), controller.listObras);
 router.post("/progresso", controller.updateProgresso);
 router.get('/:id', requireRole('campo'), controller.getObra);
-router.post('/', requireRole('coordenacao'), validate(createObraSchema), controller.createObra);
+// financeiro (Carol) pode criar obras — pedido Bruno 28/08/26; requireAnyRole
+// mantém gestor/pmo/engenharia (nível 2) de fora, diferente de requireRole.
+router.post('/', requireAnyRole('coordenacao', 'financeiro'), validate(createObraSchema), controller.createObra);
 router.put('/:id', requireRole('coordenacao'), validate(updateObraSchema), controller.updateObra);
 router.patch('/:id/datas', requireRole('gestor'), controller.updateObraDatas);
 router.patch('/:id/situacao', requireRole('campo'), controller.updateSituacao);
