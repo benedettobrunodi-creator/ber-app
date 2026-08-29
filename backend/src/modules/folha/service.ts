@@ -9,6 +9,12 @@ import { AppError } from '../../utils/errors';
 import { notificarPjsFechamento } from './nf.service';
 
 const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+// Mesma regra do banco-horas (Bruno/Carol 28/08/26): expediente conta das 09:00
+// e desconta-se 1h de almoço em jornadas > 6h sem pausa batida (gap ≥ 30min).
+const INICIO_EXPEDIENTE_MS = 9 * 60 * 60 * 1000;
+const ALMOCO_MS = 60 * 60 * 1000;
+const LIMIAR_ALMOCO_MS = 6 * 60 * 60 * 1000;
+const GAP_PAUSA_MS = 30 * 60 * 1000;
 
 function brtDayRange(dateStr: string) {
   const startUtc = new Date(new Date(`${dateStr}T00:00:00.000Z`).getTime() + BRT_OFFSET_MS);
@@ -31,6 +37,8 @@ async function minutosPorObraNoDia(userId: string, dateStr: string): Promise<{ p
     orderBy: { timestamp: 'asc' },
   });
   const porObra = new Map<string | null, number>();
+  const inicioExpediente = start.getTime() + INICIO_EXPEDIENTE_MS;
+  const intervalos: Array<{ ini: number; fim: number; obraId: string | null }> = [];
   let aberto: { ts: Date; obraId: string | null } | null = null;
   let incompleto = false;
   for (const e of entries) {
@@ -39,13 +47,40 @@ async function minutosPorObraNoDia(userId: string, dateStr: string): Promise<{ p
       aberto = { ts: e.timestamp, obraId: e.obraId };
     } else if (e.type === 'checkout') {
       if (aberto) {
-        const min = Math.round((e.timestamp.getTime() - aberto.ts.getTime()) / 60000);
-        porObra.set(aberto.obraId, (porObra.get(aberto.obraId) ?? 0) + min);
+        // Chegada antes das 09:00 conta a partir das 09:00.
+        const ini = Math.max(aberto.ts.getTime(), inicioExpediente);
+        const fim = e.timestamp.getTime();
+        if (fim > ini) intervalos.push({ ini, fim, obraId: aberto.obraId });
         aberto = null;
       } else incompleto = true;
     }
   }
   if (aberto) incompleto = true;
+
+  // Soma por obra + desconto de 1h de almoço (proporcional às obras do dia)
+  // quando jornada > 6h e nenhuma pausa ≥ 30min foi batida.
+  let totalMs = 0;
+  for (const i of intervalos) {
+    const min = Math.round((i.fim - i.ini) / 60000);
+    porObra.set(i.obraId, (porObra.get(i.obraId) ?? 0) + min);
+    totalMs += i.fim - i.ini;
+  }
+  const temPausa = intervalos.some((i, idx) => idx > 0 && i.ini - intervalos[idx - 1].fim >= GAP_PAUSA_MS);
+  if (totalMs > LIMIAR_ALMOCO_MS && !temPausa) {
+    const totalMin = Math.round(totalMs / 60000);
+    let restante = 60;
+    for (const [obraId, min] of [...porObra.entries()].sort((a, b) => b[1] - a[1])) {
+      const cota = Math.min(restante, Math.round((min / totalMin) * 60));
+      porObra.set(obraId, min - cota);
+      restante -= cota;
+      if (restante <= 0) break;
+    }
+    // arredondamento residual sai da maior obra
+    if (restante > 0) {
+      const maior = [...porObra.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (maior) porObra.set(maior[0], Math.max(0, maior[1] - restante));
+    }
+  }
   return { porObra, incompleto, temRegistro: entries.length > 0 };
 }
 

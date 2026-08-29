@@ -18,6 +18,14 @@ const JORNADA_MINUTOS: Record<number, number> = {
 export const TETO_BANCO_MINUTOS = 24 * 60; // 24h
 export const PRAZO_EXPIRACAO_MESES = 6;
 const BRT_OFFSET_MS = 3 * 60 * 60 * 1000; // America/Sao_Paulo = UTC-3, sem horário de verão
+// Regra Bruno/Carol 28/08/26: o expediente conta a partir das 09:00 (chegada
+// antes não conta) e a jornada 9h-18h embute 1h de almoço. Como a pausa quase
+// nunca é batida, descontamos 1h automaticamente em jornadas > 6h SEM pausa
+// registrada (gap ≥ 30min entre intervalos = almoço batido, não desconta).
+export const INICIO_EXPEDIENTE_MS = 9 * 60 * 60 * 1000; // 09:00 após o início do dia BRT
+export const ALMOCO_MS = 60 * 60 * 1000;
+export const LIMIAR_ALMOCO_MS = 6 * 60 * 60 * 1000;
+export const GAP_PAUSA_MS = 30 * 60 * 1000;
 
 // ─── Helpers de data ───────────────────────────────────────────────────────
 /** Limites [início, fim) do dia calendário em BRT, dado "YYYY-MM-DD", como Date UTC. */
@@ -126,16 +134,20 @@ async function minutosTrabalhadosDoPonto(userId: string, dateStr: string) {
     orderBy: { timestamp: 'asc' },
   });
 
-  let minutos = 0;
+  const inicioExpediente = start.getTime() + INICIO_EXPEDIENTE_MS;
   let aberto: Date | null = null;
   let incompleto = false;
+  const intervalos: Array<{ ini: number; fim: number }> = [];
   for (const e of entries) {
     if (e.type === 'checkin') {
       if (aberto) incompleto = true; // dois checkins seguidos sem checkout
       aberto = e.timestamp;
     } else if (e.type === 'checkout') {
       if (aberto) {
-        minutos += (e.timestamp.getTime() - aberto.getTime()) / 60000;
+        // Chegada antes das 09:00 conta a partir das 09:00.
+        const ini = Math.max(aberto.getTime(), inicioExpediente);
+        const fim = e.timestamp.getTime();
+        if (fim > ini) intervalos.push({ ini, fim });
         aberto = null;
       } else {
         incompleto = true; // checkout sem checkin correspondente
@@ -144,7 +156,12 @@ async function minutosTrabalhadosDoPonto(userId: string, dateStr: string) {
   }
   if (aberto) incompleto = true; // checkin sem checkout até o fim do dia
 
-  return { minutos: Math.round(minutos), incompleto, temRegistro: entries.length > 0 };
+  let ms = intervalos.reduce((s2, i) => s2 + (i.fim - i.ini), 0);
+  // Almoço: desconta 1h se jornada > 6h e nenhuma pausa ≥ 30min foi batida.
+  const temPausa = intervalos.some((i, idx) => idx > 0 && i.ini - intervalos[idx - 1].fim >= GAP_PAUSA_MS);
+  if (ms > LIMIAR_ALMOCO_MS && !temPausa) ms -= ALMOCO_MS;
+
+  return { minutos: Math.round(ms / 60000), incompleto, temRegistro: entries.length > 0 };
 }
 
 /** Visão de um dia: quanto foi trabalhado (ajuste tem prioridade sobre o ponto
