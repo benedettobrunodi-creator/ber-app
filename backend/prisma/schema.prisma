@@ -70,6 +70,7 @@ model User {
   colaboradorNfs           ColaboradorNF[]         @relation("ColaboradorNFUser")
   nfsValidadas             ColaboradorNF[]         @relation("ColaboradorNFValidadora")
   pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
+  amostrasCriadas          AmostraAprovacao[]      @relation("AmostraCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
   etapaEditResolved        EtapaEditRequest[]      @relation("EtapaEditResolver")
@@ -191,6 +192,7 @@ model Obra {
   announcements      Announcement[]
   punchLists         PunchList[]
   pendencias         ObraPendencia[]
+  amostrasAprovacao  AmostraAprovacao[]
   closeOutItens      ObraCloseOutItem[]
   folhaLinhas        FolhaFechamentoLinha[]
   ajustesPonto       AjustePonto[]
@@ -995,6 +997,35 @@ model ObraPendencia {
   @@index([obraId])
   @@index([obraId, status])
   @@map("obra_pendencias")
+}
+
+// ─── Durante a Obra · Aprovação de Amostras (31/08/26) ───
+// Registro de amostras de material enviadas pra aprovação do cliente/stakeholder
+// — com foto(s), rastro de aprovado/reprovado e disparo de e-mail avisando
+// TODOS os stakeholders da obra (sem filtro de recebe_relatorio/recebe_diario).
+model AmostraAprovacao {
+  id                       String    @id @default(uuid()) @db.Uuid
+  obraId                   String    @map("obra_id") @db.Uuid
+  item                     String    @db.VarChar(200)
+  marca                    String?   @db.VarChar(120)
+  especificacao            String?
+  ambiente                 String?   @db.VarChar(120)
+  status                   String    @default("aprovado") @db.VarChar(15) // aprovado | reprovado | pendente
+  dataAprovacao            DateTime? @map("data_aprovacao") @db.Date
+  responsavelStakeholderId String?   @map("responsavel_stakeholder_id") @db.Uuid
+  observacoes              String?
+  fotos                    String[]  @default([])
+  emailEnviadoEm           DateTime? @map("email_enviado_em")
+  createdById              String?   @map("created_by") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra                   Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavelStakeholder ObraStakeholder? @relation("AmostraResponsavelStakeholder", fields: [responsavelStakeholderId], references: [id], onDelete: SetNull)
+  createdBy              User?            @relation("AmostraCriador", fields: [createdById], references: [id])
+
+  @@index([obraId])
+  @@map("amostras_aprovacao")
 }
 
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───
@@ -2383,8 +2414,9 @@ model ObraStakeholder {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra                  Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  ataTopicosResponsavel ObraAtaTopico[] @relation("AtaTopicoResponsavelStakeholder")
+  obra                  Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  ataTopicosResponsavel ObraAtaTopico[]    @relation("AtaTopicoResponsavelStakeholder")
+  amostrasResponsavel   AmostraAprovacao[] @relation("AmostraResponsavelStakeholder")
 
   @@index([obraId])
   @@map("obra_stakeholders")

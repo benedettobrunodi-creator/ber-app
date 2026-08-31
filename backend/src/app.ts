@@ -357,6 +357,9 @@ app.use('/v1/diario', ...perm('diario'), diarioRouter);
 // — Sub-rotas de obras (cronograma/relatórios) —
 app.use('/v1/obras/:id/cronograma', ...perm('obras'), cronogramaRouter);
 app.use('/v1/obras/:id/relatorios', ...perm('obras'), relatorioRouter);
+// — Módulo: aprovação de amostras (Durante a Obra, 31/08/26) —
+import amostrasRouter from './modules/amostras/routes';
+app.use('/v1/obras/:id/amostras', ...perm('obras'), amostrasRouter);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';

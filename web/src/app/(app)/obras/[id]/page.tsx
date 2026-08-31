@@ -658,6 +658,7 @@ export default function ObraDetailPage() {
       { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
       { type: 'link', href: 'atas', label: 'Atas' },
       { type: 'link', href: 'aditivos', label: 'Aditivos' },
+      { type: 'link', href: 'amostras', label: 'Amostras' },
       { type: 'tab', key: 'relatorios', label: 'Relatórios' },
     ] },
     { grupo: 'Pós-Obra', tabs: [
