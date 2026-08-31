@@ -48,3 +48,10 @@ export async function removeRevisao(req: Request, res: Response) {
   await service.removeRevisao(req.params.revisaoId);
   sendNoContent(res);
 }
+
+export async function bulkUpload(req: Request, res: Response) {
+  const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+  if (files.length === 0) throw AppError.badRequest('Envie ao menos um arquivo (campo "files")');
+  const data = await service.bulkUpload(req.params.id, files, req.user!.userId);
+  sendCreated(res, data);
+}

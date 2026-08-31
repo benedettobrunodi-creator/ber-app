@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, UploadCloud } from 'lucide-react';
 import api from '@/lib/api';
 
 const DISCIPLINAS = [
@@ -72,6 +72,10 @@ export default function ControleDocumentosPage() {
   const [revForms, setRevForms] = useState<Record<string, { revisao: string; data: string; observacao: string; file: File | null }>>({});
   const [savingRev, setSavingRev] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [dragOver, setDragOver] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ criados: number; atualizados: number } | null>(null);
+  const bulkInput = useRef<HTMLInputElement | null>(null);
 
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
 
@@ -132,6 +136,36 @@ export default function ControleDocumentosPage() {
       setError(m || 'Erro ao salvar');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista', value: string) {
+    try {
+      const r = await api.patch(`/obras/${obraId}/controle-documentos/${id}`, { [field]: field === 'etapa' || field === 'projetista' ? (value || null) : value });
+      setDocumentos(prev => prev.map(d => d.id === id ? r.data.data : d));
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      alert(m || 'Erro ao salvar');
+      load();
+    }
+  }
+
+  async function handleBulkFiles(files: FileList | File[]) {
+    const arr = Array.from(files);
+    if (arr.length === 0) return;
+    setBulkUploading(true);
+    setBulkResult(null);
+    try {
+      const fd = new FormData();
+      arr.forEach(f => fd.append('files', f));
+      const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
+      setDocumentos(r.data.data.documentos);
+      setBulkResult({ criados: r.data.data.criados.length, atualizados: r.data.data.atualizados.length });
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      alert(m || 'Erro ao subir arquivos');
+    } finally {
+      setBulkUploading(false);
     }
   }
 
@@ -204,6 +238,33 @@ export default function ControleDocumentosPage() {
         </button>
       </div>
 
+      <input ref={bulkInput} type="file" multiple className="hidden"
+        onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleBulkFiles(e.dataTransfer.files); }}
+        onClick={() => bulkInput.current?.click()}
+        className={`mb-5 cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
+          dragOver ? 'border-ber-teal bg-ber-teal/5' : 'border-ber-border bg-white hover:border-ber-carbon/40'
+        }`}
+      >
+        {bulkUploading ? (
+          <p className="text-sm text-ber-gray">Subindo arquivos…</p>
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-ber-gray">
+            <UploadCloud size={22} />
+            <p className="text-sm">Arraste PDFs aqui pra criar/atualizar documentos em massa (ou clique pra escolher)</p>
+            <p className="text-[11px]">Código e revisão detectados do nome do arquivo quando possível — corrige depois na lista</p>
+          </div>
+        )}
+        {bulkResult && !bulkUploading && (
+          <p className="mt-2 text-xs font-semibold text-ber-teal">
+            {bulkResult.criados} documento(s) novo(s) · {bulkResult.atualizados} revisão(ões) adicionada(s) a documentos existentes
+          </p>
+        )}
+      </div>
+
       {loading ? (
         <p className="text-sm text-ber-gray">Carregando…</p>
       ) : documentos.length === 0 ? (
@@ -222,10 +283,16 @@ export default function ControleDocumentosPage() {
                   const parado = ult && diasDesde(ult.data) > 90;
                   return (
                     <div key={d.id} className="bg-white border border-ber-border rounded-xl overflow-hidden">
-                      <div className="p-3 flex items-center justify-between gap-3 flex-wrap cursor-pointer" onClick={() => toggleExpand(d.id)}>
-                        <div className="min-w-0">
+                      <div className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => toggleExpand(d.id)}>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-ber-carbon text-sm">{d.codigo}</p>
+                            <input
+                              defaultValue={d.codigo}
+                              onClick={e => e.stopPropagation()}
+                              onBlur={e => { if (e.target.value.trim() && e.target.value !== d.codigo) updateField(d.id, 'codigo', e.target.value.trim()); }}
+                              className="font-semibold text-ber-carbon text-sm bg-transparent border-b border-transparent hover:border-ber-border focus:border-ber-teal focus:outline-none px-0.5 -mx-0.5"
+                              style={{ width: `${Math.max(d.codigo.length, 8)}ch` }}
+                            />
                             {ult && (
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${parado ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
                                 {ult.revisao} · {fmtBR(ult.data)}{parado ? ' · parado' : ''}
@@ -233,14 +300,26 @@ export default function ControleDocumentosPage() {
                             )}
                             {!ult && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">sem revisão</span>}
                           </div>
-                          <p className="text-xs text-ber-gray mt-0.5">
-                            {d.titulo && <>{d.titulo} · </>}
-                            {d.projetista && <>{d.projetista} · </>}
-                            {d.etapa ?? '—'}
-                          </p>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
+                            <select value={d.disciplina} onChange={e => updateField(d.id, 'disciplina', e.target.value)}
+                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                              {DISCIPLINAS.map(disc2 => <option key={disc2} value={disc2}>{disc2}</option>)}
+                            </select>
+                            <select value={d.etapa ?? ''} onChange={e => updateField(d.id, 'etapa', e.target.value)}
+                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                              <option value="">Etapa —</option>
+                              {ETAPAS.map(e => <option key={e} value={e}>{e}</option>)}
+                            </select>
+                            <input
+                              defaultValue={d.projetista ?? ''}
+                              placeholder="Projetista"
+                              onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
+                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-24"
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => openEdit(d)} className="text-ber-gray hover:text-ber-carbon"><Pencil size={14} /></button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => openEdit(d)} className="text-ber-gray hover:text-ber-carbon" title="Editar título"><Pencil size={14} /></button>
                           <button onClick={() => handleRemoveDoc(d.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={14} /></button>
                           <button onClick={() => toggleExpand(d.id)} className="text-ber-gray hover:text-ber-carbon">
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

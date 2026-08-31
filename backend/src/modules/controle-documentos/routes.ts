@@ -25,4 +25,8 @@ router.get('/:documentoId/proxima-revisao', controller.proximaRevisao);
 router.post('/:documentoId/revisoes', requireRole('campo'), upload.single('file'), validate(createRevisaoSchema), controller.addRevisao);
 router.delete('/:documentoId/revisoes/:revisaoId', requireRole('coordenacao'), controller.removeRevisao);
 
+// Arrastar-e-soltar em massa (31/08/26): cada arquivo vira documento novo
+// (código/revisão detectados do nome) ou revisão nova de documento existente.
+router.post('/bulk-upload', requireRole('campo'), upload.array('files', 200), controller.bulkUpload);
+
 export default router;
