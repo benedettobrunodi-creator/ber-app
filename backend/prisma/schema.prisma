@@ -71,6 +71,8 @@ model User {
   nfsValidadas             ColaboradorNF[]         @relation("ColaboradorNFValidadora")
   pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
   amostrasCriadas          AmostraAprovacao[]      @relation("AmostraCriador")
+  projetoDocumentosCriados ProjetoDocumento[]      @relation("ProjetoDocumentoCriador")
+  projetoDocRevisoesCriadas ProjetoDocumentoRevisao[] @relation("ProjetoDocumentoRevisaoCriador")
   punchListItems           PunchListItem[]         @relation("PunchListResponsible")
   etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
   etapaEditResolved        EtapaEditRequest[]      @relation("EtapaEditResolver")
@@ -193,6 +195,7 @@ model Obra {
   punchLists         PunchList[]
   pendencias         ObraPendencia[]
   amostrasAprovacao  AmostraAprovacao[]
+  projetoDocumentos  ProjetoDocumento[]
   closeOutItens      ObraCloseOutItem[]
   folhaLinhas        FolhaFechamentoLinha[]
   ajustesPonto       AjustePonto[]
@@ -1026,6 +1029,50 @@ model AmostraAprovacao {
 
   @@index([obraId])
   @@map("amostras_aprovacao")
+}
+
+// ─── Durante a Obra · Controle de Documentos (31/08/26) ───
+// Substitui os controles em planilha (colunas fixas REV/DATA que travam em N
+// revisões e têm campo "última atualização" solto, sujeito a desincronizar).
+// Revisão é histórico normalizado — 1 linha por revisão, ilimitado, cada uma
+// com o arquivo daquela versão; "última revisão" é sempre calculada.
+model ProjetoDocumento {
+  id          String   @id @default(uuid()) @db.Uuid
+  obraId      String   @map("obra_id") @db.Uuid
+  codigo      String   @db.VarChar(150)
+  titulo      String?  @db.VarChar(255)
+  disciplina  String   @db.VarChar(80)
+  projetista  String?  @db.VarChar(150)
+  etapa       String?  @db.VarChar(40)
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra      Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  createdBy User?                      @relation("ProjetoDocumentoCriador", fields: [createdById], references: [id])
+  revisoes  ProjetoDocumentoRevisao[]
+
+  @@index([obraId])
+  @@unique([obraId, codigo])
+  @@map("projeto_documentos")
+}
+
+model ProjetoDocumentoRevisao {
+  id            String   @id @default(uuid()) @db.Uuid
+  documentoId   String   @map("documento_id") @db.Uuid
+  revisao       String   @db.VarChar(20)
+  data          DateTime @db.Date
+  arquivoUrl    String?  @map("arquivo_url")
+  arquivoNome   String?  @map("arquivo_nome") @db.VarChar(255)
+  observacao    String?
+  createdById   String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  documento ProjetoDocumento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("ProjetoDocumentoRevisaoCriador", fields: [createdById], references: [id])
+
+  @@index([documentoId])
+  @@map("projeto_documento_revisoes")
 }
 
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───

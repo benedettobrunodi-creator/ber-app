@@ -360,6 +360,11 @@ app.use('/v1/obras/:id/relatorios', ...perm('obras'), relatorioRouter);
 // — Módulo: aprovação de amostras (Durante a Obra, 31/08/26) —
 import amostrasRouter from './modules/amostras/routes';
 app.use('/v1/obras/:id/amostras', ...perm('obras'), amostrasRouter);
+// — Módulo: controle de documentos (Durante a Obra, 31/08/26) — histórico de
+// revisões normalizado. Path distinto do módulo "documentos" (Gestão 360,
+// já existente) pra não colidir.
+import controleDocumentosRouter from './modules/controle-documentos/routes';
+app.use('/v1/obras/:id/controle-documentos', ...perm('obras'), controleDocumentosRouter);
 
 // Generic file upload — uses R2 when configured, falls back to disk
 import { uploadToR2, isR2Configured } from './services/storage';

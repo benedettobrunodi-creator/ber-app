@@ -653,6 +653,7 @@ export default function ObraDetailPage() {
       { type: 'link', href: 'cronograma-contratacoes', label: 'Crn. Contratações' },
     ] },
     { grupo: 'Durante a Obra', tabs: [
+      { type: 'link', href: 'controle-documentos', label: 'Documentos' },
       { type: 'tab', key: 'fvs', label: `Sequenciamento (${obraFvsList.length})` },
       { type: 'tab', key: 'diario', label: 'Diário' },
       { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
