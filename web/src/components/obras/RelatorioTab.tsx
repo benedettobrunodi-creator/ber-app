@@ -247,19 +247,7 @@ const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: ObraInfo }) {
   const [detalhe, setDetalhe] = useState<Relatorio | null>(null);
-
-  async function enviarRelatorioEmail(relId: string) {
-    const atual = (obra as { clienteEmail?: string | null }).clienteEmail ?? '';
-    const email = window.prompt('Enviar relatório (PDF anexo) para — separe múltiplos por vírgula:', atual);
-    if (!email?.trim()) return;
-    try {
-      await api.post(`/obras/${obraId}/relatorios/${relId}/enviar-email`, { email });
-      alert('Relatório enviado ao cliente ✓');
-    } catch (e) {
-      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-      alert(m || 'Erro ao enviar e-mail');
-    }
-  }
+  const [emailModalRelId, setEmailModalRelId] = useState<string | null>(null);
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [curvaS, setCurvaS]         = useState<CurvaSPonto[]>([]);
   const [ambientes, setAmbientes]   = useState<ObraAmbiente[]>([]);
@@ -650,7 +638,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   className="flex items-center gap-1 text-[11px] text-ber-gray hover:text-ber-carbon transition-colors">
                   <Download size={12} /> PDF
                 </button>
-                <button onClick={() => enviarRelatorioEmail(r.id)}
+                <button onClick={() => setEmailModalRelId(r.id)}
                   className="flex items-center gap-1 text-[11px] text-ber-teal hover:text-ber-carbon transition-colors font-semibold">
                   ✉ Cliente
                 </button>
@@ -727,7 +715,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                   <Download size={13} /> Baixar PDF
                 </button>
                 <button
-                  onClick={() => enviarRelatorioEmail(detalhe.id)}
+                  onClick={() => setEmailModalRelId(detalhe.id)}
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-ber-carbon text-white hover:opacity-90"
                 >
                   ✉ Enviar por e-mail
@@ -1561,10 +1549,144 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
         </div>
       )}
 
+      {emailModalRelId && (
+        <EnviarEmailModal
+          obraId={obraId}
+          relatorioId={emailModalRelId}
+          clienteEmailAtual={(obra as { clienteEmail?: string | null }).clienteEmail ?? ''}
+          onClose={() => setEmailModalRelId(null)}
+        />
+      )}
+
       <style>{`
         .fi { width: 100%; border-radius: 8px; border: 1px solid #E8E8E4; padding: 8px 12px; font-size: 14px; outline: none; background: white; }
         .fi:focus { border-color: #1a1a1a; }
       `}</style>
+    </div>
+  );
+}
+
+interface CronogramaResumo { fileName: string; updatedAt: string }
+
+function EnviarEmailModal({
+  obraId, relatorioId, clienteEmailAtual, onClose,
+}: { obraId: string; relatorioId: string; clienteEmailAtual: string; onClose: () => void }) {
+  const [email, setEmail] = useState(clienteEmailAtual);
+  const [cronograma, setCronograma] = useState<CronogramaResumo | null>(null);
+  const [loadingCron, setLoadingCron] = useState(true);
+  const [incluirCronograma, setIncluirCronograma] = useState(false);
+  const [uploadingCron, setUploadingCron] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get(`/obras/${obraId}/cronograma`)
+      .then(r => {
+        const c = r.data?.data;
+        if (c) { setCronograma(c); setIncluirCronograma(true); }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCron(false));
+  }, [obraId]);
+
+  async function handleUploadCronograma(file: File) {
+    setUploadingCron(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await api.post(`/obras/${obraId}/cronograma/upload`, form);
+      setCronograma(r.data.data);
+      setIncluirCronograma(true);
+    } catch {
+      setError('Erro ao subir o cronograma. Tenta de novo?');
+    } finally {
+      setUploadingCron(false);
+    }
+  }
+
+  async function handleSend() {
+    if (!email.trim()) { setError('Informe pelo menos um e-mail'); return; }
+    setSending(true);
+    setError('');
+    try {
+      await api.post(`/obras/${obraId}/relatorios/${relatorioId}/enviar-email`, {
+        email,
+        incluirCronograma: incluirCronograma && !!cronograma,
+      });
+      alert('Relatório enviado ao cliente ✓');
+      onClose();
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      setError(m || 'Erro ao enviar e-mail');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-sm font-bold text-ber-carbon">Enviar relatório por e-mail</p>
+          <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon"><X size={16} /></button>
+        </div>
+
+        <label className="mb-1 block text-xs font-medium text-ber-carbon">E-mail do cliente</label>
+        <input
+          className="fi mb-4"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="separe múltiplos por vírgula"
+        />
+
+        <div className="mb-4 rounded-lg border border-ber-border p-3">
+          <p className="mb-1.5 text-xs font-medium text-ber-carbon">Cronograma da obra</p>
+          {loadingCron ? (
+            <p className="text-xs text-ber-gray">Carregando…</p>
+          ) : cronograma ? (
+            <p className="mb-2 text-[11px] text-ber-gray">
+              {cronograma.fileName} · atualizado em {new Date(cronograma.updatedAt).toLocaleDateString('pt-BR')}
+            </p>
+          ) : (
+            <p className="mb-2 text-[11px] text-amber-600">Nenhum cronograma cadastrado ainda nesta obra.</p>
+          )}
+
+          <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadCronograma(f); }} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadingCron}
+            className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-ber-teal hover:text-ber-carbon disabled:opacity-50"
+          >
+            <Upload size={12} /> {uploadingCron ? 'Enviando…' : cronograma ? 'Substituir PDF' : 'Subir cronograma em PDF'}
+          </button>
+
+          {cronograma && (
+            <label className="flex items-center gap-2 text-xs text-ber-carbon">
+              <input type="checkbox" checked={incluirCronograma} onChange={e => setIncluirCronograma(e.target.checked)} />
+              Anexar cronograma em PDF a este e-mail
+            </label>
+          )}
+        </div>
+
+        {error && <p className="mb-3 text-xs text-red-500">{error}</p>}
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-ber-border py-2 text-sm text-ber-gray hover:bg-ber-surface">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={sending || uploadingCron}
+            className="flex-1 rounded-lg bg-ber-carbon py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {sending ? 'Enviando…' : 'Enviar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

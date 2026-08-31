@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
-import { uploadToR2, isR2Configured } from '../../services/storage';
+import { uploadToR2, isR2Configured, downloadFile } from '../../services/storage';
 import path from 'path';
 import fs from 'fs';
 import { env } from '../../config/env';
@@ -55,14 +55,8 @@ export async function parseCronograma(req: Request, res: Response) {
 
   let pdfBuffer: Buffer;
   try {
-    if (cronograma.fileUrl.startsWith('http')) {
-      const resp = await fetch(cronograma.fileUrl);
-      if (!resp.ok) throw new Error(`Falha ao baixar PDF (${resp.status})`);
-      pdfBuffer = Buffer.from(await resp.arrayBuffer());
-      console.log(`[PARSE] PDF baixado: ${pdfBuffer.length} bytes`);
-    } else {
-      pdfBuffer = fs.readFileSync(path.resolve(env.uploadDir, cronograma.fileUrl.replace('/uploads/', '')));
-    }
+    pdfBuffer = await downloadFile(cronograma.fileUrl);
+    console.log(`[PARSE] PDF baixado: ${pdfBuffer.length} bytes`);
   } catch (err) {
     console.error(`[PARSE] erro download:`, err);
     return res.status(500).json({ error: { message: `Erro ao baixar PDF: ${(err as Error).message}` } });

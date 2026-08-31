@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import path from 'path';
+import fs from 'fs';
 import { env } from '../config/env';
 
 const s3 = new S3Client({
@@ -45,6 +46,20 @@ export async function deleteFromR2(publicUrl: string): Promise<void> {
     Bucket: env.s3Bucket,
     Key: key,
   }));
+}
+
+/**
+ * Baixa o conteúdo de um arquivo salvo via uploadToR2 (URL http) ou local
+ * (/uploads/...). Usado tanto pro parse do cronograma quanto pra anexar em
+ * e-mail — mesma lógica de download, um lugar só.
+ */
+export async function downloadFile(fileUrl: string): Promise<Buffer> {
+  if (fileUrl.startsWith('http')) {
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) throw new Error(`Falha ao baixar arquivo (${resp.status})`);
+    return Buffer.from(await resp.arrayBuffer());
+  }
+  return fs.readFileSync(path.resolve(env.uploadDir, fileUrl.replace('/uploads/', '')));
 }
 
 /** Returns true if R2 is configured (all required env vars present). */

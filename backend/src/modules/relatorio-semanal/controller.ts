@@ -346,6 +346,7 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   const { id: obraId, relatorioId } = req.params;
   const { buildRelatorioPdf } = await import('./pdf.controller');
   const { sendEmailObra, relatorioClienteHtml, parseEmails, destinatariosDaObra } = await import('../../services/email-obras');
+  const { downloadFile } = await import('../../services/storage');
   let emails = parseEmails(String(req.body?.email ?? ''));
   if (emails.length === 0) emails = await destinatariosDaObra(obraId, 'relatorio');
   if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "Recebe relatório" nos Stakeholders da obra (ou informe e-mails manualmente)');
@@ -358,12 +359,23 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   if (!relatorio || !obra) throw AppError.notFound('Relatório');
 
   const { buffer, filename } = await buildRelatorioPdf(obraId, relatorioId);
+  const attachments: { filename: string; content: string }[] = [{ filename, content: buffer.toString('base64') }];
+
+  // Anexo opcional do cronograma (30/08: engenheiro escolhe na hora do envio) —
+  // reaproveita o PDF já cadastrado como Cronograma oficial da obra.
+  if (req.body?.incluirCronograma) {
+    const cronograma = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
+    if (!cronograma) throw AppError.badRequest('Nenhum cronograma cadastrado nesta obra pra anexar');
+    const cronBuffer = await downloadFile(cronograma.fileUrl);
+    attachments.push({ filename: cronograma.fileName, content: cronBuffer.toString('base64') });
+  }
+
   const fmt = (d: Date) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   await sendEmailObra({
     to: emails,
     subject: `Relatório Semanal nº ${String(relatorio.numero).padStart(3, '0')} — ${obra.name} · BÈR Engenharia`,
     html: relatorioClienteHtml({ obraNome: obra.name, numero: relatorio.numero, periodo: `${fmt(relatorio.periodoInicio)} a ${fmt(relatorio.periodoFim)}` }),
-    attachments: [{ filename, content: buffer.toString('base64') }],
+    attachments,
   });
 
   if (req.body?.email) {
