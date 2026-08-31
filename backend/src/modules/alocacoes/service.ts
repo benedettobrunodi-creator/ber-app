@@ -18,6 +18,16 @@ const include = {
       dataFimObra: true,
     },
   },
+  crmOportunidade: {
+    select: {
+      id: true,
+      titulo: true,
+      etapa: true,
+      probabilidade: true,
+      dataFechamentoPrevisto: true,
+      valor: true,
+    },
+  },
 } as const;
 
 export async function listAlocacoes() {
@@ -29,7 +39,9 @@ export async function createAlocacao(data: CreateAlocacaoInput) {
     data: {
       userId: data.userId ?? null,
       recursoExternoId: data.recursoExternoId ?? null,
-      obraId: data.obraId,
+      obraId: data.obraId ?? null,
+      crmOportunidadeId: data.crmOportunidadeId ?? null,
+      origemTipo: data.origemTipo ?? 'contratada',
       cargoNaAlocacao: data.cargoNaAlocacao ?? 'gestor',
       fase: data.fase ?? 'ambas',
       dedicacaoPct: data.dedicacaoPct,
@@ -50,6 +62,8 @@ export async function updateAlocacao(id: string, data: UpdateAlocacaoInput) {
       ...(data.userId !== undefined && { userId: data.userId }),
       ...(data.recursoExternoId !== undefined && { recursoExternoId: data.recursoExternoId }),
       ...(data.obraId !== undefined && { obraId: data.obraId }),
+      ...(data.crmOportunidadeId !== undefined && { crmOportunidadeId: data.crmOportunidadeId }),
+      ...(data.origemTipo !== undefined && { origemTipo: data.origemTipo }),
       ...(data.cargoNaAlocacao !== undefined && { cargoNaAlocacao: data.cargoNaAlocacao }),
       ...(data.fase !== undefined && { fase: data.fase }),
       ...(data.dedicacaoPct !== undefined && { dedicacaoPct: data.dedicacaoPct }),
@@ -73,6 +87,7 @@ export async function listConflitos() {
 
   function rStart(a: AlT): Date | null {
     if (a.dataInicio) return a.dataInicio;
+    if (!a.obra) return null; // pipeline sem obra: dataInicio já é obrigatória na validação
     if (a.fase === 'projeto') return a.obra.dataInicioProjeto ?? null;
     if (a.fase === 'obra') return a.obra.dataInicioObra ?? a.obra.startDate ?? null;
     return a.obra.dataInicioProjeto ?? a.obra.dataInicioObra ?? a.obra.startDate ?? null;
@@ -80,6 +95,7 @@ export async function listConflitos() {
 
   function rEnd(a: AlT): Date | null {
     if (a.dataFim) return a.dataFim;
+    if (!a.obra) return null; // pipeline sem obra: dataFim já é obrigatória na validação
     if (a.fase === 'projeto') return a.obra.dataFimProjeto ?? null;
     if (a.fase === 'obra') return a.obra.dataFimObra ?? a.obra.expectedEndDate ?? null;
     return a.obra.dataFimObra ?? a.obra.expectedEndDate ?? null;

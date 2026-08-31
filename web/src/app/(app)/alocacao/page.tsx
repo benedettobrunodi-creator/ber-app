@@ -9,6 +9,10 @@ import {
   Plus, X, AlertTriangle, Calendar, Users, HardHat, UserPlus,
   ChevronDown, ChevronUp, Trash2, Printer, Pencil, Search, Download,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, ComposedChart, Area, ReferenceLine,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
 
 /* ─── Types ─── */
 
@@ -22,7 +26,7 @@ interface UserInfo {
 interface RecursoExterno {
   id: string;
   nome: string;
-  funcao: 'gestor' | 'mestre' | 'ajudante';
+  funcao: CargoAlocacao;
   createdAt: string;
 }
 
@@ -43,8 +47,10 @@ interface Alocacao {
   id: string;
   userId: string | null;
   recursoExternoId: string | null;
-  obraId: string;
-  cargoNaAlocacao: 'coordenador' | 'gestor' | 'mestre' | 'ajudante';
+  obraId: string | null;
+  crmOportunidadeId: string | null;
+  origemTipo: 'contratada' | 'pipeline';
+  cargoNaAlocacao: CargoAlocacao;
   fase: 'obra' | 'projeto' | 'ambas';
   dedicacaoPct: number;
   dataInicio: string | null;
@@ -62,12 +68,30 @@ interface Alocacao {
     dataFimProjeto: string | null;
     dataInicioObra: string | null;
     dataFimObra: string | null;
-  };
+  } | null;
+  crmOportunidade: {
+    id: string;
+    titulo: string;
+    etapa: string;
+    probabilidade: 'alta' | 'media' | 'baixa' | null;
+    dataFechamentoPrevisto: string | null;
+    valor: string | null;
+  } | null;
 }
 
+/** Alocação "contratada" (obra real) — usada pelas abas Timeline/Obras/Recursos/Resumo,
+ *  que assumem obra presente. Alocações de pipeline (origemTipo='pipeline') só
+ *  aparecem na aba Capacidade. */
+type AlocacaoContratada = Alocacao & { obra: NonNullable<Alocacao['obra']>; obraId: string };
+
+function isContratada(a: Alocacao): a is AlocacaoContratada {
+  return a.origemTipo !== 'pipeline' && a.obra != null;
+}
+
+type CargoAlocacao = 'coordenador' | 'gestor' | 'residente' | 'mestre' | 'ajudante' | 'administrativo';
 type Zoom = 'semana' | 'mes' | 'trimestre';
 type ViewMode = 'recurso' | 'obra';
-type Tab = 'timeline' | 'obras' | 'recursos' | 'resumo';
+type Tab = 'timeline' | 'obras' | 'recursos' | 'resumo' | 'capacidade';
 
 type ModalState =
   | { type: 'none' }
@@ -79,16 +103,22 @@ type ModalState =
 const CARGO_LABELS: Record<string, string> = {
   coordenador: 'Coordenador',
   gestor: 'Gestor de Obras',
-  mestre: 'Mestre',
+  residente: 'Residente',
+  mestre: 'Mestre de Obras',
   ajudante: 'Ajudante',
+  administrativo: 'Administrativo',
 };
 
 const CARGO_SHORT: Record<string, string> = {
   coordenador: 'Coord',
   gestor: 'Gestor',
+  residente: 'Resid',
   mestre: 'Mestre',
   ajudante: 'Ajud',
+  administrativo: 'Admin',
 };
+
+const CARGO_ORDER_FULL = ['coordenador', 'gestor', 'residente', 'mestre', 'ajudante', 'administrativo'] as const;
 
 const FUNCAO_LABELS: Record<string, string> = {
   gestor: 'Gestor',
@@ -161,6 +191,7 @@ function toInputDate(d: Date | null): string {
 
 function resolveStart(a: Alocacao): Date | null {
   if (a.dataInicio) return parseDate(a.dataInicio);
+  if (!a.obra) return null; // pipeline sem obra: dataInicio é obrigatória, nunca cai aqui
   if (a.fase === 'projeto') return parseDate(a.obra.dataInicioProjeto);
   if (a.fase === 'obra')
     return parseDate(a.obra.dataInicioObra) ?? parseDate(a.obra.startDate);
@@ -173,6 +204,7 @@ function resolveStart(a: Alocacao): Date | null {
 
 function resolveEnd(a: Alocacao): Date | null {
   if (a.dataFim) return parseDate(a.dataFim);
+  if (!a.obra) return null; // pipeline sem obra: dataFim é obrigatória, nunca cai aqui
   if (a.fase === 'projeto') return parseDate(a.obra.dataFimProjeto);
   if (a.fase === 'obra')
     return parseDate(a.obra.dataFimObra) ?? parseDate(a.obra.expectedEndDate);
@@ -344,11 +376,7 @@ function AlocacaoModal({
       ? recursoSelectKey(editAlocacao)
       : prefillRecurso ?? '',
     obraId: initialObraId,
-    cargoNaAlocacao: (editAlocacao?.cargoNaAlocacao ?? 'gestor') as
-      | 'coordenador'
-      | 'gestor'
-      | 'mestre'
-      | 'ajudante',
+    cargoNaAlocacao: (editAlocacao?.cargoNaAlocacao ?? 'gestor') as CargoAlocacao,
     fase: initialFase,
     dedicacaoPct: editAlocacao?.dedicacaoPct ?? 100,
     dataInicio: initialDates.dataInicio,
@@ -360,7 +388,7 @@ function AlocacaoModal({
   const [showNewExterno, setShowNewExterno] = useState(false);
   const [newExterno, setNewExterno] = useState({
     nome: '',
-    cargo: 'mestre' as 'coordenador' | 'gestor' | 'mestre' | 'ajudante',
+    cargo: 'mestre' as CargoAlocacao,
   });
   const [savingExterno, setSavingExterno] = useState(false);
 
@@ -433,16 +461,10 @@ function AlocacaoModal({
   async function handleSaveNewExterno() {
     if (!newExterno.nome.trim()) return;
     setSavingExterno(true);
-    const funcaoMap: Record<string, RecursoExterno['funcao']> = {
-      coordenador: 'gestor',
-      gestor: 'gestor',
-      mestre: 'mestre',
-      ajudante: 'ajudante',
-    };
     try {
       const res = await api.post('/recursos-externos', {
         nome: newExterno.nome,
-        funcao: funcaoMap[newExterno.cargo],
+        funcao: newExterno.cargo,
       });
       const criado: RecursoExterno = res.data.data;
       onNewRecursoExterno(criado);
@@ -567,17 +589,16 @@ function AlocacaoModal({
                     }
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="coordenador">Coordenador</option>
-                    <option value="gestor">Gestor de Obras</option>
-                    <option value="mestre">Mestre de Obras</option>
-                    <option value="ajudante">Ajudante</option>
+                    {CARGO_ORDER_FULL.map(c => (
+                      <option key={c} value={c}>{CARGO_LABELS[c]}</option>
+                    ))}
                   </select>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setShowNewExterno(false);
-                        setNewExterno({ nome: '', cargo: 'mestre' });
+                        setNewExterno({ nome: '', cargo: 'mestre' as CargoAlocacao });
                       }}
                       className="flex-1 rounded-lg border border-gray-200 bg-white py-1.5 text-xs text-gray-500 hover:bg-gray-50"
                     >
@@ -630,10 +651,9 @@ function AlocacaoModal({
               }
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="coordenador">Coordenador</option>
-              <option value="gestor">Gestor de Obras</option>
-              <option value="mestre">Mestre</option>
-              <option value="ajudante">Ajudante</option>
+              {CARGO_ORDER_FULL.map(c => (
+                <option key={c} value={c}>{CARGO_LABELS[c]}</option>
+              ))}
             </select>
           </div>
 
@@ -832,7 +852,7 @@ interface GanttRow {
 }
 
 function buildGanttRows(
-  alocacoes: Alocacao[],
+  alocacoes: AlocacaoContratada[],
   viewMode: ViewMode,
   zoom: Zoom,
   obras: ObraInfo[],
@@ -849,7 +869,7 @@ function buildGanttRows(
 
   type BarDef = { phase: 'projeto' | 'obra'; start: Date | null; end: Date | null };
 
-  function getBarDefs(aloc: Alocacao): BarDef[] {
+  function getBarDefs(aloc: AlocacaoContratada): BarDef[] {
     const obra = obraMap.get(aloc.obraId);
     if (aloc.fase === 'projeto') {
       return [{ phase: 'projeto',
@@ -872,7 +892,7 @@ function buildGanttRows(
     ];
   }
 
-  function pushBar(row: GanttRow, aloc: Alocacao, barDef: BarDef, barLabel: string) {
+  function pushBar(row: GanttRow, aloc: AlocacaoContratada, barDef: BarDef, barLabel: string) {
     const { phase, start, end } = barDef;
     const s = start ?? today;
     const e = end ?? addDays(today, 30);
@@ -914,8 +934,8 @@ function buildGanttRows(
     }
   } else {
     // Modo obra: grupo por obra → sub-linhas por (cargo, recurso)
-    const CARGO_ORDER = ['coordenador', 'gestor', 'mestre', 'ajudante'] as const;
-    const byObra = new Map<string, Alocacao[]>();
+    const CARGO_ORDER = CARGO_ORDER_FULL;
+    const byObra = new Map<string, AlocacaoContratada[]>();
     for (const aloc of alocacoes) {
       const l = byObra.get(aloc.obraId) ?? [];
       l.push(aloc);
@@ -936,7 +956,7 @@ function buildGanttRows(
         const cargoAlocs = obraAlocs.filter(a => a.cargoNaAlocacao === cargo);
         if (cargoAlocs.length === 0) continue;
 
-        const byRecurso = new Map<string, Alocacao[]>();
+        const byRecurso = new Map<string, AlocacaoContratada[]>();
         for (const aloc of cargoAlocs) {
           const k = recursoKey(aloc);
           const l = byRecurso.get(k) ?? [];
@@ -1014,7 +1034,7 @@ function GanttChart({
   onRowEmptyClick,
   onDeleteBar,
 }: {
-  alocacoes: Alocacao[];
+  alocacoes: AlocacaoContratada[];
   zoom: Zoom;
   viewMode: ViewMode;
   obras: ObraInfo[];
@@ -1574,7 +1594,7 @@ function ObrasTab({
   onUpdatedObra,
 }: {
   obras: ObraInfo[];
-  alocacoes: Alocacao[];
+  alocacoes: AlocacaoContratada[];
   onAddedObra: (o: ObraInfo) => void;
   onAlocar: (obraId: string) => void;
   onDeletedObra: (obraId: string) => void;
@@ -1713,7 +1733,7 @@ interface RecursoStat {
   nome: string;
   cargoPadrao: string;
   totalPct: number;
-  alocacoesAtivas: Alocacao[];
+  alocacoesAtivas: AlocacaoContratada[];
   tipo: 'interno' | 'externo';
 }
 
@@ -1726,7 +1746,7 @@ function RecursosTab({
 }: {
   users: UserInfo[];
   recursosExternos: RecursoExterno[];
-  alocacoes: Alocacao[];
+  alocacoes: AlocacaoContratada[];
   onNovoExterno: () => void;
   onOpenModal: (prefillRecurso: string) => void;
 }) {
@@ -1908,7 +1928,7 @@ interface RecursoResumoEntry {
 }
 
 function buildResumo(
-  alocacoes: Alocacao[],
+  alocacoes: AlocacaoContratada[],
   users: UserInfo[],
   recursosExternos: RecursoExterno[],
 ): RecursoResumoEntry[] {
@@ -1920,7 +1940,7 @@ function buildResumo(
     nome: string,
     role: string,
     isExterno: boolean,
-    alocs: Alocacao[],
+    alocs: AlocacaoContratada[],
   ): RecursoResumoEntry {
     const periodos = alocs.map(a => ({
       obraName: a.obra.name,
@@ -1970,7 +1990,7 @@ function ResumoTab({
   users,
   recursosExternos,
 }: {
-  alocacoes: Alocacao[];
+  alocacoes: AlocacaoContratada[];
   users: UserInfo[];
   recursosExternos: RecursoExterno[];
 }) {
@@ -2115,8 +2135,438 @@ function ResumoTab({
   );
 }
 
-/* ─── Page ─── */
+/* ─── Capacidade Tab ─── */
+// Visão agregada por cargo: demanda (contratada + pipeline ponderado pela
+// probabilidade) vs capacidade (headcount já visto atuando naquele cargo),
+// ao longo dos próximos 12 meses. Fecha o gap "não existe visão de escassez/
+// excesso de mão de obra no tempo" (pedido do Bruno, 31/08).
 
+const PROB_WEIGHT: Record<string, number> = { alta: 0.8, media: 0.5, baixa: 0.2 };
+
+// Paleta do skill dataviz (referências/palette.md): sequencial azul p/ magnitude
+// (contratada = passo 450 firme; pipeline ponderado = passo 250, mais claro —
+// é a mesma grandeza em dois graus de certeza, não duas identidades) + cinza
+// neutro pra capacidade + vermelho "critical" reservado só pro alerta de estouro.
+const VIZ = {
+  contratada: '#2a78d6',
+  pipeline: '#86b6ef',
+  capacidade: '#c3c2b7',
+  critical: '#d03b3b',
+  grid: '#e1e0d9',
+  textMuted: '#898781',
+  textSecondary: '#52514e',
+};
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+interface CapacidadePonto {
+  mesKey: string;
+  mes: string;
+  contratada: number;
+  pipeline: number;
+  total: number;
+  capacidade: number;
+  sobrecarga: boolean;
+}
+
+function buildCapacidadeSeries(
+  alocacoes: Alocacao[],
+  cargo: CargoAlocacao,
+  months: Date[],
+): CapacidadePonto[] {
+  const doCargo = alocacoes.filter(a => a.cargoNaAlocacao === cargo);
+  const headcount = new Set(doCargo.map(a => a.userId ?? a.recursoExternoId ?? a.id)).size;
+
+  return months.map(monthStart => {
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+    let contratada = 0;
+    let pipeline = 0;
+    for (const a of doCargo) {
+      const start = resolveStart(a);
+      const end = resolveEnd(a);
+      if (start && start > monthEnd) continue;
+      if (end && end < monthStart) continue;
+      const frac = a.dedicacaoPct / 100;
+      if (a.origemTipo === 'pipeline') {
+        const peso = PROB_WEIGHT[a.crmOportunidade?.probabilidade ?? 'media'] ?? 0.5;
+        pipeline += frac * peso;
+      } else {
+        contratada += frac;
+      }
+    }
+    contratada = round1(contratada);
+    pipeline = round1(pipeline);
+    const total = round1(contratada + pipeline);
+    return {
+      mesKey: monthKeyOf(monthStart),
+      mes: monthStart.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+      contratada,
+      pipeline,
+      total,
+      capacidade: headcount,
+      sobrecarga: total > headcount,
+    };
+  });
+}
+
+function monthKeyOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function CapacidadePanel({ cargo, alocacoes, months }: { cargo: CargoAlocacao; alocacoes: Alocacao[]; months: Date[] }) {
+  const data = useMemo(() => buildCapacidadeSeries(alocacoes, cargo, months), [alocacoes, cargo, months]);
+  const capacidade = data[0]?.capacidade ?? 0;
+  const mesesEstouro = data.filter(d => d.sobrecarga).length;
+  const semDados = data.every(d => d.total === 0) && capacidade === 0;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">{CARGO_LABELS[cargo]}</h3>
+          <p className="text-[11px] text-gray-400">
+            Capacidade estimada: {capacidade} {capacidade === 1 ? 'pessoa' : 'pessoas'}
+          </p>
+        </div>
+        {mesesEstouro > 0 && (
+          <span
+            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+            style={{ backgroundColor: '#fdecea', color: VIZ.critical }}
+          >
+            <AlertTriangle size={10} /> {mesesEstouro} {mesesEstouro === 1 ? 'mês' : 'meses'} acima da capacidade
+          </span>
+        )}
+      </div>
+      {semDados ? (
+        <div className="flex h-40 items-center justify-center text-xs text-gray-300">
+          Sem alocações nem headcount registrado nesse cargo
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={160}>
+          <ComposedChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <CartesianGrid stroke={VIZ.grid} vertical={false} />
+            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: VIZ.textMuted }} axisLine={{ stroke: VIZ.grid }} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: VIZ.textMuted }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${VIZ.grid}` }}
+              labelStyle={{ color: VIZ.textSecondary, fontWeight: 600 }}
+              formatter={(value, name) => [
+                `${value} pessoa-equiv.`,
+                name === 'contratada' ? 'Contratada' : name === 'pipeline' ? 'Pipeline (ponderado)' : String(name),
+              ]}
+            />
+            <Area type="monotone" dataKey="contratada" stackId="1" stroke={VIZ.contratada} fill={VIZ.contratada} fillOpacity={0.85} />
+            <Area type="monotone" dataKey="pipeline" stackId="1" stroke={VIZ.pipeline} fill={VIZ.pipeline} fillOpacity={0.55} strokeDasharray="3 2" />
+            {capacidade > 0 && (
+              <ReferenceLine y={capacidade} stroke={VIZ.capacidade} strokeDasharray="4 4" strokeWidth={1.5} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+function CapacidadeTab({
+  alocacoes,
+  onNovaAlocacaoPipeline,
+}: {
+  alocacoes: Alocacao[];
+  onNovaAlocacaoPipeline: () => void;
+}) {
+  const [showTable, setShowTable] = useState(false);
+  const months = useMemo(() => {
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    return Array.from({ length: 12 }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1));
+  }, []);
+
+  const allSeries = useMemo(
+    () => CARGO_ORDER_FULL.map(cargo => ({ cargo, data: buildCapacidadeSeries(alocacoes, cargo, months) })),
+    [alocacoes, months],
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">
+            Capacidade de mão de obra — próximos 12 meses
+          </h2>
+          <p className="text-xs text-gray-400">
+            Demanda contratada (obras firmes) + pipeline ponderado pela probabilidade de fechamento, vs. capacidade estimada (headcount já alocado naquele cargo)
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTable(s => !s)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          >
+            {showTable ? 'Ver gráfico' : 'Ver tabela'}
+          </button>
+          <button
+            onClick={onNovaAlocacaoPipeline}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+          >
+            <Plus size={13} /> Alocar em pipeline
+          </button>
+        </div>
+      </div>
+
+      {/* Legenda compartilhada (≤4 séries — direct label também vale, mas aqui uma legenda simples resolve) */}
+      <div className="flex flex-wrap items-center gap-4 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: VIZ.contratada }} /> Contratada (obra firme)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: VIZ.pipeline }} /> Pipeline (ponderado por probabilidade)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-4 border-t-2 border-dashed" style={{ borderColor: VIZ.capacidade }} /> Capacidade estimada
+        </span>
+      </div>
+
+      {showTable ? (
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-gray-100 text-gray-400">
+                <th className="px-3 py-2 font-medium">Cargo</th>
+                <th className="px-3 py-2 font-medium">Capacidade</th>
+                {months.map(m => (
+                  <th key={monthKeyOf(m)} className="px-3 py-2 font-medium">
+                    {m.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allSeries.map(({ cargo, data }) => (
+                <tr key={cargo} className="border-b border-gray-50">
+                  <td className="px-3 py-2 font-medium text-gray-700">{CARGO_LABELS[cargo]}</td>
+                  <td className="px-3 py-2 text-gray-500">{data[0]?.capacidade ?? 0}</td>
+                  {data.map(d => (
+                    <td
+                      key={d.mesKey}
+                      className="px-3 py-2 tabular-nums"
+                      style={{ color: d.sobrecarga ? VIZ.critical : '#374151', fontWeight: d.sobrecarga ? 700 : 400 }}
+                    >
+                      {d.total}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {CARGO_ORDER_FULL.map(cargo => (
+            <CapacidadePanel key={cargo} cargo={cargo} alocacoes={alocacoes} months={months} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Nova Alocação em Pipeline (oportunidade sem obra ainda) ─── */
+
+interface OportunidadeInfo {
+  id: string;
+  titulo: string;
+  etapa: string;
+  probabilidade: 'alta' | 'media' | 'baixa' | null;
+  dataFechamentoPrevisto: string | null;
+  obra: { id: string } | null;
+  empresa: { razaoSocial: string } | null;
+}
+
+function NovaAlocacaoPipelineModal({
+  users,
+  recursosExternos,
+  onClose,
+  onSaved,
+}: {
+  users: UserInfo[];
+  recursosExternos: RecursoExterno[];
+  onClose: () => void;
+  onSaved: (a: Alocacao) => void;
+}) {
+  const [oportunidades, setOportunidades] = useState<OportunidadeInfo[]>([]);
+  const [loadingOps, setLoadingOps] = useState(true);
+  const [form, setForm] = useState({
+    recurso: '',
+    crmOportunidadeId: '',
+    cargoNaAlocacao: 'mestre' as CargoAlocacao,
+    dedicacaoPct: 100,
+    dataInicio: '',
+    dataFim: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/crm/oportunidades')
+      .then(res => {
+        const all: OportunidadeInfo[] = res.data.data ?? [];
+        setOportunidades(
+          all
+            .filter(o => !o.obra && !['ganha', 'perdida'].includes(o.etapa))
+            .sort((a, b) => {
+              const order: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
+              return (order[a.probabilidade ?? 'media'] ?? 1) - (order[b.probabilidade ?? 'media'] ?? 1);
+            }),
+        );
+      })
+      .catch(() => setOportunidades([]))
+      .finally(() => setLoadingOps(false));
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.recurso || !form.crmOportunidadeId || !form.dataInicio || !form.dataFim) {
+      setError('Preencha recurso, oportunidade e o período estimado');
+      return;
+    }
+    const [tipo, id] = form.recurso.split(':');
+    setSaving(true);
+    setError('');
+    try {
+      const res = await api.post('/alocacoes', {
+        userId: tipo === 'user' ? id : null,
+        recursoExternoId: tipo === 'externo' ? id : null,
+        crmOportunidadeId: form.crmOportunidadeId,
+        origemTipo: 'pipeline',
+        cargoNaAlocacao: form.cargoNaAlocacao,
+        dedicacaoPct: form.dedicacaoPct,
+        dataInicio: form.dataInicio,
+        dataFim: form.dataFim,
+      });
+      onSaved(res.data.data);
+    } catch {
+      setError('Erro ao salvar — confira se a oportunidade e o recurso são válidos');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">Alocar em oportunidade (pipeline)</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <p className="mb-4 text-xs text-gray-400">
+          Reserva planejamento de mão de obra pra uma oportunidade que ainda não virou obra —
+          entra na aba Capacidade ponderado pela probabilidade, não aparece na Timeline/Obras.
+        </p>
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Oportunidade</label>
+            <select
+              value={form.crmOportunidadeId}
+              onChange={e => setForm(f => ({ ...f, crmOportunidadeId: e.target.value }))}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loadingOps}
+            >
+              <option value="">{loadingOps ? 'Carregando…' : 'Selecione…'}</option>
+              {oportunidades.map(o => (
+                <option key={o.id} value={o.id}>
+                  {(o.probabilidade ?? '—').toUpperCase()} · {o.titulo}{o.empresa ? ` (${o.empresa.razaoSocial})` : ''}
+                </option>
+              ))}
+            </select>
+            {!loadingOps && oportunidades.length === 0 && (
+              <p className="mt-1 text-[11px] text-amber-600">
+                Nenhuma oportunidade sem obra em aberto no CRM.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Recurso</label>
+            <select
+              value={form.recurso}
+              onChange={e => setForm(f => ({ ...f, recurso: e.target.value }))}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Selecione…</option>
+              <optgroup label="Time interno">
+                {users.map(u => <option key={u.id} value={`user:${u.id}`}>{u.name}</option>)}
+              </optgroup>
+              <optgroup label="Recursos externos">
+                {recursosExternos.map(r => <option key={r.id} value={`externo:${r.id}`}>{r.nome}</option>)}
+              </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Cargo</label>
+            <select
+              value={form.cargoNaAlocacao}
+              onChange={e => setForm(f => ({ ...f, cargoNaAlocacao: e.target.value as CargoAlocacao }))}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {CARGO_ORDER_FULL.map(c => <option key={c} value={c}>{CARGO_LABELS[c]}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Dedicação (%): {form.dedicacaoPct}%
+            </label>
+            <input
+              type="range" min={1} max={100} value={form.dedicacaoPct}
+              onChange={e => setForm(f => ({ ...f, dedicacaoPct: Number(e.target.value) }))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Início estimado</label>
+              <input
+                type="date" value={form.dataInicio}
+                onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Fim estimado</label>
+              <input
+                type="date" value={form.dataFim}
+                onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+
+          <div className="mt-auto flex gap-2 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button
+              type="submit" disabled={saving}
+              className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Salvando…' : 'Alocar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Page ─── */
 
 export default function AlocacaoPage() {
   const router = useRouter();
@@ -2134,6 +2584,7 @@ export default function AlocacaoPage() {
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showNovoExternoModal, setShowNovoExternoModal] = useState(false);
   const [showNovaObraModal, setShowNovaObraModal] = useState(false);
+  const [showNovaAlocacaoPipeline, setShowNovaAlocacaoPipeline] = useState(false);
 
   // Filtros da Timeline
   const [filterSearch, setFilterSearch] = useState('');
@@ -2163,6 +2614,10 @@ export default function AlocacaoPage() {
     }).finally(() => setLoading(false));
   }, [perms.configuracoes]);
 
+  // Timeline/Obras/Recursos/Resumo só entendem alocação com obra real (contratada).
+  // Alocação de pipeline (origemTipo='pipeline', sem obra) só existe na aba Capacidade.
+  const alocacoesContratadas = useMemo(() => alocacoes.filter(isContratada), [alocacoes]);
+
   const conflicts = useMemo(() => detectConflicts(alocacoes), [alocacoes]);
 
   const capacityMap = useMemo(() => {
@@ -2180,7 +2635,7 @@ export default function AlocacaoPage() {
   }, [alocacoes]);
 
   const alocacoesFiltradas = useMemo(() => {
-    let result = alocacoes;
+    let result = alocacoesContratadas;
     if (filterOcultarEncerradas) {
       const today = new Date();
       result = result.filter(a => {
@@ -2199,7 +2654,7 @@ export default function AlocacaoPage() {
       result = result.filter(a => filterCargos.has(a.cargoNaAlocacao));
     }
     return result;
-  }, [alocacoes, filterSearch, filterCargos, filterOcultarEncerradas]);
+  }, [alocacoesContratadas, filterSearch, filterCargos, filterOcultarEncerradas]);
 
   function handleSaved(a: Alocacao) {
     setAlocacoes(prev => [a, ...prev]);
@@ -2286,6 +2741,7 @@ export default function AlocacaoPage() {
             { key: 'obras', label: 'Obras' },
             { key: 'recursos', label: 'Recursos' },
             { key: 'resumo', label: 'Resumo' },
+            { key: 'capacidade', label: 'Capacidade' },
           ] as { key: Tab; label: string; badge?: number }[]
         ).map(tab => (
           <button
@@ -2413,7 +2869,7 @@ export default function AlocacaoPage() {
 
                   {/* Filtro por cargo */}
                   <div className="flex flex-wrap items-center gap-1">
-                    {(['coordenador', 'gestor', 'mestre', 'ajudante'] as const).map(c => (
+                    {CARGO_ORDER_FULL.map(c => (
                       <button
                         key={c}
                         onClick={() =>
@@ -2458,7 +2914,7 @@ export default function AlocacaoPage() {
 
                   {/* Contador de resultados */}
                   <span className="text-[10px] text-gray-400">
-                    {alocacoesFiltradas.length}/{alocacoes.length} alocações
+                    {alocacoesFiltradas.length}/{alocacoesContratadas.length} alocações
                   </span>
                 </div>
 
@@ -2484,7 +2940,7 @@ export default function AlocacaoPage() {
             {activeTab === 'obras' && (
               <ObrasTab
                 obras={obras}
-                alocacoes={alocacoes}
+                alocacoes={alocacoesContratadas}
                 onAddedObra={o => setObras(prev => [...prev, o])}
                 onAlocar={obraId => openCreate(undefined, obraId)}
                 onDeletedObra={obraId => setObras(prev => prev.filter(o => o.id !== obraId))}
@@ -2497,7 +2953,7 @@ export default function AlocacaoPage() {
               <RecursosTab
                 users={users}
                 recursosExternos={recursosExternos}
-                alocacoes={alocacoes}
+                alocacoes={alocacoesContratadas}
                 onNovoExterno={() => openCreate()}
                 onOpenModal={prefillRecurso => openCreate(prefillRecurso)}
               />
@@ -2506,14 +2962,35 @@ export default function AlocacaoPage() {
             {/* ── CONFLITOS ── */}
             {activeTab === 'resumo' && (
               <ResumoTab
-                alocacoes={alocacoes}
+                alocacoes={alocacoesContratadas}
                 users={users}
                 recursosExternos={recursosExternos}
+              />
+            )}
+
+            {/* ── CAPACIDADE ── */}
+            {activeTab === 'capacidade' && (
+              <CapacidadeTab
+                alocacoes={alocacoes}
+                onNovaAlocacaoPipeline={() => setShowNovaAlocacaoPipeline(true)}
               />
             )}
           </>
         )}
       </div>
+
+      {/* Nova alocação em pipeline */}
+      {showNovaAlocacaoPipeline && (
+        <NovaAlocacaoPipelineModal
+          users={users}
+          recursosExternos={recursosExternos}
+          onClose={() => setShowNovaAlocacaoPipeline(false)}
+          onSaved={a => {
+            setAlocacoes(prev => [a, ...prev]);
+            setShowNovaAlocacaoPipeline(false);
+          }}
+        />
+      )}
 
       {/* Modal */}
       {modal.type !== 'none' && (
