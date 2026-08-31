@@ -1572,6 +1572,9 @@ function EnviarEmailModal({
   obraId, relatorioId, clienteEmailAtual, onClose,
 }: { obraId: string; relatorioId: string; clienteEmailAtual: string; onClose: () => void }) {
   const [email, setEmail] = useState(clienteEmailAtual);
+  const [emailFonte, setEmailFonte] = useState<'stakeholders' | 'obra' | 'manual' | 'nenhum'>(
+    clienteEmailAtual ? 'obra' : 'nenhum',
+  );
   const [cronograma, setCronograma] = useState<CronogramaResumo | null>(null);
   const [loadingCron, setLoadingCron] = useState(true);
   const [incluirCronograma, setIncluirCronograma] = useState(false);
@@ -1588,6 +1591,22 @@ function EnviarEmailModal({
       })
       .catch(() => {})
       .finally(() => setLoadingCron(false));
+  }, [obraId]);
+
+  // Destinatário padrão: stakeholders marcados "recebe relatório" (mesma
+  // regra que o backend já usa como fallback) — só cai no e-mail da obra se
+  // não tiver nenhum stakeholder configurado assim.
+  useEffect(() => {
+    api.get(`/obras/${obraId}/stakeholders`)
+      .then(r => {
+        const stks: { email: string | null; recebeRelatorio: boolean }[] = r.data?.data ?? [];
+        const emails = stks.filter(s => s.recebeRelatorio && s.email).map(s => s.email as string);
+        if (emails.length > 0) {
+          setEmail(emails.join(', '));
+          setEmailFonte('stakeholders');
+        }
+      })
+      .catch(() => {});
   }, [obraId]);
 
   async function handleUploadCronograma(file: File) {
@@ -1635,11 +1654,20 @@ function EnviarEmailModal({
 
         <label className="mb-1 block text-xs font-medium text-ber-carbon">E-mail do cliente</label>
         <input
-          className="fi mb-4"
+          className="fi mb-1"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={e => { setEmail(e.target.value); setEmailFonte('manual'); }}
           placeholder="separe múltiplos por vírgula"
         />
+        <p className="mb-4 text-[10px] text-ber-gray">
+          {emailFonte === 'stakeholders'
+            ? 'Puxado dos Stakeholders marcados "Recebe relatório"'
+            : emailFonte === 'obra'
+            ? 'E-mail cadastrado na obra (sem stakeholders configurados) — pode ajustar'
+            : emailFonte === 'nenhum'
+            ? 'Nenhum stakeholder nem e-mail cadastrado — preencha manualmente'
+            : 'Editado manualmente'}
+        </p>
 
         <div className="mb-4 rounded-lg border border-ber-border p-3">
           <p className="mb-1.5 text-xs font-medium text-ber-carbon">Cronograma da obra</p>
