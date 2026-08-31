@@ -1571,8 +1571,10 @@ interface CronogramaResumo { fileName: string; updatedAt: string }
 function EnviarEmailModal({
   obraId, relatorioId, clienteEmailAtual, onClose,
 }: { obraId: string; relatorioId: string; clienteEmailAtual: string; onClose: () => void }) {
-  const [email, setEmail] = useState(clienteEmailAtual);
-  const [emailFonte, setEmailFonte] = useState<'stakeholders' | 'obra' | 'manual' | 'nenhum'>(
+  const parseEmails = (raw: string) => raw.split(/[,;\s]+/).map(e => e.trim()).filter(Boolean);
+  const [emails, setEmails] = useState<string[]>(parseEmails(clienteEmailAtual));
+  const [emailInput, setEmailInput] = useState('');
+  const [emailFonte, setEmailFonte] = useState<'stakeholders' | 'obra' | 'nenhum'>(
     clienteEmailAtual ? 'obra' : 'nenhum',
   );
   const [cronograma, setCronograma] = useState<CronogramaResumo | null>(null);
@@ -1600,14 +1602,25 @@ function EnviarEmailModal({
     api.get(`/obras/${obraId}/stakeholders`)
       .then(r => {
         const stks: { email: string | null; recebeRelatorio: boolean }[] = r.data?.data ?? [];
-        const emails = stks.filter(s => s.recebeRelatorio && s.email).map(s => s.email as string);
-        if (emails.length > 0) {
-          setEmail(emails.join(', '));
+        const stkEmails = stks.filter(s => s.recebeRelatorio && s.email).map(s => s.email as string);
+        if (stkEmails.length > 0) {
+          setEmails(stkEmails);
           setEmailFonte('stakeholders');
         }
       })
       .catch(() => {});
   }, [obraId]);
+
+  function addEmail() {
+    const candidatos = parseEmails(emailInput);
+    if (candidatos.length === 0) return;
+    setEmails(prev => Array.from(new Set([...prev, ...candidatos])));
+    setEmailInput('');
+  }
+
+  function removeEmail(e: string) {
+    setEmails(prev => prev.filter(x => x !== e));
+  }
 
   async function handleUploadCronograma(file: File) {
     setUploadingCron(true);
@@ -1626,12 +1639,12 @@ function EnviarEmailModal({
   }
 
   async function handleSend() {
-    if (!email.trim()) { setError('Informe pelo menos um e-mail'); return; }
+    if (emails.length === 0) { setError('Informe pelo menos um e-mail'); return; }
     setSending(true);
     setError('');
     try {
       await api.post(`/obras/${obraId}/relatorios/${relatorioId}/enviar-email`, {
-        email,
+        email: emails.join(', '),
         incluirCronograma: incluirCronograma && !!cronograma,
       });
       alert('Relatório enviado ao cliente ✓');
@@ -1646,27 +1659,49 @@ function EnviarEmailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm font-bold text-ber-carbon">Enviar relatório por e-mail</p>
           <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon"><X size={16} /></button>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-ber-carbon">E-mail do cliente</label>
-        <input
-          className="fi mb-1"
-          value={email}
-          onChange={e => { setEmail(e.target.value); setEmailFonte('manual'); }}
-          placeholder="separe múltiplos por vírgula"
-        />
+        <label className="mb-1 block text-xs font-medium text-ber-carbon">Destinatários</label>
+
+        {emails.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {emails.map(e => (
+              <span key={e} className="flex items-center gap-1 rounded-full bg-ber-surface border border-ber-border px-2.5 py-1 text-[11px] text-ber-carbon">
+                {e}
+                <button type="button" onClick={() => removeEmail(e)} className="text-ber-gray hover:text-red-500">
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-1 flex gap-1.5">
+          <input
+            className="fi"
+            value={emailInput}
+            onChange={e => setEmailInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmail(); } }}
+            placeholder="adicionar e-mail (fora dos stakeholders)"
+          />
+          <button
+            type="button"
+            onClick={addEmail}
+            className="shrink-0 rounded-lg border border-ber-border px-3 text-sm font-semibold text-ber-carbon hover:bg-ber-surface"
+          >
+            +
+          </button>
+        </div>
         <p className="mb-4 text-[10px] text-ber-gray">
           {emailFonte === 'stakeholders'
-            ? 'Puxado dos Stakeholders marcados "Recebe relatório"'
+            ? 'Puxado dos Stakeholders marcados "Recebe relatório" — pode remover algum ou adicionar outros'
             : emailFonte === 'obra'
             ? 'E-mail cadastrado na obra (sem stakeholders configurados) — pode ajustar'
-            : emailFonte === 'nenhum'
-            ? 'Nenhum stakeholder nem e-mail cadastrado — preencha manualmente'
-            : 'Editado manualmente'}
+            : 'Nenhum stakeholder nem e-mail cadastrado — adicione manualmente'}
         </p>
 
         <div className="mb-4 rounded-lg border border-ber-border p-3">
