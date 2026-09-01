@@ -715,6 +715,17 @@ export default function ObraDetailPage() {
           } finally { setFvsSubmitting(false); }
         };
 
+        const saveObservacaoFvs = async (itemId: string, observacao: string) => {
+          try {
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { observacao: observacao || null });
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch {
+            alert('Erro ao salvar observação');
+          }
+        };
+
         const uploadFvsPhoto = async (itemId: string, file: File) => {
           setFvsSubmitting(true);
           try {
@@ -787,6 +798,15 @@ export default function ObraDetailPage() {
                             )}
                           </div>
                         )}
+                        {/* Observação */}
+                        <input
+                          key={item.id}
+                          defaultValue={item.observacao ?? ''}
+                          disabled={isLocked}
+                          placeholder="+ observação"
+                          onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim()); }}
+                          className="mt-1.5 w-full bg-transparent text-[11px] text-ber-gray placeholder:text-ber-gray/40 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
+                        />
                       </div>
                       {/* N/A toggle */}
                       {!isLocked && (
