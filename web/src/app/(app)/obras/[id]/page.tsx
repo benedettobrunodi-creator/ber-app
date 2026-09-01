@@ -1929,7 +1929,7 @@ export default function ObraDetailPage() {
                 </div>
               ) : (
                 /* Trilha vertical — cada fase é uma parada na vida da obra */
-                <div className="relative max-w-3xl">
+                <div className="relative">
                   {filtered.map((fvs, idx) => {
                     const code = fvs.template?.code ?? '';
                     const total = fvs.items.length;
