@@ -2,18 +2,20 @@ import { Router } from 'express';
 import multer from 'multer';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
-import { requireRole } from '../../middleware/rbac';
+import { requireRole, requireAnyRole } from '../../middleware/rbac';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
-// Folha é sensível: leitura financeiro+ · fechar/reabrir diretoria.
+// Folha é sensível: leitura financeiro+ · fechar/reabrir diretoria+financeiro
+// (liberado pra Carol em 01/09/26, pedido do Bruno — lista explícita, NÃO
+// requireRole, senão o nível mínimo cai e gestor/pmo/engenharia entram junto).
 const router = Router();
 router.use(authenticate);
 router.get('/preview', requireRole('financeiro', 'diretoria'), controller.preview);
 router.get('/fechamentos', requireRole('financeiro', 'diretoria'), controller.list);
 router.get('/export', requireRole('financeiro', 'diretoria'), controller.exportCsv);
-router.post('/fechar', requireRole('diretoria'), controller.fechar);
-router.post('/reabrir', requireRole('diretoria'), controller.reabrir);
+router.post('/fechar', requireAnyRole('diretoria', 'financeiro'), controller.fechar);
+router.post('/reabrir', requireAnyRole('diretoria', 'financeiro'), controller.reabrir);
 
 export default router;
 
