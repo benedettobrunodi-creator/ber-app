@@ -796,15 +796,23 @@ export default function ObraDetailPage() {
           const grouped = bySecao(sorted);
           if (fvsViewMode === 'lista') {
             return Object.entries(grouped).map(([secao, items]) => (
-              <div key={secao} className="mb-4 overflow-x-auto rounded-lg border border-ber-border">
-                <table className="w-full min-w-[720px] text-xs">
+              <div key={secao} className="mb-4 w-full overflow-x-auto rounded-lg border border-ber-border">
+                <table className="w-full min-w-[900px] table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-10" />
+                    <col />
+                    <col className="w-48" />
+                    <col className="w-36" />
+                    <col className="w-64" />
+                    <col className="w-16" />
+                  </colgroup>
                   <thead>
                     <tr className="bg-ber-offwhite text-ber-gray text-left">
-                      <th className="px-2 py-2 font-bold uppercase tracking-wide" colSpan={2}>{secao}</th>
-                      <th className="px-2 py-2 font-semibold w-40">Responsável</th>
-                      <th className="px-2 py-2 font-semibold w-32">Prazo</th>
-                      <th className="px-2 py-2 font-semibold">Observação</th>
-                      <th className="px-2 py-2 font-semibold w-16"></th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wide" colSpan={2}>{secao}</th>
+                      <th className="px-3 py-3 font-semibold">Responsável</th>
+                      <th className="px-3 py-3 font-semibold">Prazo</th>
+                      <th className="px-3 py-3 font-semibold">Observação</th>
+                      <th className="px-3 py-3 font-semibold"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -815,14 +823,14 @@ export default function ObraDetailPage() {
                       const canCheck = !blocked && !photoMissing;
                       return (
                         <tr key={item.id} className={`border-t border-ber-border/60 ${item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'}`}>
-                          <td className="px-2 py-1.5 align-top">
+                          <td className="px-3 py-3 align-top">
                             <input type="checkbox" checked={item.checked}
                               disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
                               onChange={() => toggleItem(item.id, 'checked')}
                               title={photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
                               className="h-4 w-4 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
                           </td>
-                          <td className={`px-2 py-1.5 align-top ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                          <td className={`px-3 py-3 align-top ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                             {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
                             {item.templateItem?.sourceItCode && (
                               <span className="mr-1.5 font-bold tabular-nums text-ber-gray/70">{item.templateItem.sourceItCode}</span>
@@ -841,12 +849,12 @@ export default function ObraDetailPage() {
                               </a>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 align-top">
+                          <td className="px-3 py-3 align-top">
                             <select
                               value={item.templateItem?.responsavelArea ?? ''}
                               disabled={isLocked || !item.templateItem}
                               onChange={e => item.templateItem && saveResponsavelArea(item.templateItem.id, e.target.value)}
-                              className="w-full text-xs bg-white border border-ber-gray/40 rounded px-1 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                              className="w-full text-sm bg-white border border-ber-gray/40 rounded px-2 py-1.5 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
                             >
                               <option value="">—</option>
                               <option value="PMO">PMO</option>
@@ -856,26 +864,26 @@ export default function ObraDetailPage() {
                               <option value="Comercial">Comercial</option>
                             </select>
                           </td>
-                          <td className="px-2 py-1.5 align-top">
+                          <td className="px-3 py-3 align-top">
                             <input
                               type="date"
                               defaultValue={item.dataLimite?.slice(0, 10) ?? ''}
                               disabled={isLocked}
                               title="Dispara aviso por e-mail se vencer sem preencher"
                               onBlur={e => { if (e.target.value !== (item.dataLimite?.slice(0, 10) ?? '')) saveDataLimiteFvs(item.id, e.target.value, item.na); }}
-                              className="w-full text-xs bg-white border border-ber-gray/40 rounded px-1 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                              className="w-full text-sm bg-white border border-ber-gray/40 rounded px-2 py-1.5 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
                             />
                           </td>
-                          <td className="px-2 py-1.5 align-top">
+                          <td className="px-3 py-3 align-top">
                             <input
                               defaultValue={item.observacao ?? ''}
                               disabled={isLocked}
                               placeholder="+ observação"
                               onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim(), item.na); }}
-                              className="w-full bg-transparent text-xs text-ber-carbon placeholder:text-ber-gray/50 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
+                              className="w-full bg-transparent text-sm text-ber-carbon placeholder:text-ber-gray/50 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
                             />
                           </td>
-                          <td className="px-2 py-1.5 align-top text-right">
+                          <td className="px-3 py-3 align-top text-right">
                             {!isLocked ? (
                               <button type="button" disabled={fvsSubmitting || (blocked && !item.na)}
                                 onClick={() => toggleItem(item.id, 'na')}
