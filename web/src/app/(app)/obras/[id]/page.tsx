@@ -304,6 +304,14 @@ export default function ObraDetailPage() {
   // Fases abertas na trilha. Bruno pediu que várias possam ficar abertas juntas.
   const [expandedFvs, setExpandedFvs] = useState<Set<string>>(new Set());
   const [fvsSubmitting, setFvsSubmitting] = useState(false);
+  const [fvsViewMode, setFvsViewMode] = useState<'lista' | 'card'>(() => {
+    if (typeof window === 'undefined') return 'lista';
+    return (localStorage.getItem('ber_fvs_view_mode') as 'lista' | 'card') || 'lista';
+  });
+  const setFvsViewModePersist = (mode: 'lista' | 'card') => {
+    setFvsViewMode(mode);
+    try { localStorage.setItem('ber_fvs_view_mode', mode); } catch {}
+  };
   const [fvsTemplates, setFvsTemplates] = useState<FvsTemplateType[]>([]);
   const [createFvsModal, setCreateFvsModal] = useState(false);
   const [createFvsTemplateId, setCreateFvsTemplateId] = useState('');
@@ -789,14 +797,14 @@ export default function ObraDetailPage() {
           return Object.entries(grouped).map(([secao, items]) => (
             <div key={secao} className="mb-4">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
-              <div className="space-y-1.5">
+              <div className={fvsViewMode === 'card' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2' : 'space-y-1.5'}>
                 {items.map(item => {
                   const blocked = isItemBlocked(item, sorted);
                   const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
                   const photoMissing = needsPhoto && !item.fotoUrl;
                   const canCheck = !blocked && !photoMissing;
                   return (
-                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${
+                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${fvsViewMode === 'card' ? 'border border-ber-border shadow-sm h-full' : ''} ${
                     item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : blocked ? 'bg-ber-offwhite/40 opacity-60' : 'hover:bg-ber-offwhite/60'
                   }`}>
                     <div className="flex items-start gap-2">
@@ -945,6 +953,23 @@ export default function ObraDetailPage() {
 
               {/* Body */}
               <div className="px-6 py-4">
+                {/* Alternar Lista/Card */}
+                <div className="mb-3 flex justify-end">
+                  <div className="inline-flex rounded-lg border border-ber-border overflow-hidden text-xs font-semibold">
+                    <button
+                      onClick={() => setFvsViewModePersist('lista')}
+                      className={`px-3 py-1.5 transition-colors ${fvsViewMode === 'lista' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-offwhite'}`}
+                    >
+                      ☰ Lista
+                    </button>
+                    <button
+                      onClick={() => setFvsViewModePersist('card')}
+                      className={`px-3 py-1.5 transition-colors border-l border-ber-border ${fvsViewMode === 'card' ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-offwhite'}`}
+                    >
+                      ▦ Card
+                    </button>
+                  </div>
+                </div>
                 {/* Seção Início */}
                 {inicioItems.length > 0 && (
                   <div className="mb-6">
