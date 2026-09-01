@@ -254,7 +254,7 @@ export default function ControleDocumentosPage() {
         ) : (
           <div className="flex flex-col items-center gap-1 text-ber-gray">
             <UploadCloud size={22} />
-            <p className="text-sm">Arraste PDFs aqui pra criar/atualizar documentos em massa (ou clique pra escolher)</p>
+            <p className="text-sm">Arraste arquivos aqui pra criar/atualizar documentos em massa (ou clique pra escolher) — PDF, DWG, planilha, imagem, qualquer tipo</p>
             <p className="text-[11px]">Código e revisão detectados do nome do arquivo quando possível — corrige depois na lista</p>
           </div>
         )}

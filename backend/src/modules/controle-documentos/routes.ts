@@ -6,7 +6,10 @@ import { requireRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
 import { createDocumentoSchema, updateDocumentoSchema, createRevisaoSchema } from './types';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+// Sem restrição de tipo (fileFilter) — aceita PDF, DWG, planilha, imagem etc.
+// Limite de tamanho generoso (storage é barato, ver análise de custo R2 31/08) —
+// cobre arquivo CAD nativo grande sem travar por engano.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 // Montado em /v1/obras/:id/controle-documentos — NÃO confundir com
 // /v1/obras/:obraId/documentos (módulo distinto, Gestão 360, 1 revisão em
