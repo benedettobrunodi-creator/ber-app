@@ -794,17 +794,119 @@ export default function ObraDetailPage() {
         const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
           const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
           const grouped = bySecao(sorted);
+          if (fvsViewMode === 'lista') {
+            return Object.entries(grouped).map(([secao, items]) => (
+              <div key={secao} className="mb-4 overflow-x-auto rounded-lg border border-ber-border">
+                <table className="w-full min-w-[720px] text-xs">
+                  <thead>
+                    <tr className="bg-ber-offwhite text-ber-gray text-left">
+                      <th className="px-2 py-2 font-bold uppercase tracking-wide" colSpan={2}>{secao}</th>
+                      <th className="px-2 py-2 font-semibold w-40">Responsável</th>
+                      <th className="px-2 py-2 font-semibold w-32">Prazo</th>
+                      <th className="px-2 py-2 font-semibold">Observação</th>
+                      <th className="px-2 py-2 font-semibold w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(item => {
+                      const blocked = isItemBlocked(item, sorted);
+                      const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
+                      const photoMissing = needsPhoto && !item.fotoUrl;
+                      const canCheck = !blocked && !photoMissing;
+                      return (
+                        <tr key={item.id} className={`border-t border-ber-border/60 ${item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : 'hover:bg-ber-offwhite/60'}`}>
+                          <td className="px-2 py-1.5 align-top">
+                            <input type="checkbox" checked={item.checked}
+                              disabled={isLocked || fvsSubmitting || item.na || (!item.checked && !canCheck)}
+                              onChange={() => toggleItem(item.id, 'checked')}
+                              title={photoMissing ? 'Adicione a foto obrigatória primeiro' : ''}
+                              className="h-4 w-4 cursor-pointer rounded accent-green-500 disabled:cursor-not-allowed disabled:opacity-40" />
+                          </td>
+                          <td className={`px-2 py-1.5 align-top ${item.na ? 'text-gray-400 line-through' : item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
+                            {needsPhoto && <span className="mr-1 text-amber-500">📷</span>}
+                            {item.templateItem?.sourceItCode && (
+                              <span className="mr-1.5 font-bold tabular-nums text-ber-gray/70">{item.templateItem.sourceItCode}</span>
+                            )}
+                            {item.templateItem?.descricao ?? item.descricao}
+                            {needsPhoto && !item.fotoUrl && !isLocked && (
+                              <label className="ml-2 inline-flex cursor-pointer items-center gap-1 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 hover:bg-amber-50">
+                                <Camera size={10} /> Foto
+                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
+                              </label>
+                            )}
+                            {item.fotoUrl && (
+                              <a href={item.fotoUrl} target="_blank" rel="noreferrer" className="ml-2 inline-block align-middle">
+                                <img src={item.fotoUrl} alt="foto" className="h-6 w-6 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <select
+                              value={item.templateItem?.responsavelArea ?? ''}
+                              disabled={isLocked || !item.templateItem}
+                              onChange={e => item.templateItem && saveResponsavelArea(item.templateItem.id, e.target.value)}
+                              className="w-full text-xs bg-white border border-ber-gray/40 rounded px-1 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                            >
+                              <option value="">—</option>
+                              <option value="PMO">PMO</option>
+                              <option value="Engenharia">Engenharia</option>
+                              <option value="Compras">Compras</option>
+                              <option value="Financeiro">Financeiro</option>
+                              <option value="Comercial">Comercial</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <input
+                              type="date"
+                              defaultValue={item.dataLimite?.slice(0, 10) ?? ''}
+                              disabled={isLocked}
+                              title="Dispara aviso por e-mail se vencer sem preencher"
+                              onBlur={e => { if (e.target.value !== (item.dataLimite?.slice(0, 10) ?? '')) saveDataLimiteFvs(item.id, e.target.value, item.na); }}
+                              className="w-full text-xs bg-white border border-ber-gray/40 rounded px-1 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <input
+                              defaultValue={item.observacao ?? ''}
+                              disabled={isLocked}
+                              placeholder="+ observação"
+                              onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim(), item.na); }}
+                              className="w-full bg-transparent text-xs text-ber-carbon placeholder:text-ber-gray/50 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 align-top text-right">
+                            {!isLocked ? (
+                              <button type="button" disabled={fvsSubmitting || (blocked && !item.na)}
+                                onClick={() => toggleItem(item.id, 'na')}
+                                title={item.na ? 'Desmarcar N/A' : 'Marcar como Não Aplicável'}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-40 ${item.na ? 'bg-gray-300 text-gray-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                N/A
+                              </button>
+                            ) : item.na ? (
+                              <span className="rounded px-1.5 py-0.5 text-[10px] font-bold bg-gray-200 text-gray-500">N/A</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ));
+          }
+
           return Object.entries(grouped).map(([secao, items]) => (
             <div key={secao} className="mb-4">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
-              <div className={fvsViewMode === 'card' ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2' : 'space-y-1.5'}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                 {items.map(item => {
                   const blocked = isItemBlocked(item, sorted);
                   const needsPhoto = item.templateItem?.fotoObrigatoria ?? false;
                   const photoMissing = needsPhoto && !item.fotoUrl;
                   const canCheck = !blocked && !photoMissing;
                   return (
-                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors ${fvsViewMode === 'card' ? 'border border-ber-border shadow-sm h-full' : ''} ${
+                  <div key={item.id} className={`rounded-lg p-2.5 transition-colors border border-ber-border shadow-sm h-full ${
                     item.na ? 'bg-gray-50' : item.checked ? 'bg-green-50' : blocked ? 'bg-ber-offwhite/40 opacity-60' : 'hover:bg-ber-offwhite/60'
                   }`}>
                     <div className="flex items-start gap-2">
