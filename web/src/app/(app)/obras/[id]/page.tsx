@@ -835,38 +835,45 @@ export default function ObraDetailPage() {
                             )}
                           </div>
                         )}
-                        {/* Observação */}
-                        <input
-                          key={item.id}
-                          defaultValue={item.observacao ?? ''}
-                          disabled={isLocked}
-                          placeholder="+ observação"
-                          onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim(), item.na); }}
-                          className="mt-1.5 w-full bg-transparent text-[11px] text-ber-gray placeholder:text-ber-gray/40 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
-                        />
-                        {/* Responsável + Prazo */}
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <select
-                            value={item.templateItem?.responsavelArea ?? ''}
-                            disabled={isLocked || !item.templateItem}
-                            onChange={e => item.templateItem && saveResponsavelArea(item.templateItem.id, e.target.value)}
-                            className="text-[10px] bg-transparent border border-ber-gray/20 rounded px-1 py-0.5 text-ber-gray hover:border-ber-gray/40 focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
-                          >
-                            <option value="">Área —</option>
-                            <option value="PMO">PMO</option>
-                            <option value="Engenharia">Engenharia</option>
-                            <option value="Compras">Compras</option>
-                            <option value="Financeiro">Financeiro</option>
-                            <option value="Comercial">Comercial</option>
-                          </select>
+                        {/* Observação + Responsável + Prazo — bloco com destaque, senão passa despercebido */}
+                        <div className="mt-2 rounded-lg border border-ber-gray/25 bg-ber-offwhite/50 p-2 space-y-1.5">
                           <input
-                            type="date"
-                            defaultValue={item.dataLimite?.slice(0, 10) ?? ''}
+                            key={item.id}
+                            defaultValue={item.observacao ?? ''}
                             disabled={isLocked}
-                            title="Prazo — dispara aviso por e-mail se vencer sem preencher"
-                            onBlur={e => { if (e.target.value !== (item.dataLimite?.slice(0, 10) ?? '')) saveDataLimiteFvs(item.id, e.target.value, item.na); }}
-                            className="text-[10px] bg-transparent border border-ber-gray/20 rounded px-1 py-0.5 text-ber-gray hover:border-ber-gray/40 focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                            placeholder="+ observação"
+                            onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim(), item.na); }}
+                            className="w-full bg-transparent text-xs font-medium text-ber-carbon placeholder:text-ber-gray/60 placeholder:font-normal border-b border-ber-gray/20 pb-1 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
                           />
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-ber-carbon/70">
+                              Responsável:
+                              <select
+                                value={item.templateItem?.responsavelArea ?? ''}
+                                disabled={isLocked || !item.templateItem}
+                                onChange={e => item.templateItem && saveResponsavelArea(item.templateItem.id, e.target.value)}
+                                className="text-xs font-semibold bg-white border border-ber-gray/40 rounded px-1.5 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                              >
+                                <option value="">—</option>
+                                <option value="PMO">PMO</option>
+                                <option value="Engenharia">Engenharia</option>
+                                <option value="Compras">Compras</option>
+                                <option value="Financeiro">Financeiro</option>
+                                <option value="Comercial">Comercial</option>
+                              </select>
+                            </label>
+                            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-ber-carbon/70">
+                              Prazo:
+                              <input
+                                type="date"
+                                defaultValue={item.dataLimite?.slice(0, 10) ?? ''}
+                                disabled={isLocked}
+                                title="Dispara aviso por e-mail se vencer sem preencher"
+                                onBlur={e => { if (e.target.value !== (item.dataLimite?.slice(0, 10) ?? '')) saveDataLimiteFvs(item.id, e.target.value, item.na); }}
+                                className="text-xs font-semibold bg-white border border-ber-gray/40 rounded px-1.5 py-1 text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                              />
+                            </label>
+                          </div>
                         </div>
                       </div>
                       {/* N/A toggle */}
