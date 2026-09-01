@@ -70,10 +70,11 @@ interface FvsTemplateType {
 }
 interface FvsTemplateItemType {
   id: string; momento: string; secao: string | null; descricao: string; obrigatorio: boolean; ordem: number;
-  fotoObrigatoria?: boolean; sourceItCode?: string | null;
+  fotoObrigatoria?: boolean; sourceItCode?: string | null; responsavelArea?: string | null;
 }
 interface ObraFvsItemType {
   id: string; momento: string; descricao: string | null; checked: boolean; na: boolean; observacao: string | null; fotoUrl: string | null; filledAt: string | null;
+  dataLimite?: string | null;
   templateItem: FvsTemplateItemType | null;
   filler: { id: string; name: string } | null;
 }
@@ -715,14 +716,50 @@ export default function ObraDetailPage() {
           } finally { setFvsSubmitting(false); }
         };
 
-        const saveObservacaoFvs = async (itemId: string, observacao: string) => {
+        const saveObservacaoFvs = async (itemId: string, observacao: string, currentNa: boolean) => {
           try {
-            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { observacao: observacao || null });
+            // manda "na" explícito pra impedir o backend de assumir checked=true
+            // por omissão (regra existente: sem "na" nem "checked" no corpo, ele
+            // marca o item como concluído — pensada pro fluxo de foto, não serve
+            // pra uma edição de observação avulsa).
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { observacao: observacao || null, na: currentNa });
             const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch {
             alert('Erro ao salvar observação');
+          }
+        };
+
+        // Prazo é por obra (ObraFvsItem) — quando vence e o item segue em
+        // aberto, dispara o e-mail pra área responsável (job diário 08h15).
+        const saveDataLimiteFvs = async (itemId: string, dataLimite: string, currentNa: boolean) => {
+          try {
+            const r = await api.patch(`/obra-fvs/${fvs.id}/items/${itemId}`, { dataLimite: dataLimite || null, na: currentNa });
+            const updated = { ...fvs, items: fvs.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch {
+            alert('Erro ao salvar prazo');
+          }
+        };
+
+        // Área responsável é do TEMPLATE do item (compartilhado entre todas as
+        // obras que usam esse checklist) — igual à seção, é atribuição
+        // organizacional, não específica desta obra.
+        const saveResponsavelArea = async (templateItemId: string, responsavelArea: string) => {
+          try {
+            await api.patch(`/fvs-templates/items/${templateItemId}`, { responsavelArea: responsavelArea || null });
+            const updated = {
+              ...fvs,
+              items: fvs.items.map(i => i.templateItem?.id === templateItemId && i.templateItem
+                ? { ...i, templateItem: { ...i.templateItem, responsavelArea } }
+                : i),
+            };
+            setActiveFvs(updated);
+            setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
+          } catch {
+            alert('Erro ao salvar área responsável');
           }
         };
 
@@ -804,9 +841,33 @@ export default function ObraDetailPage() {
                           defaultValue={item.observacao ?? ''}
                           disabled={isLocked}
                           placeholder="+ observação"
-                          onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim()); }}
+                          onBlur={e => { if (e.target.value !== (item.observacao ?? '')) saveObservacaoFvs(item.id, e.target.value.trim(), item.na); }}
                           className="mt-1.5 w-full bg-transparent text-[11px] text-ber-gray placeholder:text-ber-gray/40 border-b border-transparent hover:border-ber-gray/20 focus:border-ber-teal focus:outline-none disabled:cursor-not-allowed"
                         />
+                        {/* Responsável + Prazo */}
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <select
+                            value={item.templateItem?.responsavelArea ?? ''}
+                            disabled={isLocked || !item.templateItem}
+                            onChange={e => item.templateItem && saveResponsavelArea(item.templateItem.id, e.target.value)}
+                            className="text-[10px] bg-transparent border border-ber-gray/20 rounded px-1 py-0.5 text-ber-gray hover:border-ber-gray/40 focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                          >
+                            <option value="">Área —</option>
+                            <option value="PMO">PMO</option>
+                            <option value="Engenharia">Engenharia</option>
+                            <option value="Compras">Compras</option>
+                            <option value="Financeiro">Financeiro</option>
+                            <option value="Comercial">Comercial</option>
+                          </select>
+                          <input
+                            type="date"
+                            defaultValue={item.dataLimite?.slice(0, 10) ?? ''}
+                            disabled={isLocked}
+                            title="Prazo — dispara aviso por e-mail se vencer sem preencher"
+                            onBlur={e => { if (e.target.value !== (item.dataLimite?.slice(0, 10) ?? '')) saveDataLimiteFvs(item.id, e.target.value, item.na); }}
+                            className="text-[10px] bg-transparent border border-ber-gray/20 rounded px-1 py-0.5 text-ber-gray hover:border-ber-gray/40 focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </div>
                       {/* N/A toggle */}
                       {!isLocked && (

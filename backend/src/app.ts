@@ -308,10 +308,11 @@ app.use('/v1/api-keys', apiKeysRoutes);
 
 // FVS (sub-obras — requer perm obras)
 import { obraFvsRouter, fvsRouter } from './modules/fvs/routes';
-import { listTemplates } from './modules/fvs/controller';
+import { listTemplates, updateTemplateItem } from './modules/fvs/controller';
 app.use('/v1/obras/:id', ...perm('obras'), obraFvsRouter);
 app.use('/v1/obra-fvs', ...perm('obras'), fvsRouter);
 app.get('/v1/fvs-templates', ...perm('obras'), listTemplates as any);
+app.patch('/v1/fvs-templates/items/:itemId', ...perm('obras'), updateTemplateItem as any);
 
 // Módulo de Fotos (sub-obras — requer perm obras)
 import * as fotosCtrl from './modules/fotos/controller';

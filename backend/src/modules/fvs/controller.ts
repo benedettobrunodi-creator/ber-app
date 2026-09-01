@@ -49,6 +49,23 @@ export async function listTemplates(_req: Request, res: Response) {
   sendSuccess(res, templates);
 }
 
+const RESPONSAVEL_AREAS = ['PMO', 'Engenharia', 'Compras', 'Financeiro', 'Comercial'] as const;
+
+// PATCH /v1/fvs-templates/items/:itemId — só o campo de área responsável por
+// enquanto (secao já foi populado direto via script, 31/08/26).
+export async function updateTemplateItem(req: Request, res: Response) {
+  const { itemId } = req.params;
+  const { responsavelArea } = req.body;
+  if (responsavelArea !== null && responsavelArea !== undefined && !RESPONSAVEL_AREAS.includes(responsavelArea)) {
+    throw AppError.badRequest(`responsavelArea deve ser um de: ${RESPONSAVEL_AREAS.join(', ')}`);
+  }
+  const item = await prisma.fvsTemplateItem.update({
+    where: { id: itemId },
+    data: { responsavelArea: responsavelArea ?? null },
+  });
+  sendSuccess(res, item);
+}
+
 // POST /obras/:id/etapas/:etapaId/fvs
 export async function createFvs(req: Request, res: Response) {
   const { id: obraId, etapaId } = req.params;
@@ -100,7 +117,7 @@ export async function createFvs(req: Request, res: Response) {
 // PATCH /obra-fvs/:fvsId/items/:itemId
 export async function checkItem(req: Request, res: Response) {
   const { fvsId, itemId } = req.params;
-  const { checked, observacao, fotoUrl, na } = req.body;
+  const { checked, observacao, fotoUrl, na, dataLimite } = req.body;
   const userId = (req as any).user?.id;
 
   const fvs = await prisma.obraFvs.findUnique({
@@ -135,6 +152,7 @@ export async function checkItem(req: Request, res: Response) {
   }
   if (observacao !== undefined) updateData.observacao = observacao;
   if (fotoUrl !== undefined) updateData.fotoUrl = fotoUrl;
+  if (dataLimite !== undefined) updateData.dataLimite = dataLimite ? new Date(dataLimite) : null;
 
   const item = await prisma.obraFvsItem.update({
     where: { id: itemId },

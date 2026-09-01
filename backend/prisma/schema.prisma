@@ -1185,6 +1185,7 @@ model FvsTemplateItem {
   fotoObrigatoria Boolean       @default(true) @map("foto_obrigatoria")
   sourceItCode    String?       @map("source_it_code") @db.VarChar(20)
   ordem           Int           @default(0)
+  responsavelArea String?       @map("responsavel_area") @db.VarChar(20) // PMO | Engenharia | Compras | Financeiro | Comercial
   createdAt       DateTime      @default(now()) @map("created_at")
   template        FvsTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
   responses       ObraFvsItem[]
@@ -1231,6 +1232,7 @@ model ObraFvsItem {
   fotoUrl        String?          @map("foto_url")
   filledAt       DateTime?        @map("filled_at")
   filledBy       String?          @map("filled_by") @db.Uuid
+  dataLimite     DateTime?        @map("data_limite") @db.Date
   fvs            ObraFvs          @relation(fields: [fvsId], references: [id], onDelete: Cascade)
   templateItem   FvsTemplateItem? @relation(fields: [templateItemId], references: [id])
   filler         User?            @relation("FvsItemFiller", fields: [filledBy], references: [id])

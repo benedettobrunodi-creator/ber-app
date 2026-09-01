@@ -6,6 +6,7 @@ import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 // import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
 import { checkCrmAlerts } from '../modules/crm/alerts';
+import { checkFvsItensVencidos } from '../modules/fvs/alerts';
 import { obrasComQuinzenalAtrasada } from '../modules/temperatura/service';
 
 export function startScheduler() {
@@ -65,7 +66,18 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), Temperatura quinzenal (09h seg-sex)');
+  // Sequenciamento (FVS) — itens com prazo vencido — diariamente às 08h15 (BRT)
+  cron.schedule('15 8 * * *', async () => {
+    console.log('[Scheduler] FVS itens vencidos iniciado...');
+    try {
+      const r = await checkFvsItensVencidos();
+      console.log(`[Scheduler] FVS itens vencidos concluído — ${r.itensVencidos} itens, ${r.alertasEnviados} e-mails de área`);
+    } catch (err) {
+      console.error('[Scheduler] FVS itens vencidos falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), Temperatura quinzenal (09h seg-sex)');
 }
 
 async function checkTemperaturaQuinzenal() {
