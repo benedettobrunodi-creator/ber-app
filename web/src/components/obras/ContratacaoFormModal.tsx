@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import api from '@/lib/api';
+import { parseValorBRL } from '@/lib/valor-brl';
 
 export interface Contratacao {
   id: string;
@@ -101,7 +102,7 @@ export function ContratacaoFormModal({ obraId, edit, onClose, onSaved }: Contrat
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const valor = Number(form.valor.replace(',', '.'));
+    const valor = parseValorBRL(form.valor);
     if (!form.fornecedor.trim() || isNaN(valor) || valor <= 0) {
       setError('Preencha fornecedor e valor.');
       return;
@@ -176,7 +177,7 @@ export function OcFormModal({ obraId, contratacoes, edit, onClose, onSaved }: Oc
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const valor = Number(form.valor.replace(',', '.'));
+    const valor = parseValorBRL(form.valor);
     if (!form.numero.trim() || !form.descricao.trim() || !form.fornecedor.trim() || isNaN(valor) || valor <= 0) {
       setError('Preencha número, descrição, fornecedor e valor.');
       return;

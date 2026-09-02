@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
 import api from '@/lib/api';
+import { parseValorBRL } from '@/lib/valor-brl';
 import { X } from 'lucide-react';
 
 const novaObraSchema = z.object({
@@ -81,11 +82,11 @@ export default function NovaObraModal({ onClose, onCreated, initial, title }: No
       if (data.arquiteturaEscritorio) body.arquiteturaEscritorio = data.arquiteturaEscritorio;
       if (data.gerenciadora) body.gerenciadora = data.gerenciadora;
       if (data.areaM2) {
-        const area = Number(data.areaM2.replace(',', '.'));
+        const area = parseValorBRL(data.areaM2);
         if (!isNaN(area) && area > 0) body.areaM2 = area;
       }
       if (data.valorContrato) {
-        const vc = Number(data.valorContrato.replace(',', '.'));
+        const vc = parseValorBRL(data.valorContrato);
         if (!isNaN(vc) && vc > 0) body.valorContrato = vc;
       }
       if (initial?.crmOportunidadeId) body.crmOportunidadeId = initial.crmOportunidadeId;

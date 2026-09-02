@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import api from '@/lib/api';
+import { parseValorBRL } from '@/lib/valor-brl';
 
 const errMsg = (err: unknown, fallback: string) => {
   const msg = (err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error;
@@ -25,9 +26,14 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
     setSaving(true);
     setError('');
     try {
-      const valor = Number(form.valor.replace(',', '.'));
-      if (!form.numero.trim() || !form.descricao.trim() || isNaN(valor) || valor <= 0) {
-        setError('Preencha número, descrição e valor (> 0).');
+      const valor = parseValorBRL(form.valor);
+      if (!form.numero.trim() || !form.descricao.trim()) {
+        setError('Preencha número e descrição.');
+        setSaving(false);
+        return;
+      }
+      if (isNaN(valor) || valor <= 0) {
+        setError('Valor inválido — informe como 15.000,00 ou 15000,00.');
         setSaving(false);
         return;
       }
@@ -79,7 +85,7 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
           </div>
           <div>
             <label className={labelCls}>Valor (R$) *</label>
-            <input value={form.valor} onChange={e => setForm(p => ({ ...p, valor: e.target.value }))} inputMode="decimal" placeholder="Ex: 15000.00" required className={inputCls} />
+            <input value={form.valor} onChange={e => setForm(p => ({ ...p, valor: e.target.value }))} inputMode="decimal" placeholder="Ex: 15.000,00" required className={inputCls} />
           </div>
           <div>
             <label className={labelCls}>Motivo (opcional)</label>

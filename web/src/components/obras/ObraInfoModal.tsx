@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import api from '@/lib/api';
+import { parseValorBRL } from '@/lib/valor-brl';
 
 interface ObraInfoPayload {
   client: string | null;
@@ -83,9 +84,9 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
         dataInicioObra: form.dataInicioObra || null,
         dataFimObra: form.dataFimObra || null,
       };
-      const area = Number(form.areaM2?.replace(',', '.'));
+      const area = parseValorBRL(form.areaM2);
       body.areaM2 = !isNaN(area) && area > 0 ? area : null;
-      const vc = Number(form.valorContrato?.replace(',', '.'));
+      const vc = parseValorBRL(form.valorContrato);
       body.valorContrato = !isNaN(vc) && vc > 0 ? vc : null;
 
       await api.put(`/obras/${obraId}`, body);
