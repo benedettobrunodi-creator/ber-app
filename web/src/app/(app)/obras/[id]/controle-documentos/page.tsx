@@ -275,7 +275,15 @@ export default function ControleDocumentosPage() {
   }
 
   return (
-    <div className="w-full max-w-[1200px] pb-24">
+    <div className="w-full pb-24"
+      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={e => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files?.length) handleBulkFiles(e.dataTransfer.files); }}>
+      {dragOver && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-ber-teal/10 backdrop-blur-[1px]">
+          <div className="rounded-2xl border-2 border-dashed border-ber-teal bg-white px-8 py-6 text-lg font-bold text-ber-teal shadow-xl">Solte os arquivos pra inserir</div>
+        </div>
+      )}
       <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Voltar à obra
       </Link>
@@ -285,48 +293,43 @@ export default function ControleDocumentosPage() {
           Controle de Documentos
           {obraNome && <span className="rounded-md bg-ber-carbon px-2 py-0.5 text-sm font-bold text-white">{obraNome}</span>}
         </h1>
-        <button onClick={openCreate} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90">
-          <Plus size={16} /> Novo documento
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => bulkInput.current?.click()} disabled={bulkUploading}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90 disabled:opacity-60"
+            title="Sobe vários arquivos de uma vez — código e revisão detectados do nome; ou arraste os arquivos pra qualquer lugar da página">
+            <Upload size={15} /> {bulkUploading ? 'Subindo…' : 'Inserir arquivos'}
+          </button>
+          <button onClick={openCreate} className="inline-flex items-center gap-1.5 text-sm font-semibold border border-ber-border bg-white text-ber-carbon rounded-lg px-3.5 py-2 hover:bg-ber-offwhite">
+            <Plus size={16} /> Novo documento
+          </button>
+        </div>
       </div>
 
       <input ref={bulkInput} type="file" multiple className="hidden"
         onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
 
-      {/* ─── Barra de setores (mockup Bruno 02/09) ─── */}
-      <div className="mb-3 flex items-stretch gap-2 flex-wrap">
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleBulkFiles(e.dataTransfer.files); }}
-          onClick={() => bulkInput.current?.click()}
-          className={`cursor-pointer rounded-xl px-5 py-3 text-center font-bold text-white transition-colors ${dragOver ? 'bg-ber-teal' : 'bg-ber-carbon hover:bg-ber-black'}`}
-          title="Clique ou arraste arquivos aqui — código e revisão detectados do nome quando possível"
-        >
-          <div className="text-sm leading-tight">{bulkUploading ? 'Subindo…' : 'Inserir'}</div>
-          <div className="text-lg leading-none">+</div>
-        </div>
-
-        {([
-          { key: 'todos', label: 'Todos' },
-          { key: 'arquitetura', label: 'Arquitetura' },
-          { key: 'tecnicos', label: 'Técnicos' },
-          { key: 'outros', label: 'Outros Documentos' },
-        ] as { key: Setor; label: string }[]).map(t => (
-          <button key={t.key}
-            onClick={() => { setSetor(t.key); setSubTecnico(null); }}
-            className={`self-center rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${setor === t.key ? 'bg-ber-teal text-white' : 'bg-ber-carbon/90 text-white hover:bg-ber-carbon'}`}>
-            {t.label}
-          </button>
-        ))}
-
-        <button
-          onClick={() => { setSetor('obsoletos'); setSubTecnico(null); }}
-          className={`ml-auto rounded-xl px-5 py-3 text-center font-bold transition-colors ${setor === 'obsoletos' ? 'bg-amber-600 text-white' : 'bg-ber-carbon text-white hover:bg-ber-black'}`}
-          title="Desenhos que saíram de uso">
-          <div className="text-sm leading-tight">Obsoletos</div>
-          <div className="text-xs leading-none mt-0.5">{obsoletosCount > 0 ? obsoletosCount : '—'}</div>
-        </button>
+      {/* ─── Setores — abas no padrão do app ─── */}
+      <div className="mb-4 border-b border-ber-border">
+        <nav className="-mb-px flex gap-1 overflow-x-auto">
+          {([
+            { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
+            { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
+            { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
+            { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
+            { key: 'obsoletos', label: 'Obsoletos', count: obsoletosCount },
+          ] as { key: Setor; label: string; count: number }[]).map(t => (
+            <button key={t.key}
+              onClick={() => { setSetor(t.key); setSubTecnico(null); }}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13px] font-semibold transition-colors ${
+                setor === t.key
+                  ? (t.key === 'obsoletos' ? 'border-amber-500 text-amber-700' : 'border-ber-olive text-ber-carbon')
+                  : 'border-transparent text-ber-gray hover:text-ber-carbon'
+              } ${t.key === 'obsoletos' ? 'ml-auto' : ''}`}>
+              {t.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${setor === t.key ? 'bg-ber-carbon/10 text-ber-carbon' : 'bg-ber-gray/10 text-ber-gray'}`}>{t.count}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Sub-áreas de Projetos Técnicos */}
