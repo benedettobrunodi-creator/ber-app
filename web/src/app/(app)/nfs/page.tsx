@@ -164,7 +164,7 @@ export default function NfsPage() {
                 <div>
                   <label className="block text-xs font-semibold text-ber-carbon mb-1">Valor (R$) *</label>
                   <input value={valor} onChange={(e) => setValor(e.target.value)} required inputMode="decimal"
-                    className="w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:border-ber-olive" placeholder="ex: 8500,00" />
+                    className="w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:border-ber-olive" placeholder="ex: 9.000,00" />
                 </div>
               </div>
               <div>

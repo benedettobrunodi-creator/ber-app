@@ -32,10 +32,30 @@ export async function minhaNf(req: Request, res: Response) {
   sendSuccess(res, await nfService.minhaNf(req.user!.userId, String(req.query.competencia ?? '')));
 }
 
+/**
+ * Aceita valor em formato brasileiro ou americano: "9.000,00", "9000,00",
+ * "9000.00", "9000", "R$ 9.000,00". (02/09/26 — "9.000,00" virava NaN e o
+ * colaborador ficava preso no erro; caso real do Josué.)
+ */
+export function parseValorBRL(raw: unknown): number {
+  let s = String(raw ?? '').trim().replace(/^R\$\s*/i, '').replace(/\s/g, '');
+  if (s.includes('.') && s.includes(',')) {
+    // "9.000,00" — ponto = milhar, vírgula = decimal
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',')) {
+    // "9000,00" — vírgula decimal
+    s = s.replace(',', '.');
+  } else if (/\.\d{3}$/.test(s)) {
+    // "9.000" — ponto de milhar sem casas decimais
+    s = s.replace(/\./g, '');
+  }
+  return Math.round(Number(s) * 100);
+}
+
 export async function enviarNf(req: Request, res: Response) {
   const file = (req as Request & { file?: { buffer: Buffer; originalname: string; mimetype: string } }).file;
   if (!file) { res.status(400).json({ success: false, error: { message: 'Arquivo da NF é obrigatório (PDF ou XML)' } }); return; }
-  const valorCentavos = Math.round(Number(String(req.body?.valor ?? '').replace(',', '.')) * 100);
+  const valorCentavos = parseValorBRL(req.body?.valor);
   sendSuccess(res, await nfService.enviarNf(
     req.user!.userId,
     String(req.body?.competencia ?? ''),

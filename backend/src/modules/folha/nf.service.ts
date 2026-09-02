@@ -61,7 +61,7 @@ export async function enviarNf(
   const fechamento = await fechamentoFechado(competencia);
   if (!fechamento) throw AppError.badRequest('A competência ainda não foi fechada pelo financeiro. Aguarde o fechamento do mês para enviar a NF.');
   if (!input.numero?.trim()) throw AppError.badRequest('Informe o número da NF');
-  if (!Number.isInteger(input.valorCentavos) || input.valorCentavos <= 0) throw AppError.badRequest('Valor da NF inválido');
+  if (!Number.isInteger(input.valorCentavos) || input.valorCentavos <= 0) throw AppError.badRequest('Valor da NF inválido — informe como 9.000,00 ou 9000,00');
 
   const existente = await prisma.colaboradorNF.findUnique({
     where: { userId_competencia: { userId, competencia: compDate(competencia) } },
