@@ -18,6 +18,7 @@ export const DOCUMENTO_DISCIPLINAS = [
   'Mobiliário',
   'Marcenaria',
   'Shop Drawings - Outros',
+  'Projetos Técnicos - Outros',
   'Comunicação Visual',
   'Interiores',
   'Paisagismo',

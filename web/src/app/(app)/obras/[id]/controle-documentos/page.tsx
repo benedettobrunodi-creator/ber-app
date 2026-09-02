@@ -18,7 +18,7 @@ import { confirmar } from '@/lib/confirmar';
 const DISCIPLINAS = [
   'Arquitetura', 'Estrutural', 'Instalações Elétricas', 'Hidráulica', 'Ar Condicionado',
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
-  'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros',
+  'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
   'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
 ] as const;
 
@@ -31,6 +31,7 @@ const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Civil', disciplinas: ['Estrutural', 'Hidráulica'] },
   { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
   { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
+  { label: 'Outros', disciplinas: ['Projetos Técnicos - Outros'] },
 ];
 const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
 // Shop Drawings (SDs) — setor próprio (Bruno 02/09)
