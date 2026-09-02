@@ -82,11 +82,78 @@ export async function enviarNf(
     validadaEm: null,
     pagaEm: null,
   };
-  return prisma.colaboradorNF.upsert({
+  const nf = await prisma.colaboradorNF.upsert({
     where: { userId_competencia: { userId, competencia: compDate(competencia) } },
     create: { userId, competencia: compDate(competencia), ...data },
     update: data,
   });
+
+  // Aviso ao Bruno (pedido 02/09/26) — fire-and-forget: falha de notificação
+  // nunca pode derrubar o envio da NF.
+  notificarNfRecebida(user.name, competencia, data.numero, data.valorCentavos, !!existente).catch((e) =>
+    console.error('[nf] falha ao notificar NF recebida:', (e as Error).message),
+  );
+
+  return nf;
+}
+
+// ─── Aviso de NF recebida (Telegram + e-mail pro Bruno) ───────────────────
+const NF_AVISO_EMAIL = process.env.NF_AVISO_EMAIL ?? 'bruno@ber-engenharia.com.br';
+
+async function notificarNfRecebida(
+  nomeColaborador: string,
+  competencia: string,
+  numero: string,
+  valorCentavos: number,
+  reenvio: boolean,
+) {
+  const [y, m] = competencia.split('-');
+  const mesLabel = `${m}/${y}`;
+  const valor = (valorCentavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const titulo = reenvio ? 'NF reenviada' : 'NF recebida';
+  const texto = `${titulo}: ${nomeColaborador} — competência ${mesLabel}\nNF ${numero} · ${valor}\nValidação: app BÈR → Gestão de Folha → Fechamento (painel de NFs)`;
+
+  // Telegram (instantâneo) — só se as envs estiverem configuradas
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_NOTIFY_CHAT_ID;
+  if (botToken && chatId) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: `📄 ${texto}` }),
+      });
+      if (!res.ok) throw new Error(`Telegram HTTP ${res.status}`);
+    } catch (e) {
+      console.error('[nf] aviso Telegram falhou:', (e as Error).message);
+    }
+  }
+
+  // E-mail (registro/fallback)
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  const from = process.env.RESEND_FROM_FINANCEIRO ?? 'BÈR Engenharia <financeiro@ber-engenharia.com.br>';
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#2D2D2D">
+      <div style="background:#1E2432;color:#fff;padding:18px 24px;border-radius:8px 8px 0 0">
+        <strong style="letter-spacing:2px">BÈR ENGENHARIA</strong>
+      </div>
+      <div style="border:1px solid #E8E8E4;border-top:none;padding:24px;border-radius:0 0 8px 8px">
+        <p><strong>${titulo}</strong></p>
+        <p><strong>${nomeColaborador}</strong> enviou a NF da competência <strong>${mesLabel}</strong>.</p>
+        <table style="border-collapse:collapse;width:100%;margin:12px 0">
+          <tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Número</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${numero}</strong></td></tr>
+          <tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Valor</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${valor}</strong></td></tr>
+        </table>
+        <p style="color:#868686;font-size:12px;margin-top:20px">Valide no app BÈR → Gestão de Folha → Fechamento. E-mail automático do sistema BÈR.</p>
+      </div>
+    </div>`;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [NF_AVISO_EMAIL], subject: `BÈR — ${titulo}: ${nomeColaborador} (${mesLabel})`, html }),
+  });
+  if (!res.ok) throw new Error(`Resend HTTP ${res.status}: ${await res.text()}`);
 }
 
 /** Painel da Carol: todas as NFs da competência + quem ainda não enviou. */
@@ -103,14 +170,11 @@ export async function painelNfs(competencia: string) {
 
   let faltantes: { userId: string; nome: string; email: string }[] = [];
   if (fechamento) {
-    const linhas = await prisma.folhaFechamentoLinha.findMany({
-      where: { fechamentoId: fechamento.id },
-      select: { userId: true },
-      distinct: ['userId'],
-    });
+    // TODOS os PJ ativos (02/09/26) — não só quem tem linha no fechamento:
+    // colaborador de escritório não bate ponto em obra mas também emite NF.
     const comNf = new Set(nfs.map((n) => n.userId));
     const users = await prisma.user.findMany({
-      where: { id: { in: linhas.map((l) => l.userId) }, isPj: true, isActive: true },
+      where: { isPj: true, isActive: true },
       select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' },
     });
@@ -154,13 +218,10 @@ export async function notificarPjsFechamento(competencia: string): Promise<{ env
   const fechamento = await fechamentoFechado(competencia);
   if (!fechamento) return { enviados: 0, erros: ['competência não fechada'] };
 
-  const linhas = await prisma.folhaFechamentoLinha.findMany({
-    where: { fechamentoId: fechamento.id },
-    select: { userId: true },
-    distinct: ['userId'],
-  });
+  // TODOS os PJ ativos com e-mail (02/09/26) — escritório incluso, mesmo sem
+  // linha no fechamento (quem não bate ponto em obra também emite NF).
   const users = await prisma.user.findMany({
-    where: { id: { in: linhas.map((l) => l.userId) }, isPj: true, isActive: true, email: { not: '' } },
+    where: { isPj: true, isActive: true, email: { not: '' } },
     select: { id: true, name: true, email: true },
   });
 
@@ -171,6 +232,15 @@ export async function notificarPjsFechamento(competencia: string): Promise<{ env
   for (const u of users) {
     try {
       const horas = await horasFechadas(fechamento.id, u.id);
+      const temHoras = horas.minutosNormais + horas.minutosExtras + horas.minutosDesconto > 0;
+      const blocoHoras = temHoras
+        ? `<p>Resumo das suas horas:</p>
+            <table style="border-collapse:collapse;width:100%;margin:12px 0">
+              <tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Horas normais</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${h(horas.minutosNormais)}h</strong></td></tr>
+              ${horas.minutosExtras > 0 ? `<tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Extras a pagar (já valorizadas)</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${h(horas.minutosExtras)}h</strong></td></tr>` : ''}
+              ${horas.minutosDesconto > 0 ? `<tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Desconto (faltas sem saldo)</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>-${h(horas.minutosDesconto)}h</strong></td></tr>` : ''}
+            </table>`
+        : '';
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#2D2D2D">
           <div style="background:#1E2432;color:#fff;padding:18px 24px;border-radius:8px 8px 0 0">
@@ -178,12 +248,8 @@ export async function notificarPjsFechamento(competencia: string): Promise<{ env
           </div>
           <div style="border:1px solid #E8E8E4;border-top:none;padding:24px;border-radius:0 0 8px 8px">
             <p>Olá, <strong>${u.name.split(' ')[0]}</strong>!</p>
-            <p>A competência <strong>${mesLabel}</strong> foi fechada. Resumo das suas horas:</p>
-            <table style="border-collapse:collapse;width:100%;margin:12px 0">
-              <tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Horas normais</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${h(horas.minutosNormais)}h</strong></td></tr>
-              ${horas.minutosExtras > 0 ? `<tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Extras a pagar (já valorizadas)</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>${h(horas.minutosExtras)}h</strong></td></tr>` : ''}
-              ${horas.minutosDesconto > 0 ? `<tr><td style="padding:6px 10px;border:1px solid #E8E8E4">Desconto (faltas sem saldo)</td><td style="padding:6px 10px;border:1px solid #E8E8E4;text-align:right"><strong>-${h(horas.minutosDesconto)}h</strong></td></tr>` : ''}
-            </table>
+            <p>A competência <strong>${mesLabel}</strong> foi fechada.</p>
+            ${blocoHoras}
             <p>Já pode <strong>emitir sua NF</strong> no valor combinado e enviar pelo app BÈR, na aba <strong>Minhas NFs</strong> (número da nota + valor + arquivo).</p>
             <p style="color:#868686;font-size:12px;margin-top:20px">Dúvidas sobre o valor, fale com o financeiro. E-mail automático do sistema BÈR.</p>
           </div>

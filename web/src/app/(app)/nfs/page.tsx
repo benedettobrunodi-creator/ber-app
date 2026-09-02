@@ -121,7 +121,7 @@ export default function NfsPage() {
         </div>
       ) : (
         <>
-          {data.horas && (
+          {data.horas && (data.horas.minutosNormais + data.horas.minutosExtras + data.horas.minutosDesconto > 0) && (
             <div className="mb-4 bg-white border border-ber-border rounded-xl p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-ber-gray mb-2">Suas horas fechadas — {competencia.split('-').reverse().join('/')}</p>
               <div className="flex gap-6 flex-wrap text-sm">

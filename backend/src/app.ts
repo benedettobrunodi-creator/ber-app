@@ -187,7 +187,9 @@ app.use('/v1/ferias', ...perm('ferias'), feriasRoutes);
 // — Módulo: banco de horas (Ponto → excedente vira crédito, domingo/feriado vira extra) —
 app.use('/v1/banco-horas', ...perm('bancoHoras'), bancoHorasRoutes);
 app.use('/v1/folha', ...perm('bancoHoras'), folhaRoutes);
-app.use('/v1/nfs', ...perm('ponto'), nfRouter);
+// NFs: qualquer usuário autenticado envia a PRÓPRIA NF (02/09/26 — escritório
+// sem perm 'ponto' também emite); painel/validação seguem financeiro+ dentro do router.
+app.use('/v1/nfs', nfRouter);
 
 // — Módulo: capital de giro (simulador de fluxo de caixa — sócio-only) —
 app.use('/v1/capital-giro', ...perm('capitalGiro'), capitalGiroRoutes);
