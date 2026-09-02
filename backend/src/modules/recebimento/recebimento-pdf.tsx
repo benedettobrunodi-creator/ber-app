@@ -1,66 +1,87 @@
 /**
  * PDF do Relatório de Vistoria Fotográfica (Recebimento do Imóvel) —
- * identidade visual BÈR (mesma linguagem do Relatório Gerencial de Obra):
- * carbono #111827, labels uppercase minúsculos cinza, tipografia pesada,
- * cartões com borda sutil, patologia em vermelho. (redesign 02/09/26 após
- * feedback do Bruno — v1 copiava o Word azul antigo)
+ * identidade visual BÈR com direção de arte do Tom (02/09/26):
+ * Montserrat (400/600/700), carvão #1E1E22, cinzas de viés oliva,
+ * OLIVA #B5B820 como cor de marca (réguas, cards, seções, rodapé),
+ * faixa de marca fixa nas páginas 2+, patologia em #B42318.
  */
 import * as React from 'react';
-import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import path from 'path';
+import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
 
-const CARBON = '#111827';
-const GRAY = '#6b7280';
-const GRAY_LIGHT = '#9ca3af';
-const LINE = '#f3f4f6';
-const BORDER = '#e5e7eb';
-const RED = '#DC2626';
+// Fontes oficiais BÈR — TTFs versionados em backend/assets/fonts
+const FONT_DIR = path.resolve(__dirname, '../../../assets/fonts');
+Font.register({
+  family: 'Montserrat',
+  fonts: [
+    { src: path.join(FONT_DIR, 'Montserrat-Regular.ttf'), fontWeight: 400 },
+    { src: path.join(FONT_DIR, 'Montserrat-SemiBold.ttf'), fontWeight: 600 },
+    { src: path.join(FONT_DIR, 'Montserrat-Bold.ttf'), fontWeight: 700 },
+  ],
+});
+
+// Paleta BÈR (Tom, 02/09/26)
+const CARVAO = '#1E1E22';
+const GRAY = '#5C5E54';
+const GRAY_LIGHT = '#8B8D82';
+const LINE = '#E4E6DA';
+const BORDER = '#D4D6CA';
+const RED = '#B42318';
 const OFFWHITE = '#F7F7F5';
+const OLIVA = '#B5B820';
+const OLIVA_DARK = '#5E6B0F';
 
 const s = StyleSheet.create({
-  page: { padding: 42, paddingBottom: 56, fontSize: 9, color: CARBON, fontFamily: 'Helvetica', lineHeight: 1.45 },
+  page: { padding: 42, paddingBottom: 56, fontSize: 9, color: CARVAO, fontFamily: 'Montserrat', fontWeight: 400, lineHeight: 1.45 },
 
-  // Cabeçalho — padrão do Relatório Gerencial
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: CARBON, marginBottom: 16 },
-  kicker: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', letterSpacing: 1.6, color: GRAY_LIGHT, textTransform: 'uppercase', marginBottom: 3 },
-  obraNome: { fontSize: 19, fontFamily: 'Helvetica-Bold', color: CARBON, lineHeight: 1.1 },
+  // Faixa de marca fixa (páginas 2+)
+  bandFixed: { position: 'absolute', top: 14, left: 42, right: 42 },
+  bandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 4, borderBottomWidth: 1.5, borderBottomColor: OLIVA },
+  bandObra: { fontSize: 7, color: GRAY_LIGHT, fontWeight: 600 },
+  bandMarca: { fontSize: 7, color: OLIVA_DARK, fontWeight: 700, letterSpacing: 1.2 },
+
+  // Cabeçalho — página 1
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 10, borderBottomWidth: 2.5, borderBottomColor: OLIVA, marginBottom: 16 },
+  kicker: { fontSize: 6.5, fontWeight: 600, letterSpacing: 1.6, color: GRAY_LIGHT, textTransform: 'uppercase', marginBottom: 3 },
+  obraNome: { fontSize: 19, fontWeight: 700, color: CARVAO, lineHeight: 1.1 },
   cliente: { fontSize: 10, color: GRAY, marginTop: 2 },
-  logotipo: { fontSize: 22, fontFamily: 'Helvetica-Bold', letterSpacing: 2, color: CARBON, textAlign: 'right', lineHeight: 1 },
-  tagline: { fontSize: 5.5, letterSpacing: 1.2, color: GRAY_LIGHT, textTransform: 'uppercase', marginTop: 4, textAlign: 'right' },
+  logotipo: { fontSize: 13, fontWeight: 700, letterSpacing: 1.6, color: OLIVA_DARK, textAlign: 'right', lineHeight: 1.15 },
+  tagline: { fontSize: 5.5, fontWeight: 600, letterSpacing: 1.2, color: GRAY_LIGHT, textTransform: 'uppercase', marginTop: 4, textAlign: 'right' },
   dataHeader: { fontSize: 8, color: GRAY, marginTop: 6, textAlign: 'right' },
 
-  sectionTitle: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', letterSpacing: 1.6, color: GRAY_LIGHT, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: LINE, paddingBottom: 3, marginBottom: 8, marginTop: 14 },
+  sectionTitle: { fontSize: 6.5, fontWeight: 600, letterSpacing: 1.6, color: OLIVA_DARK, textTransform: 'uppercase', borderBottomWidth: 1.5, borderBottomColor: OLIVA, paddingBottom: 3, marginBottom: 8, marginTop: 14 },
 
-  // Dados gerais — cartões kpi-style
+  // Dados gerais — cartões com fundo creme + barra oliva
   dadosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dadoCard: { borderWidth: 1, borderColor: LINE, borderRadius: 6, padding: 8, flexGrow: 1, flexBasis: '30%' },
-  dadoCardWide: { borderWidth: 1, borderColor: LINE, borderRadius: 6, padding: 8, width: '100%' },
-  dadoLabel: { fontSize: 6, fontFamily: 'Helvetica-Bold', letterSpacing: 1, color: GRAY_LIGHT, textTransform: 'uppercase', marginBottom: 2 },
-  dadoValor: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: CARBON },
+  dadoCard: { backgroundColor: OFFWHITE, borderLeftWidth: 3, borderLeftColor: OLIVA, borderRadius: 4, padding: 8, flexGrow: 1, flexBasis: '30%' },
+  dadoCardWide: { backgroundColor: OFFWHITE, borderLeftWidth: 3, borderLeftColor: OLIVA, borderRadius: 4, padding: 8, width: '100%' },
+  dadoLabel: { fontSize: 6, fontWeight: 600, letterSpacing: 1, color: OLIVA_DARK, textTransform: 'uppercase', marginBottom: 2 },
+  dadoValor: { fontSize: 10, fontWeight: 700, color: CARVAO },
 
   objetivo: { fontSize: 9, color: GRAY, lineHeight: 1.55 },
 
   // Ambiente
   ambienteHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 8 },
-  ambienteNum: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: GRAY_LIGHT },
-  ambienteNome: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: CARBON, textTransform: 'uppercase', letterSpacing: 0.5 },
-  ambienteLinha: { flex: 1, height: 1, backgroundColor: LINE },
+  ambienteNum: { fontSize: 10, fontWeight: 700, color: OLIVA_DARK },
+  ambienteNome: { fontSize: 11, fontWeight: 700, color: CARVAO, textTransform: 'uppercase', letterSpacing: 0.5 },
+  ambienteLinha: { flex: 1, height: 1.5, backgroundColor: OLIVA },
 
   // Fotos
   fotoRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   fotoCol: { width: '48.5%' },
   fotoImg: { width: '100%', height: 148, objectFit: 'cover', borderRadius: 6 },
-  legendaBox: { marginTop: 4, paddingLeft: 7, borderLeftWidth: 2, borderLeftColor: BORDER },
+  legendaBox: { marginTop: 4, paddingLeft: 7, borderLeftWidth: 2, borderLeftColor: OLIVA },
   legendaBoxPat: { marginTop: 4, paddingLeft: 7, borderLeftWidth: 2, borderLeftColor: RED },
-  fotoNum: { fontSize: 6, fontFamily: 'Helvetica-Bold', letterSpacing: 1, color: GRAY_LIGHT, textTransform: 'uppercase' },
-  legendaTexto: { fontSize: 8.5, color: CARBON, marginTop: 1.5, lineHeight: 1.4 },
-  patologiaTag: { fontSize: 6, fontFamily: 'Helvetica-Bold', letterSpacing: 0.8, color: RED, textTransform: 'uppercase' },
+  fotoNum: { fontSize: 6, fontWeight: 600, letterSpacing: 1, color: GRAY_LIGHT, textTransform: 'uppercase' },
+  legendaTexto: { fontSize: 8.5, color: CARVAO, marginTop: 1.5, lineHeight: 1.4 },
+  patologiaTag: { fontSize: 6, fontWeight: 600, letterSpacing: 0.8, color: RED, textTransform: 'uppercase' },
 
   // Assinatura + rodapé
   assinatura: { marginTop: 34, paddingTop: 10, borderTopWidth: 1, borderTopColor: BORDER, width: 220 },
-  assinaturaNome: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: CARBON },
-  assinaturaCargo: { fontSize: 7, color: GRAY, marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 },
-  footer: { position: 'absolute', bottom: 24, left: 42, right: 42, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: LINE, paddingTop: 6 },
-  footerText: { fontSize: 6.5, color: GRAY_LIGHT, letterSpacing: 1, textTransform: 'uppercase' },
+  assinaturaNome: { fontSize: 10, fontWeight: 700, color: CARVAO },
+  assinaturaCargo: { fontSize: 7, fontWeight: 600, color: GRAY, marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 },
+  footer: { position: 'absolute', bottom: 24, left: 42, right: 42, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: OLIVA, paddingTop: 6 },
+  footerText: { fontSize: 6.5, fontWeight: 600, color: GRAY_LIGHT, letterSpacing: 1, textTransform: 'uppercase' },
 });
 
 export interface RecebimentoPdfProps {
@@ -85,16 +106,28 @@ function pares<T>(arr: T[]): T[][] {
 export const RecebimentoPDF = ({ obraNome, obraTipo, endereco, cliente, responsavel, dataVistoria, objetivo, ambientes }: RecebimentoPdfProps) => (
   <Document title={`Relatório de Vistoria Fotográfica — ${obraNome}`} author="BÈR Engenharia">
     <Page size="A4" style={s.page}>
-      {/* Cabeçalho */}
-      <View style={s.header} fixed={false}>
-        <View style={{ maxWidth: '68%' }}>
+      {/* Faixa de marca nas páginas 2+ (fixa; oculta na capa, que tem o cabeçalho completo) */}
+      <View
+        style={s.bandFixed}
+        fixed
+        render={({ pageNumber }) => pageNumber > 1 ? (
+          <View style={s.bandRow}>
+            <Text style={s.bandObra}>{obraNome}</Text>
+            <Text style={s.bandMarca}>BÈR ENGENHARIA</Text>
+          </View>
+        ) : null}
+      />
+
+      {/* Cabeçalho — capa */}
+      <View style={s.header}>
+        <View style={{ maxWidth: '66%' }}>
           <Text style={s.kicker}>Relatório de Vistoria Fotográfica</Text>
           <Text style={{ ...s.kicker, marginBottom: 4 }}>Registro das Condições Existentes</Text>
           <Text style={s.obraNome}>{obraNome}</Text>
           {(cliente || obraTipo) ? <Text style={s.cliente}>{[cliente, obraTipo].filter(Boolean).join(' · ')}</Text> : null}
         </View>
-        <View style={{ width: 130, alignItems: 'flex-end' }}>
-          <Text style={s.logotipo}>BÈR</Text>
+        <View style={{ width: 150, alignItems: 'flex-end' }}>
+          <Text style={s.logotipo}>BÈR ENGENHARIA</Text>
           <Text style={s.tagline}>Cuidado em Cada Obra</Text>
           <Text style={s.dataHeader}>{fmtBR(dataVistoria)}</Text>
         </View>
