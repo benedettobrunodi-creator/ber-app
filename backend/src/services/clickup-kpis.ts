@@ -38,7 +38,7 @@ export async function getClickUpSummary(): Promise<ObraKpiSummary[]> {
   limiteMarcos.setDate(limiteMarcos.getDate() + PROXIMOS_MARCOS_DIAS);
 
   const obras = await prisma.obra.findMany({
-    where: { status: { in: ['em_andamento', 'planejamento'] } },
+    where: { status: { in: ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra'] } },
     select: { id: true, name: true, status: true, progressPercent: true },
     orderBy: { name: 'asc' },
   });

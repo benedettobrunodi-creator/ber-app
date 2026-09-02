@@ -62,22 +62,28 @@ interface SummaryResponse {
 
 const STATUSES = [
   { value: '', label: 'Todas' },
+  { value: 'nao_iniciada', label: 'Não iniciadas' },
+  { value: 'planejamento', label: 'Pré Obra - Planejamento' },
   { value: 'em_andamento', label: 'Em andamento' },
-  { value: 'planejamento', label: 'Planejamento' },
+  { value: 'pos_obra', label: 'Pós Obra' },
   { value: 'pausada', label: 'Pausadas' },
   { value: 'concluida', label: 'Concluídas' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
+  nao_iniciada: 'Não iniciada',
+  planejamento: 'Pré Obra - Planejamento',
   em_andamento: 'Em andamento',
-  planejamento: 'Planejamento',
+  pos_obra: 'Pós Obra',
   pausada: 'Pausada',
   concluida: 'Concluída',
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  em_andamento: 'bg-green-100 text-green-700',
+  nao_iniciada: 'bg-gray-100 text-gray-500',
   planejamento: 'bg-blue-100 text-blue-700',
+  em_andamento: 'bg-green-100 text-green-700',
+  pos_obra: 'bg-teal-100 text-teal-700',
   pausada: 'bg-amber-100 text-amber-700',
   concluida: 'bg-gray-200 text-gray-700',
 };

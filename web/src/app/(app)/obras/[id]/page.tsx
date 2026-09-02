@@ -14,7 +14,7 @@ import RelatorioTab from '@/components/obras/RelatorioTab';
 import ObraInfoModal from '@/components/obras/ObraInfoModal';
 
 
-type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida';
+type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -110,8 +110,10 @@ interface ChecklistTemplate {
 }
 
 const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBorder: string }> = {
-  planejamento: { label: 'Planejamento', badge: 'bg-ber-gray/15 text-ber-gray', selectBorder: 'border-ber-gray focus:ring-ber-gray' },
+  nao_iniciada: { label: 'Não iniciada', badge: 'bg-ber-gray/10 text-ber-gray/70', selectBorder: 'border-ber-gray focus:ring-ber-gray' },
+  planejamento: { label: 'Pré Obra - Planejamento', badge: 'bg-ber-gray/15 text-ber-gray', selectBorder: 'border-ber-gray focus:ring-ber-gray' },
   em_andamento: { label: 'Em andamento', badge: 'bg-ber-teal/15 text-ber-teal', selectBorder: 'border-ber-teal focus:ring-ber-teal' },
+  pos_obra: { label: 'Pós Obra', badge: 'bg-ber-olive/10 text-ber-olive/80', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
   pausada: { label: 'Pausada', badge: 'bg-amber-100 text-amber-700', selectBorder: 'border-amber-400 focus:ring-amber-400' },
   concluida: { label: 'Concluída', badge: 'bg-ber-olive/15 text-ber-olive', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
 };
@@ -1327,8 +1329,10 @@ export default function ObraDetailPage() {
                 onChange={(e) => handleStatusChange(e.target.value as ObraStatus)}
                 className={`appearance-none rounded-md border py-1 pl-3 pr-7 text-xs font-medium focus:ring-1 focus:outline-none disabled:opacity-50 ${statusCfg.selectBorder}`}
               >
-                <option value="planejamento">Planejamento</option>
+                <option value="nao_iniciada">Não iniciada</option>
+                <option value="planejamento">Pré Obra - Planejamento</option>
                 <option value="em_andamento">Em andamento</option>
+                <option value="pos_obra">Pós Obra</option>
                 <option value="pausada">Pausada</option>
                 <option value="concluida">Concluída</option>
               </select>
@@ -1872,8 +1876,8 @@ export default function ObraDetailPage() {
           };
           // Qual fase está valendo agora, pelo avanço do último relatório
           const faseAtual: string | null = (() => {
-            if (obra.status === 'planejamento') return 'PP1';
-            if (obra.status === 'concluida') return 'PP6';
+            if (obra.status === 'nao_iniciada' || obra.status === 'planejamento') return 'PP1';
+            if (obra.status === 'pos_obra' || obra.status === 'concluida') return 'PP6';
             if (avancoObra == null) return null;
             if (avancoObra >= 100) return 'PP6';
             if (avancoObra >= 75) return 'PP5';

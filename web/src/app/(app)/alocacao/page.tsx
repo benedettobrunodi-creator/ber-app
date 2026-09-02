@@ -1618,15 +1618,21 @@ function ObrasTab({
   }
 
   const STATUS_LABEL: Record<string, string> = {
-    planejamento: 'Planejamento',
+    nao_iniciada: 'Não iniciada',
+    planejamento: 'Pré Obra - Planejamento',
     em_andamento: 'Em andamento',
+    pos_obra: 'Pós Obra',
+    pausada: 'Pausada',
     concluida: 'Concluída',
-    cancelada: 'Cancelada',
+    cancelada: 'Arquivada',
   };
 
   const STATUS_COLOR: Record<string, string> = {
+    nao_iniciada: 'bg-gray-100 text-gray-500',
     planejamento: 'bg-amber-100 text-amber-700',
     em_andamento: 'bg-green-100 text-green-700',
+    pos_obra: 'bg-teal-100 text-teal-700',
+    pausada: 'bg-amber-100 text-amber-700',
     concluida: 'bg-blue-100 text-blue-700',
     cancelada: 'bg-gray-100 text-gray-500',
   };

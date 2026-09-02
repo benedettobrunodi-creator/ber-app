@@ -100,10 +100,12 @@ const RELATORIO_STATUS: Record<string, { label: string; badge: string; bar: stri
 };
 
 const OBRA_STATUS: Record<string, { label: string; cor: string }> = {
-  planejamento: { label: 'Planejamento', cor: 'text-ber-gray' },
-  em_andamento: { label: 'Em andamento', cor: 'text-ber-teal' },
-  pausada:      { label: 'Pausada',      cor: 'text-amber-600' },
-  concluida:    { label: 'Concluída',    cor: 'text-ber-olive' },
+  nao_iniciada: { label: 'Não iniciada',            cor: 'text-ber-gray/70' },
+  planejamento: { label: 'Pré Obra - Planejamento', cor: 'text-ber-gray' },
+  em_andamento: { label: 'Em andamento',            cor: 'text-ber-teal' },
+  pos_obra:     { label: 'Pós Obra',                cor: 'text-ber-olive/80' },
+  pausada:      { label: 'Pausada',                 cor: 'text-amber-600' },
+  concluida:    { label: 'Concluída',               cor: 'text-ber-olive' },
 };
 
 /** Fase do Passo a Passo (obra_fvs) — só o que a Capa precisa pra dar o status. */
@@ -307,8 +309,8 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   // sozinho. Item aberto na fase corrente é trabalho normal, não alarme.
   const ordemFase = (code?: string | null) => Number(String(code ?? '').replace(/\D/g, '')) || 0;
   const faseAtualCode: string | null = (() => {
-    if (obra.status === 'planejamento') return 'PP1';
-    if (obra.status === 'concluida') return 'PP6';
+    if (obra.status === 'nao_iniciada' || obra.status === 'planejamento') return 'PP1';
+    if (obra.status === 'pos_obra' || obra.status === 'concluida') return 'PP6';
     if (avancoPct == null) return null;
     if (avancoPct >= 100) return 'PP6';
     if (avancoPct >= 75) return 'PP5';

@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, X, AlertTriangle, Search, ArrowUpDown } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
-type ObraStatus = 'planejamento' | 'em_andamento' | 'pausada' | 'concluida' | 'cancelada';
+type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida' | 'cancelada';
 
 interface Obra {
   id: string;
@@ -34,18 +34,23 @@ interface Kpis {
 }
 
 const STATUS_CONFIG: Record<ObraStatus, { label: string; className: string }> = {
-  planejamento:  { label: 'Planejamento',  className: 'bg-ber-gray/15 text-ber-gray' },
-  em_andamento:  { label: 'Em andamento',  className: 'bg-ber-teal/15 text-ber-teal' },
-  pausada:       { label: 'Pausada',       className: 'bg-amber-100 text-amber-700' },
-  concluida:     { label: 'Concluída',     className: 'bg-ber-olive/15 text-ber-olive' },
-  cancelada:     { label: 'Arquivada',     className: 'bg-red-50 text-red-500' },
+  nao_iniciada:  { label: 'Não iniciada',            className: 'bg-ber-gray/10 text-ber-gray/70' },
+  planejamento:  { label: 'Pré Obra - Planejamento', className: 'bg-ber-gray/15 text-ber-gray' },
+  em_andamento:  { label: 'Em andamento',            className: 'bg-ber-teal/15 text-ber-teal' },
+  pos_obra:      { label: 'Pós Obra',                className: 'bg-ber-olive/10 text-ber-olive/80' },
+  pausada:       { label: 'Pausada',                 className: 'bg-amber-100 text-amber-700' },
+  concluida:     { label: 'Concluída',               className: 'bg-ber-olive/15 text-ber-olive' },
+  cancelada:     { label: 'Arquivada',               className: 'bg-red-50 text-red-500' },
 };
 
 const FILTERS: { label: string; value: string }[] = [
-  { label: 'Todas',        value: '' },
-  { label: 'Em andamento', value: 'em_andamento' },
-  { label: 'Concluídas',   value: 'concluida' },
-  { label: 'Pausadas',     value: 'pausada' },
+  { label: 'Todas',                   value: '' },
+  { label: 'Não iniciadas',           value: 'nao_iniciada' },
+  { label: 'Pré Obra - Planejamento', value: 'planejamento' },
+  { label: 'Em andamento',            value: 'em_andamento' },
+  { label: 'Pós Obra',                value: 'pos_obra' },
+  { label: 'Pausadas',                value: 'pausada' },
+  { label: 'Concluídas',              value: 'concluida' },
 ];
 
 type SortKey = 'recentes' | 'nome' | 'prazo' | 'progresso' | 'atualizacao';
@@ -66,8 +71,8 @@ function formatDate(iso: string | null): string {
 
 /** Fase do Sequenciamento — mesma régua da tela da obra (status + avanço do relatório). */
 function faseSequenciamento(obra: Obra): string | null {
-  if (obra.status === 'planejamento') return 'PP1';
-  if (obra.status === 'concluida') return 'PP6';
+  if (obra.status === 'nao_iniciada' || obra.status === 'planejamento') return 'PP1';
+  if (obra.status === 'pos_obra' || obra.status === 'concluida') return 'PP6';
   const avanco = obra.progressoRelatorio;
   if (avanco == null) return null;
   if (avanco >= 100) return 'PP6';
@@ -340,7 +345,7 @@ export default function ObrasPage() {
             {/* List header */}
             <div className="grid grid-cols-[1fr_auto_56px_150px_120px_120px_100px_64px] items-center gap-4 border-b border-ber-gray/10 bg-ber-offwhite px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
               <span>Obra</span>
-              <span className="w-28 text-left">Status</span>
+              <span className="w-40 text-left">Status</span>
               <span title="Fase do Sequenciamento">Fase</span>
               <span>Coordenador</span>
               <span>Prazo</span>
@@ -375,7 +380,7 @@ export default function ObrasPage() {
                     </div>
                   </Link>
 
-                  <span className={`w-28 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-semibold ${statusCfg.className}`}>
+                  <span className={`w-40 shrink-0 rounded-full px-2.5 py-0.5 text-center text-xs font-semibold ${statusCfg.className}`}>
                     {statusCfg.label}
                   </span>
 

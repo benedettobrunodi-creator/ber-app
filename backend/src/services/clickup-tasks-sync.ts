@@ -33,7 +33,7 @@ export interface TaskSyncResult {
 
 export async function syncAllTasksFromClickUp(): Promise<TaskSyncResult[]> {
   const obras = await prisma.obra.findMany({
-    where: { status: { in: ['em_andamento', 'planejamento'] } },
+    where: { status: { in: ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra'] } },
     select: { id: true, name: true },
   });
 

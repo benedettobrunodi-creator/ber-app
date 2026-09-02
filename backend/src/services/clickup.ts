@@ -135,7 +135,7 @@ export async function syncProgressoFromClickUp(): Promise<{ synced: number; erro
   let errors = 0;
 
   const obras = await prisma.obra.findMany({
-    where: { status: { in: ['em_andamento', 'planejamento'] } },
+    where: { status: { in: ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra'] } },
     select: { id: true, name: true },
   });
 

@@ -17,7 +17,9 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   campo:       1,
 };
 
-export const OBRA_STATUSES = ['planejamento', 'em_andamento', 'pausada', 'concluida'] as const;
+// Ordem canônica do ciclo de vida (02/09/26, pedido do Bruno). Valores antigos
+// preservados no banco: 'planejamento' agora exibe "Pré Obra - Planejamento".
+export const OBRA_STATUSES = ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra', 'pausada', 'concluida'] as const;
 export const TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'] as const;
 export const TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export const PROPOSAL_STATUSES = [

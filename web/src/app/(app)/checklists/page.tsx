@@ -34,11 +34,13 @@ interface ObraBerChecklist {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  planejamento: { label: 'Planejamento', className: 'bg-ber-gray/10 text-ber-gray' },
+  nao_iniciada: { label: 'Não iniciada', className: 'bg-gray-100 text-gray-500' },
+  planejamento: { label: 'Pré Obra - Planejamento', className: 'bg-ber-gray/10 text-ber-gray' },
   em_andamento: { label: 'Em andamento', className: 'bg-ber-teal/10 text-ber-teal' },
+  pos_obra: { label: 'Pós Obra', className: 'bg-teal-100 text-teal-700' },
   pausada: { label: 'Pausada', className: 'bg-amber-100 text-amber-700' },
   concluida: { label: 'Concluída', className: 'bg-green-100 text-green-700' },
-  cancelada: { label: 'Cancelada', className: 'bg-red-100 text-red-600' },
+  cancelada: { label: 'Arquivada', className: 'bg-red-100 text-red-600' },
 };
 
 const CL_STATUS: Record<string, { label: string; color: string; dot: string }> = {

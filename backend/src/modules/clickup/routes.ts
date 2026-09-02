@@ -24,7 +24,7 @@ router.post('/sync', requireRole('gestor'), async (req, res, next) => {
 router.get('/debug', requireRole('gestor'), async (req, res, next) => {
   try {
     const obras = await prisma.obra.findMany({
-      where: { status: { in: ['em_andamento', 'planejamento'] } },
+      where: { status: { in: ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra'] } },
       select: { id: true, name: true },
     });
 

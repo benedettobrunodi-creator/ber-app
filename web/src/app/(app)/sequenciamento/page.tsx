@@ -18,8 +18,10 @@ interface ObraWithSeq {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  nao_iniciada: 'Não iniciada',
+  planejamento: 'Pré Obra - Planejamento',
   em_andamento: 'Em andamento',
-  planejamento: 'Planejamento',
+  pos_obra: 'Pós Obra',
   pausada: 'Pausada',
   concluida: 'Concluída',
 };
