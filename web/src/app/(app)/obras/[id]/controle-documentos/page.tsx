@@ -320,7 +320,7 @@ export default function ControleDocumentosPage() {
           ] as { key: Setor; label: string; count: number }[]).map(t => (
             <button key={t.key}
               onClick={() => { setSetor(t.key); setSubTecnico(null); }}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13px] font-semibold transition-colors ${
+              className={`inline-flex items-center gap-2 whitespace-nowrap border-b-[3px] px-4 py-3 text-[15px] font-bold transition-colors ${
                 setor === t.key
                   ? (t.key === 'obsoletos' ? 'border-amber-500 text-amber-700' : 'border-ber-olive text-ber-carbon')
                   : 'border-transparent text-ber-gray hover:text-ber-carbon'
@@ -418,7 +418,7 @@ export default function ControleDocumentosPage() {
                               defaultValue={d.projetista ?? ''}
                               placeholder="Projetista"
                               onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
-                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-24"
+                              className="text-xs bg-transparent border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
                             />
                           </div>
                         </div>
