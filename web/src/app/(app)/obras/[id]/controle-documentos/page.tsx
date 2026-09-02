@@ -22,7 +22,7 @@ const DISCIPLINAS = [
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
-const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo'];
+const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo', 'Divisórias']; // Divisórias em Arquitetura (Bruno 02/09)
 // Sub-áreas de Projetos Técnicos — cada uma abre a "página" da(s) disciplina(s)
 const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
@@ -30,7 +30,6 @@ const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Civil', disciplinas: ['Estrutural', 'Hidráulica'] },
   { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
   { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
-  { label: 'Divisórias', disciplinas: ['Divisórias'] },
 ];
 const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
 const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d => !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d));
