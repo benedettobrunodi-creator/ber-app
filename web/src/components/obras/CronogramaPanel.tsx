@@ -48,6 +48,16 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Prévia inline do PDF: browsers MOBILE não renderizam PDF em <iframe> —
+  // Chrome/Safari disparam DOWNLOAD automático ao montar a página (bug real
+  // reportado pelo Bruno 02/09/26). Só montamos o iframe em desktop.
+  const [previewInline, setPreviewInline] = useState(false);
+  useEffect(() => {
+    try {
+      setPreviewInline(window.matchMedia('(min-width: 768px) and (pointer: fine)').matches);
+    } catch { setPreviewInline(false); }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     api.get(`/obras/${obraId}/cronograma`)
@@ -184,7 +194,14 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
               <span className="text-xs font-medium text-ber-gray truncate">{cronograma.fileName}</span>
               <a href={cronograma.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-ber-teal hover:underline shrink-0 ml-2">Abrir ↗</a>
             </div>
-            <iframe src={cronograma.fileUrl} className="w-full h-[50vh]" title="Cronograma PDF" />
+            {previewInline ? (
+              <iframe src={cronograma.fileUrl} className="w-full h-[50vh]" title="Cronograma PDF" />
+            ) : (
+              <a href={cronograma.fileUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-8 text-sm font-semibold text-ber-teal hover:bg-ber-offwhite">
+                Abrir o cronograma (PDF) ↗
+              </a>
+            )}
           </div>
 
           {/* Tabela de tarefas */}
