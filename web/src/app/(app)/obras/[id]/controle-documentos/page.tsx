@@ -79,14 +79,19 @@ export default function ControleDocumentosPage() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ criados: number; atualizados: number } | null>(null);
   const bulkInput = useRef<HTMLInputElement | null>(null);
+  const [obraNome, setObraNome] = useState('');
 
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
 
   async function load() {
     setLoading(true);
     try {
-      const r = await api.get(`/obras/${obraId}/controle-documentos`);
+      const [r, obraRes] = await Promise.all([
+        api.get(`/obras/${obraId}/controle-documentos`),
+        api.get(`/obras/${obraId}`).catch(() => null),
+      ]);
       setDocumentos(r.data.data ?? []);
+      if (obraRes) setObraNome(obraRes.data.data?.name ?? '');
     } catch {} finally { setLoading(false); }
   }
 
@@ -235,7 +240,10 @@ export default function ControleDocumentosPage() {
       </Link>
 
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold text-ber-carbon">Controle de Documentos</h1>
+        <h1 className="flex flex-wrap items-baseline gap-2 text-xl font-semibold text-ber-carbon">
+          Controle de Documentos
+          {obraNome && <span className="rounded-md bg-ber-carbon px-2 py-0.5 text-sm font-bold text-white">{obraNome}</span>}
+        </h1>
         <button onClick={openCreate} className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90">
           <Plus size={16} /> Novo documento
         </button>
