@@ -42,13 +42,13 @@ export async function parseCronogramaPDF(
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Tenta modelos modernos em ordem de preferência (free tier)
+  // Tenta modelos modernos em ordem de preferência (free tier).
+  // 02/09/26: 1.5-* e 2.0-flash foram DESCONTINUADOS pela Google (404) —
+  // a API recomenda gemini-3.6-flash. 2.5-flash mantido como fallback.
   const MODELS = [
+    'gemini-3.6-flash',
     'gemini-2.5-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
+    'gemini-3-flash-preview',
   ];
   let text = '';
   let lastErr: Error | null = null;
