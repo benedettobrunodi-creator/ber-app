@@ -42,6 +42,9 @@ export default function CloseOutPage() {
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // confirm() nativo é bloqueado em PWA/webview mobile (delete "não fazia nada"
+  // — reporte do Bruno 02/09/26); usamos modal próprio.
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; titulo: string } | null>(null);
   const uploadInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [fCat, setFCat] = useState('outros');
@@ -185,7 +188,7 @@ export default function CloseOutPage() {
                         desfazer
                       </button>
                     )}
-                    <button disabled={busy} onClick={() => { if (confirm('Excluir este item?')) run(() => api.delete(`/obras/${obraId}/close-out/${item.id}`), 'Erro ao excluir'); }} className="text-ber-gray hover:text-red-600 p-1 disabled:opacity-50">
+                    <button disabled={busy} onClick={() => setConfirmDelete({ id: item.id, titulo: item.titulo })} className="text-ber-gray hover:text-red-600 p-1 disabled:opacity-50">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -236,6 +239,26 @@ export default function CloseOutPage() {
                 className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? 'Salvando…' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6">
+            <h2 className="text-base font-bold text-ber-carbon">Excluir item?</h2>
+            <p className="mt-2 text-sm text-ber-gray">O item <strong>"{confirmDelete.titulo}"</strong> será excluído do close out. Essa ação não pode ser desfeita.</p>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setConfirmDelete(null)} disabled={busy}
+                className="flex-1 rounded-md border border-ber-gray/30 px-4 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50">
+                Cancelar
+              </button>
+              <button
+                onClick={async () => { const alvo = confirmDelete; setConfirmDelete(null); await run(() => api.delete(`/obras/${obraId}/close-out/${alvo.id}`), 'Erro ao excluir'); }}
+                disabled={busy}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+                Excluir
               </button>
             </div>
           </div>
