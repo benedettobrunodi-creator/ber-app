@@ -18,7 +18,8 @@ import { confirmar } from '@/lib/confirmar';
 const DISCIPLINAS = [
   'Arquitetura', 'Estrutural', 'Instalações Elétricas', 'Hidráulica', 'Ar Condicionado',
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
-  'Divisórias', 'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
+  'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros',
+  'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
@@ -30,11 +31,19 @@ const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Civil', disciplinas: ['Estrutural', 'Hidráulica'] },
   { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
   { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
-  { label: 'Divisórias', disciplinas: ['Divisórias'] },
 ];
 const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
-const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d => !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d));
-type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'outros' | 'obsoletos';
+// Shop Drawings (SDs) — setor próprio (Bruno 02/09)
+const SDS_SUBS: { label: string; disciplinas: string[] }[] = [
+  { label: 'Divisórias', disciplinas: ['Divisórias'] },
+  { label: 'Pedras', disciplinas: ['Pedras'] },
+  { label: 'Mobiliário', disciplinas: ['Mobiliário'] },
+  { label: 'Marcenaria', disciplinas: ['Marcenaria'] },
+  { label: 'Outros', disciplinas: ['Shop Drawings - Outros'] },
+];
+const SETOR_SDS = SDS_SUBS.flatMap(s => s.disciplinas);
+const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d => !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d) && !SETOR_SDS.includes(d));
+type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'outros' | 'obsoletos';
 
 const ETAPAS = ['Conceito', 'Anteprojeto (AP)', 'Executivo (EX)', 'Locação (LO)', 'As Built'] as const;
 
@@ -254,6 +263,10 @@ export default function ControleDocumentosPage() {
     if (setor === 'todos') return true;
     if (setor === 'arquitetura') return SETOR_ARQUITETURA.includes(d.disciplina);
     if (setor === 'outros') return SETOR_OUTROS.includes(d.disciplina);
+    if (setor === 'sds') {
+      const sub = SDS_SUBS.find(t => t.label === subTecnico);
+      return (sub ? sub.disciplinas : SETOR_SDS).includes(d.disciplina);
+    }
     // tecnicos
     const sub = TECNICOS_SUBS.find(t => t.label === subTecnico);
     const conjunto = sub ? sub.disciplinas : SETOR_TECNICOS;
@@ -315,6 +328,7 @@ export default function ControleDocumentosPage() {
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
             { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
+            { key: 'sds', label: 'Shop Drawings (SDs)', count: documentos.filter(d => !d.obsoleto && SETOR_SDS.includes(d.disciplina)).length },
             { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
             { key: 'obsoletos', label: 'Obsoletos', count: obsoletosCount },
           ] as { key: Setor; label: string; count: number }[]).map(t => (
@@ -331,6 +345,25 @@ export default function ControleDocumentosPage() {
           ))}
         </nav>
       </div>
+
+      {/* Sub-áreas de Shop Drawings */}
+      {setor === 'sds' && (
+        <div className="mb-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mb-1.5">Shop Drawings (SDs)</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setSubTecnico(null)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${subTecnico === null ? 'bg-ber-teal text-white' : 'bg-white border border-ber-border text-ber-carbon hover:bg-ber-offwhite'}`}>
+              Todas
+            </button>
+            {SDS_SUBS.map(t => (
+              <button key={t.label} onClick={() => setSubTecnico(t.label)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${subTecnico === t.label ? 'bg-ber-teal text-white' : 'bg-white border border-ber-border text-ber-carbon hover:bg-ber-offwhite'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sub-áreas de Projetos Técnicos */}
       {setor === 'tecnicos' && (
@@ -355,7 +388,7 @@ export default function ControleDocumentosPage() {
       {setor !== 'todos' && (
         <div className="mb-3 flex items-baseline gap-2">
           <h2 className="text-base font-bold text-ber-carbon">
-            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'outros' ? 'Outros Documentos' : (subTecnico ?? 'Projetos Técnicos')}
+            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'outros' ? 'Outros Documentos' : setor === 'sds' ? (subTecnico ?? 'Shop Drawings (SDs)') : (subTecnico ?? 'Projetos Técnicos')}
           </h2>
           <span className="text-xs text-ber-gray">{visiveis.length} documento(s)</span>
           {setor === 'obsoletos' && <span className="text-[11px] text-amber-700">desenhos fora de uso — restauráveis</span>}
