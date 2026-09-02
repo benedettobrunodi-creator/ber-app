@@ -27,6 +27,7 @@ interface Revisao {
   id: string;
   revisao: string;
   data: string;
+  createdAt: string;
   arquivoUrl: string | null;
   arquivoNome: string | null;
   observacao: string | null;
@@ -39,6 +40,7 @@ interface Documento {
   disciplina: string;
   projetista: string | null;
   etapa: string | null;
+  createdAt: string;
   revisoes: Revisao[];
 }
 
@@ -300,6 +302,7 @@ export default function ControleDocumentosPage() {
                               </span>
                             )}
                             {!ult && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">sem revisão</span>}
+                            <span className="text-[10px] text-ber-gray/60" title="Data em que o documento entrou no sistema">incluído {fmtBR(d.createdAt)}</span>
                           </div>
                           <div className="mt-1 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
                             <select value={d.disciplina} onChange={e => updateField(d.id, 'disciplina', e.target.value)}
@@ -338,6 +341,7 @@ export default function ControleDocumentosPage() {
                                   <th className="pb-1.5 font-medium">Data</th>
                                   <th className="pb-1.5 font-medium">Arquivo</th>
                                   <th className="pb-1.5 font-medium">Observação</th>
+                                  <th className="pb-1.5 font-medium" title="Quando a revisão entrou no sistema">Incluída em</th>
                                   <th></th>
                                 </tr>
                               </thead>
@@ -354,6 +358,7 @@ export default function ControleDocumentosPage() {
                                       ) : <span className="text-ber-gray">—</span>}
                                     </td>
                                     <td className="py-1.5 text-ber-gray">{r.observacao ?? '—'}</td>
+                                    <td className="py-1.5 text-ber-gray">{fmtBR(r.createdAt)}</td>
                                     <td className="py-1.5 text-right">
                                       <button onClick={() => handleRemoveRevisao(d.id, r.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={12} /></button>
                                     </td>
