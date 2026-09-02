@@ -116,6 +116,7 @@ model User {
   ajustesPontoRecebidos    AjustePonto[]           @relation("AjustePontoUser")
   ajustesPontoFeitos       AjustePonto[]           @relation("AjustePontoAjustador")
 
+  recebimentosResponsavel RecebimentoRelatorio[] @relation("RecebimentoResponsavel")
   @@map("users")
 }
 
@@ -220,6 +221,7 @@ model Obra {
   ambientesDiario    Ambiente[]
   diarios            DiarioObra[]
   cronogramas        Cronograma[]
+  recebimentoRelatorio RecebimentoRelatorio?
   relatorios         RelatorioSemanal[]
   curvaS             RelatorioCurvaS[]
   aditivos           ObraAditivo[]
@@ -2999,4 +3001,57 @@ model CapitalGiroState {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("capital_giro_state")
+}
+
+// ─── Relatório de Recebimento do Imóvel (02/09/26) ───────────────────────
+// Vistoria fotográfica das condições existentes no início da obra.
+// Fluxo: upload em lote → ambientes → legendas (com sugestão de IA) → PDF.
+model RecebimentoRelatorio {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @unique @map("obra_id") @db.Uuid
+  status        String    @default("rascunho") @db.VarChar(20) // rascunho | concluido
+  dataVistoria  DateTime? @map("data_vistoria") @db.Date
+  responsavelId String?   @map("responsavel_id") @db.Uuid
+  objetivo      String? // texto do bloco "objetivo" — default gerado, editável
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra        Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsavel User?                 @relation("RecebimentoResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  ambientes   RecebimentoAmbiente[]
+  fotos       RecebimentoFoto[]
+
+  @@map("recebimento_relatorios")
+}
+
+model RecebimentoAmbiente {
+  id          String   @id @default(uuid()) @db.Uuid
+  relatorioId String   @map("relatorio_id") @db.Uuid
+  nome        String   @db.VarChar(120)
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  relatorio RecebimentoRelatorio @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  fotos     RecebimentoFoto[]
+
+  @@index([relatorioId])
+  @@map("recebimento_ambientes")
+}
+
+model RecebimentoFoto {
+  id          String   @id @default(uuid()) @db.Uuid
+  relatorioId String   @map("relatorio_id") @db.Uuid
+  ambienteId  String?  @map("ambiente_id") @db.Uuid // null = ainda não atribuída
+  url         String
+  legenda     String?
+  patologia   Boolean  @default(false) // destaca avaria/patologia
+  ordem       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  relatorio RecebimentoRelatorio @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  ambiente  RecebimentoAmbiente? @relation(fields: [ambienteId], references: [id], onDelete: SetNull)
+
+  @@index([relatorioId])
+  @@index([ambienteId])
+  @@map("recebimento_fotos")
 }

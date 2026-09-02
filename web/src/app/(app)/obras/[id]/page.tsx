@@ -9,6 +9,7 @@ import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, 
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable, useDraggable, DragOverlay, pointerWithin } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import CapaObra from '@/components/obras/CapaObra';
+import RecebimentoTab from '@/components/obras/RecebimentoTab';
 import DiarioTab from '@/components/obras/DiarioTab';
 import RelatorioTab from '@/components/obras/RelatorioTab';
 import ObraInfoModal from '@/components/obras/ObraInfoModal';
@@ -1685,77 +1686,7 @@ export default function ObraDetailPage() {
           </div>
         )}
 
-        {activeTab === 'recebimento' && (() => {
-          // Relatório de Recebimento do Imóvel (ex-CL_1 do módulo Checklists,
-          // promovido a aba própria em 02/09/26). Reusa o modal de preenchimento.
-          const CL_STATUS: Record<string, { label: string; color: string }> = {
-            nao_iniciado: { label: 'Não iniciado', color: 'bg-gray-100 text-gray-500' },
-            em_preenchimento: { label: 'Em preenchimento', color: 'bg-blue-100 text-blue-700' },
-            concluido: { label: 'Concluído ✓', color: 'bg-green-100 text-green-700' },
-          };
-          const tmpl = berClTemplates.find(t => t.code === 'CL_1');
-          const instances = berChecklists.filter(c => c.template?.code === 'CL_1');
-          const latest = instances[instances.length - 1] ?? null;
-          const sc = latest ? (CL_STATUS[latest.status] ?? CL_STATUS.nao_iniciado) : CL_STATUS.nao_iniciado;
-          const totalItems = latest?.items.length ?? tmpl?.items.length ?? 0;
-          const checkedItems = latest?.items.filter(i => i.checked).length ?? 0;
-          const pct = totalItems > 0 ? Math.round(checkedItems / totalItems * 100) : 0;
-
-          return (
-            <div>
-              <div className="mb-4">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Relatório de Recebimento do Imóvel</h3>
-                <p className="mt-0.5 text-xs text-ber-gray/70">
-                  Registro das condições encontradas no recebimento do imóvel, feito uma vez no início da obra.
-                </p>
-              </div>
-
-              {!tmpl ? (
-                <div className="rounded-lg border-2 border-dashed border-ber-gray/20 p-12 text-center">
-                  <p className="text-sm text-ber-gray/60">Template do Relatório de Recebimento não encontrado.</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-ber-border bg-white p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-ber-carbon">{tmpl.name}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="h-1.5 w-48 overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB' }} />
-                        </div>
-                        <span className="text-[11px] tabular-nums text-ber-gray">{pct}% · {checkedItems}/{totalItems} itens</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!latest ? (
-                        <button
-                          onClick={async () => {
-                            try {
-                              const r = await api.post(`/obras/${params.id}/ber-checklists`, { templateId: tmpl.id });
-                              const newCl = r.data.data;
-                              setBerChecklists(prev => [...prev, newCl]);
-                              setActiveCl(newCl); setClModalOpen(true);
-                            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
-                          }}
-                          className="rounded-md bg-ber-carbon px-3.5 py-2 text-xs font-bold text-white hover:bg-ber-black transition-colors">
-                          + Iniciar relatório
-                        </button>
-                      ) : (
-                        <button onClick={() => { setActiveCl(latest); setClModalOpen(true); }}
-                          className="rounded-md bg-ber-carbon px-3.5 py-2 text-xs font-bold text-white hover:bg-ber-black transition-colors">
-                          {latest.status === 'concluido' ? 'Ver relatório' : 'Continuar preenchendo'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {activeTab === 'recebimento' && <RecebimentoTab obraId={params.id} />}
 
         {activeTab === 'canteiro' && (
           <div>

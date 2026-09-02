@@ -59,6 +59,7 @@ import feriasRoutes from './modules/ferias/routes';
 import bancoHorasRoutes from './modules/banco-horas/routes';
 import folhaRoutes, { nfRouter } from './modules/folha/routes';
 import capitalGiroRoutes from './modules/capital-giro/routes';
+import { obraRecebimentoRouter, recebimentoRouter } from './modules/recebimento/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 import { requirePermission } from './middleware/permission';
@@ -129,6 +130,9 @@ app.use('/v1/chat', chatRoutes);                                                
 
 // — Módulo: obras —
 app.use('/v1/obras', ...perm('obras'), obraRoutes);
+// Relatório de Recebimento do Imóvel (02/09/26)
+app.use('/v1/obras', ...perm('obras'), obraRecebimentoRouter);
+app.use('/v1/recebimento', ...perm('obras'), recebimentoRouter);
 app.use('/v1/obras/:obraId/tasks', ...perm('obras'), obraTaskRoutes);
 app.use('/v1/tasks', ...perm('obras'), taskRoutes);
 app.use('/v1/obras/:obraId/photos', ...perm('obras'), obraPhotoRoutes);
