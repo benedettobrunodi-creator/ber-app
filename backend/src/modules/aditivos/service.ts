@@ -19,7 +19,18 @@ export async function listByObra(obraId: string) {
     { total: 0, byStatus: {} as Record<string, number> },
   );
 
-  return { aditivos: rows, totals };
+  // Contagem de anexos por aditivo (02/09/26 — clipe na lista)
+  const counts = rows.length
+    ? await prisma.attachment.groupBy({
+        by: ['entityId'],
+        where: { entityType: 'aditivo', entityId: { in: rows.map((r) => r.id) } },
+        _count: { _all: true },
+      })
+    : [];
+  const countMap = new Map(counts.map((c) => [c.entityId, c._count._all]));
+  const aditivos = rows.map((r) => ({ ...r, attachmentsCount: countMap.get(r.id) ?? 0 }));
+
+  return { aditivos, totals };
 }
 
 export async function getOne(id: string) {

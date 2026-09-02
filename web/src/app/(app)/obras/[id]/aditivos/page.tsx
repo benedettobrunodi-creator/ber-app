@@ -28,6 +28,7 @@ interface Attachment {
 interface Aditivo {
   id: string;
   numero: string;
+  attachmentsCount?: number;
   descricao: string;
   valor: string | number;
   tipo: 'credito' | 'debito';
@@ -221,7 +222,14 @@ export default function ObraAditivosPage() {
                     <tr key={a.id} className="border-t border-ber-gray/10 hover:bg-ber-bg/40 cursor-pointer" onClick={() => toggleExpand(a.id)}>
                       <td className="px-3 py-2.5 font-bold text-ber-carbon">{a.numero}</td>
                       <td className="px-3 py-2.5 text-ber-carbon">
-                        <div className="line-clamp-1">{a.descricao}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="line-clamp-1">{a.descricao}</span>
+                          {(a.attachmentsCount ?? 0) > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-ber-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-ber-teal" title={`${a.attachmentsCount} anexo(s)`}>
+                              <Paperclip size={10} /> {a.attachmentsCount}
+                            </span>
+                          )}
+                        </div>
                         {a.motivo && <div className="text-xs text-ber-gray/70 line-clamp-1 italic">Motivo: {a.motivo}</div>}
                       </td>
                       <td className="px-3 py-2.5 text-center">

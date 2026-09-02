@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Paperclip, X } from 'lucide-react';
 import api from '@/lib/api';
 import { parseValorBRL } from '@/lib/valor-brl';
 
@@ -20,6 +20,8 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
   const [form, setForm] = useState({ numero: '', descricao: '', valor: '', tipo: 'credito' as 'credito' | 'debito', motivo: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileNames, setFileNames] = useState<string[]>([]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,13 +39,29 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
         setSaving(false);
         return;
       }
-      await api.post(`/obras/${obraId}/aditivos`, {
+      const created = await api.post(`/obras/${obraId}/aditivos`, {
         numero: form.numero.trim(),
         descricao: form.descricao.trim(),
         valor,
         tipo: form.tipo,
         motivo: form.motivo.trim() || null,
       });
+      // Anexos opcionais (aprovação, ata...) — sobem após criar o aditivo.
+      const aditivoId = created.data?.data?.id;
+      const files = Array.from(fileRef.current?.files ?? []);
+      if (aditivoId && files.length) {
+        for (const f of files) {
+          const fd = new FormData();
+          fd.append('file', f);
+          fd.append('entityType', 'aditivo');
+          fd.append('entityId', aditivoId);
+          try {
+            await api.post('/attachments', fd);
+          } catch {
+            alert(`Aditivo criado, mas o anexo "${f.name}" falhou — reenvie pela lista (expandir o aditivo → Anexos).`);
+          }
+        }
+      }
       onCreated();
     } catch (err) {
       setError(errMsg(err, 'Erro ao criar aditivo'));
@@ -86,6 +104,20 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
           <div>
             <label className={labelCls}>Valor (R$) *</label>
             <input value={form.valor} onChange={e => setForm(p => ({ ...p, valor: e.target.value }))} inputMode="decimal" placeholder="Ex: 15.000,00" required className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Anexos (opcional)</label>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              onChange={e => setFileNames(Array.from(e.target.files ?? []).map(f => f.name))}
+              className="mt-1 block w-full text-sm text-ber-gray file:mr-3 file:rounded-md file:border-0 file:bg-ber-offwhite file:px-3 file:py-2 file:text-xs file:font-semibold file:text-ber-carbon hover:file:bg-ber-gray/10"
+            />
+            {fileNames.length > 0 && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-ber-gray"><Paperclip size={11} /> {fileNames.length} arquivo(s): {fileNames.join(', ').slice(0, 80)}</p>
+            )}
+            <p className="mt-1 text-[11px] text-ber-gray/60">E-mail de aprovação, ata, planilha… (até 20MB cada)</p>
           </div>
           <div>
             <label className={labelCls}>Motivo (opcional)</label>
