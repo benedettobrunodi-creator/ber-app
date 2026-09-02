@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Camera, PauseCircle, PlayCircle, X, AlertTriangle, Pencil, FileDown, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 interface Pendencia {
   id: string;
@@ -532,7 +533,7 @@ export default function PendenciasPage() {
                 )}
                 <button
                   disabled={busy}
-                  onClick={() => { if (confirm('Excluir esta pendência?')) run(async () => { await api.delete(`/obras/${obraId}/pendencias/${detalhe.id}`); setDetalhe(null); }, 'Sem permissão pra excluir (coordenação+)'); }}
+                  onClick={async () => { if (await confirmar('Excluir esta pendência?', { confirmarLabel: 'Excluir' })) run(async () => { await api.delete(`/obras/${obraId}/pendencias/${detalhe.id}`); setDetalhe(null); }, 'Sem permissão pra excluir (coordenação+)'); }}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-red/40 text-ber-red hover:bg-red-50 disabled:opacity-50 ml-auto"
                 >
                   <Trash2 size={13} /> Excluir

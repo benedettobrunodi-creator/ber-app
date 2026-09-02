@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 interface CronogramaOverride {
   pct?: number;
@@ -79,7 +80,7 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   }
 
   async function handleReparse() {
-    if (!confirm('Reprocessar extrai as tarefas do PDF atual via IA. Pode levar 30-60s. Continuar?')) return;
+    if (!(await confirmar('Reprocessar extrai as tarefas do PDF atual via IA. Pode levar 30-60s. Continuar?', { titulo: 'Reprocessar cronograma', confirmarLabel: 'Continuar' }))) return;
     setReparsing(true); setReparseResult(null);
     try {
       const r = await api.post<{ data: { numTarefas: number; progressPct: number } }>(`/obras/${obraId}/cronograma/parse`);

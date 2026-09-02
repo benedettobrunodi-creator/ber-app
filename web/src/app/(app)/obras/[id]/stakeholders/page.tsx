@@ -6,6 +6,7 @@ import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Users, Trash2, Pencil, Mail, Phone } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 import StakeholderFormModal, { type Stakeholder } from '@/components/obras/StakeholderFormModal';
 
 const errMsg = (err: unknown, fallback: string) => {
@@ -37,7 +38,7 @@ export default function StakeholdersPage() {
   useEffect(() => { fetchAll(); }, [obraId]);
 
   async function handleDelete(id: string) {
-    if (!confirm('Remover este stakeholder?')) return;
+    if (!(await confirmar('Remover este stakeholder?', { confirmarLabel: 'Remover' }))) return;
     try { await api.delete(`/stakeholders/${id}`); fetchAll(); }
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }

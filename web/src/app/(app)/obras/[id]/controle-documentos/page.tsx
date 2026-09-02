@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, UploadCloud } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 const DISCIPLINAS = [
   'Arquitetura', 'Estrutural', 'Instalações Elétricas', 'Hidráulica', 'Ar Condicionado',
@@ -170,7 +171,7 @@ export default function ControleDocumentosPage() {
   }
 
   async function handleRemoveDoc(id: string) {
-    if (!confirm('Excluir este documento e todo o histórico de revisões dele?')) return;
+    if (!(await confirmar('Excluir este documento e todo o histórico de revisões dele?', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/controle-documentos/${id}`);
       setDocumentos(prev => prev.filter(d => d.id !== id));
@@ -212,7 +213,7 @@ export default function ControleDocumentosPage() {
   }
 
   async function handleRemoveRevisao(docId: string, revisaoId: string) {
-    if (!confirm('Excluir esta revisão?')) return;
+    if (!(await confirmar('Excluir esta revisão?', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/controle-documentos/${docId}/revisoes/${revisaoId}`);
       setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, revisoes: d.revisoes.filter(r => r.id !== revisaoId) } : d));

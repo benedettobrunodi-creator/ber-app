@@ -12,6 +12,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, Trash2, Pencil, Mail, Upload, Image as ImageIcon } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 interface Stakeholder { id: string; nome: string; empresa: string; email: string | null }
 
@@ -166,7 +167,7 @@ export default function AmostrasPage() {
   }
 
   async function handleRemove(id: string) {
-    if (!confirm('Excluir esta amostra?')) return;
+    if (!(await confirmar('Excluir esta amostra?', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/amostras/${id}`);
       setAmostras(prev => prev.filter(a => a.id !== id));
@@ -176,7 +177,7 @@ export default function AmostrasPage() {
   }
 
   async function handleEnviarEmail(a: Amostra) {
-    if (!confirm(`Enviar e-mail sobre "${a.item}" para TODOS os stakeholders cadastrados nesta obra?`)) return;
+    if (!(await confirmar(`Enviar e-mail sobre "${a.item}" para TODOS os stakeholders cadastrados nesta obra?`, { titulo: 'Enviar e-mail', confirmarLabel: 'Enviar' }))) return;
     setSendingEmailId(a.id);
     try {
       const r = await api.post(`/obras/${obraId}/amostras/${a.id}/enviar-email`);

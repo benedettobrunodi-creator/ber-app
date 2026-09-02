@@ -6,6 +6,7 @@ import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, FileText, CheckCircle2, XCircle, Clock, Trash2, Upload, Paperclip, X } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 import AditivoFormModal from '@/components/obras/AditivoFormModal';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: typeof Clock }> = {
@@ -122,7 +123,7 @@ export default function ObraAditivosPage() {
   }
 
   async function handleDelete(aditivoId: string) {
-    if (!confirm('Excluir este aditivo? Esta ação não pode ser desfeita.')) return;
+    if (!(await confirmar('Excluir este aditivo? Esta ação não pode ser desfeita.', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/aditivos/${aditivoId}`);
       fetchAll();
@@ -337,7 +338,7 @@ function AttachmentsPanel({ aditivoId, attachments, onRefresh }: { aditivoId: st
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Remover este anexo?')) return;
+    if (!(await confirmar('Remover este anexo?', { confirmarLabel: 'Remover' }))) return;
     try {
       await api.delete(`/attachments/${id}`);
       onRefresh();

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
+import { ConfirmHost } from '@/lib/confirmar';
 import {
   HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
@@ -351,6 +352,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-auto bg-ber-bg pb-20 md:pb-0">
         {children}
       </main>
+
+      {/* Confirmação própria do app (window.confirm é bloqueado em PWA mobile) */}
+      <ConfirmHost />
 
       {/* ─── Bottom navigation — mobile only ─── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">

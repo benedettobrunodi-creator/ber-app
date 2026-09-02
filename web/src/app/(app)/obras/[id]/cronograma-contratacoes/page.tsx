@@ -6,6 +6,7 @@ import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, CalendarClock, Trash2, X, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   a_contratar: { label: 'A contratar',  color: 'bg-gray-200 text-gray-700' },
@@ -83,7 +84,7 @@ export default function CronogramaContratacoesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir este pacote do cronograma?')) return;
+    if (!(await confirmar('Excluir este pacote do cronograma?', { confirmarLabel: 'Excluir' }))) return;
     try { await api.delete(`/contratacao-plano/${id}`); fetchAll(); }
     catch (err) { alert(errMsg(err, 'Erro ao excluir')); }
   }

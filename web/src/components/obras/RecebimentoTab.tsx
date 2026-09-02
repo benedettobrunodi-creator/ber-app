@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, FileDown, Loader2, Sparkles, Trash2, X, ChevronLeft, ChevronRight, Plus, Pencil } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 
 interface Foto {
   id: string;
@@ -127,7 +128,7 @@ export default function RecebimentoTab({ obraId }: { obraId: string }) {
   }
 
   async function excluirFoto(fotoId: string) {
-    if (!confirm('Excluir esta foto?')) return;
+    if (!(await confirmar('Excluir esta foto?', { confirmarLabel: 'Excluir' }))) return;
     try { await api.delete(`/recebimento/fotos/${fotoId}`); await load(); }
     catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
   }
@@ -160,7 +161,7 @@ export default function RecebimentoTab({ obraId }: { obraId: string }) {
   }
 
   async function excluirAmbiente(a: Ambiente) {
-    if (!confirm(`Excluir o ambiente "${a.nome}"? As fotos voltam pra "sem ambiente".`)) return;
+    if (!(await confirmar(`Excluir o ambiente "${a.nome}"? As fotos voltam pra "sem ambiente".`, { confirmarLabel: 'Excluir' }))) return;
     try { await api.delete(`/recebimento/ambientes/${a.id}`); await load(); }
     catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
   }

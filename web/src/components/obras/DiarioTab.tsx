@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 import { useAuthStore } from '@/stores/authStore';
 import {
   Plus, X, Lock, Unlock, Sun, Cloud, CloudSun, CloudRain, Zap,
@@ -321,7 +322,7 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
 
   async function excluirDiario() {
     if (!selected) return;
-    if (!confirm('Excluir este diário permanentemente?')) return;
+    if (!(await confirmar('Excluir este diário permanentemente?', { confirmarLabel: 'Excluir' }))) return;
     setSaving(true);
     try {
       await api.delete(`/diario/${selected.id}`);
@@ -352,7 +353,7 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
   }
 
   async function deleteItem(endpoint: string, refresh: () => void) {
-    if (!confirm('Remover item?')) return;
+    if (!(await confirmar('Remover item?', { confirmarLabel: 'Remover' }))) return;
     try {
       await api.delete(endpoint);
       refresh();

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Users, FileSpreadsheet, AlertTriangle, ChevronDown, ChevronRight, Check, FileDown } from 'lucide-react';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 import { useBackToObra } from '@/hooks/useBackToObra';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
@@ -196,7 +197,7 @@ export default function AtaCorridaPage() {
   }
 
   async function removeTopico(topicoId: string) {
-    if (!confirm('Excluir este tópico? O histórico de atualizações também será removido.')) return;
+    if (!(await confirmar('Excluir este tópico? O histórico de atualizações também será removido.', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/atas/topicos/${topicoId}`);
       setAta(prev => prev ? {
@@ -223,7 +224,7 @@ export default function AtaCorridaPage() {
   }
 
   async function removeAtualizacao(topicoId: string, atualizacaoId: string) {
-    if (!confirm('Excluir esta entrada do histórico?')) return;
+    if (!(await confirmar('Excluir esta entrada do histórico?', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/atas/atualizacoes/${atualizacaoId}`);
       setAta(prev => prev ? {
