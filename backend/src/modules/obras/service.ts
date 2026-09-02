@@ -37,16 +37,19 @@ export async function listObras(page: number, limit: number, status?: string, us
         where: { obraId: { in: obraIds } },
         orderBy: [{ obraId: 'asc' }, { numero: 'desc' }],
         distinct: ['obraId'],
-        select: { obraId: true, avancoPct: true },
+        select: { obraId: true, avancoPct: true, periodoFim: true },
       })
     : [];
   const avancoPorObra = new Map(ultimosRelatorios.map(r => [r.obraId, Number(r.avancoPct)]));
+  // Fim do período coberto pelo último relatório — sinal de "frescor" da obra no painel
+  const relatorioEmPorObra = new Map(ultimosRelatorios.map(r => [r.obraId, r.periodoFim]));
 
   const obrasComProgresso = obras.map(o => ({
     ...o,
     // null quando a obra ainda não tem nenhum relatório semanal — o frontend
     // deve exibir "—" nesse caso, não "0%" (0% sugeriria progresso real zerado).
     progressoRelatorio: avancoPorObra.has(o.id) ? avancoPorObra.get(o.id)! : null,
+    ultimoRelatorioEm: relatorioEmPorObra.get(o.id) ?? null,
   }));
 
   // Arquivadas sempre por último
@@ -241,7 +244,50 @@ export async function getCounts(userId: string, userRole: string) {
     prisma.obra.count({ where: { ...where, status: 'em_andamento', progressPercent: { lt: 20 } } }),
   ]);
 
-  return { total, ativas, atrasadas };
+  // ─── KPIs do painel de obras (02/09/26) ───
+  // Obras em andamento visíveis pro usuário (mesma regra de escopo do where)
+  const obrasAtivas = await prisma.obra.findMany({
+    where: { ...where, status: 'em_andamento' },
+    select: { id: true },
+  });
+  const ativasIds = obrasAtivas.map(o => o.id);
+
+  const ultimosRelatorios = ativasIds.length
+    ? await prisma.relatorioSemanal.findMany({
+        where: { obraId: { in: ativasIds } },
+        orderBy: [{ obraId: 'asc' }, { numero: 'desc' }],
+        distinct: ['obraId'],
+        select: { obraId: true, avancoPct: true, periodoFim: true },
+      })
+    : [];
+
+  // Avanço médio: média do avanço do último relatório de cada obra ativa (que tem relatório)
+  const avancoMedio = ultimosRelatorios.length
+    ? Math.round(ultimosRelatorios.reduce((s, r) => s + Number(r.avancoPct), 0) / ultimosRelatorios.length)
+    : null;
+
+  // Relatórios atrasados: obra ativa cujo último relatório cobre até > 7 dias atrás,
+  // ou que nunca teve relatório
+  const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const comRelatorioRecente = new Set(
+    ultimosRelatorios.filter(r => r.periodoFim >= seteDiasAtras).map(r => r.obraId),
+  );
+  const relatoriosAtrasados = ativasIds.filter(id => !comRelatorioRecente.has(id)).length;
+
+  // Contratações vencendo: planos não contratados com data limite até 7 dias à frente
+  // (inclui já estouradas), só de obras ativas
+  const seteDiasFrente = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const contratacoesVencendo = ativasIds.length
+    ? await prisma.obraContratacaoPlano.count({
+        where: {
+          obraId: { in: ativasIds },
+          status: { in: ['a_contratar', 'em_cotacao', 'atrasado'] },
+          dataLimite: { not: null, lte: seteDiasFrente },
+        },
+      })
+    : 0;
+
+  return { total, ativas, atrasadas, avancoMedio, relatoriosAtrasados, contratacoesVencendo };
 }
 
 export async function getStats(obraId: string) {
