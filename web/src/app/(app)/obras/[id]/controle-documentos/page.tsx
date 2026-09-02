@@ -322,7 +322,7 @@ export default function ControleDocumentosPage() {
         onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
 
       {/* ─── Setores — faixa escura (pedido Bruno 02/09) ─── */}
-      <div className="mb-4 rounded-xl bg-ber-carbon p-1.5">
+      <div className="mb-4 rounded-xl bg-ber-carbon/[0.06] border border-ber-border p-1">
         <nav className="flex items-center gap-1 overflow-x-auto">
           {([
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
@@ -334,13 +334,13 @@ export default function ControleDocumentosPage() {
           ] as { key: Setor; label: string; count: number }[]).map(t => (
             <button key={t.key}
               onClick={() => { setSetor(t.key); setSubTecnico(null); }}
-              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold transition-colors ${
+              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition-all ${
                 setor === t.key
-                  ? (t.key === 'obsoletos' ? 'bg-ber-amber text-white' : 'bg-ber-olive text-ber-carbon')
-                  : 'text-white/75 hover:text-white hover:bg-white/10'
+                  ? (t.key === 'obsoletos' ? 'bg-white text-ber-amber shadow-sm' : 'bg-white text-ber-carbon shadow-sm')
+                  : 'text-ber-gray hover:text-ber-carbon'
               } ${t.key === 'obsoletos' ? 'ml-auto' : ''}`}>
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${setor === t.key ? 'bg-black/15' : 'bg-white/15'}`}>{t.count}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${setor === t.key ? 'bg-ber-olive/20 text-ber-carbon' : 'bg-ber-gray/15 text-ber-gray'}`}>{t.count}</span>
             </button>
           ))}
         </nav>
