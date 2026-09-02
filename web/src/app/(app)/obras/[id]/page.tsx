@@ -118,7 +118,7 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
   concluida: { label: 'Concluída', badge: 'bg-ber-olive/15 text-ber-olive', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
 };
 
-type TabKey = 'capa' | 'equipe' | 'checklists' | 'canteiro' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
+type TabKey = 'capa' | 'equipe' | 'recebimento' | 'canteiro' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
 
 interface CanteiroSummary {
   id: string;
@@ -703,10 +703,12 @@ export default function ObraDetailPage() {
       { type: 'link', href: 'cronograma-contratacoes', label: 'Crn. Contratações' },
     ] },
     { grupo: 'Durante a Obra', tabs: [
+      // Checklists saiu como aba (02/09/26): Relatório de Recebimento virou aba
+      // própria; Qualidade e Segurança ganham módulos próprios depois.
+      { type: 'tab', key: 'recebimento', label: 'Rel. Recebimento' },
       { type: 'link', href: 'controle-documentos', label: 'Documentos' },
       { type: 'tab', key: 'fvs', label: `Sequenciamento (${obraFvsList.length})` },
       { type: 'tab', key: 'diario', label: 'Diário' },
-      { type: 'tab', key: 'checklists', label: `Checklists (${checklists.length})` },
       { type: 'link', href: 'atas', label: 'Atas' },
       { type: 'link', href: 'aditivos', label: 'Aditivos' },
       { type: 'link', href: 'amostras', label: 'Amostras' },
@@ -1683,102 +1685,74 @@ export default function ObraDetailPage() {
           </div>
         )}
 
-        {activeTab === 'checklists' && (() => {
-          const CL_STATUS: Record<string, { label: string; color: string; dot: string }> = {
-            nao_iniciado: { label: 'Não iniciado', color: 'bg-gray-100 text-gray-500', dot: 'bg-gray-400' },
-            em_preenchimento: { label: 'Em preenchimento', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
-            concluido: { label: 'Concluído ✓', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+        {activeTab === 'recebimento' && (() => {
+          // Relatório de Recebimento do Imóvel (ex-CL_1 do módulo Checklists,
+          // promovido a aba própria em 02/09/26). Reusa o modal de preenchimento.
+          const CL_STATUS: Record<string, { label: string; color: string }> = {
+            nao_iniciado: { label: 'Não iniciado', color: 'bg-gray-100 text-gray-500' },
+            em_preenchimento: { label: 'Em preenchimento', color: 'bg-blue-100 text-blue-700' },
+            concluido: { label: 'Concluído ✓', color: 'bg-green-100 text-green-700' },
           };
-          // Group by template code (show all 5 types)
-          const byCode: Record<string, ObraBerChecklist[]> = {};
-          berChecklists.forEach(c => { const code = c.template?.code ?? '?'; (byCode[code] = byCode[code] ?? []).push(c); });
+          const tmpl = berClTemplates.find(t => t.code === 'CL_1');
+          const instances = berChecklists.filter(c => c.template?.code === 'CL_1');
+          const latest = instances[instances.length - 1] ?? null;
+          const sc = latest ? (CL_STATUS[latest.status] ?? CL_STATUS.nao_iniciado) : CL_STATUS.nao_iniciado;
+          const totalItems = latest?.items.length ?? tmpl?.items.length ?? 0;
+          const checkedItems = latest?.items.filter(i => i.checked).length ?? 0;
+          const pct = totalItems > 0 ? Math.round(checkedItems / totalItems * 100) : 0;
 
           return (
             <div>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Checklists BÈR</h3>
+              <div className="mb-4">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-ber-gray">Relatório de Recebimento do Imóvel</h3>
+                <p className="mt-0.5 text-xs text-ber-gray/70">
+                  Registro das condições encontradas no recebimento do imóvel, feito uma vez no início da obra.
+                </p>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-ber-border">
-                {/* Cabeçalho */}
-                <div className="grid items-center gap-3 border-b border-ber-border bg-ber-surface px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray"
-                  style={{ gridTemplateColumns: '2rem 1fr 5rem 7rem 6rem auto' }}>
-                  <span>#</span>
-                  <span>Checklist</span>
-                  <span>Tipo</span>
-                  <span>Progresso</span>
-                  <span>Status</span>
-                  <span />
+              {!tmpl ? (
+                <div className="rounded-lg border-2 border-dashed border-ber-gray/20 p-12 text-center">
+                  <p className="text-sm text-ber-gray/60">Template do Relatório de Recebimento não encontrado.</p>
                 </div>
-                {/* Linhas */}
-                {berClTemplates.map((tmpl, idx) => {
-                  const instances = byCode[tmpl.code] ?? [];
-                  const latest = instances[instances.length - 1] ?? null;
-                  const sc = latest ? (CL_STATUS[latest.status] ?? CL_STATUS.nao_iniciado) : CL_STATUS.nao_iniciado;
-                  const totalItems = latest?.items.length ?? tmpl.items.length;
-                  const checkedItems = latest?.items.filter(i => i.checked).length ?? 0;
-                  const pct = totalItems > 0 ? Math.round(checkedItems / totalItems * 100) : 0;
-                  const CODE_ACCENT = ['#64748B','#3B82F6','#F97316','#10B981','#EF4444'];
-                  const codeIdx = ['CL_1','CL_2','CL_3','CL_4','CL_5'].indexOf(tmpl.code);
-                  const accent = CODE_ACCENT[codeIdx] ?? '#6B7280';
-                  const barColor = pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB';
-                  const statusAccent = latest
-                    ? ({ nao_iniciado: '#D1D5DB', em_preenchimento: '#3B82F6', concluido: '#10B981' }[latest.status] ?? '#D1D5DB')
-                    : '#D1D5DB';
-                  return (
-                    <div key={tmpl.id}
-                      className={`grid items-center gap-3 px-4 py-3 ${idx !== berClTemplates.length - 1 ? 'border-b border-ber-border' : ''}`}
-                      style={{ gridTemplateColumns: '2rem 1fr 5rem 7rem 6rem auto', borderLeft: `3px solid ${statusAccent}` }}>
-                      {/* # */}
-                      <span className="text-[11px] font-bold tabular-nums" style={{ color: accent }}>{String(idx + 1).padStart(2, '0')}</span>
-                      {/* Nome */}
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: accent }}>{tmpl.code} </span>
-                        <span className="text-xs font-semibold text-ber-carbon">{tmpl.name}</span>
-                        {instances.length > 1 && (
-                          <span className="ml-2 text-[10px] text-ber-gray">{instances.length}×</span>
-                        )}
-                      </div>
-                      {/* Tipo */}
-                      {tmpl.recorrente
-                        ? <span className="rounded-full bg-ber-teal/10 px-2 py-0.5 text-[9px] font-semibold text-ber-teal w-fit">Recorrente</span>
-                        : <span className="text-[10px] text-ber-gray/50">Fixo</span>}
-                      {/* Progresso */}
+              ) : (
+                <div className="rounded-xl border border-ber-border bg-white p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                        </div>
-                        <span className="w-7 text-right text-[10px] tabular-nums text-ber-gray">{pct}%</span>
+                        <p className="text-sm font-bold text-ber-carbon">{tmpl.name}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.color}`}>{sc.label}</span>
                       </div>
-                      {/* Status */}
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit ${sc.color}`}>{sc.label}</span>
-                      {/* Ações */}
-                      <div className="flex items-center gap-1.5">
-                        {(tmpl.recorrente || instances.length === 0) && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const r = await api.post(`/obras/${params.id}/ber-checklists`, { templateId: tmpl.id });
-                                const newCl = r.data.data;
-                                setBerChecklists(prev => [...prev, newCl]);
-                                setActiveCl(newCl); setClModalOpen(true);
-                              } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
-                            }}
-                            className="rounded-md bg-ber-carbon px-2.5 py-1 text-[10px] font-bold text-white hover:bg-ber-black transition-colors whitespace-nowrap">
-                            {tmpl.recorrente && instances.length > 0 ? '+ Visita' : '+ Iniciar'}
-                          </button>
-                        )}
-                        {latest && (
-                          <button onClick={() => { setActiveCl(latest); setClModalOpen(true); }}
-                            className="rounded-md border border-ber-border px-2.5 py-1 text-[10px] font-medium text-ber-carbon hover:bg-ber-surface transition-colors">
-                            Abrir
-                          </button>
-                        )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-1.5 w-48 overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: pct === 100 ? '#10B981' : pct > 0 ? '#5A7A7A' : '#E5E7EB' }} />
+                        </div>
+                        <span className="text-[11px] tabular-nums text-ber-gray">{pct}% · {checkedItems}/{totalItems} itens</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="flex items-center gap-2">
+                      {!latest ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const r = await api.post(`/obras/${params.id}/ber-checklists`, { templateId: tmpl.id });
+                              const newCl = r.data.data;
+                              setBerChecklists(prev => [...prev, newCl]);
+                              setActiveCl(newCl); setClModalOpen(true);
+                            } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+                          }}
+                          className="rounded-md bg-ber-carbon px-3.5 py-2 text-xs font-bold text-white hover:bg-ber-black transition-colors">
+                          + Iniciar relatório
+                        </button>
+                      ) : (
+                        <button onClick={() => { setActiveCl(latest); setClModalOpen(true); }}
+                          className="rounded-md bg-ber-carbon px-3.5 py-2 text-xs font-bold text-white hover:bg-ber-black transition-colors">
+                          {latest.status === 'concluido' ? 'Ver relatório' : 'Continuar preenchendo'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
