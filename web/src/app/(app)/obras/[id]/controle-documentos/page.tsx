@@ -302,13 +302,13 @@ export default function ControleDocumentosPage() {
       </Link>
 
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-        <h1 className="flex flex-wrap items-baseline gap-2 text-xl font-semibold text-ber-carbon">
+        <h1 className="flex flex-wrap items-baseline gap-2 text-xl font-bold text-ber-carbon">
           Controle de Documentos
           {obraNome && <span className="rounded-md bg-ber-carbon px-2 py-0.5 text-sm font-bold text-white">{obraNome}</span>}
         </h1>
         <div className="flex items-center gap-2">
           <button onClick={() => bulkInput.current?.click()} disabled={bulkUploading}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-carbon text-white rounded-lg px-3.5 py-2 hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-olive text-ber-carbon rounded-lg px-3.5 py-2 hover:brightness-95 disabled:opacity-60"
             title="Sobe vários arquivos de uma vez — código e revisão detectados do nome; ou arraste os arquivos pra qualquer lugar da página">
             <Upload size={15} /> {bulkUploading ? 'Subindo…' : 'Inserir arquivos'}
           </button>
@@ -321,9 +321,9 @@ export default function ControleDocumentosPage() {
       <input ref={bulkInput} type="file" multiple className="hidden"
         onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
 
-      {/* ─── Setores — abas no padrão do app ─── */}
-      <div className="mb-4 border-b border-ber-border">
-        <nav className="-mb-px flex gap-1 overflow-x-auto">
+      {/* ─── Setores — faixa escura (pedido Bruno 02/09) ─── */}
+      <div className="mb-4 rounded-xl bg-ber-carbon p-1.5">
+        <nav className="flex items-center gap-1 overflow-x-auto">
           {([
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
@@ -334,13 +334,13 @@ export default function ControleDocumentosPage() {
           ] as { key: Setor; label: string; count: number }[]).map(t => (
             <button key={t.key}
               onClick={() => { setSetor(t.key); setSubTecnico(null); }}
-              className={`inline-flex items-center gap-2 whitespace-nowrap border-b-[3px] px-4 py-3 text-[15px] font-bold transition-colors ${
+              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold transition-colors ${
                 setor === t.key
-                  ? (t.key === 'obsoletos' ? 'border-amber-500 text-amber-700' : 'border-ber-olive text-ber-carbon')
-                  : 'border-transparent text-ber-gray hover:text-ber-carbon'
+                  ? (t.key === 'obsoletos' ? 'bg-ber-amber text-white' : 'bg-ber-olive text-ber-carbon')
+                  : 'text-white/75 hover:text-white hover:bg-white/10'
               } ${t.key === 'obsoletos' ? 'ml-auto' : ''}`}>
               {t.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${setor === t.key ? 'bg-ber-carbon/10 text-ber-carbon' : 'bg-ber-gray/10 text-ber-gray'}`}>{t.count}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${setor === t.key ? 'bg-black/15' : 'bg-white/15'}`}>{t.count}</span>
             </button>
           ))}
         </nav>
@@ -411,16 +411,18 @@ export default function ControleDocumentosPage() {
         <div className="space-y-5">
           {grupos.map(({ disc, docs }) => (
             <div key={disc}>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal mb-2">{disc} ({docs.length})</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mb-2">{disc} ({docs.length})</p>
               <div className="space-y-2">
                 {docs.map(d => {
                   const ult = ultimaRevisao(d);
                   const isExpanded = expanded.has(d.id);
                   const parado = ult && diasDesde(ult.data) > 90;
                   return (
-                    <div key={d.id} className="bg-white border border-ber-border rounded-xl overflow-hidden">
+                    <div key={d.id} className={`bg-ber-card border border-ber-border rounded-xl overflow-hidden border-l-[3px] ${
+                      ult ? (parado ? 'border-l-ber-amber' : 'border-l-ber-green') : 'border-l-ber-gray/30'
+                    }`}>
                       <div className="p-3 flex items-center justify-between gap-3 flex-wrap">
-                        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => toggleExpand(d.id)}>
+                        <div className="min-w-0 flex-1 cursor-pointer rounded-lg hover:bg-ber-surface/60 transition-colors" onClick={() => toggleExpand(d.id)}>
                           <div className="flex items-center gap-2 flex-wrap">
                             <input
                               defaultValue={d.codigo}
@@ -430,20 +432,20 @@ export default function ControleDocumentosPage() {
                               style={{ width: `${Math.max(d.codigo.length, 8)}ch` }}
                             />
                             {ult && (
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${parado ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${parado ? 'bg-ber-amber/15 text-ber-amber' : 'bg-ber-green/15 text-ber-green'}`}>
                                 {ult.revisao} · {fmtBR(ult.data)}{parado ? ' · parado' : ''}
                               </span>
                             )}
-                            {!ult && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">sem revisão</span>}
+                            {!ult && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-ber-gray/10 text-ber-gray">sem revisão</span>}
                             <span className="text-[10px] text-ber-gray/60" title="Data em que o documento entrou no sistema">incluído {fmtBR(d.createdAt)}</span>
                           </div>
                           <div className="mt-1 flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
                             <select value={d.disciplina} onChange={e => updateField(d.id, 'disciplina', e.target.value)}
-                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                              className="text-[11px] bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
                               {DISCIPLINAS.map(disc2 => <option key={disc2} value={disc2}>{disc2}</option>)}
                             </select>
                             <select value={d.etapa ?? ''} onChange={e => updateField(d.id, 'etapa', e.target.value)}
-                              className="text-[11px] bg-transparent border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                              className="text-[11px] bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
                               <option value="">Etapa —</option>
                               {ETAPAS.map(e => <option key={e} value={e}>{e}</option>)}
                             </select>
@@ -451,7 +453,7 @@ export default function ControleDocumentosPage() {
                               defaultValue={d.projetista ?? ''}
                               placeholder="Projetista"
                               onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
-                              className="text-xs bg-transparent border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
+                              className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
                             />
                           </div>
                         </div>
