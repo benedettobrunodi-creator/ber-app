@@ -110,6 +110,12 @@ export async function createRelatorio(req: Request, res: Response) {
       include,
     });
 
+    // Reconfere o % do cronograma a cada relatório (fase do Sequenciamento) — fire-and-forget
+    import('../../services/fase-sequenciamento').then(m =>
+      m.atualizarLeituraCronograma(obraId).catch(e =>
+        console.warn(`[FASE-SEQ] leitura pós-relatório falhou obra=${obraId}: ${e.message}`)),
+    );
+
     return res.status(201).json({ data: relatorio });
   } catch (e: any) { return err500(res, e); }
 }

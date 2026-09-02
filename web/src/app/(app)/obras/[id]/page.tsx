@@ -301,6 +301,44 @@ export default function ObraDetailPage() {
   const [obraFvsList, setObraFvsList] = useState<ObraFvs[]>([]);
   // Avanço do último relatório semanal — define qual fase do Passo a Passo está valendo
   const [avancoObra, setAvancoObra] = useState<number | null>(null);
+  // Fase do Sequenciamento — leitura do cronograma + correção manual (02/09/26)
+  interface FaseSeq {
+    faseEfetiva: string | null;
+    origem: 'manual' | 'cronograma' | 'relatorio' | null;
+    faseManual: string | null;
+    pctCronograma: number | null;
+    pctCronogramaEm: string | null;
+    pctRelatorio: number | null;
+    faseCronograma: string | null;
+    faseRelatorio: string | null;
+    divergente: boolean;
+  }
+  const [faseSeq, setFaseSeq] = useState<FaseSeq | null>(null);
+  const [faseSeqBusy, setFaseSeqBusy] = useState(false);
+  const fetchFaseSeq = async () => {
+    try {
+      const r = await api.get(`/obras/${params.id}/fase-seq`);
+      setFaseSeq(r.data.data);
+    } catch { /* opcional — sem fase-seq a trilha usa o fallback antigo */ }
+  };
+  const setFaseManual = async (fase: string | null) => {
+    setFaseSeqBusy(true);
+    try {
+      const r = await api.put(`/obras/${params.id}/fase-seq`, { faseManual: fase });
+      setFaseSeq(r.data.data);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar fase');
+    } finally { setFaseSeqBusy(false); }
+  };
+  const relerCronogramaSeq = async () => {
+    setFaseSeqBusy(true);
+    try {
+      const r = await api.post(`/obras/${params.id}/fase-seq/reler`);
+      setFaseSeq(r.data.data);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message ?? 'Leitura do cronograma falhou — tente de novo em instantes');
+    } finally { setFaseSeqBusy(false); }
+  };
   const [fvsFilter, setFvsFilter] = useState<string>('todos');
   const [activeFvs, setActiveFvs] = useState<ObraFvs | null>(null);
   // Fases abertas na trilha. Bruno pediu que várias possam ficar abertas juntas.
@@ -399,6 +437,7 @@ export default function ObraDetailPage() {
         const ultimo = [...lista].sort((a: { numero: number }, b: { numero: number }) => b.numero - a.numero)[0];
         setAvancoObra(ultimo ? Number(ultimo.avancoPct) : null);
       }).catch(() => {});
+      fetchFaseSeq();
       const tmplRes = await api.get('/fvs-templates').catch(() => ({ data: { data: [] } }));
       setFvsTemplates(tmplRes.data.data ?? []);
 
@@ -1874,8 +1913,9 @@ export default function ObraDetailPage() {
             PP5: '75 a 100% de obra',
             PP6: 'após a entrega',
           };
-          // Qual fase está valendo agora, pelo avanço do último relatório
-          const faseAtual: string | null = (() => {
+          // Fase efetiva: manual > cronograma (leitura IA) > relatório.
+          // O fallback local reproduz a régua antiga caso o endpoint fase-seq falhe.
+          const faseAtual: string | null = faseSeq?.faseEfetiva ?? (() => {
             if (obra.status === 'nao_iniciada' || obra.status === 'planejamento') return 'PP1';
             if (obra.status === 'pos_obra' || obra.status === 'concluida') return 'PP6';
             if (avancoObra == null) return null;
@@ -1905,6 +1945,73 @@ export default function ObraDetailPage() {
                   </button>
                 )}
               </div>
+
+              {/* Fase da obra — leitura do cronograma × relatório + correção manual (02/09/26) */}
+              {faseSeq && (
+                <div className={`mb-4 rounded-xl border p-4 ${faseSeq.divergente && !faseSeq.faseManual ? 'border-amber-300 bg-amber-50/60' : 'border-ber-border bg-white'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Fase da obra</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="text-xl font-black text-ber-carbon">{faseSeq.faseEfetiva ?? '—'}</span>
+                          {faseSeq.faseEfetiva && (
+                            <span className="text-xs text-ber-gray">{FASE_FAIXA[faseSeq.faseEfetiva] ?? ''}</span>
+                          )}
+                          {faseSeq.origem && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              faseSeq.origem === 'manual' ? 'bg-purple-100 text-purple-700'
+                              : faseSeq.origem === 'cronograma' ? 'bg-ber-teal/15 text-ber-teal'
+                              : 'bg-ber-gray/15 text-ber-gray'
+                            }`}>
+                              {faseSeq.origem === 'manual' ? 'definida manualmente' : faseSeq.origem === 'cronograma' ? 'pelo cronograma' : 'pelo relatório'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-ber-gray">
+                          Cronograma: <strong className="text-ber-carbon">{faseSeq.pctCronograma != null ? `${faseSeq.pctCronograma}%` : '—'}</strong>
+                          {faseSeq.faseCronograma ? ` (${faseSeq.faseCronograma})` : ''}
+                          <span className="mx-1.5">·</span>
+                          Relatório: <strong className="text-ber-carbon">{faseSeq.pctRelatorio != null ? `${faseSeq.pctRelatorio}%` : '—'}</strong>
+                          {faseSeq.faseRelatorio ? ` (${faseSeq.faseRelatorio})` : ''}
+                        </p>
+                        {faseSeq.divergente && !faseSeq.faseManual && (
+                          <p className="mt-1 text-xs font-semibold text-amber-700">⚠ Leituras divergentes — confira o cronograma ou corrija a fase manualmente.</p>
+                        )}
+                      </div>
+                    </div>
+                    {isGestor && (
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-ber-carbon/70">
+                          Corrigir fase:
+                          <select
+                            value={faseSeq.faseManual ?? ''}
+                            disabled={faseSeqBusy}
+                            onChange={e => setFaseManual(e.target.value || null)}
+                            className="rounded border border-ber-gray/40 bg-white px-1.5 py-1 text-xs font-semibold text-ber-carbon hover:border-ber-teal focus:outline-none focus:ring-1 focus:ring-ber-teal disabled:opacity-50"
+                          >
+                            <option value="">automático</option>
+                            <option value="PP1">PP1 — antes do início</option>
+                            <option value="PP2">PP2 — 0 a 25%</option>
+                            <option value="PP3">PP3 — 25 a 50%</option>
+                            <option value="PP4">PP4 — 50 a 75%</option>
+                            <option value="PP5">PP5 — 75 a 100%</option>
+                            <option value="PP6">PP6 — após a entrega</option>
+                          </select>
+                        </label>
+                        <button
+                          onClick={relerCronogramaSeq}
+                          disabled={faseSeqBusy}
+                          title="Ler o % geral do cronograma de novo agora"
+                          className="rounded-md border border-ber-gray/25 px-2.5 py-1.5 text-[11px] font-semibold text-ber-gray hover:bg-ber-offwhite disabled:opacity-50"
+                        >
+                          {faseSeqBusy ? 'Lendo…' : '↻ Reler cronograma'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Filtros — só os que têm conteúdo */}
               {(() => {

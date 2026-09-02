@@ -151,6 +151,9 @@ model Obra {
   fase            String    @default("kickoff_interno") @db.VarChar(50)
   faseUpdatedAt   DateTime? @map("fase_updated_at")
   faseUpdatedById String?   @map("fase_updated_by") @db.Uuid
+  // Correção manual da fase do SEQUENCIAMENTO (PP1..PP6; null = automático).
+  // NÃO confundir com `fase` acima (ciclo de kickoff).
+  faseSeqManual   String?   @map("fase_seq_manual") @db.VarChar(4)
 
   dataInicioProjeto DateTime? @map("data_inicio_projeto") @db.Date
   dataFimProjeto    DateTime? @map("data_fim_projeto") @db.Date
@@ -1983,6 +1986,11 @@ model Cronograma {
   parsedData  Json?     @map("parsed_data")
   overrides   Json?     @map("overrides")
   progressPct Int?      @map("progress_pct")
+  // Leitura focada do % geral (fase do Sequenciamento, 02/09/26) —
+  // independente do parse completo acima
+  pctFocado      Int?      @map("pct_focado")
+  pctFocadoEm    DateTime? @map("pct_focado_em")
+  pctFocadoFonte String?   @map("pct_focado_fonte") @db.VarChar(120)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
 

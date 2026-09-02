@@ -40,6 +40,12 @@ export async function uploadCronograma(req: Request, res: Response) {
         data: { obraId, fileUrl, fileName: req.file.originalname },
       });
 
+  // Leitura focada do % geral (fase do Sequenciamento) — fire-and-forget
+  import('../../services/fase-sequenciamento').then(m =>
+    m.atualizarLeituraCronograma(obraId).catch(e =>
+      console.warn(`[FASE-SEQ] leitura pós-upload falhou obra=${obraId}: ${e.message}`)),
+  );
+
   return res.json({ data: cronograma });
 }
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as controller from './controller';
 import * as faseController from './fase.controller';
+import * as faseSeqController from './fase-seq.controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole, requireAnyRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
@@ -36,5 +37,10 @@ router.post('/sync-clickup-tasks', requireRole('coordenacao'), controller.syncCl
 // Fase management
 router.put('/:id/fase', requireRole('coordenacao'), faseController.updateFase);
 router.get('/:id/fase-history', requireRole('campo'), faseController.getFaseHistory);
+
+// Fase do Sequenciamento (PP1..PP6) — leitura focada do cronograma + correção manual (02/09/26)
+router.get('/:id/fase-seq', requireRole('campo'), faseSeqController.getFaseSeq);
+router.put('/:id/fase-seq', requireRole('gestor', 'coordenacao'), faseSeqController.setFaseSeqManual);
+router.post('/:id/fase-seq/reler', requireRole('gestor', 'coordenacao'), faseSeqController.relerCronograma);
 
 export default router;
