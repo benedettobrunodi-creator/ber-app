@@ -11,15 +11,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, Archive, ArchiveRestore } from 'lucide-react';
 import api from '@/lib/api';
 import { confirmar } from '@/lib/confirmar';
 
 const DISCIPLINAS = [
   'Arquitetura', 'Estrutural', 'Instalações Elétricas', 'Hidráulica', 'Ar Condicionado',
-  'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'Comunicação Visual',
-  'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
+  'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
+  'Divisórias', 'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
 ] as const;
+
+// ─── Setorização (mockup do Bruno, 02/09/26) ───
+const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo'];
+// Sub-áreas de Projetos Técnicos — cada uma abre a "página" da(s) disciplina(s)
+const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
+  { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
+  { label: 'Elétrica / Cabeamento', disciplinas: ['Instalações Elétricas', 'Cabeamento Estruturado', 'Detecção e Alarme'] },
+  { label: 'Civil', disciplinas: ['Estrutural', 'Hidráulica'] },
+  { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
+  { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
+  { label: 'Divisórias', disciplinas: ['Divisórias'] },
+];
+const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
+const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d => !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d));
+type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'outros' | 'obsoletos';
 
 const ETAPAS = ['Conceito', 'Anteprojeto (AP)', 'Executivo (EX)', 'Locação (LO)', 'As Built'] as const;
 
@@ -40,6 +55,7 @@ interface Documento {
   disciplina: string;
   projetista: string | null;
   etapa: string | null;
+  obsoleto: boolean;
   createdAt: string;
   revisoes: Revisao[];
 }
@@ -80,6 +96,8 @@ export default function ControleDocumentosPage() {
   const [bulkResult, setBulkResult] = useState<{ criados: number; atualizados: number } | null>(null);
   const bulkInput = useRef<HTMLInputElement | null>(null);
   const [obraNome, setObraNome] = useState('');
+  const [setor, setSetor] = useState<Setor>('todos');
+  const [subTecnico, setSubTecnico] = useState<string | null>(null); // label da sub-área ativa
 
   const inputCls = 'w-full text-sm px-3 py-2 border border-ber-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ber-teal bg-white';
 
@@ -229,9 +247,32 @@ export default function ControleDocumentosPage() {
     }
   }
 
+  // Documentos visíveis conforme o setor selecionado (obsoletos só no setor deles)
+  const visiveis = documentos.filter(d => {
+    if (setor === 'obsoletos') return d.obsoleto;
+    if (d.obsoleto) return false;
+    if (setor === 'todos') return true;
+    if (setor === 'arquitetura') return SETOR_ARQUITETURA.includes(d.disciplina);
+    if (setor === 'outros') return SETOR_OUTROS.includes(d.disciplina);
+    // tecnicos
+    const sub = TECNICOS_SUBS.find(t => t.label === subTecnico);
+    const conjunto = sub ? sub.disciplinas : SETOR_TECNICOS;
+    return conjunto.includes(d.disciplina);
+  });
+  const obsoletosCount = documentos.filter(d => d.obsoleto).length;
+
   const grupos = DISCIPLINAS
-    .map(disc => ({ disc, docs: documentos.filter(d => d.disciplina === disc) }))
+    .map(disc => ({ disc, docs: visiveis.filter(d => d.disciplina === disc) }))
     .filter(g => g.docs.length > 0);
+
+  async function toggleObsoleto(d: Documento) {
+    const marcar = !d.obsoleto;
+    if (marcar && !(await confirmar(`Mover "${d.codigo}" para Obsoletos? O desenho sai da lista ativa (dá pra restaurar).`, { titulo: 'Mover para Obsoletos', confirmarLabel: 'Mover' }))) return;
+    try {
+      const r = await api.patch(`/obras/${obraId}/controle-documentos/${d.id}`, { obsoleto: marcar });
+      setDocumentos(prev => prev.map(x => x.id === d.id ? r.data.data : x));
+    } catch { alert('Erro ao atualizar'); }
+  }
 
   return (
     <div className="w-full max-w-[1200px] pb-24">
@@ -251,36 +292,84 @@ export default function ControleDocumentosPage() {
 
       <input ref={bulkInput} type="file" multiple className="hidden"
         onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleBulkFiles(e.dataTransfer.files); }}
-        onClick={() => bulkInput.current?.click()}
-        className={`mb-5 cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
-          dragOver ? 'border-ber-teal bg-ber-teal/5' : 'border-ber-border bg-white hover:border-ber-carbon/40'
-        }`}
-      >
-        {bulkUploading ? (
-          <p className="text-sm text-ber-gray">Subindo arquivos…</p>
-        ) : (
-          <div className="flex flex-col items-center gap-1 text-ber-gray">
-            <UploadCloud size={22} />
-            <p className="text-sm">Arraste arquivos aqui pra criar/atualizar documentos em massa (ou clique pra escolher) — PDF, DWG, planilha, imagem, qualquer tipo</p>
-            <p className="text-[11px]">Código e revisão detectados do nome do arquivo quando possível — corrige depois na lista</p>
-          </div>
-        )}
-        {bulkResult && !bulkUploading && (
-          <p className="mt-2 text-xs font-semibold text-ber-teal">
-            {bulkResult.criados} documento(s) novo(s) · {bulkResult.atualizados} revisão(ões) adicionada(s) a documentos existentes
-          </p>
-        )}
+
+      {/* ─── Barra de setores (mockup Bruno 02/09) ─── */}
+      <div className="mb-3 flex items-stretch gap-2 flex-wrap">
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleBulkFiles(e.dataTransfer.files); }}
+          onClick={() => bulkInput.current?.click()}
+          className={`cursor-pointer rounded-xl px-5 py-3 text-center font-bold text-white transition-colors ${dragOver ? 'bg-ber-teal' : 'bg-ber-carbon hover:bg-ber-black'}`}
+          title="Clique ou arraste arquivos aqui — código e revisão detectados do nome quando possível"
+        >
+          <div className="text-sm leading-tight">{bulkUploading ? 'Subindo…' : 'Inserir'}</div>
+          <div className="text-lg leading-none">+</div>
+        </div>
+
+        {([
+          { key: 'todos', label: 'Todos' },
+          { key: 'arquitetura', label: 'Arquitetura' },
+          { key: 'tecnicos', label: 'Técnicos' },
+          { key: 'outros', label: 'Outros Documentos' },
+        ] as { key: Setor; label: string }[]).map(t => (
+          <button key={t.key}
+            onClick={() => { setSetor(t.key); setSubTecnico(null); }}
+            className={`self-center rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${setor === t.key ? 'bg-ber-teal text-white' : 'bg-ber-carbon/90 text-white hover:bg-ber-carbon'}`}>
+            {t.label}
+          </button>
+        ))}
+
+        <button
+          onClick={() => { setSetor('obsoletos'); setSubTecnico(null); }}
+          className={`ml-auto rounded-xl px-5 py-3 text-center font-bold transition-colors ${setor === 'obsoletos' ? 'bg-amber-600 text-white' : 'bg-ber-carbon text-white hover:bg-ber-black'}`}
+          title="Desenhos que saíram de uso">
+          <div className="text-sm leading-tight">Obsoletos</div>
+          <div className="text-xs leading-none mt-0.5">{obsoletosCount > 0 ? obsoletosCount : '—'}</div>
+        </button>
       </div>
+
+      {/* Sub-áreas de Projetos Técnicos */}
+      {setor === 'tecnicos' && (
+        <div className="mb-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mb-1.5">Projetos Técnicos</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setSubTecnico(null)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${subTecnico === null ? 'bg-ber-teal text-white' : 'bg-white border border-ber-border text-ber-carbon hover:bg-ber-offwhite'}`}>
+              Todas
+            </button>
+            {TECNICOS_SUBS.map(t => (
+              <button key={t.label} onClick={() => setSubTecnico(t.label)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${subTecnico === t.label ? 'bg-ber-teal text-white' : 'bg-white border border-ber-border text-ber-carbon hover:bg-ber-offwhite'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cabeçalho da "página" da disciplina/setor selecionado */}
+      {setor !== 'todos' && (
+        <div className="mb-3 flex items-baseline gap-2">
+          <h2 className="text-base font-bold text-ber-carbon">
+            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'outros' ? 'Outros Documentos' : (subTecnico ?? 'Projetos Técnicos')}
+          </h2>
+          <span className="text-xs text-ber-gray">{visiveis.length} documento(s)</span>
+          {setor === 'obsoletos' && <span className="text-[11px] text-amber-700">desenhos fora de uso — restauráveis</span>}
+        </div>
+      )}
+
+      {bulkResult && !bulkUploading && (
+        <p className="mb-3 text-xs font-semibold text-ber-teal">
+          {bulkResult.criados} documento(s) novo(s) · {bulkResult.atualizados} revisão(ões) adicionada(s) a documentos existentes
+        </p>
+      )}
 
       {loading ? (
         <p className="text-sm text-ber-gray">Carregando…</p>
-      ) : documentos.length === 0 ? (
+      ) : visiveis.length === 0 ? (
         <div className="bg-white border border-ber-border rounded-xl p-8 text-center text-sm text-ber-gray">
-          Nenhum documento cadastrado ainda nesta obra.
+          {setor === 'obsoletos' ? 'Nenhum documento obsoleto.' : setor === 'todos' ? 'Nenhum documento cadastrado ainda nesta obra.' : 'Nenhum documento neste setor.'}
         </div>
       ) : (
         <div className="space-y-5">
@@ -332,6 +421,11 @@ export default function ControleDocumentosPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button onClick={() => openEdit(d)} className="text-ber-gray hover:text-ber-carbon" title="Editar título"><Pencil size={14} /></button>
+                          {d.obsoleto ? (
+                            <button onClick={() => toggleObsoleto(d)} className="text-amber-600 hover:text-green-600" title="Restaurar (volta pra lista ativa)"><ArchiveRestore size={14} /></button>
+                          ) : (
+                            <button onClick={() => toggleObsoleto(d)} className="text-ber-gray/40 hover:text-amber-600" title="Mover para Obsoletos"><Archive size={14} /></button>
+                          )}
                           <button onClick={() => handleRemoveDoc(d.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={14} /></button>
                           <button onClick={() => toggleExpand(d.id)} className="text-ber-gray hover:text-ber-carbon">
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

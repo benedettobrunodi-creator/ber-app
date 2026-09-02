@@ -12,6 +12,8 @@ export const DOCUMENTO_DISCIPLINAS = [
   'Combate a Incêndio',
   'Detecção e Alarme',
   'Cabeamento Estruturado',
+  'SPK (Sprinklers)',
+  'Divisórias',
   'Comunicação Visual',
   'Interiores',
   'Paisagismo',
@@ -35,7 +37,7 @@ export const createDocumentoSchema = z.object({
   etapa: z.enum(DOCUMENTO_ETAPAS).nullable().optional(),
 });
 
-export const updateDocumentoSchema = createDocumentoSchema.partial();
+export const updateDocumentoSchema = createDocumentoSchema.partial().extend({ obsoleto: z.boolean().optional() });
 
 export const createRevisaoSchema = z.object({
   revisao: z.string().min(1).max(20),

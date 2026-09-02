@@ -53,6 +53,7 @@ export async function update(id: string, data: UpdateDocumentoInput) {
       ...(data.disciplina !== undefined && { disciplina: data.disciplina }),
       ...(data.projetista !== undefined && { projetista: data.projetista }),
       ...(data.etapa !== undefined && { etapa: data.etapa }),
+      ...(data.obsoleto !== undefined && { obsoleto: data.obsoleto }),
     },
     include,
   });
