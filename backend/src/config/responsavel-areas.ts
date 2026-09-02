@@ -24,3 +24,13 @@ export function destinatariosAlerta(area: string): string[] {
   ]);
   return Array.from(set);
 }
+
+/**
+ * Alerta de fase do Sequenciamento atrasada ("FICOU PRA TRÁS") — 02/09/26,
+ * destinatários fixos definidos pelo Bruno: Chris, Gritti e ele.
+ */
+export const FASE_ATRASADA_EMAILS = [
+  'christian.palermo@ber-engenharia.com.br',
+  'francisco.gritti@ber-engenharia.com.br',
+  BRUNO_EMAIL,
+];

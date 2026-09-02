@@ -45,3 +45,38 @@ export function itensVencidosHtml({ area, itens }: {
     ${footer}
   </div>`;
 }
+
+export function fasesAtrasadasHtml({ fases }: {
+  fases: { obraNome: string; faseCode: string; faseNome: string; abertos: number; total: number; faseAtual: string }[];
+}): string {
+  const porObra = new Map<string, typeof fases>();
+  for (const f of fases) {
+    const lista = porObra.get(f.obraNome) ?? [];
+    lista.push(f);
+    porObra.set(f.obraNome, lista);
+  }
+
+  const blocos = Array.from(porObra.entries()).map(([obra, lista]) => `
+    <p style="color:#5A7A7A;font-size:13px;font-weight:600;margin:16px 0 6px;">${obra}
+      <span style="color:#868686;font-weight:400;font-size:11px;"> — fase atual: ${lista[0].faseAtual}</span>
+    </p>
+    <ul style="margin:0;padding-left:18px;">
+      ${lista.map(f => `
+        <li style="color:#2D2D2D;font-size:13px;line-height:1.6;margin-bottom:4px;">
+          <strong>${f.faseCode}</strong> · ${f.faseNome}
+          <span style="color:#d03b3b;font-size:11px;font-weight:600;"> — ficou pra trás: ${f.abertos} de ${f.total} itens em aberto</span>
+        </li>`).join('')}
+    </ul>
+  `).join('');
+
+  return `
+  <div style="font-family:'Montserrat',Arial,sans-serif;max-width:560px;margin:0 auto;background:#F7F7F5;padding:24px;">
+    ${header}
+    <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;">
+      <h2 style="color:#2D2D2D;font-size:17px;margin:0 0 6px;">Fases do Sequenciamento que ficaram pra trás</h2>
+      <p style="color:#5A7A7A;font-size:13px;margin:0;">Fase anterior à fase atual da obra com itens ainda em aberto. Resolver ou marcar N/A libera o alerta:</p>
+      ${blocos}
+    </div>
+    ${footer}
+  </div>`;
+}

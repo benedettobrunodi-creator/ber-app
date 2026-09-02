@@ -56,3 +56,68 @@ export async function checkFvsItensVencidos() {
 
   return { alertasEnviados, itensVencidos: itens.length };
 }
+
+/**
+ * Alerta de fase "FICOU PRA TRÁS" (02/09/26): fase do Sequenciamento anterior
+ * à fase efetiva da obra com itens ainda abertos. Mesma régua do selo vermelho
+ * da trilha. Roda 1x/dia; 1 e-mail digest com todas as obras (Chris + Gritti
+ * + Bruno). dryRun computa sem enviar (usado na validação).
+ */
+export async function checkFasesAtrasadas(opts: { dryRun?: boolean } = {}) {
+  const { getFaseObra } = await import('../../services/fase-sequenciamento');
+
+  const obras = await prisma.obra.findMany({
+    where: { status: { in: ['em_andamento', 'pos_obra'] } },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  const ordemFase = (code?: string | null) => Number(String(code ?? '').replace(/\D/g, '')) || 0;
+  type FaseAtrasada = { obraNome: string; faseCode: string; faseNome: string; abertos: number; total: number; faseAtual: string };
+  const atrasadas: FaseAtrasada[] = [];
+
+  for (const obra of obras) {
+    let faseEfetiva: string | null = null;
+    try {
+      faseEfetiva = (await getFaseObra(obra.id)).faseEfetiva;
+    } catch { continue; }
+    const ordemAtual = ordemFase(faseEfetiva);
+    if (ordemAtual === 0) continue;
+
+    const fvsList = await prisma.obraFvs.findMany({
+      where: { obraId: obra.id },
+      include: { template: { select: { code: true, name: true } }, items: { select: { checked: true, na: true } } },
+    });
+    for (const fvs of fvsList) {
+      const ordem = ordemFase(fvs.template?.code);
+      if (ordem === 0 || ordem >= ordemAtual) continue; // só fase JÁ passada
+      const total = fvs.items.length;
+      const abertos = fvs.items.filter(i => !i.checked && !i.na).length;
+      if (total > 0 && abertos > 0) {
+        atrasadas.push({
+          obraNome: obra.name,
+          faseCode: fvs.template?.code ?? '?',
+          faseNome: fvs.template?.name ?? 'Fase',
+          abertos,
+          total,
+          faseAtual: faseEfetiva!,
+        });
+      }
+    }
+  }
+
+  if (atrasadas.length === 0 || opts.dryRun) {
+    return { alertasEnviados: 0, fasesAtrasadas: atrasadas };
+  }
+
+  const { FASE_ATRASADA_EMAILS } = await import('../../config/responsavel-areas');
+  const { sendEmailObra } = await import('../../services/email-obras');
+  const { fasesAtrasadasHtml } = await import('./alerts-html');
+  await sendEmailObra({
+    to: FASE_ATRASADA_EMAILS,
+    subject: `${atrasadas.length} ${atrasadas.length === 1 ? 'fase ficou' : 'fases ficaram'} pra trás — Sequenciamento · BÈR Engenharia`,
+    html: fasesAtrasadasHtml({ fases: atrasadas }),
+  });
+
+  return { alertasEnviados: 1, fasesAtrasadas: atrasadas };
+}
