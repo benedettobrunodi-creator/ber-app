@@ -88,7 +88,19 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex)');
+  // Qualidade — resumo semanal das vistorias — segunda às 08h (BRT), decisão Bruno 03/09
+  cron.schedule('0 8 * * 1', async () => {
+    console.log('[Scheduler] Qualidade resumo semanal iniciado...');
+    try {
+      const { resumoSemanalQualidade } = await import('../modules/qualidade/alerts');
+      const r = await resumoSemanalQualidade();
+      console.log(`[Scheduler] Qualidade resumo semanal concluído — enviado: ${r.enviado}, ${r.linhas.length} obras`);
+    } catch (err) {
+      console.error('[Scheduler] Qualidade resumo semanal falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex), Qualidade resumo semanal (seg 08h)');
 }
 
 async function checkTemperaturaQuinzenal() {

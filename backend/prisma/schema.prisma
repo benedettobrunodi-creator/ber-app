@@ -81,6 +81,8 @@ model User {
   coordFvs                 ObraFvs[]               @relation("FvsCoordApprover")
   rejectedFvs              ObraFvs[]               @relation("FvsRejector")
   aditivosDecididos        ObraAditivo[]           @relation("AditivoDecididoPor")
+  qualidadeVistorias       QualidadeVistoria[]     @relation("QualidadeVistoriador")
+  qualidadePendenciasResolvidas QualidadeVistoriaItem[] @relation("QualidadePendenciaResolvedor")
   documentosAprovados      ObraDocumento[]         @relation("DocumentoAprovadoPor")
   filledFvsItems           ObraFvsItem[]           @relation("FvsItemFiller")
   filledBerChecklists      ObraBerChecklist[]      @relation("BerChecklistFiller")
@@ -222,6 +224,7 @@ model Obra {
   diarios            DiarioObra[]
   cronogramas        Cronograma[]
   recebimentoRelatorio RecebimentoRelatorio?
+  qualidadeVistorias QualidadeVistoria[]
   relatorios         RelatorioSemanal[]
   curvaS             RelatorioCurvaS[]
   aditivos           ObraAditivo[]
@@ -1097,6 +1100,50 @@ model DocumentoExclusaoLog {
 
   @@index([obraId])
   @@map("documento_exclusao_logs")
+}
+
+// ─── Qualidade · Vistoria de Obra (03/09/26) ───
+// Digitaliza o "Checklist MODELO.xlsx" do Bruno: 9 categorias com pesos,
+// itens Sim/Não/N/A, nota 0–5 ponderada. O checklist mestre (categorias,
+// itens, pesos) vive em código (modules/qualidade/template.ts); cada item
+// respondido guarda snapshot do texto pra sobreviver a mudanças no template.
+model QualidadeVistoria {
+  id            String   @id @default(uuid()) @db.Uuid
+  obraId        String   @map("obra_id") @db.Uuid
+  vistoriadorId String?  @map("vistoriador_id") @db.Uuid
+  data          DateTime @default(now())
+  notaFinal     Decimal  @map("nota_final") @db.Decimal(4, 2)
+  classificacao String   @db.VarChar(20) // excelente | boa | regular | critico | inaceitavel
+  resumo        Json     // por categoria: {key, nome, peso, sim, nao, na, conformidade, nota}
+  observacoes   String?  // feedback livre de quem vistoriou
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  obra        Obra                    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  vistoriador User?                   @relation("QualidadeVistoriador", fields: [vistoriadorId], references: [id])
+  itens       QualidadeVistoriaItem[]
+
+  @@index([obraId, data])
+  @@map("qualidade_vistorias")
+}
+
+model QualidadeVistoriaItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  vistoriaId     String    @map("vistoria_id") @db.Uuid
+  categoriaKey   String    @map("categoria_key") @db.VarChar(30)
+  itemKey        String    @map("item_key") @db.VarChar(30)
+  texto          String    // snapshot do texto do item no momento da vistoria
+  resposta       String    @db.VarChar(3) // sim | nao | na
+  observacao     String?
+  // Itens "não" viram pendências até alguém resolver
+  resolvido      Boolean   @default(false)
+  resolvidoEm    DateTime? @map("resolvido_em")
+  resolvidoPorId String?   @map("resolvido_por") @db.Uuid
+
+  vistoria     QualidadeVistoria @relation(fields: [vistoriaId], references: [id], onDelete: Cascade)
+  resolvidoPor User?             @relation("QualidadePendenciaResolvedor", fields: [resolvidoPorId], references: [id])
+
+  @@index([vistoriaId])
+  @@map("qualidade_vistoria_itens")
 }
 
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───

@@ -713,6 +713,7 @@ export default function ObraDetailPage() {
       { type: 'link', href: 'atas', label: 'Atas' },
       { type: 'link', href: 'aditivos', label: 'Change Orders' },
       { type: 'link', href: 'amostras', label: 'Amostras' },
+      { type: 'link', href: 'qualidade', label: 'Qualidade' },
       { type: 'tab', key: 'relatorios', label: 'Relatórios' },
     ] },
     { grupo: 'Pós-Obra', tabs: [
