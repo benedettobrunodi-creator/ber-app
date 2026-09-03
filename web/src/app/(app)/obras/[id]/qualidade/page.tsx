@@ -40,6 +40,18 @@ interface Vistoria {
 
 interface CatalogoIT { code: string; title: string; discipline: string }
 
+interface Ficha {
+  id: string;
+  itCode: string | null;
+  titulo: string;
+  trecho: string | null;
+  status: string; // pendente | preenchida
+  prazo: string | null;
+  preenchidoPor: { name: string } | null;
+  preenchidoEm: string | null;
+  itens: { id: string; resposta: string | null }[];
+}
+
 interface Pendencia {
   id: string;
   categoriaKey: string;
@@ -93,6 +105,7 @@ export default function QualidadePage() {
   const [template, setTemplate] = useState<TemplateCategoria[]>([]);
   const [vistorias, setVistorias] = useState<Vistoria[]>([]);
   const [pendencias, setPendencias] = useState<Pendencia[]>([]);
+  const [fichas, setFichas] = useState<Ficha[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Preenchimento
@@ -123,6 +136,7 @@ export default function QualidadePage() {
       setTemplate(t.data.data ?? []);
       setVistorias(p.data.data?.vistorias ?? []);
       setPendencias(p.data.data?.pendencias ?? []);
+      setFichas(p.data.data?.fichas ?? []);
       if (o) setObraNome(o.data.data?.name ?? '');
       if (cat) setCatalogo(cat.data.data ?? []);
     } catch {} finally { setLoading(false); }
@@ -277,11 +291,22 @@ export default function QualidadePage() {
           </div>
           {atividadesSel.size > 0 && (
             <div className="mt-3 space-y-1">
-              {catalogo.filter(c => atividadesSel.has(c.code)).map(c => (
-                <p key={c.code} className="text-xs text-ber-gray">
-                  {c.code} · {c.title} — <Link href={`/instrucoes?it=${c.code}`} target="_blank" className="text-ber-teal hover:underline">abrir IT ↗</Link>
-                </p>
-              ))}
+              {catalogo.filter(c => atividadesSel.has(c.code)).map(c => {
+                const ficha = fichas.find(f => f.itCode === c.code && f.status === 'pendente')
+                  ?? fichas.find(f => f.itCode === c.code);
+                return (
+                  <p key={c.code} className="text-xs text-ber-gray">
+                    {c.code} · {c.title} — <Link href={`/instrucoes?it=${c.code}`} target="_blank" className="text-ber-teal hover:underline">abrir IT ↗</Link>
+                    {ficha ? (
+                      ficha.status === 'pendente'
+                        ? <span className="ml-1 font-semibold text-amber-700">· FVS pendente ⚠</span>
+                        : <span className="ml-1 font-semibold text-ber-green">· FVS preenchida ✓</span>
+                    ) : (
+                      <span className="ml-1 text-ber-gray/70">· FVS será aberta ao concluir</span>
+                    )}
+                  </p>
+                );
+              })}
             </div>
           )}
           <div className="mt-3 flex gap-2">
@@ -516,6 +541,50 @@ export default function QualidadePage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Fichas de Verificação de Serviço */}
+          <div className="mb-5 rounded-xl border border-ber-border bg-white p-4">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-ber-gray">
+              Fichas de Verificação de Serviço — FVS ({fichas.filter(f => f.status === 'pendente').length} pendente(s))
+            </p>
+            {fichas.length === 0 ? (
+              <p className="text-sm text-ber-gray">Nenhuma ficha ainda — elas abrem sozinhas quando uma vistoria marca a atividade como em execução.</p>
+            ) : (
+              <div className="divide-y divide-ber-border/60">
+                {fichas.map(f => {
+                  const vencida = f.status === 'pendente' && f.prazo && new Date(f.prazo) < new Date(new Date().toDateString());
+                  const respondidosF = f.itens.filter(i => i.resposta).length;
+                  return (
+                    <div key={f.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-sm text-ber-carbon">
+                          <span className="font-semibold">{f.itCode ?? '—'}</span> · {f.titulo}
+                          {f.trecho && <span className="text-ber-gray"> · {f.trecho}</span>}
+                        </p>
+                        <p className="mt-0.5 text-[11px]">
+                          {f.status === 'preenchida' ? (
+                            <span className="text-ber-green font-semibold">preenchida ✓{f.preenchidoPor ? ` por ${f.preenchidoPor.name}` : ''}{f.preenchidoEm ? ` em ${fmtBR(f.preenchidoEm)}` : ''}</span>
+                          ) : vencida ? (
+                            <span className="text-red-600 font-semibold">VENCIDA — prazo era {fmtBR(f.prazo!)}</span>
+                          ) : (
+                            <span className="text-amber-700 font-semibold">pendente{f.prazo ? ` · prazo ${fmtBR(f.prazo)}` : ''} · {respondidosF}/{f.itens.length} critérios</span>
+                          )}
+                        </p>
+                      </div>
+                      <Link href={`/obras/${obraId}/qualidade/fvs/${f.id}`}
+                        className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                          f.status === 'preenchida'
+                            ? 'border border-ber-border text-ber-carbon hover:bg-ber-surface'
+                            : 'bg-ber-olive text-ber-carbon hover:brightness-95'
+                        }`}>
+                        {f.status === 'preenchida' ? 'Ver' : 'Preencher'}
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

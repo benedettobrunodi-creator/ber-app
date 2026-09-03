@@ -77,6 +77,25 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
     );
   }
 
+  // ─── Enforcement FVS (item 5.2 automático) ───
+  // Atividade marcada em execução com ficha pendente ABERTA ANTES de hoje →
+  // "checklists de execução preenchidos" (5.2) vira Não, sem opinião.
+  const { fvsPendentesAnteriores } = await import('./fvs');
+  const atividades = input.atividades ?? [];
+  const codesMarcados = new Set(atividades.map((a) => a.itCode).filter(Boolean));
+  const fvsPendentes = (await fvsPendentesAnteriores(obraId)).filter(
+    (f) => f.itCode && codesMarcados.has(f.itCode),
+  );
+  if (fvsPendentes.length > 0) {
+    const obsAuto = `FVS pendente: ${fvsPendentes.map((f) => `${f.itCode} ${f.titulo}`).join('; ')} (automático)`;
+    const idx = respostas.findIndex((r) => r.categoriaKey === 'execucao' && r.itemKey === '5.2');
+    if (idx >= 0) {
+      respostas[idx] = { ...respostas[idx], resposta: 'nao', observacao: obsAuto };
+    } else {
+      respostas.push({ categoriaKey: 'execucao', itemKey: '5.2', resposta: 'nao', observacao: obsAuto });
+    }
+  }
+
   const { resumo, notaFinal, classificacao } = calcularScore(respostas);
 
   const vistoria = await prisma.qualidadeVistoria.create({
@@ -103,6 +122,15 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
     include: { vistoriador: { select: { id: true, name: true } }, itens: true },
   });
 
+  // Abre FVS pras atividades em execução que ainda não têm ficha pendente
+  // (depois do cálculo — ficha recém-criada não penaliza esta vistoria)
+  try {
+    const { garantirFvsParaAtividades } = await import('./fvs');
+    await garantirFvsParaAtividades(obraId, atividades, vistoria.id);
+  } catch (err) {
+    console.error('[Qualidade] criação automática de FVS falhou:', (err as Error).message);
+  }
+
   // Alerta imediato pra nota crítica — fire-and-forget, nunca trava o submit
   if (notaFinal < NOTA_ALERTA_CRITICO) {
     void import('./alerts')
@@ -126,7 +154,10 @@ export async function getPainel(obraId: string) {
     include: { vistoria: { select: { id: true, data: true } } },
   });
 
-  return { vistorias, pendencias };
+  const { listFvs } = await import('./fvs');
+  const fichas = await listFvs(obraId);
+
+  return { vistorias, pendencias, fichas };
 }
 
 export async function getVistoria(vistoriaId: string) {

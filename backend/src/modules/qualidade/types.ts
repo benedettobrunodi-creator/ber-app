@@ -23,4 +23,13 @@ export const resolverPendenciaSchema = z.object({
   resolvido: z.boolean(),
 });
 
+export const responderFvsSchema = z.object({
+  respostas: z.array(z.object({
+    itemId: z.string().uuid(),
+    resposta: z.enum(['conforme', 'nao_conforme', 'na']),
+    observacao: z.string().max(2000).nullable().optional(),
+  })).min(1).max(60),
+  trecho: z.string().max(150).nullable().optional(),
+});
+
 export type CreateVistoriaInput = z.infer<typeof createVistoriaSchema>;

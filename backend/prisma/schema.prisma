@@ -83,6 +83,7 @@ model User {
   aditivosDecididos        ObraAditivo[]           @relation("AditivoDecididoPor")
   qualidadeVistorias       QualidadeVistoria[]     @relation("QualidadeVistoriador")
   qualidadePendenciasResolvidas QualidadeVistoriaItem[] @relation("QualidadePendenciaResolvedor")
+  atividadeFvsPreenchidas  AtividadeFvs[]          @relation("AtividadeFvsPreenchedor")
   documentosAprovados      ObraDocumento[]         @relation("DocumentoAprovadoPor")
   filledFvsItems           ObraFvsItem[]           @relation("FvsItemFiller")
   filledBerChecklists      ObraBerChecklist[]      @relation("BerChecklistFiller")
@@ -225,6 +226,7 @@ model Obra {
   cronogramas        Cronograma[]
   recebimentoRelatorio RecebimentoRelatorio?
   qualidadeVistorias QualidadeVistoria[]
+  atividadeFvs       AtividadeFvs[]
   relatorios         RelatorioSemanal[]
   curvaS             RelatorioCurvaS[]
   aditivos           ObraAditivo[]
@@ -1146,6 +1148,50 @@ model QualidadeVistoriaItem {
 
   @@index([vistoriaId])
   @@map("qualidade_vistoria_itens")
+}
+
+// ─── Qualidade · FVS por atividade (03/09/26) ───
+// Ficha de Verificação de Serviço gerada automaticamente quando uma vistoria
+// marca a atividade como "em execução": os itens vêm dos critérios de
+// qualidade da IT correspondente (instrucoes_tecnicas.criterios_qualidade,
+// uma linha por critério). Prazo padrão: 3 dias úteis.
+model AtividadeFvs {
+  id                  String    @id @default(uuid()) @db.Uuid
+  obraId              String    @map("obra_id") @db.Uuid
+  itCode              String?   @map("it_code") @db.VarChar(20)
+  titulo              String    @db.VarChar(200)
+  trecho              String?   @db.VarChar(150) // ambiente/trecho (ex: 3º andar)
+  status              String    @default("pendente") @db.VarChar(20) // pendente | preenchida
+  prazo               DateTime? @db.Date
+  contratacaoId       String?   @map("contratacao_id") @db.Uuid // vínculo p/ trava de medição (etapa 4)
+  criadaPorVistoriaId String?   @map("criada_por_vistoria_id") @db.Uuid
+  preenchidoPorId     String?   @map("preenchido_por") @db.Uuid
+  preenchidoEm        DateTime? @map("preenchido_em")
+  ultimoAlertaEm      DateTime? @map("ultimo_alerta_em")
+  alertaEscalado      Boolean   @default(false) @map("alerta_escalado")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  obra          Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  preenchidoPor User?              @relation("AtividadeFvsPreenchedor", fields: [preenchidoPorId], references: [id])
+  itens         AtividadeFvsItem[]
+
+  @@index([obraId, status])
+  @@map("atividade_fvs")
+}
+
+model AtividadeFvsItem {
+  id         String  @id @default(uuid()) @db.Uuid
+  fvsId      String  @map("fvs_id") @db.Uuid
+  ordem      Int     @default(0)
+  texto      String  // critério da IT (snapshot)
+  resposta   String? @db.VarChar(15) // conforme | nao_conforme | na
+  observacao String?
+  fotoUrl    String? @map("foto_url")
+
+  fvs AtividadeFvs @relation(fields: [fvsId], references: [id], onDelete: Cascade)
+
+  @@index([fvsId])
+  @@map("atividade_fvs_itens")
 }
 
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───

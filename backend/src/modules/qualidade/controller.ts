@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as service from './service';
+import * as fvsService from './fvs';
 import { QUALIDADE_CHECKLIST } from './template';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response';
 
@@ -37,5 +38,28 @@ export async function uploadFoto(req: Request, res: Response) {
 
 export async function remove(req: Request, res: Response) {
   await service.removeVistoria(req.params.vistoriaId);
+  sendNoContent(res);
+}
+
+// ─── FVS por atividade ───
+
+export async function getFvs(req: Request, res: Response) {
+  sendSuccess(res, await fvsService.getFvs(req.params.fvsId));
+}
+
+export async function responderFvs(req: Request, res: Response) {
+  sendSuccess(res, await fvsService.responderFvs(req.params.fvsId, req.body, req.user!.userId));
+}
+
+export async function uploadFotoFvs(req: Request, res: Response) {
+  if (!req.file) {
+    res.status(400).json({ error: { message: 'Envie a foto no campo "file"' } });
+    return;
+  }
+  sendSuccess(res, await fvsService.uploadFotoFvsItem(req.params.itemId, req.file));
+}
+
+export async function removeFvs(req: Request, res: Response) {
+  await fvsService.removeFvs(req.params.fvsId);
   sendNoContent(res);
 }

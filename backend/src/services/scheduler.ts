@@ -88,6 +88,18 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // Qualidade — FVS de atividade vencidas — diariamente às 08h25 (BRT)
+  cron.schedule('25 8 * * 1-5', async () => {
+    console.log('[Scheduler] FVS de atividade vencidas iniciado...');
+    try {
+      const { alertarFvsVencidas } = await import('../modules/qualidade/fvs');
+      const r = await alertarFvsVencidas();
+      console.log(`[Scheduler] FVS de atividade vencidas concluído — ${r.vencidas.length} fichas, ${r.alertas} e-mail(s)`);
+    } catch (err) {
+      console.error('[Scheduler] FVS de atividade vencidas falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Qualidade — resumo semanal das vistorias — segunda às 08h (BRT), decisão Bruno 03/09
   cron.schedule('0 8 * * 1', async () => {
     console.log('[Scheduler] Qualidade resumo semanal iniciado...');

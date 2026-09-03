@@ -88,11 +88,16 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
     orderBy: { name: 'asc' },
   });
 
+  const hoje0 = new Date();
+  hoje0.setHours(0, 0, 0, 0);
+
   const linhas: {
     obraNome: string;
     ultima: { nota: number; data: Date; classificacao: string } | null;
     anterior: { nota: number } | null;
     pendencias: number;
+    fvsAbertas: number;
+    fvsVencidas: number;
   }[] = [];
 
   for (const obra of obras) {
@@ -105,6 +110,12 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
     const pendencias = await prisma.qualidadeVistoriaItem.count({
       where: { vistoria: { obraId: obra.id }, resposta: 'nao', resolvido: false },
     });
+    const fvsAbertas = await prisma.atividadeFvs.count({
+      where: { obraId: obra.id, status: 'pendente' },
+    });
+    const fvsVencidas = await prisma.atividadeFvs.count({
+      where: { obraId: obra.id, status: 'pendente', prazo: { lt: hoje0 } },
+    });
     linhas.push({
       obraNome: obra.name,
       ultima: vistorias[0]
@@ -112,6 +123,8 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
         : null,
       anterior: vistorias[1] ? { nota: Number(vistorias[1].notaFinal) } : null,
       pendencias,
+      fvsAbertas,
+      fvsVencidas,
     });
   }
 
@@ -122,11 +135,15 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
   }
 
   const blocos = linhas.map((l) => {
+    const fvsTxt = l.fvsAbertas === 0
+      ? '<span style="color:#868686;font-size:12px;">—</span>'
+      : `<span style="color:${l.fvsVencidas > 0 ? '#B42318' : '#B8860B'};font-size:12px;font-weight:600;">${l.fvsAbertas} aberta(s)${l.fvsVencidas > 0 ? ` · ${l.fvsVencidas} vencida(s)` : ''}</span>`;
     if (!l.ultima) {
       return `
         <tr>
           <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;color:#2D2D2D;font-size:13px;">${l.obraNome}</td>
           <td colspan="3" style="padding:8px 10px;border-bottom:1px solid #E4E6DA;color:#B8860B;font-size:12px;">sem vistoria registrada</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;">${fvsTxt}</td>
         </tr>`;
     }
     const delta = l.anterior !== null ? l.ultima.nota - (l.anterior as { nota: number }).nota : null;
@@ -144,6 +161,7 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
         <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;">${badgeNota(l.ultima.nota)}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;">${deltaTxt}</td>
         <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;color:${l.pendencias > 0 ? '#C2410C' : '#868686'};font-size:12px;">${l.pendencias} pendência(s)</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #E4E6DA;">${fvsTxt}</td>
       </tr>`;
   }).join('');
 
@@ -159,6 +177,7 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
           <th style="text-align:left;padding:8px 10px;color:#868686;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #D4D6CA;">Nota</th>
           <th style="text-align:left;padding:8px 10px;color:#868686;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #D4D6CA;">Vs anterior</th>
           <th style="text-align:left;padding:8px 10px;color:#868686;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #D4D6CA;">Pendências</th>
+          <th style="text-align:left;padding:8px 10px;color:#868686;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #D4D6CA;">FVS</th>
         </tr>
         ${blocos}
       </table>

@@ -4,7 +4,7 @@ import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
-import { createVistoriaSchema, resolverPendenciaSchema } from './types';
+import { createVistoriaSchema, resolverPendenciaSchema, responderFvsSchema } from './types';
 
 // Montado em /v1/obras/:id/qualidade (app.ts). Vistoria de Qualidade —
 // digitalização do Checklist MODELO.xlsx (03/09/26). Preencher: campo+
@@ -23,5 +23,11 @@ router.patch('/pendencias/:itemId', requireRole('campo'), validate(resolverPende
 // Foto de evidência por item (comprimida no cliente; 15MB de folga)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 router.post('/itens/:itemId/foto', requireRole('campo'), upload.single('file'), controller.uploadFoto);
+
+// FVS por atividade — ficha gerada dos critérios da IT
+router.get('/fvs/:fvsId', controller.getFvs);
+router.patch('/fvs/:fvsId', requireRole('campo'), validate(responderFvsSchema), controller.responderFvs);
+router.post('/fvs-itens/:itemId/foto', requireRole('campo'), upload.single('file'), controller.uploadFotoFvs);
+router.delete('/fvs/:fvsId', requireRole('coordenacao'), controller.removeFvs);
 
 export default router;
