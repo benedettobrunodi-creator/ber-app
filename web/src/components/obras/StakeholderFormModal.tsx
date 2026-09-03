@@ -10,6 +10,26 @@ interface UsuarioBer { id: string; name: string; email: string; role: string }
 const ehBer = (empresa: string) => /^b[eè]r\b/i.test(empresa.trim());
 const EMPRESA_BER = 'BER';
 
+// Funções padronizadas (03/09, Bruno: dropdown pra ninguém inventar/errar grafia).
+// Vale pra contatos BÈR e de outras empresas; "Outra…" abre texto livre.
+const FUNCOES_PROJETO = [
+  'Decision maker',
+  'Aprovador',
+  'Ponto focal',
+  'PM / Gerente do projeto',
+  'Gestor de obra',
+  'Engenheiro de obra',
+  'Coordenação',
+  'Operacional',
+  'Arquiteto / Projetista',
+  'Fiscalização',
+  'Financeiro',
+  'Compras / Suprimentos',
+  'Jurídico',
+  'Acompanhamento (recebe informações)',
+] as const;
+const OUTRA_FUNCAO = '__outra__';
+
 export interface Stakeholder {
   id: string;
   empresa: string;
@@ -52,6 +72,10 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
   // Empresa BÈR × outra (03/09, Bruno): selecionando BÈR, escolhe um usuário
   // da plataforma e nome/e-mail vêm preenchidos.
   const [tipoEmpresa, setTipoEmpresa] = useState<'ber' | 'outra'>(edit && ehBer(edit.empresa) ? 'ber' : 'outra');
+  // Função fora da lista padrão (contato antigo ou "Outra…") cai no texto livre
+  const [funcaoOutra, setFuncaoOutra] = useState(
+    !!(edit?.funcao && !(FUNCOES_PROJETO as readonly string[]).includes(edit.funcao)),
+  );
   const [usuarios, setUsuarios] = useState<UsuarioBer[]>([]);
   const [usuarioSel, setUsuarioSel] = useState('');
 
@@ -141,7 +165,27 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Cargo"><input value={f.cargo} onChange={e => setF(p => ({ ...p, cargo: e.target.value }))} className={inputCls} placeholder="Ex: Diretor, Arquiteto…" /></Field>
-            <Field label="Função no projeto"><input value={f.funcao} onChange={e => setF(p => ({ ...p, funcao: e.target.value }))} className={inputCls} placeholder="Ex: Decision maker, Aprovador…" /></Field>
+            <Field label="Função no projeto">
+              {funcaoOutra ? (
+                <div className="flex gap-1.5">
+                  <input value={f.funcao} onChange={e => setF(p => ({ ...p, funcao: e.target.value }))} className={inputCls} placeholder="Descreva a função…" autoFocus />
+                  <button type="button" onClick={() => { setFuncaoOutra(false); setF(p => ({ ...p, funcao: '' })); }}
+                    className="mt-1 shrink-0 rounded-md border border-ber-gray/30 px-2 text-xs text-ber-gray hover:bg-ber-offwhite" title="Voltar pra lista">
+                    lista
+                  </button>
+                </div>
+              ) : (
+                <select value={f.funcao} className={inputCls}
+                  onChange={e => {
+                    if (e.target.value === OUTRA_FUNCAO) { setFuncaoOutra(true); setF(p => ({ ...p, funcao: '' })); }
+                    else setF(p => ({ ...p, funcao: e.target.value }));
+                  }}>
+                  <option value="">—</option>
+                  {FUNCOES_PROJETO.map(fn => <option key={fn} value={fn}>{fn}</option>)}
+                  <option value={OUTRA_FUNCAO}>Outra…</option>
+                </select>
+              )}
+            </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Email"><input type="email" value={f.email} onChange={e => setF(p => ({ ...p, email: e.target.value }))} className={inputCls} /></Field>
