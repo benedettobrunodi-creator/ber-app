@@ -124,6 +124,7 @@ export default function ControleDocumentosPage() {
   // até o usuário confirmar código/revisão/disciplina de cada um.
   const [lote, setLote] = useState<LoteItem[] | null>(null);
   const [loteProjetista, setLoteProjetista] = useState('');
+  const [loteComentario, setLoteComentario] = useState(''); // vai pra observação das revisões do lote
   // Edição inline de revisão existente (03/09/26)
   const [editRev, setEditRev] = useState<{ id: string; docId: string; revisao: string; data: string; observacao: string } | null>(null);
   const [savingEditRev, setSavingEditRev] = useState(false);
@@ -248,12 +249,14 @@ export default function ControleDocumentosPage() {
         revisao: i.revisao.trim(),
         disciplina: i.disciplina,
         projetista: loteProjetista.trim() || null,
+        observacao: loteComentario.trim() || null,
       }))));
       const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
       setDocumentos(r.data.data.documentos);
       setBulkResult({ criados: r.data.data.criados.length, atualizados: r.data.data.atualizados.length });
       setLote(null);
       setLoteProjetista('');
+      setLoteComentario('');
     } catch (e) {
       const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
       alert(m || 'Erro ao subir arquivos');
@@ -411,6 +414,14 @@ export default function ControleDocumentosPage() {
 
       <input ref={bulkInput} type="file" multiple className="hidden"
         onChange={e => { if (e.target.files) handleBulkFiles(e.target.files); e.target.value = ''; }} />
+
+      {/* Dropzone explícita (pedido Bruno 03/09: "precisa ficar mais explicito
+          que da pra jogar arquivos arrastando") — a página inteira também aceita. */}
+      <button type="button" onClick={() => bulkInput.current?.click()}
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ber-border bg-ber-surface/60 px-4 py-3.5 text-sm text-ber-gray transition-colors hover:border-ber-teal hover:text-ber-teal hover:bg-ber-teal/5">
+        <Upload size={16} />
+        <span><span className="font-semibold">Arraste os arquivos pra cá</span> (quantos quiser) ou clique pra escolher — você confere código, revisão e disciplina antes de subir</span>
+      </button>
 
       {/* ─── Setores — faixa escura (pedido Bruno 02/09) ─── */}
       <div className="mb-4 rounded-xl bg-ber-carbon/[0.06] border border-ber-border p-1">
@@ -719,22 +730,20 @@ export default function ControleDocumentosPage() {
                 <p className="text-sm font-bold text-ber-carbon">Conferir arquivos antes de subir</p>
                 <p className="text-xs text-ber-gray mt-0.5">Código e revisão foram lidos do nome do arquivo — ajuste o que precisar.</p>
               </div>
-              <button onClick={() => { setLote(null); setLoteProjetista(''); }} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+              <button onClick={() => { setLote(null); setLoteProjetista(''); setLoteComentario(''); }} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap border-b border-ber-border bg-ber-surface px-5 py-3">
+            <div className="flex items-center gap-4 flex-wrap border-b border-ber-border bg-ber-surface px-5 py-3">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-ber-gray">Disciplina de todos:</span>
-                <select className="text-xs px-2 py-1 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
-                  value="" onChange={e => { const v = e.target.value; if (v) setLote(prev => prev && prev.map(i => documentos.some(dd => dd.codigo === i.codigo.trim()) ? i : { ...i, disciplina: v })); }}>
-                  <option value="">aplicar…</option>
-                  {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-ber-gray">Projetista (opcional, lote todo):</span>
-                <input className="text-xs px-2 py-1 border border-ber-border rounded bg-white w-40 focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                <span className="text-xs text-ber-gray shrink-0">Projetista (lote todo):</span>
+                <input className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white w-40 focus:outline-none focus:ring-1 focus:ring-ber-teal"
                   value={loteProjetista} onChange={e => setLoteProjetista(e.target.value)} placeholder="ex: ArqServices" />
+              </div>
+              <div className="flex items-center gap-1.5 flex-1 min-w-[220px]">
+                <span className="text-xs text-ber-gray shrink-0">Comentários:</span>
+                <input className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white w-full focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                  value={loteComentario} onChange={e => setLoteComentario(e.target.value)}
+                  placeholder="opcional — vai pra observação de todas as revisões do lote" />
               </div>
             </div>
 
@@ -793,7 +802,7 @@ export default function ControleDocumentosPage() {
             <div className="flex items-center justify-between border-t border-ber-border px-5 py-4">
               <p className="text-xs text-ber-gray">{lote.length} arquivo(s) · máx. 100MB cada</p>
               <div className="flex gap-2">
-                <button onClick={() => { setLote(null); setLoteProjetista(''); }}
+                <button onClick={() => { setLote(null); setLoteProjetista(''); setLoteComentario(''); }}
                   className="rounded-lg border border-ber-border px-4 py-2 text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
                 <button onClick={enviarLote} disabled={bulkUploading}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-ber-olive px-4 py-2 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">

@@ -201,6 +201,7 @@ export async function bulkUpload(
           data: hoje,
           arquivoUrl: url,
           arquivoNome: file.originalname,
+          observacao: m?.observacao ?? null,
           createdById,
         },
       });
@@ -215,7 +216,7 @@ export async function bulkUpload(
           projetista: m?.projetista ?? null,
           createdById,
           revisoes: {
-            create: { revisao, data: hoje, arquivoUrl: url, arquivoNome: file.originalname, createdById },
+            create: { revisao, data: hoje, arquivoUrl: url, arquivoNome: file.originalname, observacao: m?.observacao ?? null, createdById },
           },
         },
       });

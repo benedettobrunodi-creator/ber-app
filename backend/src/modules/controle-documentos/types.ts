@@ -69,6 +69,7 @@ export const bulkMetaItemSchema = z.object({
   disciplina: z.enum(DOCUMENTO_DISCIPLINAS),
   titulo: z.string().max(255).nullable().optional(),
   projetista: z.string().max(150).nullable().optional(),
+  observacao: z.string().max(1000).nullable().optional(), // comentário do lote → observação da revisão
 });
 export const bulkMetaSchema = z.array(bulkMetaItemSchema).max(200);
 export type BulkMetaItem = z.infer<typeof bulkMetaItemSchema>;
