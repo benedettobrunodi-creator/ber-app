@@ -133,7 +133,7 @@ export default function ManualProprietarioPage() {
   const grupos = Array.from(new Set(bib.map(b => b.grupo)));
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto pb-24">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto pb-44">
       <Link href={`/obras/${obraId}/close-out`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Close Out
       </Link>
