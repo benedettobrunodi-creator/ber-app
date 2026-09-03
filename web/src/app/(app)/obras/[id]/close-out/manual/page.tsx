@@ -68,6 +68,7 @@ export default function ManualProprietarioPage() {
   const [auto, setAuto] = useState<AutoData | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [gerando, setGerando] = useState(false);
   const capaInput = useRef<HTMLInputElement | null>(null);
   const galeriaInput = useRef<HTMLInputElement | null>(null);
   const anexoInput = useRef<HTMLInputElement | null>(null);
@@ -107,6 +108,24 @@ export default function ManualProprietarioPage() {
       alert(m || 'Erro ao salvar');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function gerarPdf() {
+    if (!manual) return;
+    setGerando(true);
+    try {
+      // Salva o estado atual antes de gerar — o PDF sai sempre do que está na tela
+      await api.put(`/obras/${obraId}/close-out/manual-proprietario`, manual);
+      setSavedAt(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      const r = await api.get(`/obras/${obraId}/close-out/manual-proprietario/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      alert('Erro ao gerar o PDF — confira os dados e tente de novo');
+    } finally {
+      setGerando(false);
     }
   }
 
@@ -465,12 +484,17 @@ export default function ManualProprietarioPage() {
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 md:px-6">
           <p className="text-xs text-ber-gray">
             {savedAt ? `Salvo às ${savedAt}` : 'Alterações não salvas ainda'}
-            <span className="hidden md:inline"> · o PDF formatado (modelo Poatek) é a próxima etapa</span>
           </p>
-          <button onClick={salvar} disabled={saving}
-            className="rounded-lg bg-ber-olive px-5 py-2 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
-            {saving ? 'Salvando…' : 'Salvar manual'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={salvar} disabled={saving || gerando}
+              className="rounded-lg border border-ber-border bg-white px-4 py-2 text-sm font-semibold text-ber-carbon hover:bg-ber-surface disabled:opacity-60">
+              {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+            <button onClick={gerarPdf} disabled={gerando || saving}
+              className="rounded-lg bg-ber-olive px-5 py-2 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
+              {gerando ? 'Gerando…' : 'Gerar Manual (PDF)'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

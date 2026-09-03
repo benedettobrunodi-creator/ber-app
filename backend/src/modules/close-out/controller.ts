@@ -56,3 +56,27 @@ export async function uploadArquivoManualProprietario(req: Request, res: Respons
   const mp = await import('./manual-proprietario');
   sendSuccess(res, await mp.uploadArquivoManual(req.params.id, req.file));
 }
+
+export async function gerarPdfManualProprietario(req: Request, res: Response) {
+  const React = await import('react');
+  const { renderToBuffer } = await import('@react-pdf/renderer');
+  const mp = await import('./manual-proprietario');
+  const { ManualProprietarioPdf } = await import('./manual-pdf');
+
+  const { manual, auto } = await mp.getManual(req.params.id);
+  const buffer = await renderToBuffer(
+    React.createElement(ManualProprietarioPdf, {
+      data: {
+        obra: auto.obra,
+        manual: manual as never,
+        projetos: auto.projetos,
+      },
+    }) as never,
+  );
+
+  const slug = (auto.obra.name || 'obra').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="manual-do-proprietario-${slug}.pdf"`);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.send(buffer);
+}

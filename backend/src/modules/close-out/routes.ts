@@ -17,6 +17,7 @@ obraCloseOutRouter.get('/manual', controller.manual);
 obraCloseOutRouter.get('/manual-proprietario', controller.getManualProprietario);
 obraCloseOutRouter.put('/manual-proprietario', requireRole('campo'), controller.updateManualProprietario);
 obraCloseOutRouter.post('/manual-proprietario/arquivo', requireRole('campo'), upload.single('file'), controller.uploadArquivoManualProprietario);
+obraCloseOutRouter.get('/manual-proprietario/pdf', controller.gerarPdfManualProprietario);
 obraCloseOutRouter.post('/aplicar-padrao', requireRole('campo'), controller.aplicarPadrao);
 obraCloseOutRouter.post('/', requireRole('campo'), validate(createCloseOutItemSchema), controller.create);
 obraCloseOutRouter.patch('/:itemId', requireRole('campo'), validate(updateCloseOutItemSchema), controller.update);
