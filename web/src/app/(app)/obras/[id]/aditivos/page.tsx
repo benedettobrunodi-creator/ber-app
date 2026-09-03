@@ -10,11 +10,10 @@ import { confirmar } from '@/lib/confirmar';
 import AditivoFormModal from '@/components/obras/AditivoFormModal';
 
 const STATUS_META: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  em_analise:   { label: 'Em análise',   color: 'bg-amber-100 text-amber-700',  icon: Clock },
-  aprovado:     { label: 'Aprovado',     color: 'bg-green-100 text-green-700',  icon: CheckCircle2 },
-  rejeitado:    { label: 'Rejeitado',    color: 'bg-red-100 text-red-700',      icon: XCircle },
-  em_execucao:  { label: 'Em execução',  color: 'bg-blue-100 text-blue-700',    icon: Clock },
-  concluido:    { label: 'Concluído',    color: 'bg-gray-200 text-gray-700',    icon: CheckCircle2 },
+  // 3 estados (03/09/26, decisão Bruno): agora sobem TODOS os change orders.
+  em_analise:   { label: 'Aguardando aprovação', color: 'bg-amber-100 text-amber-700',  icon: Clock },
+  aprovado:     { label: 'Aprovado',             color: 'bg-green-100 text-green-700',  icon: CheckCircle2 },
+  rejeitado:    { label: 'Não aprovado',         color: 'bg-red-100 text-red-700',      icon: XCircle },
 };
 
 interface Attachment {
@@ -149,26 +148,26 @@ export default function ObraAditivosPage() {
           <ArrowLeft size={14} /> {obraName || 'Obra'}
         </Link>
         <span>/</span>
-        <span className="text-ber-carbon font-medium">Aditivos</span>
+        <span className="text-ber-carbon font-medium">Change Orders</span>
       </div>
 
       <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <FileText size={20} className="text-ber-teal" />
-          <h1 className="text-xl font-black text-ber-carbon">Aditivos · Change Orders</h1>
+          <h1 className="text-xl font-black text-ber-carbon">Change Orders</h1>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 rounded-lg bg-ber-carbon px-3 py-2 text-sm font-medium text-white hover:bg-ber-black"
         >
-          <Plus size={14} /> Novo Aditivo
+          <Plus size={14} /> Novo Change Order
         </button>
       </div>
 
       {/* KPI cards */}
-      <div className="mb-5 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="mb-5 grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="rounded-xl bg-white border border-ber-gray/15 p-4 shadow-sm">
-          <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Total líquido</p>
+          <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide" title="Só change orders aprovados entram no total">Total líquido (aprovados)</p>
           <p className={`mt-1 text-xl font-black ${data && data.totals.total >= 0 ? 'text-green-700' : 'text-red-600'}`}>
             {fmtBRL(data?.totals.total ?? 0)}
           </p>
@@ -194,8 +193,8 @@ export default function ObraAditivosPage() {
       ) : !data || data.aditivos.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-ber-gray/20 py-12 text-center">
           <FileText size={28} className="mx-auto mb-2 text-ber-gray/40" />
-          <p className="text-sm font-medium text-ber-gray">Nenhum aditivo cadastrado</p>
-          <p className="mt-1 text-xs text-ber-gray/60">Clique em "Novo Aditivo" pra começar</p>
+          <p className="text-sm font-medium text-ber-gray">Nenhum change order cadastrado</p>
+          <p className="mt-1 text-xs text-ber-gray/60">Clique em "Novo Change Order" pra começar</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-ber-gray/10 bg-white shadow-sm">
@@ -267,14 +266,9 @@ export default function ObraAditivosPage() {
                               </button>
                             </>
                           )}
-                          {a.status === 'aprovado' && (
-                            <button onClick={() => handleStatusUpdate(a.id, 'em_execucao')} title="Marcar em execução" className="rounded p-1 text-blue-600 hover:bg-blue-50">
+                          {(a.status === 'aprovado' || a.status === 'rejeitado') && (
+                            <button onClick={() => handleStatusUpdate(a.id, 'em_analise')} title="Voltar pra Aguardando aprovação" className="rounded p-1 text-amber-600 hover:bg-amber-50">
                               <Clock size={14} />
-                            </button>
-                          )}
-                          {a.status === 'em_execucao' && (
-                            <button onClick={() => handleStatusUpdate(a.id, 'concluido')} title="Concluir" className="rounded p-1 text-gray-700 hover:bg-gray-100">
-                              <CheckCircle2 size={14} />
                             </button>
                           )}
                           <button onClick={() => handleDelete(a.id)} title="Excluir" className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600">

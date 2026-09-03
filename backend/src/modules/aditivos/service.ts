@@ -12,7 +12,9 @@ export async function listByObra(obraId: string) {
   const totals = rows.reduce(
     (acc, a) => {
       const v = Number(a.valor) * (a.tipo === 'debito' ? -1 : 1);
-      acc.total += v;
+      // Total líquido conta SÓ aprovados (03/09/26): agora sobem change orders
+      // aguardando/não aprovados também — eles não podem inflar o total.
+      if (a.status === 'aprovado') acc.total += v;
       acc.byStatus[a.status] = (acc.byStatus[a.status] ?? 0) + v;
       return acc;
     },
@@ -79,9 +81,8 @@ export async function update(id: string, input: UpdateAditivoInput) {
 export async function decide(id: string, input: DecisionInput, decisorUserId: string) {
   const existing = await prisma.obraAditivo.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Aditivo');
-  if (existing.status !== 'em_analise') {
-    throw AppError.conflict(`Aditivo já está em status "${existing.status}" — não pode ser decidido novamente`);
-  }
+  // (03/09/26) Decisão pode ser refeita/corrigida — status é reversível
+  // (voltar pra "Aguardando aprovação" via PATCH status em_analise).
   return prisma.obraAditivo.update({
     where: { id },
     data: {

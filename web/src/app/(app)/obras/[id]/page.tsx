@@ -711,7 +711,7 @@ export default function ObraDetailPage() {
       { type: 'tab', key: 'fvs', label: `Sequenciamento (${obraFvsList.length})` },
       { type: 'tab', key: 'diario', label: 'Diário' },
       { type: 'link', href: 'atas', label: 'Atas' },
-      { type: 'link', href: 'aditivos', label: 'Aditivos' },
+      { type: 'link', href: 'aditivos', label: 'Change Orders' },
       { type: 'link', href: 'amostras', label: 'Amostras' },
       { type: 'tab', key: 'relatorios', label: 'Relatórios' },
     ] },

@@ -77,7 +77,7 @@ export default function AditivoFormModal({ obraId, onClose, onCreated }: Props) 
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-lg rounded-t-2xl md:rounded-lg bg-white max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-ber-offwhite px-6 py-4">
-          <h2 className="text-lg font-black text-ber-carbon">Novo Aditivo</h2>
+          <h2 className="text-lg font-black text-ber-carbon">Novo Change Order</h2>
           <button onClick={onClose} className="rounded p-1 text-ber-gray hover:bg-ber-offwhite hover:text-ber-carbon">
             <X size={18} />
           </button>

@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 export const ADITIVO_TIPOS = ['credito', 'debito'] as const;
+// Simplificado 03/09/26 (decisão Bruno): agora sobem TODOS os change orders,
+// não só os aprovados — 3 estados: em_analise ("Aguardando aprovação"),
+// aprovado, rejeitado ("Não aprovado"). Valores de banco preservados;
+// em_execucao/concluido extintos (prod tinha 1 registro, já aprovado).
 export const ADITIVO_STATUSES = [
   'em_analise',
   'aprovado',
   'rejeitado',
-  'em_execucao',
-  'concluido',
 ] as const;
 
 export const createAditivoSchema = z.object({
