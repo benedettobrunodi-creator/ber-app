@@ -1081,6 +1081,24 @@ model ProjetoDocumentoRevisao {
   @@map("projeto_documento_revisoes")
 }
 
+// Auditoria de exclusões do Controle de Documentos (03/09/26): exclusão
+// liberada pra campo+ mediante assinatura (a pessoa digita o próprio nome
+// na confirmação — decisão Bruno). Este log é o rastro do que sumiu.
+// Sem FK de propósito: o log precisa sobreviver à exclusão da obra/usuário.
+model DocumentoExclusaoLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  obraId     String   @map("obra_id") @db.Uuid
+  tipo       String   @db.VarChar(10) // documento | revisao
+  codigo     String   @db.VarChar(150)
+  detalhe    String?  // revisão/arquivo (tipo=revisao) ou título (tipo=documento)
+  assinatura String   @db.VarChar(150)
+  userId     String?  @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([obraId])
+  @@map("documento_exclusao_logs")
+}
+
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───
 // Checklist de documentos da obra que compila o Manual do Proprietário.
 model ObraCloseOutItem {

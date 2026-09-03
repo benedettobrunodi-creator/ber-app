@@ -127,6 +127,11 @@ export default function ControleDocumentosPage() {
   // Edição inline de revisão existente (03/09/26)
   const [editRev, setEditRev] = useState<{ id: string; docId: string; revisao: string; data: string; observacao: string } | null>(null);
   const [savingEditRev, setSavingEditRev] = useState(false);
+  // Exclusão com assinatura (03/09/26): quem exclui digita o próprio nome (auditado)
+  const [confirmDel, setConfirmDel] = useState<{ tipo: 'documento' | 'revisao'; docId: string; revisaoId?: string; label: string } | null>(null);
+  const [assinatura, setAssinatura] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState('');
   const [obraNome, setObraNome] = useState('');
   const [setor, setSetor] = useState<Setor>('todos');
   const [subTecnico, setSubTecnico] = useState<string | null>(null); // label da sub-área ativa
@@ -257,16 +262,35 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function handleRemoveDoc(id: string) {
-    if (!(await confirmar('Excluir este documento e todo o histórico de revisões dele?', { confirmarLabel: 'Excluir' }))) return;
+  function handleRemoveDoc(d: Documento) {
+    setDelError('');
+    setAssinatura('');
+    setConfirmDel({ tipo: 'documento', docId: d.id, label: d.codigo });
+  }
+
+  async function executarExclusao() {
+    if (!confirmDel) return;
+    if (!assinatura.trim()) { setDelError('Digite seu nome pra confirmar'); return; }
+    setDeleting(true);
+    setDelError('');
     try {
-      await api.delete(`/obras/${obraId}/controle-documentos/${id}`);
-      setDocumentos(prev => prev.filter(d => d.id !== id));
+      const base = `/obras/${obraId}/controle-documentos/${confirmDel.docId}`;
+      if (confirmDel.tipo === 'documento') {
+        await api.delete(base, { data: { assinatura: assinatura.trim() } });
+        setDocumentos(prev => prev.filter(d => d.id !== confirmDel.docId));
+      } else {
+        await api.delete(`${base}/revisoes/${confirmDel.revisaoId}`, { data: { assinatura: assinatura.trim() } });
+        setDocumentos(prev => prev.map(d => d.id === confirmDel.docId
+          ? { ...d, revisoes: d.revisoes.filter(r => r.id !== confirmDel.revisaoId) } : d));
+      }
+      setConfirmDel(null);
     } catch (e) {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      alert(status === 403
-        ? 'Você não tem permissão pra excluir documentos — fale com a coordenação.'
-        : 'Erro ao excluir');
+      const err = e as { response?: { status?: number; data?: { error?: { message?: string } } } };
+      setDelError(err?.response?.data?.error?.message || (err?.response?.status === 403
+        ? 'Você não tem permissão pra excluir — fale com a coordenação.'
+        : 'Erro ao excluir'));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -322,17 +346,10 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function handleRemoveRevisao(docId: string, revisaoId: string) {
-    if (!(await confirmar('Excluir esta revisão?', { confirmarLabel: 'Excluir' }))) return;
-    try {
-      await api.delete(`/obras/${obraId}/controle-documentos/${docId}/revisoes/${revisaoId}`);
-      setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, revisoes: d.revisoes.filter(r => r.id !== revisaoId) } : d));
-    } catch (e) {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      alert(status === 403
-        ? 'Você não tem permissão pra excluir revisões — fale com a coordenação.'
-        : 'Erro ao excluir revisão');
-    }
+  function handleRemoveRevisao(d: Documento, r: Revisao) {
+    setDelError('');
+    setAssinatura('');
+    setConfirmDel({ tipo: 'revisao', docId: d.id, revisaoId: r.id, label: `${d.codigo} · ${r.revisao}` });
   }
 
   // Documentos visíveis conforme o setor selecionado (obsoletos só no setor deles)
@@ -538,7 +555,7 @@ export default function ControleDocumentosPage() {
                           ) : (
                             <button onClick={() => toggleObsoleto(d)} className="text-ber-gray/40 hover:text-amber-600" title="Mover para Obsoletos"><Archive size={14} /></button>
                           )}
-                          <button onClick={() => handleRemoveDoc(d.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={14} /></button>
+                          <button onClick={() => handleRemoveDoc(d)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={14} /></button>
                           <button onClick={() => toggleExpand(d.id)} className="text-ber-gray hover:text-ber-carbon">
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </button>
@@ -604,7 +621,7 @@ export default function ControleDocumentosPage() {
                                     <td className="py-1.5 text-right whitespace-nowrap">
                                       <button onClick={() => setEditRev({ id: r.id, docId: d.id, revisao: r.revisao, data: r.data.slice(0, 10), observacao: r.observacao ?? '' })}
                                         className="text-ber-gray/40 hover:text-ber-carbon mr-2" title="Editar revisão"><Pencil size={12} /></button>
-                                      <button onClick={() => handleRemoveRevisao(d.id, r.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={12} /></button>
+                                      <button onClick={() => handleRemoveRevisao(d, r)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={12} /></button>
                                     </td>
                                   </tr>
                                   )
@@ -656,6 +673,40 @@ export default function ControleDocumentosPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ─── Exclusão com assinatura (03/09/26) ─── */}
+      {confirmDel && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 px-4 py-4">
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-base font-bold text-ber-carbon">
+              {confirmDel.tipo === 'documento' ? 'Excluir documento' : 'Excluir revisão'}
+            </h2>
+            <p className="mt-2 text-sm text-ber-gray">
+              {confirmDel.tipo === 'documento'
+                ? <>O documento <span className="font-semibold text-ber-carbon">{confirmDel.label}</span> e todo o histórico de revisões dele serão excluídos.</>
+                : <>A revisão <span className="font-semibold text-ber-carbon">{confirmDel.label}</span> será excluída.</>}
+            </p>
+            <div className="mt-4">
+              <label className="mb-1 block text-xs font-medium text-ber-carbon">Digite seu nome pra confirmar *</label>
+              <input className={inputCls} value={assinatura} autoFocus placeholder="Seu nome completo"
+                onChange={e => setAssinatura(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') executarExclusao(); }} />
+              <p className="mt-1 text-[11px] text-ber-gray/70">A exclusão fica registrada com seu nome no histórico da obra.</p>
+            </div>
+            {delError && <p className="mt-2 text-xs text-red-500">{delError}</p>}
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setConfirmDel(null)}
+                className="flex-1 rounded-md border border-ber-gray/30 px-4 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-offwhite">
+                Cancelar
+              </button>
+              <button onClick={executarExclusao} disabled={deleting || !assinatura.trim()}
+                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+                {deleting ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

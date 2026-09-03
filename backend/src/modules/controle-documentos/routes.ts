@@ -22,12 +22,14 @@ router.use(authenticate);
 router.get('/', controller.list);
 router.post('/', requireRole('campo'), validate(createDocumentoSchema), controller.create);
 router.patch('/:documentoId', requireRole('campo'), validate(updateDocumentoSchema), controller.update);
-router.delete('/:documentoId', requireRole('coordenacao'), controller.remove);
+// Exclusão liberada pra campo+ (03/09/26, decisão Bruno) — mediante assinatura
+// no body (nome digitado na confirmação), registrada em documento_exclusao_logs.
+router.delete('/:documentoId', requireRole('campo'), controller.remove);
 
 router.get('/:documentoId/proxima-revisao', controller.proximaRevisao);
 router.post('/:documentoId/revisoes', requireRole('campo'), upload.single('file'), validate(createRevisaoSchema), controller.addRevisao);
 router.patch('/:documentoId/revisoes/:revisaoId', requireRole('campo'), validate(updateRevisaoSchema), controller.updateRevisao);
-router.delete('/:documentoId/revisoes/:revisaoId', requireRole('coordenacao'), controller.removeRevisao);
+router.delete('/:documentoId/revisoes/:revisaoId', requireRole('campo'), controller.removeRevisao);
 
 // Arrastar-e-soltar em massa (31/08/26): cada arquivo vira documento novo
 // (código/revisão detectados do nome) ou revisão nova de documento existente.

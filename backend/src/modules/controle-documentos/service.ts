@@ -59,9 +59,21 @@ export async function update(id: string, data: UpdateDocumentoInput) {
   });
 }
 
-export async function remove(id: string) {
+// Exclusão liberada pra campo+ (decisão Bruno 03/09), mediante assinatura:
+// a pessoa digita o próprio nome na confirmação e fica registrado no log.
+export async function remove(id: string, assinatura: string, userId: string) {
   const existing = await prisma.projetoDocumento.findUnique({ where: { id } });
   if (!existing) throw AppError.notFound('Documento');
+  await prisma.documentoExclusaoLog.create({
+    data: {
+      obraId: existing.obraId,
+      tipo: 'documento',
+      codigo: existing.codigo,
+      detalhe: existing.titulo,
+      assinatura,
+      userId,
+    },
+  });
   await prisma.projetoDocumento.delete({ where: { id } });
 }
 
@@ -116,9 +128,22 @@ export async function updateRevisao(revisaoId: string, data: import('./types').U
   return prisma.projetoDocumento.findUnique({ where: { id: existing.documentoId }, include });
 }
 
-export async function removeRevisao(revisaoId: string) {
-  const existing = await prisma.projetoDocumentoRevisao.findUnique({ where: { id: revisaoId } });
+export async function removeRevisao(revisaoId: string, assinatura: string, userId: string) {
+  const existing = await prisma.projetoDocumentoRevisao.findUnique({
+    where: { id: revisaoId },
+    include: { documento: { select: { obraId: true, codigo: true } } },
+  });
   if (!existing) throw AppError.notFound('Revisão');
+  await prisma.documentoExclusaoLog.create({
+    data: {
+      obraId: existing.documento.obraId,
+      tipo: 'revisao',
+      codigo: existing.documento.codigo,
+      detalhe: [existing.revisao, existing.arquivoNome].filter(Boolean).join(' · '),
+      assinatura,
+      userId,
+    },
+  });
   await prisma.projetoDocumentoRevisao.delete({ where: { id: revisaoId } });
   return existing.documentoId;
 }

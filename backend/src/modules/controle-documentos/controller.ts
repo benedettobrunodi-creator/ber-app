@@ -20,8 +20,15 @@ export async function update(req: Request, res: Response) {
   sendSuccess(res, data);
 }
 
+/** Nome digitado na confirmação de exclusão — obrigatório (auditoria). */
+function assinaturaExclusao(req: Request): string {
+  const assinatura = String(req.body?.assinatura ?? '').trim();
+  if (!assinatura) throw AppError.badRequest('Digite seu nome pra confirmar a exclusão');
+  return assinatura.slice(0, 150);
+}
+
 export async function remove(req: Request, res: Response) {
-  await service.remove(req.params.documentoId);
+  await service.remove(req.params.documentoId, assinaturaExclusao(req), req.user!.userId);
   sendNoContent(res);
 }
 
@@ -51,7 +58,7 @@ export async function updateRevisao(req: Request, res: Response) {
 }
 
 export async function removeRevisao(req: Request, res: Response) {
-  await service.removeRevisao(req.params.revisaoId);
+  await service.removeRevisao(req.params.revisaoId, assinaturaExclusao(req), req.user!.userId);
   sendNoContent(res);
 }
 
