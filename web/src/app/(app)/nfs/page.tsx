@@ -70,6 +70,12 @@ export default function NfsPage() {
     e.preventDefault();
     const file = fileRef.current?.files?.[0];
     if (!file) { setErro('Anexe o arquivo da NF (PDF ou XML)'); return; }
+    // Valida o tamanho ANTES de subir — arquivo grande derruba a conexão no
+    // meio do upload e o celular só vê "erro de rede" (caso José Ricardo 03/09)
+    if (file.size > 40 * 1024 * 1024) {
+      setErro(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(0)}MB) — o limite é 40MB. Se for um scan, tente exportar em qualidade menor.`);
+      return;
+    }
     setBusy(true); setErro(null);
     try {
       const fd = new FormData();
@@ -83,8 +89,11 @@ export default function NfsPage() {
       if (fileRef.current) fileRef.current.value = '';
       await load();
     } catch (e: unknown) {
-      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-      setErro(m || 'Erro ao enviar NF');
+      const err = e as { response?: { data?: { error?: { message?: string } } } };
+      // Sem response = a conexão caiu durante o upload (internet instável ou
+      // arquivo pesado) — dar orientação em vez de "Erro ao enviar NF" seco
+      setErro(err?.response?.data?.error?.message
+        || 'A conexão caiu durante o envio — confira a internet e tente de novo. Se o arquivo for um scan pesado, exporte em qualidade menor.');
     } finally { setBusy(false); }
   }
 

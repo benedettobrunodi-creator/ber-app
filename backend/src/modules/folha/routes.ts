@@ -4,7 +4,8 @@ import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole, requireAnyRole } from '../../middleware/rbac';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+// 40MB: scan de NF em alta resolução passava de 25MB e derrubava a conexão (03/09)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 40 * 1024 * 1024 } });
 
 // Folha é sensível: leitura financeiro+ · fechar/reabrir diretoria+financeiro
 // (liberado pra Carol em 01/09/26, pedido do Bruno — lista explícita, NÃO
