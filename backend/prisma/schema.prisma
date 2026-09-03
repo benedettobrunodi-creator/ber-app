@@ -227,6 +227,7 @@ model Obra {
   recebimentoRelatorio RecebimentoRelatorio?
   qualidadeVistorias QualidadeVistoria[]
   atividadeFvs       AtividadeFvs[]
+  manualProprietario ManualProprietario?
   relatorios         RelatorioSemanal[]
   curvaS             RelatorioCurvaS[]
   aditivos           ObraAditivo[]
@@ -1148,6 +1149,34 @@ model QualidadeVistoriaItem {
 
   @@index([vistoriaId])
   @@map("qualidade_vistoria_itens")
+}
+
+// ─── Pós-Obra · Manual do Proprietário (03/09/26) ───
+// Digitaliza o manual entregue ao cliente (modelo BER_Manual_ObraPoatek_v3):
+// preenche-se tudo no sistema e o PDF sai formatado na identidade BÈR.
+// 3 camadas: auto (projetos←Controle de Documentos, ficha técnica←obra),
+// biblioteca padrão filtrada por `materiais`, e os campos por obra abaixo.
+model ManualProprietario {
+  id               String    @id @default(uuid()) @db.Uuid
+  obraId           String    @unique @map("obra_id") @db.Uuid
+  fotoCapaUrl      String?   @map("foto_capa_url")
+  dataEntrega      DateTime? @map("data_entrega") @db.Date
+  urlOnline        String?   @map("url_online") @db.VarChar(300)
+  canalAssistencia String?   @map("canal_assistencia") @db.VarChar(300)
+  textoBemVindos   String?   @map("texto_bem_vindos") // override do texto padrão
+  materiais        String[]  @default([]) // keys da biblioteca "usar e manter"
+  galeria          Json      @default("[]") // [{url, legenda}]
+  acabamentos      Json      @default("[]") // [{grupo, nome, cor, tipo, fornecedor}]
+  mobiliario       Json      @default("[]") // [{nome, medida, descricao}]
+  fornecedores     Json      @default("[]") // [{categoria, nome, telefone, email, endereco}]
+  equipe           Json      @default("[]") // [{papel, nome, email}]
+  anexos           Json      @default("[]") // [{tipo, nome, url}]
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("manual_proprietario")
 }
 
 // ─── Qualidade · FVS por atividade (03/09/26) ───

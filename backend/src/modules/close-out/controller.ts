@@ -36,3 +36,23 @@ export async function remove(req: Request, res: Response) {
 export async function manual(req: Request, res: Response) {
   sendSuccess(res, await service.manualData(req.params.id));
 }
+
+// ─── Manual do Proprietário digital (03/09/26) ───
+
+export async function getManualProprietario(req: Request, res: Response) {
+  const mp = await import('./manual-proprietario');
+  sendSuccess(res, await mp.getManual(req.params.id));
+}
+
+export async function updateManualProprietario(req: Request, res: Response) {
+  const mp = await import('./manual-proprietario');
+  const parsed = mp.updateManualSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest('Dados inválidos do manual');
+  sendSuccess(res, await mp.updateManual(req.params.id, parsed.data));
+}
+
+export async function uploadArquivoManualProprietario(req: Request, res: Response) {
+  if (!req.file) throw AppError.badRequest('Envie o arquivo (campo "file")');
+  const mp = await import('./manual-proprietario');
+  sendSuccess(res, await mp.uploadArquivoManual(req.params.id, req.file));
+}

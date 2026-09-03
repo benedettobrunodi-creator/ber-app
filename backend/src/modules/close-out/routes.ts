@@ -13,6 +13,10 @@ const obraCloseOutRouter = Router({ mergeParams: true });
 obraCloseOutRouter.use(authenticate);
 obraCloseOutRouter.get('/', controller.listByObra);
 obraCloseOutRouter.get('/manual', controller.manual);
+// Manual do Proprietário digital (03/09/26) — formulário + PDF formatado
+obraCloseOutRouter.get('/manual-proprietario', controller.getManualProprietario);
+obraCloseOutRouter.put('/manual-proprietario', requireRole('campo'), controller.updateManualProprietario);
+obraCloseOutRouter.post('/manual-proprietario/arquivo', requireRole('campo'), upload.single('file'), controller.uploadArquivoManualProprietario);
 obraCloseOutRouter.post('/aplicar-padrao', requireRole('campo'), controller.aplicarPadrao);
 obraCloseOutRouter.post('/', requireRole('campo'), validate(createCloseOutItemSchema), controller.create);
 obraCloseOutRouter.patch('/:itemId', requireRole('campo'), validate(updateCloseOutItemSchema), controller.update);
