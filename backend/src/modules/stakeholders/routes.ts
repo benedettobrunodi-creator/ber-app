@@ -11,6 +11,7 @@ export const obraStakeholdersRouter = Router({ mergeParams: true });
 export const stakeholdersRouter = Router();
 
 obraStakeholdersRouter.get('/', w(ctrl.list));
+obraStakeholdersRouter.get('/usuarios-ber', w(ctrl.usuariosBer));
 obraStakeholdersRouter.post('/', obraMemberOnly, validate(createStakeholderSchema), w(ctrl.create));
 
 async function resolveObraId(req: Request, _res: Response, next: NextFunction) {

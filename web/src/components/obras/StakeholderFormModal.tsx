@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import api from '@/lib/api';
+
+interface UsuarioBer { id: string; name: string; email: string; role: string }
+
+/** Detecta se a empresa gravada é a própria BÈR (grafias variadas). */
+const ehBer = (empresa: string) => /^b[eè]r\b/i.test(empresa.trim());
+const EMPRESA_BER = 'BER';
 
 export interface Stakeholder {
   id: string;
@@ -43,6 +49,24 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Empresa BÈR × outra (03/09, Bruno): selecionando BÈR, escolhe um usuário
+  // da plataforma e nome/e-mail vêm preenchidos.
+  const [tipoEmpresa, setTipoEmpresa] = useState<'ber' | 'outra'>(edit && ehBer(edit.empresa) ? 'ber' : 'outra');
+  const [usuarios, setUsuarios] = useState<UsuarioBer[]>([]);
+  const [usuarioSel, setUsuarioSel] = useState('');
+
+  useEffect(() => {
+    if (tipoEmpresa !== 'ber' || usuarios.length > 0) return;
+    api.get(`/obras/${obraId}/stakeholders/usuarios-ber`)
+      .then(r => setUsuarios(r.data.data ?? []))
+      .catch(() => {});
+  }, [tipoEmpresa, obraId, usuarios.length]);
+
+  function selecionarUsuario(id: string) {
+    setUsuarioSel(id);
+    const u = usuarios.find(x => x.id === id);
+    if (u) setF(p => ({ ...p, empresa: EMPRESA_BER, nome: u.name, email: u.email }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,8 +105,38 @@ export default function StakeholderFormModal({ obraId, edit, onClose, onSaved }:
         </div>
         <form onSubmit={submit} className="space-y-4 px-6 py-5">
           {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+          <div>
+            <label className="block text-xs font-medium text-ber-gray uppercase tracking-wide">Empresa *</label>
+            <div className="mt-1 flex rounded-md border border-ber-gray/30 overflow-hidden">
+              {([['ber', 'BÈR Engenharia'], ['outra', 'Outra empresa']] as const).map(([k, label]) => (
+                <button key={k} type="button"
+                  onClick={() => {
+                    setTipoEmpresa(k);
+                    if (k === 'ber') setF(p => ({ ...p, empresa: EMPRESA_BER }));
+                    else { setUsuarioSel(''); setF(p => ({ ...p, empresa: ehBer(p.empresa) ? '' : p.empresa })); }
+                  }}
+                  className={`flex-1 px-3 py-2 text-sm font-semibold transition-colors ${
+                    tipoEmpresa === k ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-offwhite'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {tipoEmpresa === 'ber' && (
+            <Field label="Usuário da plataforma">
+              <select value={usuarioSel} onChange={e => selecionarUsuario(e.target.value)} className={inputCls}>
+                <option value="">selecione pra preencher nome e e-mail…</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.name} — {u.email}</option>)}
+              </select>
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Empresa *"><input value={f.empresa} onChange={e => setF(p => ({ ...p, empresa: e.target.value }))} className={inputCls} required /></Field>
+            {tipoEmpresa === 'outra' ? (
+              <Field label="Nome da empresa *"><input value={f.empresa} onChange={e => setF(p => ({ ...p, empresa: e.target.value }))} className={inputCls} required /></Field>
+            ) : (
+              <Field label="Empresa"><input value={f.empresa} disabled className={`${inputCls} bg-ber-offwhite text-ber-gray`} /></Field>
+            )}
             <Field label="Nome *"><input value={f.nome} onChange={e => setF(p => ({ ...p, nome: e.target.value }))} className={inputCls} required /></Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
