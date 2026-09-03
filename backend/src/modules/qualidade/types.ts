@@ -10,6 +10,8 @@ export const respostaSchema = z.object({
 export const createVistoriaSchema = z.object({
   respostas: z.array(respostaSchema).min(1).max(100),
   observacoes: z.string().max(5000).nullable().optional(),
+  /** Data da vistoria (YYYY-MM-DD) — permite registro retroativo; default hoje. */
+  data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export const resolverPendenciaSchema = z.object({

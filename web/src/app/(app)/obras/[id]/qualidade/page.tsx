@@ -41,7 +41,29 @@ interface Pendencia {
   itemKey: string;
   texto: string;
   observacao: string | null;
+  fotoUrl: string | null;
   vistoria: { id: string; data: string };
+}
+
+/** Comprime a foto no cliente (mesma técnica do Rel. de Recebimento). */
+async function comprimirFoto(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const MAX = 1600;
+  const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) =>
+    canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.82),
+  );
+}
+
+function nomeUsuarioLogado(): string {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') ?? '');
+    return u?.name ?? '';
+  } catch { return ''; }
 }
 
 const CLASSIF: Record<string, { label: string; text: string; bg: string }> = {
@@ -72,7 +94,10 @@ export default function QualidadePage() {
   const [preenchendo, setPreenchendo] = useState(false);
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({}); // `${catKey}:${itemKey}`
   const [obs, setObs] = useState<Record<string, string>>({});
+  const [fotos, setFotos] = useState<Record<string, File>>({});
   const [obsGeral, setObsGeral] = useState('');
+  const [dataVistoria, setDataVistoria] = useState('');
+  const [vistoriadorNome, setVistoriadorNome] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<Vistoria | null>(null);
 
@@ -95,14 +120,22 @@ export default function QualidadePage() {
 
   const totalItens = useMemo(() => template.reduce((acc, c) => acc + c.itens.length, 0), [template]);
   const respondidos = Object.keys(respostas).length;
-  const naosSemObs = useMemo(() =>
-    Object.entries(respostas).filter(([k, r]) => r === 'nao' && !(obs[k] ?? '').trim()).length,
+  // "Não" e "N/A" exigem justificativa (critério Bruno 03/09)
+  const semJustificativa = useMemo(() =>
+    Object.entries(respostas).filter(([k, r]) => (r === 'nao' || r === 'na') && !(obs[k] ?? '').trim()).length,
   [respostas, obs]);
+  // Foto obrigatória em TODO item Sim/Não ("foto pra tudo", Bruno 03/09)
+  const semFoto = useMemo(() =>
+    Object.entries(respostas).filter(([k, r]) => (r === 'sim' || r === 'nao') && !fotos[k]).length,
+  [respostas, fotos]);
 
   function iniciarVistoria() {
     setRespostas({});
     setObs({});
+    setFotos({});
     setObsGeral('');
+    setDataVistoria(new Date().toISOString().slice(0, 10));
+    setVistoriadorNome(nomeUsuarioLogado());
     setResultado(null);
     setPreenchendo(true);
     window.scrollTo({ top: 0 });
@@ -110,7 +143,8 @@ export default function QualidadePage() {
 
   async function enviarVistoria() {
     if (respondidos === 0) { alert('Responda ao menos um item'); return; }
-    if (naosSemObs > 0) { alert(`${naosSemObs} item(ns) marcados "Não" sem observação — descreva o que precisa ser corrigido`); return; }
+    if (semJustificativa > 0) { alert(`${semJustificativa} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`); return; }
+    if (semFoto > 0) { alert(`${semFoto} item(ns) sem foto — toda resposta Sim/Não precisa de foto de evidência`); return; }
     if (respondidos < totalItens && !(await confirmar(
       `${totalItens - respondidos} item(ns) ficaram em branco e não entram no cálculo. Enviar assim mesmo?`,
       { titulo: 'Itens em branco', confirmarLabel: 'Enviar' },
@@ -123,9 +157,27 @@ export default function QualidadePage() {
           return { categoriaKey, itemKey, resposta, observacao: (obs[k] ?? '').trim() || null };
         }),
         observacoes: obsGeral.trim() || null,
+        data: dataVistoria || undefined,
       };
       const r = await api.post(`/obras/${obraId}/qualidade`, payload);
-      setResultado(r.data.data);
+      const vistoria = r.data.data as Vistoria & { itens: { id: string; categoriaKey: string; itemKey: string }[] };
+
+      // Sobe as fotos comprimidas, item a item (falha avisa mas não perde a vistoria)
+      const itemId = new Map(vistoria.itens.map(i => [`${i.categoriaKey}:${i.itemKey}`, i.id]));
+      let falhas = 0;
+      for (const [k, file] of Object.entries(fotos)) {
+        const id = itemId.get(k);
+        if (!id) continue;
+        try {
+          const blob = await comprimirFoto(file);
+          const fd = new FormData();
+          fd.append('file', blob, `${k.replace(':', '-')}.jpg`);
+          await api.post(`/obras/${obraId}/qualidade/itens/${id}/foto`, fd);
+        } catch { falhas++; }
+      }
+      if (falhas > 0) alert(`Vistoria registrada, mas ${falhas} foto(s) falharam ao subir — dá pra reenviar depois`);
+
+      setResultado(vistoria);
       setPreenchendo(false);
       load();
     } catch (e) {
@@ -168,9 +220,26 @@ export default function QualidadePage() {
           <button onClick={() => setPreenchendo(false)} className="text-ber-gray hover:text-ber-carbon shrink-0"><X size={20} /></button>
         </div>
 
+        <div className="mb-4 flex items-end gap-4 flex-wrap rounded-xl border border-ber-border bg-white p-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-ber-carbon">Data da vistoria</label>
+            <input type="date" className="rounded-lg border border-ber-border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ber-teal"
+              value={dataVistoria} max={new Date().toISOString().slice(0, 10)}
+              onChange={e => setDataVistoria(e.target.value)} />
+          </div>
+          <div className="min-w-[180px]">
+            <p className="mb-1 text-xs font-medium text-ber-carbon">Responsável pela vistoria</p>
+            <p className="rounded-lg bg-ber-surface px-3 py-1.5 text-sm font-semibold text-ber-carbon">{vistoriadorNome || 'você (login)'}</p>
+          </div>
+        </div>
+
         <div className="sticky top-0 z-10 -mx-4 md:-mx-6 mb-4 border-b border-ber-border bg-white/95 px-4 md:px-6 py-2.5 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-ber-gray"><span className="font-bold text-ber-carbon">{respondidos}</span> de {totalItens} respondidos{naosSemObs > 0 && <span className="text-red-600 font-semibold"> · {naosSemObs} "Não" sem observação</span>}</p>
+            <p className="text-xs text-ber-gray">
+              <span className="font-bold text-ber-carbon">{respondidos}</span> de {totalItens} respondidos
+              {semJustificativa > 0 && <span className="text-red-600 font-semibold"> · {semJustificativa} sem justificativa</span>}
+              {semFoto > 0 && <span className="text-amber-700 font-semibold"> · {semFoto} sem foto</span>}
+            </p>
             <button onClick={enviarVistoria} disabled={enviando}
               className="rounded-lg bg-ber-olive px-4 py-1.5 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
               {enviando ? 'Enviando…' : 'Concluir vistoria'}
@@ -220,6 +289,33 @@ export default function QualidadePage() {
                             value={obs[k] ?? ''}
                             onChange={e => setObs(prev => ({ ...prev, [k]: e.target.value }))}
                           />
+                        )}
+                        {r === 'na' && (
+                          <input
+                            className="mt-2 w-full rounded-lg border border-ber-border bg-ber-surface px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                            placeholder="Por que este item não se aplica? (obrigatório)"
+                            value={obs[k] ?? ''}
+                            onChange={e => setObs(prev => ({ ...prev, [k]: e.target.value }))}
+                          />
+                        )}
+                        {(r === 'sim' || r === 'nao') && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                              fotos[k] ? 'border-ber-green/40 text-ber-green bg-ber-green/5' : 'border-amber-400 text-amber-700 bg-amber-50'
+                            }`}>
+                              📷 {fotos[k] ? 'Foto anexada ✓' : 'Tirar foto (obrigatória)'}
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) setFotos(prev => ({ ...prev, [k]: f }));
+                                  e.target.value = '';
+                                }} />
+                            </label>
+                            {fotos[k] && (
+                              <button onClick={() => setFotos(prev => { const n = { ...prev }; delete n[k]; return n; })}
+                                className="text-xs text-ber-gray hover:text-red-600">trocar/remover</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -322,7 +418,10 @@ export default function QualidadePage() {
                     <div className="min-w-0">
                       <p className="text-sm text-ber-carbon"><span className="text-ber-gray/60 text-xs mr-1.5">{p.itemKey}</span>{p.texto}</p>
                       {p.observacao && <p className="mt-0.5 text-xs text-red-700">{p.observacao}</p>}
-                      <p className="mt-0.5 text-[11px] text-ber-gray/70">vistoria de {fmtBR(p.vistoria.data)}</p>
+                      <p className="mt-0.5 text-[11px] text-ber-gray/70">
+                        vistoria de {fmtBR(p.vistoria.data)}
+                        {p.fotoUrl && <> · <a href={p.fotoUrl} target="_blank" rel="noreferrer" className="text-ber-teal hover:underline">ver foto</a></>}
+                      </p>
                     </div>
                     <button onClick={() => resolver(p)}
                       className="shrink-0 rounded-lg border border-ber-green/40 px-2.5 py-1 text-xs font-semibold text-ber-green hover:bg-ber-green/10">

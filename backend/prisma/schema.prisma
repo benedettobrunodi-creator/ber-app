@@ -1134,6 +1134,7 @@ model QualidadeVistoriaItem {
   texto          String    // snapshot do texto do item no momento da vistoria
   resposta       String    @db.VarChar(3) // sim | nao | na
   observacao     String?
+  fotoUrl        String?   @map("foto_url") // evidência fotográfica (R2)
   // Itens "não" viram pendências até alguém resolver
   resolvido      Boolean   @default(false)
   resolvidoEm    DateTime? @map("resolvido_em")

@@ -66,12 +66,25 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
   const respostas = input.respostas.filter((r) => itemTexto.has(`${r.categoriaKey}:${r.itemKey}`));
   if (respostas.length === 0) throw AppError.badRequest('Nenhum item respondido');
 
+  // Critério (03/09, Bruno): "Não" e "N/A" exigem justificativa escrita —
+  // ninguém reprova ou pula item sem dizer por quê.
+  const semJustificativa = respostas.filter(
+    (r) => (r.resposta === 'nao' || r.resposta === 'na') && !(r.observacao ?? '').trim(),
+  );
+  if (semJustificativa.length > 0) {
+    throw AppError.badRequest(
+      `${semJustificativa.length} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`,
+    );
+  }
+
   const { resumo, notaFinal, classificacao } = calcularScore(respostas);
 
   const vistoria = await prisma.qualidadeVistoria.create({
     data: {
       obraId,
       vistoriadorId,
+      // Meio-dia UTC pra data não escorregar de dia em BRT
+      ...(input.data && { data: new Date(`${input.data}T12:00:00Z`) }),
       notaFinal,
       classificacao: classificacao.key,
       resumo: resumo as object[],
@@ -137,6 +150,22 @@ export async function resolverPendencia(itemId: string, userId: string, resolvid
       ? { resolvido: true, resolvidoEm: new Date(), resolvidoPorId: userId }
       : { resolvido: false, resolvidoEm: null, resolvidoPorId: null },
   });
+}
+
+export async function uploadFotoItem(
+  itemId: string,
+  file: { buffer: Buffer; originalname: string; mimetype: string },
+) {
+  const item = await prisma.qualidadeVistoriaItem.findUnique({ where: { id: itemId } });
+  if (!item) throw AppError.notFound('Item');
+  const { uploadToR2, isR2Configured } = await import('../../services/storage');
+  if (!isR2Configured()) throw AppError.badRequest('Storage de arquivos não configurado no servidor');
+  const url = await uploadToR2(
+    file.buffer,
+    `qualidade/${item.vistoriaId}-${item.categoriaKey}-${item.itemKey}-${Date.now()}-${file.originalname}`,
+    file.mimetype,
+  );
+  return prisma.qualidadeVistoriaItem.update({ where: { id: itemId }, data: { fotoUrl: url } });
 }
 
 export async function removeVistoria(vistoriaId: string) {

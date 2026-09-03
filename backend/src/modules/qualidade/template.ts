@@ -9,6 +9,8 @@
 export interface ChecklistItem {
   key: string;
   texto: string;
+  // (03/09, Bruno: "foto pra tudo") — foto de evidência é obrigatória em TODO
+  // item respondido Sim/Não; regra global aplicada no front, não por item.
 }
 
 export interface ChecklistCategoria {

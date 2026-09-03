@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
@@ -17,5 +18,9 @@ router.post('/', requireRole('campo'), validate(createVistoriaSchema), controlle
 router.get('/vistorias/:vistoriaId', controller.getOne);
 router.delete('/vistorias/:vistoriaId', requireRole('coordenacao'), controller.remove);
 router.patch('/pendencias/:itemId', requireRole('campo'), validate(resolverPendenciaSchema), controller.resolverPendencia);
+
+// Foto de evidência por item (comprimida no cliente; 15MB de folga)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+router.post('/itens/:itemId/foto', requireRole('campo'), upload.single('file'), controller.uploadFoto);
 
 export default router;

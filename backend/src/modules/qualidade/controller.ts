@@ -23,6 +23,14 @@ export async function resolverPendencia(req: Request, res: Response) {
   sendSuccess(res, await service.resolverPendencia(req.params.itemId, req.user!.userId, req.body.resolvido));
 }
 
+export async function uploadFoto(req: Request, res: Response) {
+  if (!req.file) {
+    res.status(400).json({ error: { message: 'Envie a foto no campo "file"' } });
+    return;
+  }
+  sendSuccess(res, await service.uploadFotoItem(req.params.itemId, req.file));
+}
+
 export async function remove(req: Request, res: Response) {
   await service.removeVistoria(req.params.vistoriaId);
   sendNoContent(res);
