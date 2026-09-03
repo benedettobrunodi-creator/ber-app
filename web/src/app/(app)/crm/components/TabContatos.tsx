@@ -37,7 +37,7 @@ function initForm() {
 
 // ── Drawer de criar/editar contato ──────────────────────────────────────────
 
-function ContatoDrawer({
+export function ContatoDrawer({
   contato,
   empresas,
   onClose,
@@ -263,6 +263,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filterClassificacao, setFilterClassificacao] = useState('');
+  const [filterSoPrincipais, setFilterSoPrincipais] = useState(false);
   const [sortCol, setSortCol] = useState<'nome' | 'empresa' | 'classificacao' | 'cargo' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
@@ -337,9 +338,10 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
   }
 
   const sortedContatos = useMemo(() => {
-    const base = filterClassificacao
+    let base = filterClassificacao
       ? contatos.filter((c) => c.empresa?.classificacao === filterClassificacao)
       : contatos;
+    if (filterSoPrincipais) base = base.filter((c) => c.principal);
     if (!sortCol) return base;
     return [...base].sort((a, b) => {
       let av = '', bv = '';
@@ -349,7 +351,7 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
       else if (sortCol === 'cargo') { av = a.cargo ?? ''; bv = b.cargo ?? ''; }
       return sortDir === 'asc' ? av.localeCompare(bv, 'pt-BR') : bv.localeCompare(av, 'pt-BR');
     });
-  }, [contatos, filterClassificacao, sortCol, sortDir]);
+  }, [contatos, filterClassificacao, filterSoPrincipais, sortCol, sortDir]);
 
   async function handleToggleAllStars() {
     const allOn = sortedContatos.length > 0 && sortedContatos.every((c) => c.principal);
@@ -418,6 +420,19 @@ export default function TabContatos({ empresas, onRefresh }: Props) {
             <option key={cl} value={cl}>{cl}</option>
           ))}
         </select>
+
+        <button
+          onClick={() => setFilterSoPrincipais((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium min-h-[36px] ${
+            filterSoPrincipais
+              ? 'border-amber-400 bg-amber-50 text-amber-600'
+              : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+          }`}
+          title="Mostrar só contatos marcados como principal"
+        >
+          <Star size={13} fill={filterSoPrincipais ? 'currentColor' : 'none'} />
+          Só principais
+        </button>
 
         <span className="text-xs text-gray-400">{sortedContatos.length} contato{sortedContatos.length !== 1 ? 's' : ''}</span>
 

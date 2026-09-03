@@ -102,6 +102,20 @@ export async function addRevisao(
   return prisma.projetoDocumento.findUnique({ where: { id: documentoId }, include });
 }
 
+export async function updateRevisao(revisaoId: string, data: import('./types').UpdateRevisaoInput) {
+  const existing = await prisma.projetoDocumentoRevisao.findUnique({ where: { id: revisaoId } });
+  if (!existing) throw AppError.notFound('Revisão');
+  await prisma.projetoDocumentoRevisao.update({
+    where: { id: revisaoId },
+    data: {
+      ...(data.revisao !== undefined && { revisao: data.revisao }),
+      ...(data.data !== undefined && { data: new Date(data.data) }),
+      ...(data.observacao !== undefined && { observacao: data.observacao }),
+    },
+  });
+  return prisma.projetoDocumento.findUnique({ where: { id: existing.documentoId }, include });
+}
+
 export async function removeRevisao(revisaoId: string) {
   const existing = await prisma.projetoDocumentoRevisao.findUnique({ where: { id: revisaoId } });
   if (!existing) throw AppError.notFound('Revisão');
@@ -133,6 +147,7 @@ export async function bulkUpload(
   obraId: string,
   files: { buffer: Buffer; originalname: string; mimetype: string }[],
   createdById: string,
+  meta?: import('./types').BulkMetaItem[],
 ) {
   const { uploadToR2, isR2Configured } = await import('../../services/storage');
   if (!isR2Configured()) throw AppError.badRequest('Storage de arquivos não configurado no servidor');
@@ -140,9 +155,13 @@ export async function bulkUpload(
   const criados: string[] = [];
   const atualizados: string[] = [];
   const hoje = new Date();
+  const metaPorNome = new Map((meta ?? []).map(m => [m.nome, m]));
 
   for (const file of files) {
-    const { codigo, revisao } = parseNomeArquivo(file.originalname);
+    const m = metaPorNome.get(file.originalname);
+    const { codigo, revisao } = m
+      ? { codigo: m.codigo.trim(), revisao: m.revisao.trim() }
+      : parseNomeArquivo(file.originalname);
     const url = await uploadToR2(file.buffer, `documentos/${obraId}-${codigo}-${revisao}-${file.originalname}`, file.mimetype);
 
     const existing = await prisma.projetoDocumento.findUnique({
@@ -166,7 +185,9 @@ export async function bulkUpload(
         data: {
           obraId,
           codigo,
-          disciplina: 'Outra',
+          disciplina: m?.disciplina ?? 'Outra',
+          titulo: m?.titulo ?? null,
+          projetista: m?.projetista ?? null,
           createdById,
           revisoes: {
             create: { revisao, data: hoje, arquivoUrl: url, arquivoNome: file.originalname, createdById },

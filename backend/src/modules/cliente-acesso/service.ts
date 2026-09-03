@@ -1,13 +1,18 @@
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import { randomUUID } from 'node:crypto';
+import {
+  sendMagicLink,
+  notifyBerCanteiroAprovada,
+  notifyBerCanteiroContestada,
+} from '../../services/email-medicao';
 import type { IssueAcessoInput, AprovarInput, ContestarInput } from './types';
 
 export async function issueAcesso(obraId: string, input: IssueAcessoInput) {
-  const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
+  const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true, name: true } });
   if (!obra) throw AppError.notFound('Obra');
   const token = randomUUID();
-  return prisma.clienteAcesso.create({
+  const acesso = await prisma.clienteAcesso.create({
     data: {
       obraId,
       email: input.email,
@@ -16,6 +21,9 @@ export async function issueAcesso(obraId: string, input: IssueAcessoInput) {
       expiraEm: input.expiraEm ? new Date(input.expiraEm) : null,
     },
   });
+  // Email de boas-vindas com magic link — fire-and-forget
+  void sendMagicLink({ to: input.email, nome: input.nome, obraNome: obra.name, token });
+  return acesso;
 }
 
 export async function listAcessosByObra(obraId: string) {
@@ -213,13 +221,16 @@ export async function getConsolidadoPorObra(obraId: string, opts: { soEnviadas?:
 }
 
 export async function clienteAprovar(token: string, _input: AprovarInput) {
-  const m = await prisma.medicao.findUnique({ where: { tokenPublico: token } });
+  const m = await prisma.medicao.findUnique({
+    where: { tokenPublico: token },
+    include: { obra: { select: { id: true, name: true } } },
+  });
   if (!m) throw AppError.notFound('Medição');
   if (m.status !== 'enviada') {
     throw AppError.badRequest(`Medição não está em estado enviada (atual: ${m.status})`);
   }
-  return prisma.$transaction(async (tx) => {
-    const upd = await tx.medicao.update({
+  const upd = await prisma.$transaction(async (tx) => {
+    const updated = await tx.medicao.update({
       where: { id: m.id },
       data: { status: 'aprovada' },
     });
@@ -232,18 +243,26 @@ export async function clienteAprovar(token: string, _input: AprovarInput) {
         comentario: 'Aprovada pelo cliente via portal',
       },
     });
-    return upd;
+    return updated;
   });
+  // Notifica equipe BÈR — fire-and-forget
+  const medicaoUrl = `${process.env.APP_PUBLIC_URL ?? 'https://ber-app.vercel.app'}/obras/${m.obra.id}/medicao/${m.id}`;
+  const label = m.numero === 1 ? 'Sinal' : `Medição ${String(m.numero).padStart(2, '0')}`;
+  void notifyBerCanteiroAprovada({ obraNome: m.obra.name, medicaoLabel: label, medicaoUrl });
+  return upd;
 }
 
 export async function clienteContestar(token: string, input: ContestarInput) {
-  const m = await prisma.medicao.findUnique({ where: { tokenPublico: token } });
+  const m = await prisma.medicao.findUnique({
+    where: { tokenPublico: token },
+    include: { obra: { select: { id: true, name: true } } },
+  });
   if (!m) throw AppError.notFound('Medição');
   if (m.status !== 'enviada') {
     throw AppError.badRequest(`Medição não está em estado enviada (atual: ${m.status})`);
   }
-  return prisma.$transaction(async (tx) => {
-    const upd = await tx.medicao.update({
+  const upd = await prisma.$transaction(async (tx) => {
+    const updated = await tx.medicao.update({
       where: { id: m.id },
       data: { status: 'contestada' },
     });
@@ -256,6 +275,10 @@ export async function clienteContestar(token: string, input: ContestarInput) {
         comentario: `Contestada pelo cliente: ${input.comentario}`,
       },
     });
-    return upd;
+    return updated;
   });
+  const medicaoUrl = `${process.env.APP_PUBLIC_URL ?? 'https://ber-app.vercel.app'}/obras/${m.obra.id}/medicao/${m.id}`;
+  const label = m.numero === 1 ? 'Sinal' : `Medição ${String(m.numero).padStart(2, '0')}`;
+  void notifyBerCanteiroContestada({ obraNome: m.obra.name, medicaoLabel: label, medicaoUrl, comentario: input.comentario });
+  return upd;
 }

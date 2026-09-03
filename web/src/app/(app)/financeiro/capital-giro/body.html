@@ -1,0 +1,216 @@
+<div class="app">
+  <!-- MAIN -->
+  <main class="main">
+    <div class="header-bar">
+      <div class="header-brand">
+        <div class="header-logo">B</div>
+        <div>
+          <h2>Fluxo de Caixa &amp; Capital de Giro</h2>
+          <div class="sub">Construção por administração · você financia 100% da fatia BER (zero capital próprio) e antecipa recebíveis. O caixa é um <b>pool único</b> — a sobra de uma obra financia o buraco de outra antes de pagar juros.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI HERO -->
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- TABS -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfólio</button>
+      <button class="tab-btn" data-tab="fluxo" onclick="switchTab('fluxo')">Fluxo consolidado</button>
+      <button class="tab-btn" data-tab="rastro" onclick="switchTab('rastro')">Rastreabilidade</button>
+      <button class="tab-btn" data-tab="compat" onclick="switchTab('compat')">Compatibilização</button>
+    </div>
+
+    <!-- TAB: PORTFOLIO -->
+    <section class="tab-content active" id="tab-portfolio">
+      <div class="table-card">
+        <div class="table-head">
+          <h3>Obras no portfólio</h3>
+          <button class="btn btn-sm btn-primary" onclick="openObra()">+ Nova obra</button>
+        </div>
+        <div class="table-wrapper">
+          <table id="obrasTable"></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: FLUXO -->
+    <section class="tab-content" id="tab-fluxo">
+      <div class="note" id="fluxoNote"></div>
+      <div class="chart-card">
+        <h3>Saldo de caixa acumulado do portfólio (R$)</h3>
+        <canvas id="flowChart"></canvas>
+      </div>
+      <div class="table-card">
+        <div class="table-head"><h3>Fluxo mês a mês — pool consolidado</h3></div>
+        <div class="table-wrapper"><table id="fluxoTable"></table></div>
+      </div>
+      <div class="table-card">
+        <div class="table-head"><h3>Acerto final — resultado de cada obra após quitar os empréstimos internos</h3></div>
+        <div class="note" style="margin:0 0 4px">Cada obra usa o caixa das outras de graça (é o dinheiro da empresa). Isolada, ela pagava juro cheio; no <b>pool de obras</b> paga menos — a diferença é a <b>economia</b> (nunca negativa). O juro que o <b>backoffice</b> gera é overhead da empresa, deduzido à parte. <b>Subtotal das obras − juro do backoffice = lucro real da empresa.</b></div>
+        <div class="table-wrapper"><table id="acertoTable"></table></div>
+      </div>
+    </section>
+
+    <!-- TAB: RASTRO -->
+    <section class="tab-content" id="tab-rastro">
+      <div class="note">Cada mês mostra <b>quem injetou</b> e <b>quem consumiu</b> caixa, com o split <b>MOD</b> e <b>Fornecedor</b> por obra. O pool usa primeiro a sobra de outras obras (de graça); a coluna <b>Giro exigido no mês</b> é o buraco que sobra no caixa único; a coluna <b>Custo do dinheiro</b> é o juro cobrado sobre esse buraco no mês.</div>
+      <div class="table-card">
+        <div class="table-head"><h3>Extrato do pool — origem e uso do caixa</h3></div>
+        <div class="table-wrapper"><table id="rastroTable"></table></div>
+      </div>
+    </section>
+
+    <!-- TAB: COMPATIBILIZAÇÃO FÍSICO-FINANCEIRA -->
+    <section class="tab-content" id="tab-compat">
+      <div class="note">Casa o <b>recebido do cliente</b> (medições) com o <b>pago a fornecedor + MOD</b> mês a mês. O <b>descasamento acumulado</b> é o buraco que o capital de giro precisa cobrir — alongar o prazo do fornecedor (escalonado) ou mudar a curva de avanço reduz esse buraco.</div>
+      <div class="table-card">
+        <div class="table-head"><h3>Físico-financeiro — recebido do cliente × pago à cadeia</h3></div>
+        <div class="table-wrapper"><table id="compatTable"></table></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- MODAL OBRA -->
+<div class="modal-overlay" id="obraModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">Nova obra</h2>
+      <button class="btn btn-icon btn-ghost" onclick="closeObra()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="obra-cols">
+        <!-- Coluna 1: sobre a obra -->
+        <section class="obra-col">
+          <div class="cfg-head">Sobre a obra</div>
+          <div class="field"><label>Nome da obra</label><input id="o_nome" type="text" placeholder="Ex: Ilha Pura"></div>
+          <div class="field"><label>Valor do contrato (R$)</label><input id="o_contrato" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">venda total pro cliente</div></div>
+          <div class="field"><label>Fatia BER (%)</label><input id="o_agio" type="number" step="1" oninput="updateFlow()"><div class="hint">% do contrato que a BER fatura · o resto o cliente compra direto</div></div>
+          <div class="field"><label>Custo orçado da obra (R$)</label><input id="o_budgetTotal" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">quanto você orçou de custo pra obra toda</div></div>
+          <div class="field"><label>Savings geral da obra (%)</label><input id="o_savings" type="number" step="0.5" oninput="updateFlow()"><div class="hint">único · margem da obra (não separa mais direto/fatia)</div></div>
+          <div class="field"><label>Mão de obra direta · equipe (R$)</label><input id="o_mod" type="text" inputmode="numeric" oninput="fmtInputBRL(this);updateFlow()" placeholder="0"><div class="hint">custo da equipe · à vista</div></div>
+          <input id="o_fornMat" type="hidden">
+          <div class="calc-flow">
+            <div class="cf-row"><span class="cf-lbl">Faturamento (fatia BER)</span><span class="cf-val" id="cf_fat">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">↳ taxa de adm <input id="o_adm" type="number" step="0.5" oninput="updateFlow()">% (embutida)</span><span id="cf_adm">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(−) Imposto <input id="o_imposto" type="number" step="0.5" oninput="updateFlow()">%</span><span class="cf-val neg" id="cf_imp">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(−) Comissão <span id="cf_compct">—</span></span><span class="cf-val neg" id="cf_com">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(−) Reserva Técnica <span id="cf_rtpct">—</span></span><span class="cf-val neg" id="cf_rt">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">comissão e RT sobre contrato − adm − imposto</span><span id="cf_liqbase">—</span></div>
+            <div class="cf-arrow">↓</div>
+            <div class="cf-row cf-eq cf-total"><span class="cf-lbl">= Entrada da obra</span><span class="cf-val" id="cf_ent">—</span></div>
+          </div>
+
+          <div class="calc-flow">
+            <div class="cf-cap">Budget de compras · derivado</div>
+            <div class="cf-row"><span class="cf-lbl">Custo orçado da obra</span><span class="cf-val" id="cb_orcado">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(−) MOD · equipe</span><span class="cf-val neg" id="cb_mod">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(−) Savings geral <span id="cb_savpct">—</span></span><span class="cf-val neg" id="cb_sav">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">savings = % × budget de compras · vira margem no resultado</span><span id="cb_savbase">—</span></div>
+            <div class="cf-arrow">↓</div>
+            <div class="cf-row cf-eq cf-total"><span class="cf-lbl">= Budget de compras</span><span class="cf-val" id="cb_result">—</span></div>
+            <div class="cf-row cf-eq"><span class="cf-lbl">× (100 − Fatia BER <span id="cb_agiopct">—</span>)</span><span class="cf-val" id="cb_direta">—</span></div>
+          </div>
+          <div class="calc-flow">
+            <div class="cf-cap">Saídas da obra · custo real</div>
+            <div class="cf-row"><span class="cf-lbl">MOD · equipe · à vista</span><span class="cf-val neg" id="cs_mod">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">mês 1 → duração</span><span id="cs_modsub">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">Budget de compras · no prazo</span><span class="cf-val neg" id="cs_forn">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">mês 1 → duração · + prazo</span><span id="cs_fornsub">—</span></div>
+            <div class="cf-arrow">↓</div>
+            <div class="cf-row cf-eq"><span class="cf-lbl">= Custo real (MOD + compras)</span><span class="cf-val neg" id="cs_budget">—</span></div>
+            <div class="cf-row"><span class="cf-lbl">(+) Comissão</span><span class="cf-val neg" id="cs_com">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">mês 1 → duração + 1</span><span id="cs_comsub">—</span></div>
+            <div class="cf-arrow">↓</div>
+            <div class="cf-row cf-eq cf-total neg-total"><span class="cf-lbl">= Saída da obra</span><span class="cf-val neg" id="cs_tot">—</span></div>
+            <div class="cf-row cf-sub"><span class="cf-lbl">(+) custo do dinheiro · 2,8%/mês sobre saldo negativo</span><span id="cs_juros">no fluxo →</span></div>
+          </div>
+          <div class="field"><label>Duração (meses)</label><input id="o_duracao" type="number" step="1"></div>
+          <div class="field"><label>Mês de início</label><input id="o_inicioMes" type="month"><div class="hint">mês real na linha do tempo</div></div>
+        </section>
+
+        <!-- Coluna 2: metas de rentabilidade -->
+        <section class="obra-col">
+          <div class="cfg-head">Custos e retenções</div>
+          <div class="field"><label>Custo do dinheiro (%/mês)</label><input id="o_juros" type="number" step="0.1"><div class="hint">juros sobre o saldo negativo, no fluxo</div></div>
+          <div class="field"><label>Retenção / retainer (%)</label><input id="o_ret" type="number" step="1"><div class="hint">segurado, pago após o último mês</div></div>
+          <div class="field"><label>Curva de avanço</label><select id="o_curva"><option value="linear">Linear (uniforme)</option><option value="s">Curva S (lento-rápido-lento)</option><option value="front">Front-loaded (forte no início)</option><option value="back">Back-loaded (forte no fim)</option></select><div class="hint">como execução/medição se distribui na duração · muda o pico de giro</div></div>
+        </section>
+
+        <!-- Coluna 3: fluxo de pagamentos -->
+        <section class="obra-col">
+          <div class="cfg-head">Fluxo de pagamentos</div>
+          <div class="field"><label>Sinal / adiantamento (%)</label><input id="o_sinal" type="number" step="1"><div class="hint">% do contrato</div></div>
+          <div class="field"><label>Prazo do sinal (dias)</label><input id="o_prazoSinal" type="number" step="5"><div class="hint">0 = à vista (cash)</div></div>
+          <div class="field"><label>Fluxo de recebimento</label><select id="o_formaReceb" onchange="toggleFormaReceb()"><option value="prazo">Por prazo (dias)</option><option value="parcelas">Parcelas fixas</option></select></div>
+          <div class="field" id="wrap_prazoReceb"><label>Recebimento das medições (dias)</label><input id="o_prazoReceb" type="number" step="5"><div class="hint">medição paga X dias após a execução</div></div>
+          <div class="field" id="wrap_parcelas" style="display:none"><label>Parcelas fixas</label>
+            <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:var(--space-sm)">
+              <input id="o_parcN" type="number" step="1" min="1" placeholder="Nº vezes">
+              <input id="o_parcV" type="text" inputmode="numeric" oninput="fmtInputBRL(this)" placeholder="R$ por parcela">
+            </div>
+            <div class="hint">nº de vezes × valor de cada · substitui medições</div>
+          </div>
+          <div class="field"><label>Pagamento fornecedor</label><select id="o_fornTipo" onchange="toggleFornTipo()"><option value="prazo">A prazo (dias)</option><option value="avista">À vista</option><option value="escalonado">Escalonado (sinal + 2 prazos)</option></select></div>
+          <div class="field" id="wrap_fornDias"><label>Prazo fornecedor (dias)</label><input id="o_fornDias" type="number" step="5"><div class="hint">paga X dias após a execução</div></div>
+          <div class="field" id="wrap_fornEsc" style="display:none"><label>Escalonamento do fornecedor</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-sm)">
+              <input id="o_fornSinalPct" type="number" step="5" placeholder="Sinal %">
+              <input id="o_fornPrazo1" type="number" step="5" placeholder="Prazo 1 (d)">
+              <input id="o_fornPrazo2" type="number" step="5" placeholder="Prazo 2 (d)">
+            </div>
+            <div class="hint">sinal % na largada · saldo dividido nos 2 prazos · alonga o PMP e minimiza o giro</div>
+          </div>
+          <div class="field"><label>Comissão (%)</label><input id="o_comissao" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − adm − imposto</div></div>
+          <div class="field"><label>Reserva Técnica (%)</label><input id="o_reservaTecnica" type="number" step="0.5" oninput="updateFlow()"><div class="hint">% do contrato − adm − imposto</div></div>
+        </section>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="delObraBtn" onclick="deleteObra()" style="margin-right:auto; display:none">Excluir</button>
+      <button class="btn" onclick="closeObra()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveObra()">Salvar obra</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SETUP -->
+<div class="modal-overlay" id="setupModal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head">
+      <h2>Setup</h2>
+      <button class="btn btn-icon btn-ghost" onclick="closeSetup()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="obra-cols" style="grid-template-columns:1fr 1fr">
+        <section class="obra-col">
+          <div class="cfg-head">Padrões · novas obras</div>
+          <div class="field"><label>Custo do dinheiro (%/mês)</label><input id="p_juros" type="number" step="0.1"></div>
+          <div class="field"><label>Imposto s/ receita (%)</label><input id="p_imposto" type="number" step="0.5"></div>
+          <div class="field"><label>Taxa administração (%)</label><input id="p_adm" type="number" step="0.5"></div>
+          <div class="field"><label>Savings (%)</label><input id="p_savings" type="number" step="0.5"></div>
+          <div class="field"><label>Fatia BER (%)</label><input id="p_agio" type="number" step="1"></div>
+          <div class="field"><label>Retenção (%)</label><input id="p_ret" type="number" step="1"><div class="hint">Toda obra nova herda estes valores. Edite por obra depois.</div></div>
+        </section>
+        <section class="obra-col">
+          <div class="cfg-head">Empresa</div>
+          <div class="field"><label>Meta anual (R$)</label><input id="p_meta" type="number" step="1000000"></div>
+          <div class="field"><label>Contribuição (% da meta)</label><input id="p_estrutpct" type="number" step="0.5"><div class="hint" id="fixoReadout"></div></div>
+          <div class="hint" style="line-height:1.5">A contribuição da meta banca as despesas fixas da estrutura (6% do contrato de cada obra).</div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:var(--space-sm);padding-top:var(--space-lg);border-top:1px solid var(--border-light)">
+            <button class="btn btn-block" onclick="exportJSON()">↓ Exportar dados</button>
+            <button class="btn btn-block" onclick="document.getElementById('importFile').click()">↑ Importar dados</button>
+            <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importJSON(event)">
+            <button class="btn btn-ghost btn-block" onclick="toggleTheme()">◐ Tema claro / escuro</button>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeSetup()">Concluído</button>
+    </div>
+  </div>
+</div>
+

@@ -50,6 +50,29 @@ export const createRevisaoSchema = z.object({
   observacao: z.string().nullable().optional(),
 });
 
+// Edição de revisão existente (pedido Bruno 03/09: "quem decide a revisão?
+// precisa ter como editar") — corrige rótulo/data/observação sem excluir+recriar.
+export const updateRevisaoSchema = z.object({
+  revisao: z.string().min(1).max(20).optional(),
+  data: z.string().min(1).optional(),
+  observacao: z.string().nullable().optional(),
+});
+export type UpdateRevisaoInput = z.infer<typeof updateRevisaoSchema>;
+
+// Metadados por arquivo no upload em lote (03/09/26): o front mostra uma tela
+// de conferência antes de subir — usuário confirma código/revisão/disciplina
+// de cada arquivo. `nome` casa com o originalname do arquivo no FormData.
+export const bulkMetaItemSchema = z.object({
+  nome: z.string().min(1).max(255),
+  codigo: z.string().min(1).max(150),
+  revisao: z.string().min(1).max(20),
+  disciplina: z.enum(DOCUMENTO_DISCIPLINAS),
+  titulo: z.string().max(255).nullable().optional(),
+  projetista: z.string().max(150).nullable().optional(),
+});
+export const bulkMetaSchema = z.array(bulkMetaItemSchema).max(200);
+export type BulkMetaItem = z.infer<typeof bulkMetaItemSchema>;
+
 export type CreateDocumentoInput = z.infer<typeof createDocumentoSchema>;
 export type UpdateDocumentoInput = z.infer<typeof updateDocumentoSchema>;
 export type CreateRevisaoInput = z.infer<typeof createRevisaoSchema>;

@@ -4,7 +4,7 @@ import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { validate } from '../../middleware/validate';
-import { createDocumentoSchema, updateDocumentoSchema, createRevisaoSchema } from './types';
+import { createDocumentoSchema, updateDocumentoSchema, createRevisaoSchema, updateRevisaoSchema } from './types';
 
 // Sem restrição de tipo (fileFilter) — aceita PDF, DWG, planilha, imagem etc.
 // Limite de tamanho generoso (storage é barato, ver análise de custo R2 31/08) —
@@ -26,6 +26,7 @@ router.delete('/:documentoId', requireRole('coordenacao'), controller.remove);
 
 router.get('/:documentoId/proxima-revisao', controller.proximaRevisao);
 router.post('/:documentoId/revisoes', requireRole('campo'), upload.single('file'), validate(createRevisaoSchema), controller.addRevisao);
+router.patch('/:documentoId/revisoes/:revisaoId', requireRole('campo'), validate(updateRevisaoSchema), controller.updateRevisao);
 router.delete('/:documentoId/revisoes/:revisaoId', requireRole('coordenacao'), controller.removeRevisao);
 
 // Arrastar-e-soltar em massa (31/08/26): cada arquivo vira documento novo

@@ -2,14 +2,21 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
-import { Plus, Search, Building2, X, AlertCircle, UserPlus, Trash2, Check } from 'lucide-react';
+import { Plus, Search, Building2, X, AlertCircle, UserPlus, Trash2, Check, Pencil } from 'lucide-react';
 import { SEGMENTOS, CLASSIFICACOES, CRM_SETORES, Empresa, Contato, diasAtras } from '../types';
+import { ContatoDrawer } from './TabContatos';
 
-function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos: Contato[] }) {
+// Fixado 24/08/26: pedido do Bruno — dentro do painel "Editar Empresa", dava
+// pra ADICIONAR contato mas não EDITAR um já existente. Clique no card abre o
+// mesmo ContatoDrawer completo usado na aba "Contatos" (edita cargo, email,
+// telefone, whatsapp, linkedin, aniversário, principal — não só os 3 campos
+// do form de "adicionar" daqui).
+function ContatosSection({ empresaId, contatos, empresas }: { empresaId: string; contatos: Contato[]; empresas: Empresa[] }) {
   const [lista, setLista] = useState<Contato[]>(contatos);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ nome: '', cargo: '', email: '', telefone: '' });
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Contato | null>(null);
 
   const handleAdd = async () => {
     if (!form.nome.trim()) return;
@@ -24,6 +31,14 @@ function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos:
     }
   };
 
+  const handleEdited = async () => {
+    setEditing(null);
+    // Recarrega a empresa completa pra pegar o contato atualizado (mesmo
+    // endpoint que já corrigimos hoje pra trazer todos os contatos).
+    const res = await api.get(`/crm/empresas/${empresaId}`);
+    setLista(res.data.contatos ?? []);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -35,15 +50,21 @@ function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos:
         )}
       </div>
       {lista.map((c) => (
-        <div key={c.id} className="flex items-start gap-2 py-2 border-b border-ber-border last:border-0">
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => setEditing(c)}
+          className="w-full flex items-start gap-2 py-2 border-b border-ber-border last:border-0 text-left hover:bg-ber-surface rounded-lg px-1 -mx-1 group"
+        >
           <div className="w-7 h-7 rounded-full bg-ber-teal/15 flex items-center justify-center text-xs font-bold text-ber-teal shrink-0">{c.nome.charAt(0)}</div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-ber-carbon">{c.nome} {c.principal && <span className="text-[10px] bg-ber-olive/20 text-ber-olive px-1 rounded">Principal</span>}</p>
             {c.cargo && <p className="text-xs text-ber-gray">{c.cargo}</p>}
             {c.email && <p className="text-xs text-ber-teal">{c.email}</p>}
             {c.telefone && <p className="text-xs text-ber-gray">{c.telefone}</p>}
           </div>
-        </div>
+          <Pencil size={12} className="shrink-0 mt-1 text-ber-gray/0 group-hover:text-ber-gray/60" />
+        </button>
       ))}
       {lista.length === 0 && !adding && (
         <p className="text-xs text-ber-gray/60 py-2">Nenhum contato cadastrado</p>
@@ -64,6 +85,14 @@ function ContatosSection({ empresaId, contatos }: { empresaId: string; contatos:
           </div>
         </div>
       )}
+      {editing && (
+        <ContatoDrawer
+          contato={editing}
+          empresas={empresas}
+          onClose={() => setEditing(null)}
+          onSaved={handleEdited}
+        />
+      )}
     </div>
   );
 }
@@ -75,10 +104,12 @@ interface Props {
 
 function EmpresaDrawer({
   empresa,
+  empresas,
   onClose,
   onSave,
 }: {
   empresa: Empresa | null;
+  empresas: Empresa[];
   onClose: () => void;
   onSave: () => void;
 }) {
@@ -182,7 +213,7 @@ function EmpresaDrawer({
             </div>
           )}
           {!isNew && (
-            <ContatosSection empresaId={empresa!.id} contatos={empresa?.contatos ?? []} />
+            <ContatosSection empresaId={empresa!.id} contatos={empresa?.contatos ?? []} empresas={empresas} />
           )}
         </div>
         <div className="p-4 border-t border-ber-border flex gap-2">
@@ -202,6 +233,24 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
   const [filterClassificacao, setFilterClassificacao] = useState('');
   const [drawer, setDrawer] = useState<Empresa | null | 'new'>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // Fixado 24/08/26: achado real (CBRE, Bruno) — o clique na empresa abria o
+  // painel reaproveitando o objeto já carregado na listagem, que só traz 1
+  // contato (o "principal", via `take: 1` no backend) por questão de
+  // performance da tabela. CBRE tem 17 contatos cadastrados, só 1 aparecia.
+  // Busca os dados completos (todos os contatos) antes de abrir o painel.
+  async function handleRowClick(empresa: Empresa) {
+    setLoadingId(empresa.id);
+    try {
+      const res = await api.get(`/crm/empresas/${empresa.id}`);
+      setDrawer(res.data);
+    } catch {
+      setDrawer(empresa); // fallback: abre com o que já tinha, melhor que nada
+    } finally {
+      setLoadingId(null);
+    }
+  }
 
   async function handleDelete(e: React.MouseEvent, empresa: Empresa) {
     e.stopPropagation();
@@ -288,8 +337,8 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
               return (
                 <tr
                   key={e.id}
-                  className="cursor-pointer border-b border-gray-100 hover:bg-green-50/40"
-                  onClick={() => setDrawer(e)}
+                  className={`cursor-pointer border-b border-gray-100 hover:bg-green-50/40 ${loadingId === e.id ? 'opacity-50' : ''}`}
+                  onClick={() => handleRowClick(e)}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -344,6 +393,7 @@ export default function TabEmpresas({ empresas, onRefresh }: Props) {
       {drawer !== null && (
         <EmpresaDrawer
           empresa={drawer === 'new' ? null : drawer}
+          empresas={empresas}
           onClose={() => setDrawer(null)}
           onSave={() => { setDrawer(null); onRefresh(); }}
         />

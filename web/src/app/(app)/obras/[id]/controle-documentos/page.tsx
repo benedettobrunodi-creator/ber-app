@@ -88,6 +88,21 @@ function emptyDocForm() {
   return { codigo: '', titulo: '', disciplina: DISCIPLINAS[0] as string, projetista: '', etapa: '' };
 }
 
+/** Espelho do parseNomeArquivo do backend — pré-preenche a tela de conferência. */
+function parseNome(filename: string): { codigo: string; revisao: string } {
+  const base = filename.replace(/\.[^./\\]+$/, '');
+  const m = base.match(/^(.+?)[-_ ]+[Rr](?:ev)?\.?\s*(\d+)$/);
+  if (m) return { codigo: m[1].trim(), revisao: `R${m[2].padStart(2, '0')}` };
+  return { codigo: base.trim(), revisao: 'R00' };
+}
+
+interface LoteItem {
+  file: File;
+  codigo: string;
+  revisao: string;
+  disciplina: string;
+}
+
 export default function ControleDocumentosPage() {
   const { id: obraId } = useParams<{ id: string }>();
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -105,6 +120,13 @@ export default function ControleDocumentosPage() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ criados: number; atualizados: number } | null>(null);
   const bulkInput = useRef<HTMLInputElement | null>(null);
+  // Tela de conferência do lote (03/09/26): arquivos escolhidos ficam aqui
+  // até o usuário confirmar código/revisão/disciplina de cada um.
+  const [lote, setLote] = useState<LoteItem[] | null>(null);
+  const [loteProjetista, setLoteProjetista] = useState('');
+  // Edição inline de revisão existente (03/09/26)
+  const [editRev, setEditRev] = useState<{ id: string; docId: string; revisao: string; data: string; observacao: string } | null>(null);
+  const [savingEditRev, setSavingEditRev] = useState(false);
   const [obraNome, setObraNome] = useState('');
   const [setor, setSetor] = useState<Setor>('todos');
   const [subTecnico, setSubTecnico] = useState<string | null>(null); // label da sub-área ativa
@@ -133,13 +155,8 @@ export default function ControleDocumentosPage() {
     });
   }
 
-  function openCreate() {
-    setEditando(null);
-    setForm(emptyDocForm());
-    setError('');
-    setShowForm(true);
-  }
-
+  // (03/09/26) Botão "Novo documento" foi unificado no fluxo "Inserir arquivos"
+  // com tela de conferência — o modal showForm agora só edita documento existente.
   function openEdit(d: Documento) {
     setEditando(d);
     setForm({ codigo: d.codigo, titulo: d.titulo ?? '', disciplina: d.disciplina, projetista: d.projetista ?? '', etapa: d.etapa ?? '' });
@@ -186,17 +203,52 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function handleBulkFiles(files: FileList | File[]) {
+  /** Disciplina sugerida pro lote conforme o setor/sub-área aberto na tela. */
+  function disciplinaPadrao(): string {
+    if (setor === 'arquitetura') return 'Arquitetura';
+    if (setor === 'tecnicos') return TECNICOS_SUBS.find(s => s.label === subTecnico)?.disciplinas[0] ?? 'Projetos Técnicos - Outros';
+    if (setor === 'sds') return SDS_SUBS.find(s => s.label === subTecnico)?.disciplinas[0] ?? 'Shop Drawings - Outros';
+    return 'Outra';
+  }
+
+  /** Passo 1 — escolheu/arrastou arquivos: abre a tela de conferência (não sobe ainda). */
+  function handleBulkFiles(files: FileList | File[]) {
     const arr = Array.from(files);
     if (arr.length === 0) return;
-    setBulkUploading(true);
     setBulkResult(null);
+    const padrao = disciplinaPadrao();
+    setLote(arr.map(file => {
+      const { codigo, revisao } = parseNome(file.name);
+      // Código já existe na obra → vai virar revisão nova; herda a disciplina do doc
+      const existente = documentos.find(d => d.codigo === codigo);
+      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao };
+    }));
+  }
+
+  /** Passo 2 — confirmou a conferência: sobe o lote com os metadados escolhidos. */
+  async function enviarLote() {
+    if (!lote || lote.length === 0) return;
+    for (const item of lote) {
+      if (!item.codigo.trim() || !item.revisao.trim()) { alert('Preencha código e revisão de todos os arquivos'); return; }
+    }
+    const codigos = lote.map(i => i.codigo.trim());
+    if (new Set(codigos).size !== codigos.length) { alert('Tem dois arquivos com o mesmo código no lote — ajuste antes de subir'); return; }
+    setBulkUploading(true);
     try {
       const fd = new FormData();
-      arr.forEach(f => fd.append('files', f));
+      lote.forEach(i => fd.append('files', i.file));
+      fd.append('meta', JSON.stringify(lote.map(i => ({
+        nome: i.file.name,
+        codigo: i.codigo.trim(),
+        revisao: i.revisao.trim(),
+        disciplina: i.disciplina,
+        projetista: loteProjetista.trim() || null,
+      }))));
       const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
       setDocumentos(r.data.data.documentos);
       setBulkResult({ criados: r.data.data.criados.length, atualizados: r.data.data.atualizados.length });
+      setLote(null);
+      setLoteProjetista('');
     } catch (e) {
       const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
       alert(m || 'Erro ao subir arquivos');
@@ -210,8 +262,11 @@ export default function ControleDocumentosPage() {
     try {
       await api.delete(`/obras/${obraId}/controle-documentos/${id}`);
       setDocumentos(prev => prev.filter(d => d.id !== id));
-    } catch {
-      alert('Erro ao excluir');
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      alert(status === 403
+        ? 'Você não tem permissão pra excluir documentos — fale com a coordenação.'
+        : 'Erro ao excluir');
     }
   }
 
@@ -247,13 +302,36 @@ export default function ControleDocumentosPage() {
     }
   }
 
+  async function saveEditRev() {
+    if (!editRev) return;
+    if (!editRev.revisao.trim() || !editRev.data) { alert('Preencha revisão e data'); return; }
+    setSavingEditRev(true);
+    try {
+      const r = await api.patch(`/obras/${obraId}/controle-documentos/${editRev.docId}/revisoes/${editRev.id}`, {
+        revisao: editRev.revisao.trim(),
+        data: editRev.data,
+        observacao: editRev.observacao || null,
+      });
+      setDocumentos(prev => prev.map(d => d.id === editRev.docId ? r.data.data : d));
+      setEditRev(null);
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      alert(m || 'Erro ao salvar revisão');
+    } finally {
+      setSavingEditRev(false);
+    }
+  }
+
   async function handleRemoveRevisao(docId: string, revisaoId: string) {
     if (!(await confirmar('Excluir esta revisão?', { confirmarLabel: 'Excluir' }))) return;
     try {
       await api.delete(`/obras/${obraId}/controle-documentos/${docId}/revisoes/${revisaoId}`);
       setDocumentos(prev => prev.map(d => d.id === docId ? { ...d, revisoes: d.revisoes.filter(r => r.id !== revisaoId) } : d));
-    } catch {
-      alert('Erro ao excluir revisão');
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      alert(status === 403
+        ? 'Você não tem permissão pra excluir revisões — fale com a coordenação.'
+        : 'Erro ao excluir revisão');
     }
   }
 
@@ -307,16 +385,11 @@ export default function ControleDocumentosPage() {
           Controle de Documentos
           {obraNome && <span className="rounded-md bg-ber-carbon px-2 py-0.5 text-sm font-bold text-white">{obraNome}</span>}
         </h1>
-        <div className="flex items-center gap-2">
-          <button onClick={() => bulkInput.current?.click()} disabled={bulkUploading}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-olive text-ber-carbon rounded-lg px-3.5 py-2 hover:brightness-95 disabled:opacity-60"
-            title="Sobe vários arquivos de uma vez — código e revisão detectados do nome; ou arraste os arquivos pra qualquer lugar da página">
-            <Upload size={15} /> {bulkUploading ? 'Subindo…' : 'Inserir arquivos'}
-          </button>
-          <button onClick={openCreate} className="inline-flex items-center gap-1.5 text-sm font-semibold border border-ber-border bg-white text-ber-carbon rounded-lg px-3.5 py-2 hover:bg-ber-offwhite">
-            <Plus size={16} /> Novo documento
-          </button>
-        </div>
+        <button onClick={() => bulkInput.current?.click()} disabled={bulkUploading}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold bg-ber-olive text-ber-carbon rounded-lg px-3.5 py-2 hover:brightness-95 disabled:opacity-60"
+          title="Escolha (ou arraste pra página) um ou vários arquivos — você confere código, revisão e disciplina antes de subir">
+          <Upload size={15} /> {bulkUploading ? 'Subindo…' : 'Inserir arquivos'}
+        </button>
       </div>
 
       <input ref={bulkInput} type="file" multiple className="hidden"
@@ -488,6 +561,34 @@ export default function ControleDocumentosPage() {
                               </thead>
                               <tbody>
                                 {[...d.revisoes].sort((a, b) => b.data.localeCompare(a.data)).map(r => (
+                                  editRev?.id === r.id ? (
+                                    <tr key={r.id} className="border-t border-ber-border/60 bg-white">
+                                      <td className="py-1.5 pr-2">
+                                        <input className="text-xs px-1.5 py-1 border border-ber-border rounded w-16 focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                                          value={editRev.revisao} autoFocus
+                                          onChange={e => setEditRev(prev => prev && { ...prev, revisao: e.target.value })} />
+                                      </td>
+                                      <td className="py-1.5 pr-2">
+                                        <input type="date" className="text-xs px-1.5 py-1 border border-ber-border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                                          value={editRev.data}
+                                          onChange={e => setEditRev(prev => prev && { ...prev, data: e.target.value })} />
+                                      </td>
+                                      <td className="py-1.5 text-ber-gray">{r.arquivoNome ? r.arquivoNome.slice(0, 24) : '—'}</td>
+                                      <td className="py-1.5 pr-2">
+                                        <input className="text-xs px-1.5 py-1 border border-ber-border rounded w-full focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                                          value={editRev.observacao} placeholder="Observação"
+                                          onChange={e => setEditRev(prev => prev && { ...prev, observacao: e.target.value })} />
+                                      </td>
+                                      <td className="py-1.5 text-ber-gray">{fmtBR(r.createdAt)}</td>
+                                      <td className="py-1.5 text-right whitespace-nowrap">
+                                        <button onClick={() => setEditRev(null)} className="text-[11px] text-ber-gray hover:text-ber-carbon mr-2">Cancelar</button>
+                                        <button onClick={saveEditRev} disabled={savingEditRev}
+                                          className="text-[11px] font-semibold text-white bg-ber-carbon rounded px-2 py-0.5 hover:opacity-90 disabled:opacity-50">
+                                          {savingEditRev ? 'Salvando…' : 'Salvar'}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ) : (
                                   <tr key={r.id} className="border-t border-ber-border/60">
                                     <td className="py-1.5 font-semibold text-ber-carbon">{r.revisao}</td>
                                     <td className="py-1.5 text-ber-carbon">{fmtBR(r.data)}</td>
@@ -500,10 +601,13 @@ export default function ControleDocumentosPage() {
                                     </td>
                                     <td className="py-1.5 text-ber-gray">{r.observacao ?? '—'}</td>
                                     <td className="py-1.5 text-ber-gray">{fmtBR(r.createdAt)}</td>
-                                    <td className="py-1.5 text-right">
+                                    <td className="py-1.5 text-right whitespace-nowrap">
+                                      <button onClick={() => setEditRev({ id: r.id, docId: d.id, revisao: r.revisao, data: r.data.slice(0, 10), observacao: r.observacao ?? '' })}
+                                        className="text-ber-gray/40 hover:text-ber-carbon mr-2" title="Editar revisão"><Pencil size={12} /></button>
                                       <button onClick={() => handleRemoveRevisao(d.id, r.id)} className="text-ber-gray/40 hover:text-red-500"><Trash2 size={12} /></button>
                                     </td>
                                   </tr>
+                                  )
                                 ))}
                               </tbody>
                             </table>
@@ -552,6 +656,101 @@ export default function ControleDocumentosPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ─── Conferência do lote antes de subir (03/09/26) ─── */}
+      {lote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl max-h-[85vh] flex flex-col rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-ber-border px-5 py-4">
+              <div>
+                <p className="text-sm font-bold text-ber-carbon">Conferir arquivos antes de subir</p>
+                <p className="text-xs text-ber-gray mt-0.5">Código e revisão foram lidos do nome do arquivo — ajuste o que precisar.</p>
+              </div>
+              <button onClick={() => { setLote(null); setLoteProjetista(''); }} className="text-ber-gray hover:text-ber-carbon"><X size={18} /></button>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap border-b border-ber-border bg-ber-surface px-5 py-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-ber-gray">Disciplina de todos:</span>
+                <select className="text-xs px-2 py-1 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                  value="" onChange={e => { const v = e.target.value; if (v) setLote(prev => prev && prev.map(i => documentos.some(dd => dd.codigo === i.codigo.trim()) ? i : { ...i, disciplina: v })); }}>
+                  <option value="">aplicar…</option>
+                  {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-ber-gray">Projetista (opcional, lote todo):</span>
+                <input className="text-xs px-2 py-1 border border-ber-border rounded bg-white w-40 focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                  value={loteProjetista} onChange={e => setLoteProjetista(e.target.value)} placeholder="ex: ArqServices" />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-ber-gray text-left">
+                    <th className="pb-2 font-medium">Arquivo</th>
+                    <th className="pb-2 font-medium">Código</th>
+                    <th className="pb-2 font-medium">Revisão</th>
+                    <th className="pb-2 font-medium">Disciplina</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lote.map((item, idx) => {
+                    const existente = documentos.find(dd => dd.codigo === item.codigo.trim());
+                    return (
+                      <tr key={`${item.file.name}-${idx}`} className="border-t border-ber-border/60 align-middle">
+                        <td className="py-2 pr-3 text-ber-gray max-w-[180px] truncate" title={item.file.name}>{item.file.name}</td>
+                        <td className="py-2 pr-3">
+                          <input className="w-full text-xs px-2 py-1.5 border border-ber-border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                            value={item.codigo}
+                            onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, codigo: e.target.value } : i))} />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input className="w-16 text-xs px-2 py-1.5 border border-ber-border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                            value={item.revisao}
+                            onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, revisao: e.target.value } : i))} />
+                        </td>
+                        <td className="py-2 pr-3">
+                          {existente ? (
+                            <span className="inline-flex items-center rounded-full bg-ber-teal/10 px-2 py-1 text-[10px] font-bold text-ber-teal"
+                              title={`Já existe documento ${existente.codigo} nesta obra — este arquivo entra como revisão nova dele`}>
+                              nova revisão · {existente.disciplina}
+                            </span>
+                          ) : (
+                            <select className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                              value={item.disciplina}
+                              onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, disciplina: e.target.value } : i))}>
+                              {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                            </select>
+                          )}
+                        </td>
+                        <td className="py-2 text-right">
+                          <button onClick={() => setLote(prev => { const n = prev?.filter((_, j) => j !== idx) ?? null; return n && n.length > 0 ? n : null; })}
+                            className="text-ber-gray/40 hover:text-red-500" title="Tirar este arquivo do lote"><X size={14} /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-ber-border px-5 py-4">
+              <p className="text-xs text-ber-gray">{lote.length} arquivo(s) · máx. 100MB cada</p>
+              <div className="flex gap-2">
+                <button onClick={() => { setLote(null); setLoteProjetista(''); }}
+                  className="rounded-lg border border-ber-border px-4 py-2 text-sm text-ber-gray hover:bg-ber-surface">Cancelar</button>
+                <button onClick={enviarLote} disabled={bulkUploading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-ber-olive px-4 py-2 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
+                  <Upload size={14} /> {bulkUploading ? 'Subindo…' : `Subir ${lote.length} arquivo(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
