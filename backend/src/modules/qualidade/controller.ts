@@ -11,6 +11,10 @@ export async function painel(req: Request, res: Response) {
   sendSuccess(res, await service.getPainel(req.params.id));
 }
 
+export async function atividadesCatalogo(_req: Request, res: Response) {
+  sendSuccess(res, await service.listAtividadesCatalogo());
+}
+
 export async function create(req: Request, res: Response) {
   sendCreated(res, await service.createVistoria(req.params.id, req.body, req.user!.userId));
 }

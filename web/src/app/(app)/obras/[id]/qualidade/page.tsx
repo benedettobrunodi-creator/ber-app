@@ -25,15 +25,20 @@ interface ResumoCategoria {
   conformidade: number | null; nota: number | null;
 }
 
+interface Atividade { itCode?: string | null; titulo: string }
+
 interface Vistoria {
   id: string;
   data: string;
   notaFinal: string | number;
   classificacao: string;
   resumo: ResumoCategoria[];
+  atividades?: Atividade[];
   observacoes: string | null;
   vistoriador: { id: string; name: string } | null;
 }
+
+interface CatalogoIT { code: string; title: string; discipline: string }
 
 interface Pendencia {
   id: string;
@@ -98,21 +103,28 @@ export default function QualidadePage() {
   const [obsGeral, setObsGeral] = useState('');
   const [dataVistoria, setDataVistoria] = useState('');
   const [vistoriadorNome, setVistoriadorNome] = useState('');
+  // Atividades em execução no momento (03/09, Bruno)
+  const [catalogo, setCatalogo] = useState<CatalogoIT[]>([]);
+  const [atividadesSel, setAtividadesSel] = useState<Set<string>>(new Set()); // itCodes
+  const [atividadesLivres, setAtividadesLivres] = useState<string[]>([]);
+  const [atividadeLivreInput, setAtividadeLivreInput] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<Vistoria | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      const [t, p, o] = await Promise.all([
+      const [t, p, o, cat] = await Promise.all([
         api.get(`/obras/${obraId}/qualidade/template`),
         api.get(`/obras/${obraId}/qualidade`),
         api.get(`/obras/${obraId}`).catch(() => null),
+        api.get(`/obras/${obraId}/qualidade/atividades`).catch(() => null),
       ]);
       setTemplate(t.data.data ?? []);
       setVistorias(p.data.data?.vistorias ?? []);
       setPendencias(p.data.data?.pendencias ?? []);
       if (o) setObraNome(o.data.data?.name ?? '');
+      if (cat) setCatalogo(cat.data.data ?? []);
     } catch {} finally { setLoading(false); }
   }
 
@@ -133,6 +145,9 @@ export default function QualidadePage() {
     setRespostas({});
     setObs({});
     setFotos({});
+    setAtividadesSel(new Set());
+    setAtividadesLivres([]);
+    setAtividadeLivreInput('');
     setObsGeral('');
     setDataVistoria(new Date().toISOString().slice(0, 10));
     setVistoriadorNome(nomeUsuarioLogado());
@@ -158,6 +173,10 @@ export default function QualidadePage() {
         }),
         observacoes: obsGeral.trim() || null,
         data: dataVistoria || undefined,
+        atividades: [
+          ...catalogo.filter(c => atividadesSel.has(c.code)).map(c => ({ itCode: c.code, titulo: c.title })),
+          ...atividadesLivres.map(t => ({ titulo: t })),
+        ],
       };
       const r = await api.post(`/obras/${obraId}/qualidade`, payload);
       const vistoria = r.data.data as Vistoria & { itens: { id: string; categoriaKey: string; itemKey: string }[] };
@@ -231,6 +250,62 @@ export default function QualidadePage() {
             <p className="mb-1 text-xs font-medium text-ber-carbon">Responsável pela vistoria</p>
             <p className="rounded-lg bg-ber-surface px-3 py-1.5 text-sm font-semibold text-ber-carbon">{vistoriadorNome || 'você (login)'}</p>
           </div>
+        </div>
+
+        {/* Atividades em execução no momento (03/09, Bruno) */}
+        <div className="mb-4 rounded-xl border border-ber-border bg-white p-4">
+          <p className="text-sm font-bold text-ber-carbon">Atividades em execução no momento</p>
+          <p className="mt-0.5 text-xs text-ber-gray">Marque o que está rodando no canteiro hoje — cada atividade tem a IT (instrução de trabalho) linkada.</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {catalogo.map(c => {
+              const on = atividadesSel.has(c.code);
+              return (
+                <button key={c.code} type="button"
+                  onClick={() => setAtividadesSel(prev => {
+                    const next = new Set(prev);
+                    if (next.has(c.code)) next.delete(c.code); else next.add(c.code);
+                    return next;
+                  })}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    on ? 'border-ber-teal bg-ber-teal text-white' : 'border-ber-border bg-white text-ber-carbon hover:bg-ber-surface'
+                  }`}
+                  title={c.title}>
+                  {c.code} · {c.title.length > 34 ? c.title.slice(0, 34) + '…' : c.title}
+                </button>
+              );
+            })}
+          </div>
+          {atividadesSel.size > 0 && (
+            <div className="mt-3 space-y-1">
+              {catalogo.filter(c => atividadesSel.has(c.code)).map(c => (
+                <p key={c.code} className="text-xs text-ber-gray">
+                  {c.code} · {c.title} — <Link href={`/instrucoes?it=${c.code}`} target="_blank" className="text-ber-teal hover:underline">abrir IT ↗</Link>
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex gap-2">
+            <input className="flex-1 rounded-lg border border-ber-border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ber-teal"
+              placeholder="Outra atividade (sem IT) — digite e Adicionar"
+              value={atividadeLivreInput}
+              onChange={e => setAtividadeLivreInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && atividadeLivreInput.trim()) { setAtividadesLivres(prev => [...prev, atividadeLivreInput.trim()]); setAtividadeLivreInput(''); } }} />
+            <button type="button" disabled={!atividadeLivreInput.trim()}
+              onClick={() => { setAtividadesLivres(prev => [...prev, atividadeLivreInput.trim()]); setAtividadeLivreInput(''); }}
+              className="rounded-lg border border-ber-border px-3 py-1.5 text-sm text-ber-carbon hover:bg-ber-surface disabled:opacity-50">
+              Adicionar
+            </button>
+          </div>
+          {atividadesLivres.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {atividadesLivres.map((t, i) => (
+                <span key={`${t}-${i}`} className="inline-flex items-center gap-1 rounded-full bg-ber-surface px-3 py-1 text-xs text-ber-carbon">
+                  {t}
+                  <button onClick={() => setAtividadesLivres(prev => prev.filter((_, j) => j !== i))} className="text-ber-gray hover:text-red-600"><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="sticky top-0 z-10 -mx-4 md:-mx-6 mb-4 border-b border-ber-border bg-white/95 px-4 md:px-6 py-2.5 backdrop-blur">
@@ -384,6 +459,18 @@ export default function QualidadePage() {
               <p className={`mt-2 text-4xl font-black ${CLASSIF[ultima.classificacao]?.text ?? 'text-ber-carbon'}`}>{fmtNota(Number(ultima.notaFinal))}</p>
               <p className={`text-sm font-bold ${CLASSIF[ultima.classificacao]?.text ?? 'text-ber-carbon'}`}>{CLASSIF[ultima.classificacao]?.label}</p>
               {ultima.vistoriador && <p className="mt-2 text-[11px] text-ber-gray">por {ultima.vistoriador.name}</p>}
+              {(ultima.atividades?.length ?? 0) > 0 && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-ber-gray">Em execução</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {ultima.atividades!.map((a, i) => (
+                      <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-ber-carbon" title={a.titulo}>
+                        {a.itCode ?? a.titulo.slice(0, 18)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="rounded-xl border border-ber-border bg-white p-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-ber-gray">Nota por categoria</p>

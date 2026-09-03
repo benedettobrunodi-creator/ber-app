@@ -88,6 +88,7 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
       notaFinal,
       classificacao: classificacao.key,
       resumo: resumo as object[],
+      atividades: (input.atividades ?? []) as object[],
       observacoes: input.observacoes ?? null,
       itens: {
         create: respostas.map((r) => ({
@@ -149,6 +150,16 @@ export async function resolverPendencia(itemId: string, userId: string, resolvid
     data: resolvido
       ? { resolvido: true, resolvidoEm: new Date(), resolvidoPorId: userId }
       : { resolvido: false, resolvidoEm: null, resolvidoPorId: null },
+  });
+}
+
+/** Catálogo de atividades = ITs publicadas (exposto via módulo qualidade
+ *  pra não depender do perm('instrucoes'), que o campo pode não ter). */
+export async function listAtividadesCatalogo() {
+  return prisma.instrucaoTecnica.findMany({
+    where: { status: 'publicada' },
+    select: { code: true, title: true, discipline: true },
+    orderBy: { code: 'asc' },
   });
 }
 

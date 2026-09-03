@@ -13,6 +13,7 @@ const router = Router({ mergeParams: true });
 router.use(authenticate);
 
 router.get('/template', controller.template);
+router.get('/atividades', controller.atividadesCatalogo);
 router.get('/', controller.painel);
 router.post('/', requireRole('campo'), validate(createVistoriaSchema), controller.create);
 router.get('/vistorias/:vistoriaId', controller.getOne);

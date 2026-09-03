@@ -1115,6 +1115,7 @@ model QualidadeVistoria {
   notaFinal     Decimal  @map("nota_final") @db.Decimal(4, 2)
   classificacao String   @db.VarChar(20) // excelente | boa | regular | critico | inaceitavel
   resumo        Json     // por categoria: {key, nome, peso, sim, nao, na, conformidade, nota}
+  atividades    Json     @default("[]") // atividades em execução: [{itCode?, titulo}]
   observacoes   String?  // feedback livre de quem vistoriou
   createdAt     DateTime @default(now()) @map("created_at")
 
