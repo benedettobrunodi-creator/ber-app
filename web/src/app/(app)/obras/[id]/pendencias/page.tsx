@@ -422,7 +422,23 @@ export default function PendenciasPage() {
                       <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${CRIT_DOT[p.criticidade]}`} />
                       {p.atividade}
                       {p.tipo === 'solicitacao' && <span className="ml-1.5 text-[8px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 align-middle">SOLIC.</span>}
-                      {(p.fotoAberturaUrl || p.fotoConclusaoUrl) && <Camera size={11} className="inline ml-1.5 text-ber-gray align-middle" />}
+                      {/* Miniaturas das fotos na linha (04/09, Bruno: "visualizar que tem foto") */}
+                      {(p.fotoAberturaUrl || p.fotoConclusaoUrl) && (
+                        <span className="inline-flex items-center gap-1 ml-2 align-middle">
+                          {p.fotoAberturaUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.fotoAberturaUrl} alt="Foto de abertura"
+                              title="Foto de abertura — clique na linha pra ampliar"
+                              className="h-7 w-9 rounded object-cover border border-ber-border" />
+                          )}
+                          {p.fotoConclusaoUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.fotoConclusaoUrl} alt="Foto de conclusão"
+                              title="Foto de conclusão — clique na linha pra ampliar"
+                              className="h-7 w-9 rounded object-cover border-2 border-ber-green" />
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-[12px] text-ber-gray whitespace-nowrap">{p.fornecedor || '—'}</td>
                     <td className={`px-3 py-2.5 text-[12px] whitespace-nowrap ${late ? 'text-red-600 font-bold' : 'text-ber-gray'}`}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</td>
