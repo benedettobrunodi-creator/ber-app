@@ -231,24 +231,23 @@ function buildHtml(
       <span style="font-size:10px;color:#374151;">${text}</span>
     </div>`;
 
+  // 04/09 (Gritti via Bruno): SÓ fotos lançadas na semana do relatório — sem a
+  // foto do RT anterior em transparência (confundia; ambiente sem foto na
+  // semana simplesmente não aparece).
   const fotosSection = Array.from(grupos.values()).map(({ nome, fotos }) => {
-    // Foto do mesmo ambiente no relatório anterior (comparação), casando pelo NOME do ângulo.
-    const prevFoto = prevRel?.fotos?.find((f: any) => f.angulo?.nome && f.angulo.nome === nome) ?? null;
     // Grid uniforme: todas as fotos no mesmo tamanho (tile 4:3, object-fit:cover).
-    const cards: { url: string; cap: string; prev?: boolean }[] = [
-      ...fotos.map((ft: any) => ({
-        url: ft.url,
-        // Não repetir a legenda quando ela é igual ao título do grupo (evita "ambiente" 2x).
-        cap: (ft.legenda && String(ft.legenda).trim() !== nome) ? String(ft.legenda) : '',
-      })),
-      ...(prevFoto ? [{ url: prevFoto.url, cap: `RT-${String(rel.numero - 1).padStart(3, '0')} (anterior)`, prev: true }] : []),
-    ];
+    const cards: { url: string; cap: string }[] = fotos.map((ft: any) => ({
+      url: ft.url,
+      // Não repetir a legenda quando ela é igual ao título do grupo (evita "ambiente" 2x).
+      cap: (ft.legenda && String(ft.legenda).trim() !== nome) ? String(ft.legenda) : '',
+    }));
+    if (cards.length === 0) return '';
     return `
       <div style="margin-bottom:16px;">
         <p style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b7280;margin-bottom:6px;break-after:avoid;">${nome}</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;">
           ${cards.map(c => `
-            <div style="break-inside:avoid;${c.prev ? 'opacity:0.6;' : ''}">
+            <div style="break-inside:avoid;">
               <img src="${c.url}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block;background:#f9fafb;" />
               ${c.cap ? `<p style="font-size:7px;color:#9ca3af;margin-top:2px;">${c.cap}</p>` : ''}
             </div>`).join('')}
