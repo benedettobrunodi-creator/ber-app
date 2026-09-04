@@ -3,7 +3,7 @@
  * Agrupada por ambiente, abertas primeiro, com resumo no topo.
  */
 import * as React from "react";
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image, Svg, Circle } from "@react-pdf/renderer";
 
 const BER = {
   carbon: "#2D2D2D",
@@ -132,100 +132,106 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
           </View>
         </View>
 
-        <View style={styles.resumoRow}>
-          <View style={styles.resumoBox}>
-            <Text style={styles.resumoNum}>{itens.length}</Text>
-            <Text style={styles.resumoLabel}>Total</Text>
-          </View>
-          <View style={styles.resumoBox}>
-            <Text style={styles.resumoNum}>{abertas.length}</Text>
-            <Text style={styles.resumoLabel}>Em aberto</Text>
-          </View>
-          <View style={styles.resumoBox}>
-            <Text style={[styles.resumoNum, { color: atrasadas.length ? BER.red : BER.carbon }]}>{atrasadas.length}</Text>
-            <Text style={styles.resumoLabel}>Atrasadas</Text>
-          </View>
-          <View style={styles.resumoBox}>
-            <Text style={[styles.resumoNum, { color: BER.green }]}>{itens.length - abertas.length}</Text>
-            <Text style={styles.resumoLabel}>Concluídas</Text>
-          </View>
-        </View>
-
+        {/* KPIs no modelo da planilha (04/09): escopo separado dos itens novos */}
         {(() => {
-          const OLIVE = BER.olive, RED = BER.red, GREEN = BER.green, GRAY = "#C9C9C9", ROXO = "#7A3FB8";
-          const abertasItens = itens.filter((i) => i.status !== "concluida");
-          const porChave = (chave: "ambiente" | "fornecedor") => {
-            const m = new Map<string, { abertas: number; atrasadas: number }>();
-            for (const i of abertasItens) {
-              const k = chave === "fornecedor" ? (i.fornecedor || "Sem fornecedor") : i.ambiente;
-              const cur = m.get(k) ?? { abertas: 0, atrasadas: 0 };
-              cur.abertas++; if (i.atrasada) cur.atrasadas++;
-              m.set(k, cur);
-            }
-            const all = [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.abertas - a.abertas);
-            const top = all.slice(0, 8); const resto = all.slice(8);
-            if (resto.length) top.push({ nome: `Outros (${resto.length})`, abertas: resto.reduce((x, y) => x + y.abertas, 0), atrasadas: resto.reduce((x, y) => x + y.atrasadas, 0) });
-            return top;
-          };
-          const concl = itens.length - abertasItens.length;
-          const bloq = abertasItens.filter((i) => i.status === "bloqueada").length;
-          const emAb = abertasItens.length - bloq;
-          const solic = abertasItens.filter((i) => i.tipo === "solicitacao").length;
-          const pend = abertasItens.length - solic;
-          const pct = itens.length ? Math.round((concl / itens.length) * 100) : 0;
-          const Bar = ({ dados }: { dados: { nome: string; abertas: number; atrasadas: number }[] }) => {
-            const max = Math.max(1, ...dados.map((d) => d.abertas));
+          const pend = itens.filter((i) => i.tipo === "pendencia");
+          const pendConcl = pend.filter((i) => i.status === "concluida").length;
+          const solic = itens.filter((i) => i.tipo === "solicitacao").length;
+          const cards: [string, string, string?][] = [
+            [String(itens.length), "Total de solicitações"],
+            [String(pend.length), "Pendências de obra"],
+            [String(pendConcl), "Concluídas", BER.green],
+            [String(pend.length - pendConcl), "Pendentes"],
+            [String(solic), "Itens novos", "#7A3FB8"],
+            [String(atrasadas.length), "Atrasadas", atrasadas.length ? BER.red : undefined],
+          ];
+          return (
+            <View style={styles.resumoRow}>
+              {cards.map(([num, label, cor], i) => (
+                <View key={i} style={styles.resumoBox}>
+                  <Text style={[styles.resumoNum, cor ? { color: cor } : {}]}>{num}</Text>
+                  <Text style={styles.resumoLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
+        {/* Roscas no modelo da planilha (04/09, Bruno: "rosca é mais clean").
+            Detalhe por ambiente já está nas seções abaixo — sem barras aqui. */}
+        {(() => {
+          if (!itens.length) return null;
+          const GREEN = BER.green, GRAY = "#C9C9C9", ROXO = "#7A3FB8";
+          const pend = itens.filter((i) => i.tipo === "pendencia");
+          const pendConcl = pend.filter((i) => i.status === "concluida").length;
+          const pendPend = pend.length - pendConcl;
+          const solic = itens.filter((i) => i.tipo === "solicitacao").length;
+          const pct = pend.length ? Math.round((pendConcl / pend.length) * 100) : 0;
+
+          const DonutPdf = ({ titulo, fatias, centro, sub }: {
+            titulo: string;
+            fatias: { valor: number; cor: string; label: string }[];
+            centro: string;
+            sub: string;
+          }) => {
+            const R = 24;
+            const C = 2 * Math.PI * R;
+            const total = Math.max(1, fatias.reduce((s, f) => s + f.valor, 0));
+            let acc = 0;
             return (
-              <View>
-                {dados.map((d, i2) => (
-                  <View key={i2} style={styles.barRow}>
-                    <Text style={styles.barLabel}>{d.nome.length > 26 ? d.nome.slice(0, 25) + "…" : d.nome}</Text>
-                    <View style={styles.barTrack}>
-                      <View style={{ flexDirection: "row", width: `${(d.abertas / max) * 78}%`, height: 6, gap: 1 }}>
-                        {d.abertas - d.atrasadas > 0 && <View style={{ flex: d.abertas - d.atrasadas, backgroundColor: OLIVE, borderTopLeftRadius: 2, borderBottomLeftRadius: 2 }} />}
-                        {d.atrasadas > 0 && <View style={{ flex: d.atrasadas, backgroundColor: RED, borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />}
-                      </View>
-                      <Text style={styles.barVal}>{d.abertas}{d.atrasadas ? ` (${d.atrasadas}!)` : ""}</Text>
-                    </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                <View style={{ width: 64, height: 64, position: "relative" }}>
+                  <Svg width={64} height={64} viewBox="0 0 64 64">
+                    <Circle cx={32} cy={32} r={R} fill="none" stroke="#F1F1EC" strokeWidth={9} />
+                    {fatias.filter((f) => f.valor > 0).map((f, i) => {
+                      const frac = f.valor / total;
+                      // Sem strokeDashoffset no react-pdf: vão inicial no
+                      // dasharray posiciona a fatia. PDFKit exige comprimentos > 0.
+                      const arco = Math.max(0.1, frac * C - 1.5);
+                      const dash = acc <= 0
+                        ? `${arco} ${C}`
+                        : `0.01 ${acc * C} ${arco} ${C}`;
+                      const el = (
+                        <Circle key={i} cx={32} cy={32} r={R} fill="none" stroke={f.cor} strokeWidth={9}
+                          strokeDasharray={dash} />
+                      );
+                      acc += frac;
+                      return el;
+                    })}
+                  </Svg>
+                  <View style={{ position: "absolute", top: 0, left: 0, width: 64, height: 64, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: BER.carbon }}>{centro}</Text>
+                    <Text style={{ fontSize: 5, color: BER.gray, textTransform: "uppercase", letterSpacing: 0.5 }}>{sub}</Text>
                   </View>
-                ))}
+                </View>
+                <View>
+                  <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: BER.teal, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>{titulo}</Text>
+                  {fatias.map((f, i) => (
+                    <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 1.5 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 1, backgroundColor: f.cor }} />
+                      <Text style={{ fontSize: 7, color: BER.gray }}>{f.label} <Text style={{ fontFamily: "Helvetica-Bold", color: BER.carbon }}>{f.valor}</Text></Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           };
-          if (!itens.length) return null;
+
           return (
-            <View>
-              <View style={styles.chartCard}>
-                <Text style={styles.chartTitle}>Progresso geral — {pct}% concluído</Text>
-                <View style={styles.legRow}>
-                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: GREEN }]} /><Text style={styles.chartLegend}>Concluídas {concl}</Text></View>
-                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: GRAY }]} /><Text style={styles.chartLegend}>Em aberto {emAb}</Text></View>
-                  {bloq > 0 && <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: RED }]} /><Text style={styles.chartLegend}>Bloqueadas {bloq}</Text></View>}
-                </View>
-                <View style={{ flexDirection: "row", height: 9, gap: 1, borderRadius: 4, overflow: "hidden" }}>
-                  {concl > 0 && <View style={{ flex: concl, backgroundColor: GREEN }} />}
-                  {emAb > 0 && <View style={{ flex: emAb, backgroundColor: GRAY }} />}
-                  {bloq > 0 && <View style={{ flex: bloq, backgroundColor: RED }} />}
-                </View>
-                <View style={[styles.legRow, { marginTop: 6, marginBottom: 2 }]}>
-                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: BER.carbon }]} /><Text style={styles.chartLegend}>Pendências {pend}</Text></View>
-                  <View style={styles.legItem}><View style={[styles.legSq, { backgroundColor: ROXO }]} /><Text style={styles.chartLegend}>Solicitações do cliente {solic}</Text></View>
-                </View>
-                <View style={{ flexDirection: "row", height: 5, gap: 1, borderRadius: 3, overflow: "hidden" }}>
-                  {pend > 0 && <View style={{ flex: pend, backgroundColor: BER.carbon }} />}
-                  {solic > 0 && <View style={{ flex: solic, backgroundColor: ROXO }} />}
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={[styles.chartCard, { flex: 1 }]}>
-                  <Text style={styles.chartTitle}>Abertas por ambiente  ·  oliva = no prazo, vermelho = atrasada</Text>
-                  <Bar dados={porChave("ambiente")} />
-                </View>
-                <View style={[styles.chartCard, { flex: 1 }]}>
-                  <Text style={styles.chartTitle}>Abertas por fornecedor</Text>
-                  <Bar dados={porChave("fornecedor")} />
-                </View>
-              </View>
+            <View style={[styles.chartCard, { flexDirection: "row", gap: 16 }]}>
+              <DonutPdf titulo="Pendências de obra"
+                fatias={[
+                  { valor: pendConcl, cor: GREEN, label: "Concluídas" },
+                  { valor: pendPend, cor: GRAY, label: "Pendentes" },
+                ]}
+                centro={`${pct}%`} sub="do escopo" />
+              <DonutPdf titulo="Visão geral"
+                fatias={[
+                  { valor: pendConcl, cor: GREEN, label: "Concluídas" },
+                  { valor: pendPend, cor: GRAY, label: "Pendentes" },
+                  { valor: solic, cor: ROXO, label: "Itens novos" },
+                ]}
+                centro={String(itens.length)} sub="itens" />
             </View>
           );
         })()}
