@@ -64,11 +64,12 @@ const styles = StyleSheet.create({
   tableHeader: { flexDirection: "row", backgroundColor: BER.surface, borderTop: `1.5pt solid ${BER.teal}`, borderBottom: `0.5pt solid ${BER.border}`, paddingVertical: 4, paddingHorizontal: 4 },
   th: { fontFamily: "Helvetica-Bold", fontSize: 7, color: BER.carbon },
   row: { flexDirection: "row", paddingVertical: 5, paddingHorizontal: 4, borderBottom: `0.5pt solid ${BER.border}` },
-  cAtiv: { width: "46%", paddingRight: 6 },
-  cForn: { width: "16%", paddingRight: 6 },
-  cDisc: { width: "12%", paddingRight: 6 },
-  cPrazo: { width: "11%", paddingRight: 6 },
-  cStatus: { width: "15%" },
+  cAtiv: { width: "38%", paddingRight: 6 },
+  cForn: { width: "14%", paddingRight: 6 },
+  cDisc: { width: "11%", paddingRight: 6 },
+  cPrazo: { width: "10%", paddingRight: 6 },
+  cStatus: { width: "13%", paddingRight: 4 },
+  cFoto: { width: "14%" },
   cell: { fontSize: 8 },
   solTag: { fontSize: 6, color: "#7A3FB8", fontFamily: "Helvetica-Bold" },
   footer: { position: "absolute", bottom: 18, left: 32, right: 32, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: BER.gray, borderTop: `0.5pt solid ${BER.border}`, paddingTop: 5 },
@@ -245,9 +246,10 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
               <Text style={[styles.th, styles.cDisc]}>DISCIPLINA</Text>
               <Text style={[styles.th, styles.cPrazo]}>PRAZO</Text>
               <Text style={[styles.th, styles.cStatus]}>STATUS</Text>
+              <Text style={[styles.th, styles.cFoto]}>FOTO</Text>
             </View>
             {arr.map((i, idx) => (
-              <View key={idx} style={styles.row} wrap={false}>
+              <View key={idx} style={[styles.row, { alignItems: "center" }]} wrap={false}>
                 <View style={styles.cAtiv}>
                   <Text style={styles.cell}>
                     {i.atividade}
@@ -264,29 +266,23 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
                   {STATUS_LABEL[i.status] ?? i.status}
                   {i.criticidade === "alta" && i.status !== "concluida" ? " · ALTA" : ""}
                 </Text>
+                {/* Foto à direita, no fim da linha (04/09, Bruno) */}
+                <View style={styles.cFoto}>
+                  {(i.fotoConclusaoUrl || i.fotoAberturaUrl) ? (
+                    <View style={{ flexDirection: "row", gap: 2 }}>
+                      {i.fotoAberturaUrl && (
+                        <Image style={{ width: i.fotoConclusaoUrl ? 32 : 66, height: 44, objectFit: "cover", borderRadius: 2 }} src={i.fotoAberturaUrl} />
+                      )}
+                      {i.fotoConclusaoUrl && (
+                        <Image style={{ width: i.fotoAberturaUrl ? 32 : 66, height: 44, objectFit: "cover", borderRadius: 2 }} src={i.fotoConclusaoUrl} />
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={[styles.cell, { color: "#C9C9C9" }]}>—</Text>
+                  )}
+                </View>
               </View>
             ))}
-
-            {/* Registro fotográfico DENTRO da seção do ambiente (04/09, Bruno).
-                Só slots preenchidos — sem caixa vazia de "antes" (fotos são do resolvido). */}
-            {arr.some((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl) && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginBottom: 4 }}>
-                {arr.filter((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl).flatMap((i, idx) =>
-                  [
-                    ...(i.fotoAberturaUrl ? [{ url: i.fotoAberturaUrl, rotulo: "antes" }] : []),
-                    ...(i.fotoConclusaoUrl ? [{ url: i.fotoConclusaoUrl, rotulo: i.fotoAberturaUrl ? "depois" : null }] : []),
-                  ].map((f, j) => (
-                    <View key={`${idx}-${j}`} style={{ width: "48.5%" }} wrap={false}>
-                      <Image style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 3 }} src={f.url} />
-                      <Text style={{ fontSize: 6.5, color: BER.gray, marginTop: 2, lineHeight: 1.3 }}>
-                        {i.atividade.length > 90 ? i.atividade.slice(0, 90) + "…" : i.atividade}
-                        {f.rotulo ? `  ·  ${f.rotulo}` : ""}  ·  {STATUS_LABEL[i.status] ?? i.status}
-                      </Text>
-                    </View>
-                  )),
-                )}
-              </View>
-            )}
           </View>
         ))}
 
