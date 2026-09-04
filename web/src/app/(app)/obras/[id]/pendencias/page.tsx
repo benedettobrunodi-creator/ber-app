@@ -405,6 +405,7 @@ export default function PendenciasPage() {
                 <th className="text-left px-3 py-2.5 font-bold">Fornecedor</th>
                 <th className="text-left px-3 py-2.5 font-bold">Prazo</th>
                 <th className="text-left px-3 py-2.5 font-bold">Status</th>
+                <th className="text-center px-2 py-2.5 font-bold">Foto</th>
                 <th className="px-2 py-2.5" />
               </tr>
             </thead>
@@ -422,28 +423,28 @@ export default function PendenciasPage() {
                       <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${CRIT_DOT[p.criticidade]}`} />
                       {p.atividade}
                       {p.tipo === 'solicitacao' && <span className="ml-1.5 text-[8px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700 align-middle">SOLIC.</span>}
-                      {/* Miniaturas das fotos na linha (04/09, Bruno: "visualizar que tem foto") */}
-                      {(p.fotoAberturaUrl || p.fotoConclusaoUrl) && (
-                        <span className="inline-flex items-center gap-1 ml-2 align-middle">
-                          {p.fotoAberturaUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.fotoAberturaUrl} alt="Foto de abertura"
-                              title="Foto de abertura — clique na linha pra ampliar"
-                              className="h-7 w-9 rounded object-cover border border-ber-border" />
-                          )}
-                          {p.fotoConclusaoUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.fotoConclusaoUrl} alt="Foto de conclusão"
-                              title="Foto de conclusão — clique na linha pra ampliar"
-                              className="h-7 w-9 rounded object-cover border-2 border-ber-green" />
-                          )}
-                        </span>
-                      )}
                     </td>
                     <td className="px-3 py-2.5 text-[12px] text-ber-gray whitespace-nowrap">{p.fornecedor || '—'}</td>
                     <td className={`px-3 py-2.5 text-[12px] whitespace-nowrap ${late ? 'text-red-600 font-bold' : 'text-ber-gray'}`}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[p.status].cls}`}>{STATUS_CFG[p.status].label}</span>
+                    </td>
+                    {/* Coluna Foto (04/09, Bruno): thumbnail alinhada em coluna própria —
+                        clique amplia em nova aba; badge quando há mais de uma */}
+                    <td className="px-2 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      {(p.fotoConclusaoUrl || p.fotoAberturaUrl) ? (
+                        <a href={(p.fotoConclusaoUrl || p.fotoAberturaUrl)!} target="_blank" rel="noopener noreferrer"
+                          className="relative inline-block align-middle" title="Ampliar foto">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={(p.fotoConclusaoUrl || p.fotoAberturaUrl)!} alt="Foto"
+                            className="h-9 w-12 rounded-md object-cover border border-ber-border shadow-sm hover:scale-105 transition-transform" />
+                          {p.fotoConclusaoUrl && p.fotoAberturaUrl && (
+                            <span className="absolute -top-1.5 -right-1.5 rounded-full bg-ber-carbon px-1 text-[8px] font-bold text-white">2</span>
+                          )}
+                        </a>
+                      ) : (
+                        <span className="text-ber-gray/30 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-2 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {p.status !== 'concluida' && (
