@@ -72,6 +72,8 @@ export default function PendenciasPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
   // Visualização lista × grade (04/09, Bruno) — grade destaca as fotos
   const [viz, setViz] = useState<'lista' | 'grade'>('lista');
+  // Painéis por ambiente/fornecedor recolhidos por padrão (04/09: menos poluição)
+  const [showGraficosDet, setShowGraficosDet] = useState(false);
   const [filtroAmbiente, setFiltroAmbiente] = useState<string>('todos');
   const [showForm, setShowForm] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
@@ -284,49 +286,39 @@ export default function PendenciasPage() {
 
       {graficos.total > 0 && (
         <div className="grid gap-3 lg:grid-cols-2 mb-4">
-          {/* Progresso no modelo da planilha (04/09, Bruno): o % principal é o
-              do ESCOPO (pendências de obra); itens novos têm conta à parte. */}
-          <div className="lg:col-span-2 bg-white border border-ber-border rounded-xl p-4 space-y-3">
-            <div>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">Pendências de obra — conclusão do escopo</p>
-                <p className="text-[11px] text-ber-gray">
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-green mr-1 align-middle" />Concluídas {graficos.pendConcluidas}
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9C9C9] ml-3 mr-1 align-middle" />Pendentes {graficos.pendTotal - graficos.pendConcluidas}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 mt-2">
-                <div className="flex-1 h-4 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
-                  {graficos.pendConcluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ width: `${(graficos.pendConcluidas / Math.max(1, graficos.pendTotal)) * 100}%` }} />}
-                  {graficos.pendTotal - graficos.pendConcluidas > 0 && <div className="h-full bg-[#C9C9C9] rounded-r-full" style={{ width: `${((graficos.pendTotal - graficos.pendConcluidas) / Math.max(1, graficos.pendTotal)) * 100}%` }} />}
-                </div>
-                <p className="text-xl font-bold text-ber-carbon tabular-nums shrink-0">{graficos.pendTotal > 0 ? Math.round((graficos.pendConcluidas / graficos.pendTotal) * 100) : 0}%</p>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray">Visão geral — com itens novos separados</p>
-                <p className="text-[11px] text-ber-gray">
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#7A3FB8] mr-1 align-middle" />Itens novos {graficos.solicTotal}
-                  {graficos.solicConcluidas > 0 && <span className="ml-1">({graficos.solicConcluidas} concl.)</span>}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 mt-2">
-                <div className="flex-1 h-2.5 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
-                  {graficos.pendConcluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ flex: graficos.pendConcluidas }} title={`Concluídas (escopo): ${graficos.pendConcluidas}`} />}
-                  {graficos.pendTotal - graficos.pendConcluidas > 0 && <div className="h-full bg-[#C9C9C9]" style={{ flex: graficos.pendTotal - graficos.pendConcluidas }} title={`Pendentes (escopo): ${graficos.pendTotal - graficos.pendConcluidas}`} />}
-                  {graficos.solicTotal > 0 && <div className="h-full bg-[#7A3FB8] rounded-r-full" style={{ flex: graficos.solicTotal }} title={`Itens novos: ${graficos.solicTotal}`} />}
-                </div>
-                <p className="text-[11px] text-ber-gray tabular-nums shrink-0">
-                  {Math.round((graficos.pendConcluidas / Math.max(1, graficos.total)) * 100)}% · {Math.round(((graficos.pendTotal - graficos.pendConcluidas) / Math.max(1, graficos.total)) * 100)}% · {Math.round((graficos.solicTotal / Math.max(1, graficos.total)) * 100)}%
-                </p>
-              </div>
+          {/* Donuts compactos no modelo da planilha (04/09, Bruno: "rosca é
+              mais clean") — escopo com % no centro; itens novos separados. */}
+          <div className="lg:col-span-2 bg-white border border-ber-border rounded-xl p-4">
+            <div className="flex items-center justify-around gap-4 flex-wrap">
+              <Donut
+                titulo="Pendências de obra"
+                fatias={[
+                  { valor: graficos.pendConcluidas, cor: '#3D9E5F', label: 'Concluídas' },
+                  { valor: graficos.pendTotal - graficos.pendConcluidas, cor: '#C9C9C9', label: 'Pendentes' },
+                ]}
+                centro={`${graficos.pendTotal > 0 ? Math.round((graficos.pendConcluidas / graficos.pendTotal) * 100) : 0}%`}
+                sub="do escopo"
+              />
+              <Donut
+                titulo="Visão geral"
+                fatias={[
+                  { valor: graficos.pendConcluidas, cor: '#3D9E5F', label: 'Concluídas' },
+                  { valor: graficos.pendTotal - graficos.pendConcluidas, cor: '#C9C9C9', label: 'Pendentes' },
+                  { valor: graficos.solicTotal, cor: '#7A3FB8', label: 'Itens novos' },
+                ]}
+                centro={String(graficos.total)}
+                sub="itens"
+              />
             </div>
           </div>
 
+          <button onClick={() => setShowGraficosDet(v => !v)}
+            className="lg:col-span-2 -mt-1 text-left text-[11px] font-semibold text-ber-teal hover:text-ber-carbon">
+            {showGraficosDet ? '▾ Ocultar detalhe por ambiente e fornecedor' : '▸ Detalhar por ambiente e fornecedor'}
+          </button>
+
           {/* Por ambiente / fornecedor — concluídas × abertas (03/09, Bruno) */}
-          {([['Por ambiente', graficos.porAmbiente], ['Por fornecedor', graficos.porFornecedor]] as const).map(([titulo, dados]) => {
+          {showGraficosDet && ([['Por ambiente', graficos.porAmbiente], ['Por fornecedor', graficos.porFornecedor]] as const).map(([titulo, dados]) => {
             const max = Math.max(1, ...dados.map((d) => d.total));
             return (
               <div key={titulo} className="bg-white border border-ber-border rounded-xl p-4">
@@ -819,6 +811,52 @@ function EditSheet({ pendencia, busy, onClose, onSave }: {
             {busy ? 'Salvando…' : 'Salvar alterações'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Donut SVG compacto (04/09, Bruno: rosca é mais clean que barra). */
+function Donut({ titulo, fatias, centro, sub }: {
+  titulo: string;
+  fatias: { valor: number; cor: string; label: string }[];
+  centro: string;
+  sub: string;
+}) {
+  const total = Math.max(1, fatias.reduce((s, f) => s + f.valor, 0));
+  const R = 34;
+  const C = 2 * Math.PI * R;
+  let acc = 0;
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <div className="relative h-24 w-24 shrink-0">
+        <svg viewBox="0 0 84 84" className="h-24 w-24 -rotate-90">
+          <circle cx="42" cy="42" r={R} fill="none" stroke="#F1F1EC" strokeWidth="11" />
+          {fatias.filter(f => f.valor > 0).map((f, i) => {
+            const frac = f.valor / total;
+            const el = (
+              <circle key={i} cx="42" cy="42" r={R} fill="none" stroke={f.cor} strokeWidth="11"
+                strokeDasharray={`${Math.max(0, frac * C - 2)} ${C}`}
+                strokeDashoffset={-acc * C}
+                strokeLinecap="butt" />
+            );
+            acc += frac;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <p className="text-lg font-bold leading-none text-ber-carbon tabular-nums">{centro}</p>
+          <p className="text-[8px] uppercase tracking-wide text-ber-gray">{sub}</p>
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-ber-teal">{titulo}</p>
+        {fatias.map((f, i) => (
+          <p key={i} className="text-[11px] text-ber-gray leading-relaxed">
+            <span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ backgroundColor: f.cor }} />
+            {f.label} <span className="font-bold text-ber-carbon tabular-nums">{f.valor}</span>
+          </p>
+        ))}
       </div>
     </div>
   );
