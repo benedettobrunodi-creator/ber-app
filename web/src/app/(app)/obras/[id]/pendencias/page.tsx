@@ -267,55 +267,59 @@ export default function PendenciasPage() {
         </div>
       </div>
 
+      {/* KPIs no modelo da planilha do Bruno (04/09): pendências de obra e
+          itens novos têm contas SEPARADAS — os novos não diluem o escopo. */}
       {resumo && (
         <div className="flex gap-2 overflow-x-auto p-0.5 pb-1.5 mb-3">
-          {chip('Abertas', resumo.abertas, 'abertas')}
+          {chip('Total de solicitações', graficos.total, 'todas')}
+          {chip('Pendências de obra', graficos.pendTotal, 'abertas')}
+          {chip('Concluídas', graficos.pendConcluidas, 'concluidas', 'bg-green-50 border-green-200 text-green-700')}
+          {chip('Pendentes', graficos.pendTotal - graficos.pendConcluidas, 'abertas')}
+          {chip('Itens novos', graficos.solicTotal, 'solicitacoes', 'bg-purple-50 border-purple-200 text-purple-700')}
           {chip('Atrasadas', resumo.atrasadas, 'atrasadas', resumo.atrasadas > 0 ? 'bg-red-50 border-red-200 text-red-700' : undefined)}
-          {chip('Alta crit.', resumo.criticidadeAlta, 'alta', resumo.criticidadeAlta > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : undefined)}
-          {chip('Solicit. cliente', resumo.solicitacoesCliente, 'solicitacoes', 'bg-purple-50 border-purple-200 text-purple-700')}
-          {chip('Concluídas', resumo.concluidas, 'concluidas', 'bg-green-50 border-green-200 text-green-700')}
         </div>
       )}
 
       {graficos.total > 0 && (
         <div className="grid gap-3 lg:grid-cols-2 mb-4">
-          {/* Progresso geral — barra empilhada + hero % */}
-          <div className="lg:col-span-2 bg-white border border-ber-border rounded-xl p-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">Progresso geral</p>
-              <div className="flex items-center gap-4 text-[11px] text-ber-gray">
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-green mr-1 align-middle" />Concluídas {graficos.concluidas}</span>
-                <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9C9C9] mr-1 align-middle" />Em aberto {graficos.emAberto}</span>
-                {graficos.bloqueadas > 0 && <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-red mr-1 align-middle" />Bloqueadas {graficos.bloqueadas}</span>}
+          {/* Progresso no modelo da planilha (04/09, Bruno): o % principal é o
+              do ESCOPO (pendências de obra); itens novos têm conta à parte. */}
+          <div className="lg:col-span-2 bg-white border border-ber-border rounded-xl p-4 space-y-3">
+            <div>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">Pendências de obra — conclusão do escopo</p>
+                <p className="text-[11px] text-ber-gray">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-green mr-1 align-middle" />Concluídas {graficos.pendConcluidas}
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9C9C9] ml-3 mr-1 align-middle" />Pendentes {graficos.pendTotal - graficos.pendConcluidas}
+                </p>
               </div>
-            </div>
-            <div className="flex items-center gap-3 mt-2.5">
-              <div className="flex-1 h-4 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
-                {graficos.concluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ width: `${(graficos.concluidas / graficos.total) * 100}%` }} title={`Concluídas: ${graficos.concluidas}`} />}
-                {graficos.emAberto > 0 && <div className="h-full bg-[#C9C9C9]" style={{ width: `${(graficos.emAberto / graficos.total) * 100}%` }} title={`Em aberto: ${graficos.emAberto}`} />}
-                {graficos.bloqueadas > 0 && <div className="h-full bg-ber-red rounded-r-full" style={{ width: `${(graficos.bloqueadas / graficos.total) * 100}%` }} title={`Bloqueadas: ${graficos.bloqueadas}`} />}
-              </div>
-              <p className="text-xl font-bold text-ber-carbon tabular-nums shrink-0">{Math.round((graficos.concluidas / graficos.total) * 100)}%</p>
-            </div>
-            {/* Progresso individual por tipo (03/09, Bruno) */}
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
-              {([
-                ['Pendências', graficos.pendConcluidas, graficos.pendTotal, 'bg-ber-carbon'],
-                ['Solicit. cliente', graficos.solicConcluidas, graficos.solicTotal, 'bg-[#7A3FB8]'],
-              ] as const).map(([label, concl, total, cor]) => (
-                <div key={label} className="flex items-center gap-2.5">
-                  <p className="w-28 shrink-0 text-[11px] text-ber-gray">{label}</p>
-                  <div className="flex-1 h-2.5 rounded-full bg-ber-surface overflow-hidden">
-                    {total > 0 && concl > 0 && (
-                      <div className={`h-full rounded-full ${cor}`} style={{ width: `${(concl / total) * 100}%` }} />
-                    )}
-                  </div>
-                  <p className="shrink-0 text-[11px] font-bold text-ber-carbon tabular-nums">
-                    {concl}/{total}
-                    <span className="font-normal text-ber-gray"> · {total > 0 ? Math.round((concl / total) * 100) : 0}%</span>
-                  </p>
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex-1 h-4 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
+                  {graficos.pendConcluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ width: `${(graficos.pendConcluidas / Math.max(1, graficos.pendTotal)) * 100}%` }} />}
+                  {graficos.pendTotal - graficos.pendConcluidas > 0 && <div className="h-full bg-[#C9C9C9] rounded-r-full" style={{ width: `${((graficos.pendTotal - graficos.pendConcluidas) / Math.max(1, graficos.pendTotal)) * 100}%` }} />}
                 </div>
-              ))}
+                <p className="text-xl font-bold text-ber-carbon tabular-nums shrink-0">{graficos.pendTotal > 0 ? Math.round((graficos.pendConcluidas / graficos.pendTotal) * 100) : 0}%</p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray">Visão geral — com itens novos separados</p>
+                <p className="text-[11px] text-ber-gray">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#7A3FB8] mr-1 align-middle" />Itens novos {graficos.solicTotal}
+                  {graficos.solicConcluidas > 0 && <span className="ml-1">({graficos.solicConcluidas} concl.)</span>}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex-1 h-2.5 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
+                  {graficos.pendConcluidas > 0 && <div className="h-full bg-ber-green rounded-l-full" style={{ flex: graficos.pendConcluidas }} title={`Concluídas (escopo): ${graficos.pendConcluidas}`} />}
+                  {graficos.pendTotal - graficos.pendConcluidas > 0 && <div className="h-full bg-[#C9C9C9]" style={{ flex: graficos.pendTotal - graficos.pendConcluidas }} title={`Pendentes (escopo): ${graficos.pendTotal - graficos.pendConcluidas}`} />}
+                  {graficos.solicTotal > 0 && <div className="h-full bg-[#7A3FB8] rounded-r-full" style={{ flex: graficos.solicTotal }} title={`Itens novos: ${graficos.solicTotal}`} />}
+                </div>
+                <p className="text-[11px] text-ber-gray tabular-nums shrink-0">
+                  {Math.round((graficos.pendConcluidas / Math.max(1, graficos.total)) * 100)}% · {Math.round(((graficos.pendTotal - graficos.pendConcluidas) / Math.max(1, graficos.total)) * 100)}% · {Math.round((graficos.solicTotal / Math.max(1, graficos.total)) * 100)}%
+                </p>
+              </div>
             </div>
           </div>
 
