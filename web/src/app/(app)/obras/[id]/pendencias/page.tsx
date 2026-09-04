@@ -70,6 +70,8 @@ export default function PendenciasPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
+  // Visualização lista × grade (04/09, Bruno) — grade destaca as fotos
+  const [viz, setViz] = useState<'lista' | 'grade'>('lista');
   const [filtroAmbiente, setFiltroAmbiente] = useState<string>('todos');
   const [showForm, setShowForm] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
@@ -381,6 +383,14 @@ export default function PendenciasPage() {
           <option value="todos">Todos os ambientes</option>
           {ambientes.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
+        <div className="ml-auto flex shrink-0 rounded-lg border border-ber-border overflow-hidden">
+          {([['lista', 'Lista'], ['grade', 'Grade']] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setViz(k)}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${viz === k ? 'bg-ber-carbon text-white' : 'bg-white text-ber-gray hover:bg-ber-surface'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {erro && (
@@ -394,6 +404,37 @@ export default function PendenciasPage() {
       ) : visiveis.length === 0 ? (
         <div className="bg-white border border-ber-border rounded-xl p-8 text-center text-sm text-ber-gray">
           Nenhuma pendência neste filtro.
+        </div>
+      ) : viz === 'grade' ? (
+        /* Visualização em grade (04/09, Bruno) — foto em destaque */
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          {visiveis.map((p) => {
+            const foto = p.fotoConclusaoUrl || p.fotoAberturaUrl;
+            const late = atrasada(p);
+            return (
+              <button key={p.id} onClick={() => setDetalhe(p)}
+                className="group overflow-hidden rounded-xl border border-ber-border bg-white text-left shadow-sm transition-shadow hover:shadow-md">
+                <div className="relative h-36 bg-ber-surface">
+                  {foto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={foto} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-ber-gray/40"><Camera size={26} /></div>
+                  )}
+                  <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-bold ${STATUS_CFG[p.status].cls}`}>{STATUS_CFG[p.status].label}</span>
+                  {p.tipo === 'solicitacao' && <span className="absolute right-2 top-2 rounded bg-purple-100 px-1.5 py-0.5 text-[8px] font-bold text-purple-700">SOLIC.</span>}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-ber-gray">{p.ambiente}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-ber-carbon">{p.atividade}</p>
+                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-ber-gray">
+                    <span className="truncate">{p.fornecedor || '—'}</span>
+                    <span className={late ? 'font-bold text-red-600' : ''}>{fmtBR(p.dataTermino)}{late ? ' ⚠' : ''}</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
@@ -437,7 +478,7 @@ export default function PendenciasPage() {
                           className="relative inline-block align-middle" title="Ampliar foto">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={(p.fotoConclusaoUrl || p.fotoAberturaUrl)!} alt="Foto"
-                            className="h-9 w-12 rounded-md object-cover border border-ber-border shadow-sm hover:scale-105 transition-transform" />
+                            className="h-14 w-20 rounded-md object-cover border border-ber-border shadow-sm hover:scale-105 transition-transform" />
                           {p.fotoConclusaoUrl && p.fotoAberturaUrl && (
                             <span className="absolute -top-1.5 -right-1.5 rounded-full bg-ber-carbon px-1 text-[8px] font-bold text-white">2</span>
                           )}
