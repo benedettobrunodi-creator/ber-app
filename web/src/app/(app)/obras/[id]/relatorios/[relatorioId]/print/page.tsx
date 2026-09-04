@@ -349,7 +349,6 @@ export default function RelatorioImpressao() {
                             <div className="text-[8px] font-normal text-gray-400/80">{new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
                           </th>
                         ))}
-                        <th className="text-center px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -359,7 +358,6 @@ export default function RelatorioImpressao() {
                           {dias.map(data => (
                             <td key={data} className="text-center py-1 text-gray-800">{d.porDia?.[data] ?? 0}</td>
                           ))}
-                          <td className="text-center py-1 font-semibold text-gray-900">{totalDisciplina(d)}</td>
                         </tr>
                       ))}
                       <tr className="border-t border-gray-300 bg-gray-50">
@@ -369,7 +367,6 @@ export default function RelatorioImpressao() {
                             {disciplinas.reduce((s, d) => s + (Number(d.porDia?.[data]) || 0), 0)}
                           </td>
                         ))}
-                        <td className="text-center py-1.5 font-black text-gray-900">{totalGeral}</td>
                       </tr>
                     </tbody>
                   </table>

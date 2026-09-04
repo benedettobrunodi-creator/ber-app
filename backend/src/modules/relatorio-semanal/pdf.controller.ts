@@ -339,18 +339,15 @@ ${efetivos.length > 0 && sec('equipe') ? (() => {
         <thead><tr style="border-bottom:1px solid #d1d5db;">
           <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;padding:3px 4px 3px 0;text-align:left;">Disciplina</th>
           ${dias.map(dia => `<th style="${thDay}"><div>${diaSemana(dia)}</div><div style="font-size:6px;font-weight:400;color:#b7bcc4;">${diaMes(dia)}</div></th>`).join('')}
-          <th style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#6b7280;padding:3px 0 3px 4px;text-align:center;">Total</th>
         </tr></thead>
         <tbody>
           ${efetivos.map(d => `<tr style="border-bottom:1px solid #f3f4f6;">
             <td style="padding:4px 4px 4px 0;color:#374151;font-size:9px;">${d.disciplina}</td>
             ${dias.map(dia => `<td style="padding:4px 2px;text-align:center;color:#374151;font-size:9px;">${Number(d.porDia?.[dia]) || 0}</td>`).join('')}
-            <td style="padding:4px 0 4px 4px;text-align:center;font-weight:600;color:#111827;font-size:9px;">${totalDisciplina(d)}</td>
           </tr>`).join('')}
           <tr style="border-top:1px solid #d1d5db;background:#f9fafb;">
             <td style="padding:4px 4px 4px 0;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;">Total/dia</td>
             ${dias.map(dia => `<td style="padding:4px 2px;text-align:center;font-weight:600;color:#111827;font-size:9px;">${efetivos.reduce((s, d) => s + (Number(d.porDia?.[dia]) || 0), 0)}</td>`).join('')}
-            <td style="padding:4px 0 4px 4px;text-align:center;font-weight:900;color:#111827;font-size:9px;">${totalGeral}</td>
           </tr>
         </tbody>
       </table>`;
