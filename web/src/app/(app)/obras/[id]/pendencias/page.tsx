@@ -128,38 +128,47 @@ export default function PendenciasPage() {
     [pendencias],
   );
 
-  // Dados dos gráficos — calculados ao vivo do mesmo dataset da lista
+  // Dados dos gráficos — calculados ao vivo do mesmo dataset da lista.
+  // (03/09, Bruno): gráficos mostram concluídas × abertas (não só prazo) e o
+  // progresso é quebrado por tipo (pendências × solicitações do cliente).
   const graficos = useMemo(() => {
     const abertas = pendencias.filter((p) => p.status !== 'concluida');
     const porChave = (chave: 'ambiente' | 'fornecedor') => {
-      const m = new Map<string, { abertas: number; atrasadas: number }>();
-      for (const p of abertas) {
+      const m = new Map<string, { concluidas: number; abertas: number; atrasadas: number; total: number }>();
+      for (const p of pendencias) {
         const k = (chave === 'fornecedor' ? (p.fornecedor || 'Sem fornecedor') : p.ambiente);
-        const cur = m.get(k) ?? { abertas: 0, atrasadas: 0 };
-        cur.abertas++;
-        if (atrasada(p)) cur.atrasadas++;
+        const cur = m.get(k) ?? { concluidas: 0, abertas: 0, atrasadas: 0, total: 0 };
+        cur.total++;
+        if (p.status === 'concluida') cur.concluidas++;
+        else { cur.abertas++; if (atrasada(p)) cur.atrasadas++; }
         m.set(k, cur);
       }
-      const all = [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.abertas - a.abertas);
+      const all = [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total);
       const top = all.slice(0, 8);
       const resto = all.slice(8);
       if (resto.length > 0) {
         top.push({
           nome: `Outros (${resto.length})`,
+          concluidas: resto.reduce((s2, x) => s2 + x.concluidas, 0),
           abertas: resto.reduce((s2, x) => s2 + x.abertas, 0),
           atrasadas: resto.reduce((s2, x) => s2 + x.atrasadas, 0),
+          total: resto.reduce((s2, x) => s2 + x.total, 0),
         });
       }
       return top;
     };
+    const pend = pendencias.filter((p) => p.tipo === 'pendencia');
+    const solic = pendencias.filter((p) => p.tipo === 'solicitacao');
     return {
       porAmbiente: porChave('ambiente'),
       porFornecedor: porChave('fornecedor'),
       concluidas: pendencias.filter((p) => p.status === 'concluida').length,
       bloqueadas: pendencias.filter((p) => p.status === 'bloqueada').length,
       emAberto: abertas.filter((p) => p.status !== 'bloqueada').length,
-      solicAbertas: abertas.filter((p) => p.tipo === 'solicitacao').length,
-      pendAbertas: abertas.filter((p) => p.tipo === 'pendencia').length,
+      pendTotal: pend.length,
+      pendConcluidas: pend.filter((p) => p.status === 'concluida').length,
+      solicTotal: solic.length,
+      solicConcluidas: solic.filter((p) => p.status === 'concluida').length,
       total: pendencias.length,
     };
   }, [pendencias]);
@@ -288,37 +297,56 @@ export default function PendenciasPage() {
               </div>
               <p className="text-xl font-bold text-ber-carbon tabular-nums shrink-0">{Math.round((graficos.concluidas / graficos.total) * 100)}%</p>
             </div>
-            <div className="flex items-center gap-3 mt-2.5">
-              <div className="flex-1 h-2 rounded-full bg-ber-surface overflow-hidden flex gap-[2px]">
-                {graficos.pendAbertas > 0 && <div className="h-full bg-ber-carbon rounded-l-full" style={{ width: `${(graficos.pendAbertas / Math.max(1, graficos.pendAbertas + graficos.solicAbertas)) * 100}%` }} title={`Pendências: ${graficos.pendAbertas}`} />}
-                {graficos.solicAbertas > 0 && <div className="h-full bg-[#7A3FB8] rounded-r-full" style={{ width: `${(graficos.solicAbertas / Math.max(1, graficos.pendAbertas + graficos.solicAbertas)) * 100}%` }} title={`Solicitações: ${graficos.solicAbertas}`} />}
-              </div>
-              <p className="text-[11px] text-ber-gray shrink-0">
-                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-carbon mr-1 align-middle" />Pendências {graficos.pendAbertas}
-                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#7A3FB8] ml-3 mr-1 align-middle" />Solicit. cliente {graficos.solicAbertas}
-              </p>
+            {/* Progresso individual por tipo (03/09, Bruno) */}
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {([
+                ['Pendências', graficos.pendConcluidas, graficos.pendTotal, 'bg-ber-carbon'],
+                ['Solicit. cliente', graficos.solicConcluidas, graficos.solicTotal, 'bg-[#7A3FB8]'],
+              ] as const).map(([label, concl, total, cor]) => (
+                <div key={label} className="flex items-center gap-2.5">
+                  <p className="w-28 shrink-0 text-[11px] text-ber-gray">{label}</p>
+                  <div className="flex-1 h-2.5 rounded-full bg-ber-surface overflow-hidden">
+                    {total > 0 && concl > 0 && (
+                      <div className={`h-full rounded-full ${cor}`} style={{ width: `${(concl / total) * 100}%` }} />
+                    )}
+                  </div>
+                  <p className="shrink-0 text-[11px] font-bold text-ber-carbon tabular-nums">
+                    {concl}/{total}
+                    <span className="font-normal text-ber-gray"> · {total > 0 ? Math.round((concl / total) * 100) : 0}%</span>
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Abertas por ambiente / fornecedor — barras horizontais */}
-          {([['Abertas por ambiente', graficos.porAmbiente], ['Abertas por fornecedor', graficos.porFornecedor]] as const).map(([titulo, dados]) => {
-            const max = Math.max(1, ...dados.map((d) => d.abertas));
+          {/* Por ambiente / fornecedor — concluídas × abertas (03/09, Bruno) */}
+          {([['Por ambiente', graficos.porAmbiente], ['Por fornecedor', graficos.porFornecedor]] as const).map(([titulo, dados]) => {
+            const max = Math.max(1, ...dados.map((d) => d.total));
             return (
               <div key={titulo} className="bg-white border border-ber-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center justify-between mb-2.5 gap-2 flex-wrap">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-ber-teal">{titulo}</p>
-                  <p className="text-[10px] text-ber-gray"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-olive mr-1 align-middle" />no prazo <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-red ml-2 mr-1 align-middle" />atrasadas</p>
+                  <p className="text-[10px] text-ber-gray">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-green mr-1 align-middle" />concluídas
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9C9C9] ml-2 mr-1 align-middle" />abertas
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-ber-red ml-2 mr-1 align-middle" />atrasadas
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   {dados.map((d) => (
-                    <div key={d.nome} className="flex items-center gap-2" title={`${d.nome}: ${d.abertas} abertas${d.atrasadas ? `, ${d.atrasadas} atrasadas` : ''}`}>
+                    <div key={d.nome} className="flex items-center gap-2"
+                      title={`${d.nome}: ${d.concluidas} concluídas de ${d.total}${d.atrasadas ? ` · ${d.atrasadas} atrasadas` : ''}`}>
                       <p className="w-[38%] min-w-0 truncate text-[11px] text-ber-carbon text-right pr-1">{d.nome}</p>
                       <div className="flex-1 h-3.5 flex items-center">
-                        <div className="h-full flex gap-[2px] rounded-r" style={{ width: `${(d.abertas / max) * 100}%`, minWidth: 6 }}>
-                          {d.abertas - d.atrasadas > 0 && <div className="h-full bg-ber-olive rounded-l-sm" style={{ flex: d.abertas - d.atrasadas }} />}
+                        <div className="h-full flex gap-[2px] rounded-r" style={{ width: `${(d.total / max) * 100}%`, minWidth: 6 }}>
+                          {d.concluidas > 0 && <div className="h-full bg-ber-green rounded-l-sm" style={{ flex: d.concluidas }} />}
+                          {d.abertas - d.atrasadas > 0 && <div className="h-full bg-[#C9C9C9]" style={{ flex: d.abertas - d.atrasadas }} />}
                           {d.atrasadas > 0 && <div className="h-full bg-ber-red rounded-r-sm" style={{ flex: d.atrasadas }} />}
                         </div>
-                        <span className="text-[10px] text-ber-gray tabular-nums pl-1.5">{d.abertas}{d.atrasadas > 0 ? <span className="text-ber-red font-bold"> ({d.atrasadas}⚠)</span> : ''}</span>
+                        <span className="text-[10px] text-ber-gray tabular-nums pl-1.5">
+                          <span className="font-bold text-ber-green">{d.concluidas}</span>/{d.total}
+                          {d.atrasadas > 0 ? <span className="text-ber-red font-bold"> ({d.atrasadas}⚠)</span> : ''}
+                        </span>
                       </div>
                     </div>
                   ))}
