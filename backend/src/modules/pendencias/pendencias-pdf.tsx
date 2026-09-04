@@ -260,38 +260,29 @@ export function PendenciasPDF({ obraNome, itens, geradoEm }: {
                 </Text>
               </View>
             ))}
+
+            {/* Registro fotográfico DENTRO da seção do ambiente (04/09, Bruno).
+                Só slots preenchidos — sem caixa vazia de "antes" (fotos são do resolvido). */}
+            {arr.some((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl) && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginBottom: 4 }}>
+                {arr.filter((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl).flatMap((i, idx) =>
+                  [
+                    ...(i.fotoAberturaUrl ? [{ url: i.fotoAberturaUrl, rotulo: "antes" }] : []),
+                    ...(i.fotoConclusaoUrl ? [{ url: i.fotoConclusaoUrl, rotulo: i.fotoAberturaUrl ? "depois" : null }] : []),
+                  ].map((f, j) => (
+                    <View key={`${idx}-${j}`} style={{ width: "48.5%" }} wrap={false}>
+                      <Image style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 3 }} src={f.url} />
+                      <Text style={{ fontSize: 6.5, color: BER.gray, marginTop: 2, lineHeight: 1.3 }}>
+                        {i.atividade.length > 90 ? i.atividade.slice(0, 90) + "…" : i.atividade}
+                        {f.rotulo ? `  ·  ${f.rotulo}` : ""}  ·  {STATUS_LABEL[i.status] ?? i.status}
+                      </Text>
+                    </View>
+                  )),
+                )}
+              </View>
+            )}
           </View>
         ))}
-
-        {itens.some((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl) && (
-          <View break>
-            <Text style={styles.ambTitle}>Registro fotográfico — antes e depois</Text>
-            {itens.filter((i) => i.fotoAberturaUrl || i.fotoConclusaoUrl).map((i, idx) => (
-              <View key={idx} style={styles.fotoBloco} wrap={false}>
-                <Text style={styles.fotoTitulo}>{i.atividade}</Text>
-                <Text style={styles.fotoMeta}>{i.ambiente}{i.fornecedor ? ` · ${i.fornecedor}` : ""} · {STATUS_LABEL[i.status] ?? i.status}</Text>
-                <View style={styles.fotoRow}>
-                  <View style={styles.fotoCol}>
-                    <Text style={styles.fotoLabel}>Antes (ao apontar)</Text>
-                    {i.fotoAberturaUrl ? (
-                      <Image style={styles.fotoImg} src={i.fotoAberturaUrl} />
-                    ) : (
-                      <View style={styles.fotoVazia}><Text style={styles.fotoVaziaTxt}>sem foto</Text></View>
-                    )}
-                  </View>
-                  <View style={styles.fotoCol}>
-                    <Text style={styles.fotoLabel}>Depois (resolvido)</Text>
-                    {i.fotoConclusaoUrl ? (
-                      <Image style={styles.fotoImg} src={i.fotoConclusaoUrl} />
-                    ) : (
-                      <View style={styles.fotoVazia}><Text style={styles.fotoVaziaTxt}>sem foto</Text></View>
-                    )}
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
 
         <View style={styles.footer} fixed>
           <Text>BÈR Engenharia · Ficha de Pendências · {obraNome}</Text>
