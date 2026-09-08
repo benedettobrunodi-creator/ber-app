@@ -604,7 +604,7 @@ export default function ChecklistDetailPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
+                       
                         className="hidden"
                         disabled={isCompleted || uploadingItems[item.id]}
                         onChange={(e) => {

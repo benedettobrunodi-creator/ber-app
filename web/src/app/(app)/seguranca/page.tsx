@@ -930,7 +930,7 @@ export default function SegurancaPage() {
                 <label className={`flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-ber-gray/30 px-3 py-2 text-sm text-ber-gray transition-colors hover:border-ber-olive hover:text-ber-olive ${uploadingIncidentPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
                   <Upload size={16} />
                   {uploadingIncidentPhoto ? 'Enviando...' : 'Selecionar fotos'}
-                  <input type="file" accept="image/*" capture="environment" multiple onChange={handleIncidentPhotoUpload} className="hidden" />
+                  <input type="file" accept="image/*" multiple onChange={handleIncidentPhotoUpload} className="hidden" />
                 </label>
                 {incidentPhotos.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">

@@ -884,7 +884,7 @@ export default function ObraDetailPage() {
                             {needsPhoto && !item.fotoUrl && !isLocked && (
                               <label className="ml-2 inline-flex cursor-pointer items-center gap-1 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 hover:bg-amber-50">
                                 <Camera size={10} /> Foto
-                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                <input type="file" accept="image/*" className="hidden"
                                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
                               </label>
                             )}
@@ -992,7 +992,7 @@ export default function ObraDetailPage() {
                               <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${item.fotoUrl ? 'border-green-300 text-green-600 hover:bg-green-50' : needsPhoto ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'}`}>
                                 <Camera size={11} />
                                 {item.fotoUrl ? 'Trocar foto' : needsPhoto ? 'Foto obrigatória' : '+ Foto'}
-                                <input type="file" accept="image/*" capture="environment" className="hidden"
+                                <input type="file" accept="image/*" className="hidden"
                                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadFvsPhoto(item.id, f); }} />
                               </label>
                             )}
@@ -2278,14 +2278,14 @@ export default function ObraDetailPage() {
                                   <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${item.fotoUrl ? 'border-green-300 text-green-600 hover:bg-green-50' : 'border-amber-300 text-amber-600 hover:bg-amber-50'}`}>
                                     <Camera size={11} />
                                     {item.fotoUrl ? 'Trocar foto' : 'Foto obrigatória'}
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    <input type="file" accept="image/*" className="hidden"
                                       onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(item.id, f); }} />
                                   </label>
                                 )}
                                 {!isLocked && !item.templateItem?.fotoObrigatoria && (
                                   <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-ber-gray/20 px-2 py-1 text-[10px] text-ber-gray/60 hover:bg-ber-offwhite">
                                     <Camera size={11} /> {item.fotoUrl ? 'Trocar' : '+ Foto'}
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    <input type="file" accept="image/*" className="hidden"
                                       onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(item.id, f); }} />
                                   </label>
                                 )}

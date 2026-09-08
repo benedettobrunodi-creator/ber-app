@@ -487,7 +487,7 @@ export default function PendenciasPage() {
                       )}
                       <input
                         ref={(el) => { fotoConclusaoInputs.current[p.id] = el; }}
-                        type="file" accept="image/*" capture="environment" className="hidden"
+                        type="file" accept="image/*" className="hidden"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFotoConclusao(p, f); e.target.value = ''; }}
                       />
                     </td>
@@ -559,7 +559,7 @@ export default function PendenciasPage() {
                       <span className="text-[11px]">Adicionar foto do estado atual</span>
                     </button>
                   )}
-                  <input ref={detFotoAberturaInput} type="file" accept="image/*" capture="environment" className="hidden"
+                  <input ref={detFotoAberturaInput} type="file" accept="image/*" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'abertura', f); e.target.value = ''; }} />
                 </div>
                 <div>
@@ -580,7 +580,7 @@ export default function PendenciasPage() {
                       <span className="text-[11px]">Adicionar foto do resolvido</span>
                     </button>
                   )}
-                  <input ref={detFotoConclusaoInput} type="file" accept="image/*" capture="environment" className="hidden"
+                  <input ref={detFotoConclusaoInput} type="file" accept="image/*" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'conclusao', f); e.target.value = ''; }} />
                 </div>
               </div>
@@ -725,7 +725,7 @@ export default function PendenciasPage() {
               <label className="flex items-center gap-2 text-sm text-ber-gray border border-dashed border-ber-border rounded-lg px-3 py-3 cursor-pointer hover:bg-ber-surface">
                 <Camera size={18} className="text-ber-teal" />
                 {fFoto ? <span className="text-ber-carbon font-medium">{fFoto.name}</span> : 'Foto do estado atual (opcional)'}
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setFFoto(e.target.files?.[0] ?? null)} />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => setFFoto(e.target.files?.[0] ?? null)} />
               </label>
               <button onClick={criar} disabled={busy} className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50">
                 {busy ? 'Salvando…' : 'Criar pendência'}

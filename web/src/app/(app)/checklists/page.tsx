@@ -399,7 +399,7 @@ export default function ChecklistsPage() {
                                   }`}>
                                     <Camera size={11} />
                                     {item.fotoUrl ? 'Trocar' : item.templateItem?.fotoObrigatoria ? 'Foto obrigatória' : '+ Foto'}
-                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                    <input type="file" accept="image/*" className="hidden"
                                       onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(cl, item.id, f); }} />
                                   </label>
                                 )}

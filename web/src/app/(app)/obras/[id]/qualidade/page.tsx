@@ -404,7 +404,7 @@ export default function QualidadePage() {
                               fotos[k] ? 'border-ber-green/40 text-ber-green bg-ber-green/5' : 'border-amber-400 text-amber-700 bg-amber-50'
                             }`}>
                               📷 {fotos[k] ? 'Foto anexada ✓' : 'Tirar foto (obrigatória)'}
-                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                              <input type="file" accept="image/*" className="hidden"
                                 onChange={e => {
                                   const f = e.target.files?.[0];
                                   if (f) setFotos(prev => ({ ...prev, [k]: f }));

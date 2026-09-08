@@ -940,7 +940,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                           </div>
                         )}
                       </div>
-                      <input ref={el => { fotoRefs.current[angulo.id] = el; }} type="file" accept="image/*" capture="environment" className="hidden"
+                      <input ref={el => { fotoRefs.current[angulo.id] = el; }} type="file" accept="image/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, angulo.id); e.target.value = ''; }} />
                     </div>
                   );
@@ -998,7 +998,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                           </div>
                         )}
                       </div>
-                      <input ref={el => { fotoRefs.current['geral'] = el; }} type="file" accept="image/*" capture="environment" className="hidden"
+                      <input ref={el => { fotoRefs.current['geral'] = el; }} type="file" accept="image/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadFoto(f, null); e.target.value = ''; }} />
                     </div>
                   );

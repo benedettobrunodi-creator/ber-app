@@ -475,7 +475,7 @@ export default function CanteiroDetailPage() {
                           <input
                             type="file"
                             accept="image/*"
-                            capture="environment"
+                           
                             className="hidden"
                             disabled={isFinalized || uploadingItems[item.id]}
                             onChange={(e) => {
