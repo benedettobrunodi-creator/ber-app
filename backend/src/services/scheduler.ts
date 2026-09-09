@@ -7,6 +7,7 @@ import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 import { notifyUsers } from '../modules/notifications/service';
 import { checkCrmAlerts } from '../modules/crm/alerts';
 import { checkFvsItensVencidos, checkFasesAtrasadas } from '../modules/fvs/alerts';
+import { checkContratacoesAtrasadas } from '../modules/contratacao-plano/alertas';
 import { obrasComQuinzenalAtrasada } from '../modules/temperatura/service';
 
 export function startScheduler() {
@@ -74,6 +75,18 @@ export function startScheduler() {
       console.log(`[Scheduler] FVS itens vencidos concluído — ${r.itensVencidos} itens, ${r.alertasEnviados} e-mails de área`);
     } catch (err) {
       console.error('[Scheduler] FVS itens vencidos falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  // Cronograma de Contratações — itens atrasados — diariamente às 07h30 (BRT)
+  // (Emerson, Gritti, Bruno, Chris — pedido do Bruno 09/09/26)
+  cron.schedule('30 7 * * *', async () => {
+    console.log('[Scheduler] Contratações atrasadas iniciado...');
+    try {
+      const r = await checkContratacoesAtrasadas();
+      console.log(`[Scheduler] Contratações atrasadas concluído — ${r.itens} itens${r.enviado ? ', e-mail enviado' : ''}`);
+    } catch (err) {
+      console.error('[Scheduler] Contratações atrasadas falhou:', (err as Error).message);
     }
   }, { timezone: 'America/Sao_Paulo' });
 

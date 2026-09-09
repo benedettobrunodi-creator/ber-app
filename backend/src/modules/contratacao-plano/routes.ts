@@ -38,3 +38,10 @@ planoRouter.delete('/:id', resolveObraId, obraMemberOnly, w(async (req, res) => 
   await service.remove(req.params.id);
   res.status(204).end();
 }));
+
+// Disparo manual do alerta de atrasados (teste/reenvio): POST /v1/contratacao-plano/alerta-atrasados
+planoRouter.post('/alerta-atrasados', w(async (req, res) => {
+  const { checkContratacoesAtrasadas } = await import('./alertas');
+  const data = await checkContratacoesAtrasadas({ send: req.query.dry !== '1' });
+  res.json({ data });
+}));
