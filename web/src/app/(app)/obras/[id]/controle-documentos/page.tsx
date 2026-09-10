@@ -26,28 +26,28 @@ const DISCIPLINAS = [
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
 const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo'];
 // Sub-áreas de Projetos Técnicos — cada uma abre a "página" da(s) disciplina(s)
+// ordem alfabética, "Outros" sempre por último (Bruno 10/09/26)
 const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
-  { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
-  { label: 'Elétrica / Cabeamento', disciplinas: ['Instalações Elétricas', 'Cabeamento Estruturado', 'Detecção e Alarme'] },
-  // "Civil" desmembrado em Estrutura + Hidráulica (Bruno 10/09/26)
-  { label: 'Estrutura', disciplinas: ['Estrutural'] },
-  { label: 'Hidráulica', disciplinas: ['Hidráulica'] },
-  { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
-  { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
-  // sub-áreas novas (Bruno 10/09/26)
-  { label: 'Sistemas', disciplinas: ['Sistemas'] },
   { label: 'Acústica', disciplinas: ['Acústica'] },
   { label: 'Automação', disciplinas: ['Automação'] },
+  { label: 'Elétrica / Cabeamento', disciplinas: ['Instalações Elétricas', 'Cabeamento Estruturado', 'Detecção e Alarme'] },
+  { label: 'Estrutura', disciplinas: ['Estrutural'] },
+  { label: 'Hidráulica', disciplinas: ['Hidráulica'] },
+  { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
+  { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
   { label: 'Multimídia', disciplinas: ['Multimídia'] },
+  { label: 'Sistemas', disciplinas: ['Sistemas'] },
+  { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
   { label: 'Outros', disciplinas: ['Projetos Técnicos - Outros'] },
 ];
 const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
 // Shop Drawings (SDs) — setor próprio (Bruno 02/09)
+// ordem alfabética; "Outros" e "Aprovações" (comprovantes) no fim (Bruno 10/09/26)
 const SDS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Divisórias', disciplinas: ['Divisórias'] },
-  { label: 'Pedras', disciplinas: ['Pedras'] },
-  { label: 'Mobiliário', disciplinas: ['Mobiliário'] },
   { label: 'Marcenaria', disciplinas: ['Marcenaria'] },
+  { label: 'Mobiliário', disciplinas: ['Mobiliário'] },
+  { label: 'Pedras', disciplinas: ['Pedras'] },
   { label: 'Outros', disciplinas: ['Shop Drawings - Outros'] },
   // comprovantes de aprovação dos desenhos: e-mails, atas etc (Bruno 10/09/26)
   { label: 'Aprovações', disciplinas: ['SD - Aprovações'] },
