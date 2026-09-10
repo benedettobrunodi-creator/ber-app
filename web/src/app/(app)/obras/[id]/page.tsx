@@ -495,11 +495,30 @@ export default function ObraDetailPage() {
     try {
       const tarefas = cronograma.parsedData.tarefas;
       const overrides = cronograma.overrides ?? {};
-      const folhas = tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0 && t.inicio && t.fim);
+      // Curva S considera SÓ a fase de CONSTRUÇÃO do cronograma — pré-obra e
+      // pós-obra ficam fora da régua (Bruno 10/09/26). Interpreta pelo nome da
+      // tarefa-resumo; sem fase identificável, cai no cronograma inteiro.
+      const ehConstrucao = (nome: string) => {
+        const n = nome.toLowerCase();
+        if (/pr[eé][\s-]*obra|p[oó]s[\s-]*obra|planejament|mobiliza|close[\s-]*out|encerramento/.test(n)) return false;
+        return /constru|execu[cç]|\bobra(s)?\b/.test(n);
+      };
+      const faseConstrucao = tarefas.find(t => t.ehResumo && t.inicio && t.fim && ehConstrucao(t.nome)) ?? null;
+      const dentroDaFase = (t: { wbs: string }) => {
+        if (!faseConstrucao) return true;
+        if (faseConstrucao.wbs && t.wbs) return t.wbs === faseConstrucao.wbs || t.wbs.startsWith(faseConstrucao.wbs + '.');
+        return true; // sem WBS confiável: filtra só pelo span de datas da fase (abaixo)
+      };
+      const folhasTodas = tarefas.filter(t => !t.ehResumo && (t.duracaoDias ?? 0) > 0 && t.inicio && t.fim);
+      let folhas = folhasTodas.filter(dentroDaFase);
+      // proteção: se o filtro WBS zerar (cronograma sem hierarquia), usa o span da fase
+      if (faseConstrucao && folhas.length === 0) {
+        folhas = folhasTodas.filter(t => t.inicio! >= faseConstrucao.inicio! && t.fim! <= faseConstrucao.fim!);
+      }
       if (!folhas.length) { alert('Sem tarefas com cronograma para gerar Curva S.'); return; }
       const totalDias = folhas.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
       if (!totalDias) return;
-      const raiz = tarefas.find(t => t.ehResumo && t.inicio && t.fim);
+      const raiz = faseConstrucao ?? tarefas.find(t => t.ehResumo && t.inicio && t.fim);
       if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
       // planejado uses linear time within root task span — matches cockpit "% planejado"
       // (task-weighted approach gives wrong results when parsedData covers only part of project)
@@ -555,7 +574,9 @@ export default function ObraDetailPage() {
       await api.put(`/obras/${params.id}/relatorios/curva-s`, { pontos });
       setRelatorioTabKey(k => k + 1);
       setActiveTab('relatorios');
-      alert(`Curva S gerada com ${pontos.length} semanas.`);
+      alert(faseConstrucao
+        ? `Curva S gerada com ${pontos.length} semanas — só a fase "${faseConstrucao.nome}" (pré/pós-obra fora da régua).`
+        : `Curva S gerada com ${pontos.length} semanas (fase de construção não identificada no cronograma — usei o período inteiro).`);
     } catch { alert('Erro ao gerar Curva S.'); }
     finally { setCronogramaGerandoCurvaS(false); }
   }
