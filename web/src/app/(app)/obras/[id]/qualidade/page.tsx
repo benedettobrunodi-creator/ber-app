@@ -222,6 +222,47 @@ export default function QualidadePage() {
   }, [preenchendo, respostas, obs, obsGeral, dataVistoria, etapa, atividadesSel, atividadesLivres, projCheck, trechos, fotoUp, pano]);
 
   // Upload em segundo plano: comprime e sobe assim que a foto é anexada
+  // Trava de etapa (Bruno 10/09): o que é obrigatório se resolve NA categoria —
+  // ninguém descobre pendência só na revisão final.
+  function pendenciasDaEtapa(): string[] {
+    const faltas: string[] = [];
+    if (etapa === 0) {
+      const confRuim = Object.values(projCheck).filter(pc =>
+        (pc.rev === 'nao' || pc.rev === 'na' || pc.exec === 'nao' || pc.exec === 'na') && !pc.obs.trim()).length;
+      if (confRuim > 0) faltas.push(`${confRuim} conferência(s) de projeto com "Não"/"N.A." sem justificativa`);
+      return faltas;
+    }
+    const cat = template[etapa - 1];
+    if (!cat) return faltas;
+    let semJust = 0, semFotoNao = 0, subindoCat = 0;
+    for (const item of cat.itens) {
+      const k = `${cat.key}:${item.key}`;
+      const r = respostas[k];
+      if ((r === 'nao' || r === 'na') && !(obs[k] ?? '').trim()) semJust++;
+      if (r === 'nao') {
+        if (fotoUp[k]?.status === 'subindo') subindoCat++;
+        else if (fotoUp[k]?.status !== 'ok') semFotoNao++;
+      }
+    }
+    const temSim = cat.itens.some(i => respostas[`${cat.key}:${i.key}`] === 'sim');
+    if (semJust > 0) faltas.push(`${semJust} item(ns) "Não"/"N/A" sem justificativa`);
+    if (semFotoNao > 0) faltas.push(`${semFotoNao} item(ns) "Não" sem a foto da falha`);
+    if (temSim && pano[cat.key]?.status === 'subindo') subindoCat++;
+    else if (temSim && pano[cat.key]?.status !== 'ok') faltas.push('falta a foto panorâmica da categoria');
+    if (subindoCat > 0) faltas.push(`${subindoCat} foto(s) ainda subindo — aguarde uns segundos`);
+    return faltas;
+  }
+
+  function avancarEtapa() {
+    const faltas = pendenciasDaEtapa();
+    if (faltas.length > 0) {
+      alert(`Antes de avançar, resolva nesta etapa:\n• ${faltas.join('\n• ')}`);
+      return;
+    }
+    setEtapa(e => e + 1);
+    window.scrollTo({ top: 0 });
+  }
+
   async function subirFoto(destino: 'item' | 'pano', chave: string, file: File) {
     const setMap = destino === 'item' ? setFotoUp : setPano;
     setMap(prev => ({ ...prev, [chave]: { status: 'subindo' } }));
@@ -560,7 +601,7 @@ export default function QualidadePage() {
                   className="rounded-lg border border-ber-border px-3 py-1.5 text-sm text-ber-carbon hover:bg-ber-surface">← Voltar</button>
               )}
               {etapa <= template.length ? (
-                <button onClick={() => { setEtapa(e => e + 1); window.scrollTo({ top: 0 }); }}
+                <button onClick={avancarEtapa}
                   className="rounded-lg bg-ber-olive px-4 py-1.5 text-sm font-semibold text-ber-carbon hover:brightness-95">
                   {etapa === 0 ? 'Começar checklist →' : 'Avançar →'}
                 </button>
