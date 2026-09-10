@@ -197,24 +197,28 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   // ─── Contratações (donut) ──────────────────────────────────────────────
   // Fonte primária: CRONOGRAMA DE CONTRATAÇÕES (contratacao-plano) — é onde o
   // time opera (Bruno 10/09/26). Fallback: módulo antigo de contratações.
-  const { previstos, contratados, aContratar, emAtraso } = (() => {
+  const { previstos, contratados, emCotacao, aContratar, emAtraso } = (() => {
     if (planos.length > 0) {
       const agora = Date.now();
+      const atrasado = (pl: PlanoLite) => pl.status !== 'contratado' && !!pl.dataLimite && new Date(pl.dataLimite).getTime() < agora;
       const contratadosN = planos.filter(pl => pl.status === 'contratado').length;
-      const atrasadosN = planos.filter(pl => pl.status !== 'contratado' && pl.dataLimite && new Date(pl.dataLimite).getTime() < agora).length;
-      return { previstos: planos.length, contratados: contratadosN, aContratar: planos.length - contratadosN, emAtraso: atrasadosN };
+      const atrasadosN = planos.filter(atrasado).length;
+      const emCotacaoN = planos.filter(pl => pl.status === 'em_cotacao' && !atrasado(pl)).length;
+      const aContratarN = planos.length - contratadosN - atrasadosN - emCotacaoN;
+      return { previstos: planos.length, contratados: contratadosN, emCotacao: emCotacaoN, aContratar: Math.max(0, aContratarN), emAtraso: atrasadosN };
     }
     const total = contratos?.totals.total ?? 0;
     const byStatus = contratos?.totals.byStatus ?? {};
     const contratadosN = (Number(byStatus['ativo'] ?? 0) + Number(byStatus['contratado'] ?? 0));
-    return { previstos: total, contratados: contratadosN, aContratar: total - contratadosN, emAtraso: Number(byStatus['atrasado'] ?? 0) };
+    return { previstos: total, contratados: contratadosN, emCotacao: 0, aContratar: total - contratadosN, emAtraso: Number(byStatus['atrasado'] ?? 0) };
   })();
   const total = previstos;
 
   const donutData = total > 0
     ? [
-        { name: 'CONTRATADOS', value: contratados, color: '#3B82F6' },
-        { name: 'A CONTRATAR', value: Math.max(0, aContratar - emAtraso), color: '#F59E0B' },
+        { name: 'CONTRATADO', value: contratados, color: '#3B82F6' },
+        { name: 'EM CONTRATAÇÃO', value: emCotacao, color: '#F59E0B' },
+        { name: 'A CONTRATAR', value: aContratar, color: '#9CA3AF' },
         { name: 'EM ATRASO', value: emAtraso, color: '#DC2626' },
       ].filter(d => d.value > 0)
     : [{ name: 'sem dados', value: 1, color: '#E5E5E5' }];
@@ -578,24 +582,27 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
             <h4 className="text-sm font-bold tracking-wide bg-blue-100 px-2 py-1 inline-block text-blue-900 mb-2">CONTRATAÇÕES</h4>
             <div className="grid grid-cols-[1fr_auto] gap-1 text-[12px]">
               <div className="text-ber-carbon">FORNECEDORES PREVISTOS</div><div className="text-right font-bold text-blue-500">{previstos}</div>
-              <div className="text-ber-carbon">CONTRATADOS</div><div className="text-right font-bold text-blue-700">{contratados}</div>
-              <div className="text-ber-carbon">A CONTRATAR</div><div className="text-right font-bold text-amber-600">{Math.max(0, aContratar - emAtraso)}</div>
+              <div className="text-ber-carbon">CONTRATADO</div><div className="text-right font-bold text-blue-700">{contratados}</div>
+              <div className="text-ber-carbon">EM CONTRATAÇÃO</div><div className="text-right font-bold text-amber-600">{emCotacao}</div>
+              <div className="text-ber-carbon">A CONTRATAR</div><div className="text-right font-bold text-ber-gray">{aContratar}</div>
               <div className="text-ber-carbon">EM ATRASO</div><div className="text-right font-bold text-red-600">{emAtraso}</div>
             </div>
-            <div className="h-[140px] mt-2 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={donutData} dataKey="value" innerRadius={35} outerRadius={60} paddingAngle={2}>
-                    {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* % já comprado da obra — etiqueta central (Bruno 10/09/26) */}
+            {/* gráfico maior + % comprado grande ao lado (Bruno 10/09/26) */}
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-[190px] flex-1 min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={donutData} dataKey="value" innerRadius={48} outerRadius={85} paddingAngle={2}>
+                      {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
               {total > 0 && (
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-lg font-black leading-none text-ber-carbon">{Math.round(contratados / total * 100)}%</span>
-                  <span className="text-[8px] font-bold uppercase tracking-wide text-ber-gray">comprado</span>
+                <div className="shrink-0 text-center pr-1">
+                  <div className="text-4xl font-black leading-none text-ber-carbon">{Math.round(contratados / total * 100)}%</div>
+                  <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ber-gray">comprado<br/>da obra</div>
                 </div>
               )}
             </div>
