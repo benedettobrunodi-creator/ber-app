@@ -224,6 +224,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   // a mesma que sai no PDF enviado ao cliente. Não é derivada do cronograma.
   type CurvaPt = { label: string; semana: string; planejado?: number; realizado?: number };
 
+  // Obra em PLANEJAMENTO: início ainda não firmado (Bruno 10/09/26) — curva em
+  // semanas relativas (Sem. 1..N, sem datas) e sem "planejado para hoje".
+  const emPlanejamento = (obra.status ?? '').toLowerCase().includes('planejamento');
   const startIso = (obra.dataInicioObra ?? obra.startDate ?? '').slice(0, 10) || null;
   const endIso = (obra.dataFimObra ?? obra.expectedEndDate ?? '').slice(0, 10) || null;
   const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
@@ -263,7 +266,8 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     if (endIso && !map.has(endIso)) map.set(endIso, { semana: endIso });
     return Array.from(map.values())
       .sort((a, b) => a.semana.localeCompare(b.semana))
-      .map(pt => {
+      .map((pt, i) => {
+        if (emPlanejamento) return { ...pt, label: `Sem. ${i + 1}` };
         const pointMs = new Date(pt.semana + 'T12:00:00').getTime();
         const label = startMs != null && pointMs >= startMs
           ? `Sem. ${Math.round((pointMs - startMs) / (7 * 86_400_000)) + 1}`
@@ -275,6 +279,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   // % planejado para hoje — interpolação linear entre os pontos cadastrados.
   // Vira a referência do "adiantado/atrasado" na faixa de progresso.
   const planejadoHoje: number | null = (() => {
+    if (emPlanejamento) return null; // obra não iniciou — não existe "planejado para hoje"
     const pts = curva
       .filter(p => p.planejado != null)
       .map(p => ({ ms: new Date(p.semana + 'T12:00:00').getTime(), v: p.planejado! }))
@@ -381,7 +386,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   // ─── Linha do tempo (régua Início → Hoje → Prazo) ──────────────────────
   // % do prazo já consumido. Serve de referência visual contra o avanço real.
   // Obra em PLANEJAMENTO ainda não consome prazo — régua zerada (Bruno 10/09/26)
-  const emPlanejamento = (obra.status ?? '').toLowerCase().includes('planejamento');
   const tempoPct = emPlanejamento
     ? 0
     : prazoObra != null && prazoObra > 0 && diasDecorridos != null
