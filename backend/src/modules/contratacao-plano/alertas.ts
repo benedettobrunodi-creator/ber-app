@@ -95,12 +95,12 @@ export async function checkContratacoesAtrasadas(opts?: { send?: boolean }) {
       ${blocos}
       ${semData.length > 0 ? `
       <h2 style="color:#2D2D2D;font-size:15px;margin:24px 0 6px;">⚪ Itens sem data-limite preenchida</h2>
-      <p style="color:#5A7A7A;font-size:12px;margin:0 0 6px;">Obras em planejamento/andamento com pacote de contratação SEM data definida — sem data, o item não entra na régua de atraso.</p>
+      <p style="color:#5A7A7A;font-size:12px;margin:0 0 6px;">Obras em planejamento/andamento com pacote de contratação SEM data definida — sem data, o item não entra na régua de atraso. Resumo por obra (até 10 exemplos cada; lista completa no painel da obra).</p>
       ${Array.from(
         semData.reduce((m, p) => { const l = m.get(p.obra.name) ?? []; l.push(p.pacote); m.set(p.obra.name, l); return m; }, new Map<string, string[]>()).entries()
       ).map(([obra, pacotes]) => `
-        <p style="color:#5A7A7A;font-size:13px;font-weight:600;margin:10px 0 4px;">${obra}</p>
-        <ul style="margin:0;padding-left:18px;">${pacotes.map((pc) => `<li style="color:#2D2D2D;font-size:13px;line-height:1.6;">${pc}</li>`).join('')}</ul>`).join('')}
+        <p style="color:#5A7A7A;font-size:13px;font-weight:600;margin:10px 0 4px;">${obra} — ${pacotes.length} ${pacotes.length === 1 ? 'item sem data' : 'itens sem data'}</p>
+        <ul style="margin:0;padding-left:18px;">${pacotes.slice(0, 10).map((pc) => `<li style="color:#2D2D2D;font-size:13px;line-height:1.6;">${pc}</li>`).join('')}${pacotes.length > 10 ? `<li style="color:#8B8D82;font-size:12px;">… e mais ${pacotes.length - 10} — ver no painel da obra</li>` : ''}</ul>`).join('')}
       ` : ''}
     </div>
     <p style="color:#8B8D82;font-size:11px;text-align:center;margin:16px 0 0;">Alerta automático do BER App · Cronograma de Contratações</p>
