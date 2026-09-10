@@ -578,7 +578,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               <div className="text-ber-carbon">A CONTRATAR</div><div className="text-right font-bold text-amber-600">{Math.max(0, aContratar - emAtraso)}</div>
               <div className="text-ber-carbon">EM ATRASO</div><div className="text-right font-bold text-red-600">{emAtraso}</div>
             </div>
-            <div className="h-[140px] mt-2">
+            <div className="h-[140px] mt-2 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={donutData} dataKey="value" innerRadius={35} outerRadius={60} paddingAngle={2}>
@@ -587,6 +587,13 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
+              {/* % já comprado da obra — etiqueta central (Bruno 10/09/26) */}
+              {total > 0 && (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-lg font-black leading-none text-ber-carbon">{Math.round(contratados / total * 100)}%</span>
+                  <span className="text-[8px] font-bold uppercase tracking-wide text-ber-gray">comprado</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
