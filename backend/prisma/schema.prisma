@@ -238,6 +238,7 @@ model Obra {
   stakeholders       ObraStakeholder[]
   kickoff            ObraKickoff?
   kickoffItens       ObraKickoffItem[]
+  kickoffExterno     ObraKickoffExterno?
   raciItens          ObraRaci[]
   contratacaoPlanos  ObraContratacaoPlano[]
   histograma         ObraHistograma[]
@@ -2659,6 +2660,21 @@ model ObraKickoff {
 }
 
 // Itens do checklist de kickoff (seções + itens da planilha), preenchidos por obra.
+// Kickoff EXTERNO — reunião de abertura com o cliente (Bruno 10/09/26).
+// Conteúdo em JSON: a estrutura das seções evolui sem migration; o template
+// default (texto do kickoff Segura AI generalizado) vive em externo-template.ts.
+model ObraKickoffExterno {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @unique @map("obra_id") @db.Uuid
+  conteudo  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("obra_kickoff_externos")
+}
+
 model ObraKickoffItem {
   id          String    @id @default(uuid()) @db.Uuid
   obraId      String    @map("obra_id") @db.Uuid
