@@ -1055,6 +1055,7 @@ model ProjetoDocumento {
   disciplina  String   @db.VarChar(80)
   projetista  String?  @db.VarChar(150)
   etapa       String?  @db.VarChar(40)
+  comentario  String?  @db.VarChar(1000) // comentário livre no card (Bruno 10/09/26)
   obsoleto    Boolean  @default(false) // desenho saiu de uso — some da lista ativa, restaurável (02/09/26)
   createdById String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")

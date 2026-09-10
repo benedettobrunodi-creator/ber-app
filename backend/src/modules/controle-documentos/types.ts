@@ -23,6 +23,15 @@ export const DOCUMENTO_DISCIPLINAS = [
   'Interiores',
   'Paisagismo',
   'Projeto Legal',
+  'ART',
+  'Seguro',
+  'Documentos do Condomínio',
+  'SD - Sistemas',
+  'SD - Estrutura',
+  'SD - Acústica',
+  'SD - Automação',
+  'SD - Multimídia',
+  'SD - Aprovações',
   'Outra',
 ] as const;
 
@@ -40,6 +49,7 @@ export const createDocumentoSchema = z.object({
   disciplina: z.enum(DOCUMENTO_DISCIPLINAS),
   projetista: z.string().max(150).nullable().optional(),
   etapa: z.enum(DOCUMENTO_ETAPAS).nullable().optional(),
+  comentario: z.string().max(1000).nullable().optional(),
 });
 
 export const updateDocumentoSchema = createDocumentoSchema.partial().extend({ obsoleto: z.boolean().optional() });

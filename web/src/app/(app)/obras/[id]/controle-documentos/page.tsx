@@ -19,7 +19,8 @@ const DISCIPLINAS = [
   'Arquitetura', 'Estrutural', 'Instalações Elétricas', 'Hidráulica', 'Ar Condicionado',
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
   'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
-  'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'Outra',
+  'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'ART', 'Seguro', 'Documentos do Condomínio',
+  'SD - Sistemas', 'SD - Estrutura', 'SD - Acústica', 'SD - Automação', 'SD - Multimídia', 'SD - Aprovações', 'Outra',
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
@@ -40,11 +41,25 @@ const SDS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Pedras', disciplinas: ['Pedras'] },
   { label: 'Mobiliário', disciplinas: ['Mobiliário'] },
   { label: 'Marcenaria', disciplinas: ['Marcenaria'] },
+  // sub-áreas novas (Bruno 10/09/26)
+  { label: 'Sistemas', disciplinas: ['SD - Sistemas'] },
+  { label: 'Estrutura', disciplinas: ['SD - Estrutura'] },
+  { label: 'Acústica', disciplinas: ['SD - Acústica'] },
+  { label: 'Automação', disciplinas: ['SD - Automação'] },
+  { label: 'Multimídia', disciplinas: ['SD - Multimídia'] },
   { label: 'Outros', disciplinas: ['Shop Drawings - Outros'] },
+  // comprovantes de aprovação dos desenhos: e-mails, atas etc (Bruno 10/09/26)
+  { label: 'Aprovações', disciplinas: ['SD - Aprovações'] },
 ];
 const SETOR_SDS = SDS_SUBS.flatMap(s => s.disciplinas);
-const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d => !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d) && !SETOR_SDS.includes(d));
-type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'outros' | 'obsoletos';
+// Abas próprias pra ARTs, Seguro e Docs do Condomínio (Bruno 10/09/26)
+const SETOR_ARTS = ['ART'];
+const SETOR_SEGURO = ['Seguro'];
+const SETOR_CONDOMINIO = ['Documentos do Condomínio'];
+const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d =>
+  !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d) && !SETOR_SDS.includes(d) &&
+  !SETOR_ARTS.includes(d) && !SETOR_SEGURO.includes(d) && !SETOR_CONDOMINIO.includes(d));
+type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'arts' | 'seguro' | 'condominio' | 'outros' | 'obsoletos';
 
 const ETAPAS = ['Conceito', 'Anteprojeto (AP)', 'Executivo (EX)', 'Locação (LO)', 'As Built'] as const;
 
@@ -65,6 +80,7 @@ interface Documento {
   disciplina: string;
   projetista: string | null;
   etapa: string | null;
+  comentario: string | null;
   obsoleto: boolean;
   createdAt: string;
   revisoes: Revisao[];
@@ -198,7 +214,7 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista', value: string) {
+  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista' | 'comentario', value: string) {
     try {
       const r = await api.patch(`/obras/${obraId}/controle-documentos/${id}`, { [field]: field === 'etapa' || field === 'projetista' ? (value || null) : value });
       setDocumentos(prev => prev.map(d => d.id === id ? r.data.data : d));
@@ -214,6 +230,9 @@ export default function ControleDocumentosPage() {
     if (setor === 'arquitetura') return 'Arquitetura';
     if (setor === 'tecnicos') return TECNICOS_SUBS.find(s => s.label === subTecnico)?.disciplinas[0] ?? 'Projetos Técnicos - Outros';
     if (setor === 'sds') return SDS_SUBS.find(s => s.label === subTecnico)?.disciplinas[0] ?? 'Shop Drawings - Outros';
+    if (setor === 'arts') return 'ART';
+    if (setor === 'seguro') return 'Seguro';
+    if (setor === 'condominio') return 'Documentos do Condomínio';
     return 'Outra';
   }
 
@@ -361,6 +380,9 @@ export default function ControleDocumentosPage() {
     if (d.obsoleto) return false;
     if (setor === 'todos') return true;
     if (setor === 'arquitetura') return SETOR_ARQUITETURA.includes(d.disciplina);
+    if (setor === 'arts') return SETOR_ARTS.includes(d.disciplina);
+    if (setor === 'seguro') return SETOR_SEGURO.includes(d.disciplina);
+    if (setor === 'condominio') return SETOR_CONDOMINIO.includes(d.disciplina);
     if (setor === 'outros') return SETOR_OUTROS.includes(d.disciplina);
     if (setor === 'sds') {
       const sub = SDS_SUBS.find(t => t.label === subTecnico);
@@ -431,6 +453,9 @@ export default function ControleDocumentosPage() {
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
             { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
             { key: 'sds', label: 'Shop Drawings (SDs)', count: documentos.filter(d => !d.obsoleto && SETOR_SDS.includes(d.disciplina)).length },
+            { key: 'arts', label: 'ARTs', count: documentos.filter(d => !d.obsoleto && SETOR_ARTS.includes(d.disciplina)).length },
+            { key: 'seguro', label: 'Seguro', count: documentos.filter(d => !d.obsoleto && SETOR_SEGURO.includes(d.disciplina)).length },
+            { key: 'condominio', label: 'Docs do Condomínio', count: documentos.filter(d => !d.obsoleto && SETOR_CONDOMINIO.includes(d.disciplina)).length },
             { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
             { key: 'obsoletos', label: 'Obsoletos', count: obsoletosCount },
           ] as { key: Setor; label: string; count: number }[]).map(t => (
@@ -490,7 +515,7 @@ export default function ControleDocumentosPage() {
       {setor !== 'todos' && (
         <div className="mb-3 flex items-baseline gap-2">
           <h2 className="text-base font-bold text-ber-carbon">
-            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'outros' ? 'Outros Documentos' : setor === 'sds' ? (subTecnico ?? 'Shop Drawings (SDs)') : (subTecnico ?? 'Projetos Técnicos')}
+            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'arts' ? 'ARTs' : setor === 'seguro' ? 'Seguro' : setor === 'condominio' ? 'Docs do Condomínio' : setor === 'outros' ? 'Outros Documentos' : setor === 'sds' ? (subTecnico ?? 'Shop Drawings (SDs)') : (subTecnico ?? 'Projetos Técnicos')}
           </h2>
           <span className="text-xs text-ber-gray">{visiveis.length} documento(s)</span>
           {setor === 'obsoletos' && <span className="text-[11px] text-amber-700">desenhos fora de uso — restauráveis</span>}
@@ -556,6 +581,13 @@ export default function ControleDocumentosPage() {
                               placeholder="Projetista"
                               onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
                               className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
+                            />
+                            <input
+                              defaultValue={d.comentario ?? ''}
+                              placeholder="Comentário"
+                              title="Comentário livre do documento"
+                              onBlur={e => { if (e.target.value !== (d.comentario ?? '')) updateField(d.id, 'comentario', e.target.value.trim()); }}
+                              className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-64 flex-1 min-w-40"
                             />
                           </div>
                         </div>
