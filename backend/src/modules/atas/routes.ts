@@ -25,6 +25,12 @@ obraAtasRouter.get('/pdf', w(async (req: Request, res: Response) => {
   return downloadAtaPdf(req, res);
 }));
 
+// Envio da ata por e-mail aos stakeholders (Bruno 10/09)
+obraAtasRouter.post('/enviar', obraMemberOnly, w(async (req: Request, res: Response) => {
+  const { enviarAtaStakeholders } = await import('./pdf.controller');
+  return enviarAtaStakeholders(req, res);
+}));
+
 // Tópicos (linhas)
 obraAtasRouter.post('/topicos', obraMemberOnly, validate(createTopicoSchema), w(ctrl.createTopico));
 obraAtasRouter.patch('/topicos/reorder', obraMemberOnly, validate(reorderTopicosSchema), w(ctrl.reorderTopicos));

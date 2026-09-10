@@ -142,6 +142,23 @@ export default function AtaCorridaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+
+  // Envio da ata aos stakeholders por e-mail, com o PDF anexo (Bruno 10/09)
+  async function enviarStakeholders() {
+    if (enviando) return;
+    if (!confirm('Enviar a ata atualizada (PDF) por e-mail a TODOS os stakeholders com e-mail cadastrado?')) return;
+    setEnviando(true);
+    try {
+      const r = await api.post(`/obras/${obraId}/atas/enviar`);
+      const lista = (r.data.data?.enviados ?? []) as { nome: string; email: string }[];
+      alert(`Ata enviada para ${lista.length} destinatário(s):\n${lista.map(d => `• ${d.nome} — ${d.email}`).join('\n')}`);
+    } catch (err) {
+      alert(errMsg(err, 'Não consegui enviar a ata.'));
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   async function gerarPdf() {
     setGeneratingPdf(true);
@@ -259,6 +276,14 @@ export default function AtaCorridaPage() {
           className="ml-auto flex items-center gap-1.5 rounded-lg border border-ber-carbon px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-carbon hover:text-white disabled:opacity-50"
         >
           <FileDown size={14} /> {generatingPdf ? 'Gerando…' : 'Gerar PDF'}
+        </button>
+        <button
+          onClick={enviarStakeholders}
+          disabled={enviando || !ata}
+          className="flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-50"
+          title="Envia o PDF da ata por e-mail a todos os stakeholders com e-mail cadastrado"
+        >
+          ✉ {enviando ? 'Enviando…' : 'Enviar aos stakeholders'}
         </button>
       </div>
 
