@@ -20,7 +20,7 @@ const DISCIPLINAS = [
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
   'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
   'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'ART', 'Seguro', 'Documentos do Condomínio',
-  'SD - Sistemas', 'SD - Estrutura', 'SD - Acústica', 'SD - Automação', 'SD - Multimídia', 'SD - Aprovações', 'Outra',
+  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'Outra',
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
@@ -29,9 +29,16 @@ const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo'];
 const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
   { label: 'Elétrica / Cabeamento', disciplinas: ['Instalações Elétricas', 'Cabeamento Estruturado', 'Detecção e Alarme'] },
-  { label: 'Civil', disciplinas: ['Estrutural', 'Hidráulica'] },
+  // "Civil" desmembrado em Estrutura + Hidráulica (Bruno 10/09/26)
+  { label: 'Estrutura', disciplinas: ['Estrutural'] },
+  { label: 'Hidráulica', disciplinas: ['Hidráulica'] },
   { label: 'SPK', disciplinas: ['SPK (Sprinklers)'] },
   { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
+  // sub-áreas novas (Bruno 10/09/26)
+  { label: 'Sistemas', disciplinas: ['Sistemas'] },
+  { label: 'Acústica', disciplinas: ['Acústica'] },
+  { label: 'Automação', disciplinas: ['Automação'] },
+  { label: 'Multimídia', disciplinas: ['Multimídia'] },
   { label: 'Outros', disciplinas: ['Projetos Técnicos - Outros'] },
 ];
 const SETOR_TECNICOS = TECNICOS_SUBS.flatMap(s => s.disciplinas);
@@ -41,12 +48,6 @@ const SDS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Pedras', disciplinas: ['Pedras'] },
   { label: 'Mobiliário', disciplinas: ['Mobiliário'] },
   { label: 'Marcenaria', disciplinas: ['Marcenaria'] },
-  // sub-áreas novas (Bruno 10/09/26)
-  { label: 'Sistemas', disciplinas: ['SD - Sistemas'] },
-  { label: 'Estrutura', disciplinas: ['SD - Estrutura'] },
-  { label: 'Acústica', disciplinas: ['SD - Acústica'] },
-  { label: 'Automação', disciplinas: ['SD - Automação'] },
-  { label: 'Multimídia', disciplinas: ['SD - Multimídia'] },
   { label: 'Outros', disciplinas: ['Shop Drawings - Outros'] },
   // comprovantes de aprovação dos desenhos: e-mails, atas etc (Bruno 10/09/26)
   { label: 'Aprovações', disciplinas: ['SD - Aprovações'] },
