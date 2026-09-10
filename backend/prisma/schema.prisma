@@ -1056,6 +1056,11 @@ model ProjetoDocumento {
   projetista  String?  @db.VarChar(150)
   etapa       String?  @db.VarChar(40)
   comentario  String?  @db.VarChar(1000) // comentário livre no card (Bruno 10/09/26)
+  // Seguro (Bruno 10/09/26): apólice exige vigência; 7 dias antes do fim dispara
+  // e-mail diário até alguém registrar a decisão (extensao | sem_extensao).
+  // Nova vigência gravada → decisão reseta (novo ciclo de alerta pro novo prazo).
+  vigenciaFim   DateTime? @map("vigencia_fim") @db.Date
+  seguroDecisao String?   @map("seguro_decisao") @db.VarChar(20)
   obsoleto    Boolean  @default(false) // desenho saiu de uso — some da lista ativa, restaurável (02/09/26)
   createdById String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")

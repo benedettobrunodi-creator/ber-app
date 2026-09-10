@@ -8,6 +8,7 @@ import { notifyUsers } from '../modules/notifications/service';
 import { checkCrmAlerts } from '../modules/crm/alerts';
 import { checkFvsItensVencidos, checkFasesAtrasadas } from '../modules/fvs/alerts';
 import { checkContratacoesAtrasadas } from '../modules/contratacao-plano/alertas';
+import { checkSegurosVencendo } from '../modules/controle-documentos/alertas-seguro';
 import { obrasComQuinzenalAtrasada } from '../modules/temperatura/service';
 
 export function startScheduler() {
@@ -90,6 +91,17 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // Seguros vencendo (Controle de Documentos) — diário 7h45 BRT até decisão (Bruno 10/09/26)
+  cron.schedule('45 7 * * *', async () => {
+    console.log('[Scheduler] Seguros vencendo iniciado...');
+    try {
+      const r = await checkSegurosVencendo();
+      console.log(`[Scheduler] Seguros vencendo concluído — ${r.itens} apólices${r.enviado ? ', e-mail enviado' : ''}`);
+    } catch (err) {
+      console.error('[Scheduler] Seguros vencendo falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Sequenciamento (FVS) — fases "ficou pra trás" — diariamente às 08h20 (BRT)
   cron.schedule('20 8 * * *', async () => {
     console.log('[Scheduler] FVS fases atrasadas iniciado...');
@@ -125,7 +137,7 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex), Qualidade resumo semanal (seg 08h)');
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Contratações atrasadas (07h30), Seguros vencendo (07h45), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex), Qualidade resumo semanal (seg 08h)');
 }
 
 async function checkTemperaturaQuinzenal() {

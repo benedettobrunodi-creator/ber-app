@@ -82,6 +82,8 @@ interface Documento {
   projetista: string | null;
   etapa: string | null;
   comentario: string | null;
+  vigenciaFim: string | null;
+  seguroDecisao: string | null;
   obsoleto: boolean;
   createdAt: string;
   revisoes: Revisao[];
@@ -118,6 +120,7 @@ interface LoteItem {
   codigo: string;
   revisao: string;
   disciplina: string;
+  vigenciaFim: string; // obrigatória quando disciplina = Seguro (apólice)
 }
 
 export default function ControleDocumentosPage() {
@@ -215,9 +218,10 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista' | 'comentario', value: string) {
+  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista' | 'comentario' | 'vigenciaFim' | 'seguroDecisao', value: string) {
     try {
-      const r = await api.patch(`/obras/${obraId}/controle-documentos/${id}`, { [field]: field === 'etapa' || field === 'projetista' ? (value || null) : value });
+      const nullable = ['etapa', 'projetista', 'vigenciaFim', 'seguroDecisao'].includes(field);
+      const r = await api.patch(`/obras/${obraId}/controle-documentos/${id}`, { [field]: nullable ? (value || null) : value });
       setDocumentos(prev => prev.map(d => d.id === id ? r.data.data : d));
     } catch (e) {
       const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
@@ -247,7 +251,7 @@ export default function ControleDocumentosPage() {
       const { codigo, revisao } = parseNome(file.name);
       // Código já existe na obra → vai virar revisão nova; herda a disciplina do doc
       const existente = documentos.find(d => d.codigo === codigo);
-      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao };
+      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao, vigenciaFim: '' };
     }));
   }
 
@@ -256,6 +260,10 @@ export default function ControleDocumentosPage() {
     if (!lote || lote.length === 0) return;
     for (const item of lote) {
       if (!item.codigo.trim() || !item.revisao.trim()) { alert('Preencha código e revisão de todos os arquivos'); return; }
+      const existente = documentos.find(d => d.codigo === item.codigo.trim());
+      if (item.disciplina === 'Seguro' && !existente && !item.vigenciaFim) {
+        alert(`"${item.file.name}": apólice de Seguro exige a vigência (data de vencimento)`); return;
+      }
     }
     const codigos = lote.map(i => i.codigo.trim());
     if (new Set(codigos).size !== codigos.length) { alert('Tem dois arquivos com o mesmo código no lote — ajuste antes de subir'); return; }
@@ -270,6 +278,7 @@ export default function ControleDocumentosPage() {
         disciplina: i.disciplina,
         projetista: loteProjetista.trim() || null,
         observacao: loteComentario.trim() || null,
+        vigenciaFim: i.vigenciaFim || null,
       }))));
       const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
       setDocumentos(r.data.data.documentos);
@@ -416,7 +425,12 @@ export default function ControleDocumentosPage() {
       onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files?.length) handleBulkFiles(e.dataTransfer.files); }}>
       {dragOver && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-ber-teal/10 backdrop-blur-[1px]">
-          <div className="rounded-2xl border-2 border-dashed border-ber-teal bg-white px-8 py-6 text-lg font-bold text-ber-teal shadow-xl">Solte os arquivos pra inserir</div>
+          <div className="rounded-2xl border-2 border-dashed border-ber-teal bg-white px-8 py-6 text-lg font-bold text-ber-teal shadow-xl">
+            Solte os arquivos pra inserir
+            {setor !== 'todos' && setor !== 'obsoletos' && (
+              <span className="block text-sm font-semibold text-ber-gray mt-1">→ entram em: {disciplinaPadrao()}</span>
+            )}
+          </div>
         </div>
       )}
       <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
@@ -591,6 +605,32 @@ export default function ControleDocumentosPage() {
                               onBlur={e => { if (e.target.value !== (d.comentario ?? '')) updateField(d.id, 'comentario', e.target.value.trim()); }}
                               className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-64 flex-1 min-w-40"
                             />
+                            {d.disciplina === 'Seguro' && (() => {
+                              const venc = d.vigenciaFim ? new Date(d.vigenciaFim.slice(0, 10) + 'T12:00:00') : null;
+                              const dias = venc ? Math.ceil((venc.getTime() - Date.now()) / 86400000) : null;
+                              const alerta = dias != null && dias <= 7 && !d.seguroDecisao;
+                              return (
+                                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] font-semibold text-ber-gray uppercase tracking-wide">Vigência até</span>
+                                  <input type="date" defaultValue={d.vigenciaFim?.slice(0, 10) ?? ''}
+                                    title="Fim da vigência da apólice — mudar a data reinicia o ciclo de alerta"
+                                    onBlur={e => { if (e.target.value !== (d.vigenciaFim?.slice(0, 10) ?? '')) updateField(d.id, 'vigenciaFim', e.target.value); }}
+                                    className={`text-[11px] bg-ber-surface border rounded px-1.5 py-0.5 text-ber-carbon focus:outline-none focus:ring-1 focus:ring-ber-teal ${d.vigenciaFim ? 'border-ber-border' : 'border-red-400'}`} />
+                                  {alerta && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                      {dias! < 0 ? `vencida há ${Math.abs(dias!)}d` : dias === 0 ? 'vence HOJE' : `vence em ${dias}d`} · alerta diário ativo
+                                    </span>
+                                  )}
+                                  <select value={d.seguroDecisao ?? ''} onChange={e => updateField(d.id, 'seguroDecisao', e.target.value)}
+                                    title="Registrar a decisão para o vencimento — para o alerta diário"
+                                    className="text-[11px] bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                                    <option value="">Extensão: sem decisão</option>
+                                    <option value="extensao">Haverá extensão (atualize a vigência)</option>
+                                    <option value="sem_extensao">Não haverá extensão</option>
+                                  </select>
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -815,11 +855,19 @@ export default function ControleDocumentosPage() {
                               nova revisão · {existente.disciplina}
                             </span>
                           ) : (
-                            <select className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
-                              value={item.disciplina}
-                              onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, disciplina: e.target.value } : i))}>
-                              {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
-                            </select>
+                            <span className="inline-flex items-center gap-1.5">
+                              <select className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                                value={item.disciplina}
+                                onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, disciplina: e.target.value } : i))}>
+                                {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                              </select>
+                              {item.disciplina === 'Seguro' && (
+                                <input type="date" title="Vigência da apólice (obrigatória)"
+                                  className={`text-xs px-2 py-1 border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal ${item.vigenciaFim ? 'border-ber-border' : 'border-red-400'}`}
+                                  value={item.vigenciaFim}
+                                  onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, vigenciaFim: e.target.value } : i))} />
+                              )}
+                            </span>
                           )}
                         </td>
                         <td className="py-2 text-right">

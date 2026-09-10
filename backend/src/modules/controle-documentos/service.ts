@@ -15,9 +15,18 @@ export async function listByObra(obraId: string) {
   });
 }
 
+// Apólice de seguro sem vigência não entra (Bruno 10/09/26) — o alerta de
+// vencimento depende dessa data.
+function exigirVigenciaSeguro(disciplina: string | undefined, vigenciaFim: string | Date | null | undefined) {
+  if (disciplina === 'Seguro' && !vigenciaFim) {
+    throw AppError.badRequest('Documento de Seguro exige a vigência (data de vencimento da apólice)');
+  }
+}
+
 export async function create(obraId: string, data: CreateDocumentoInput, createdById: string) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
   if (!obra) throw AppError.notFound('Obra');
+  exigirVigenciaSeguro(data.disciplina, data.vigenciaFim);
   const existing = await prisma.projetoDocumento.findUnique({
     where: { obraId_codigo: { obraId, codigo: data.codigo } },
   });
@@ -31,6 +40,7 @@ export async function create(obraId: string, data: CreateDocumentoInput, created
       projetista: data.projetista ?? null,
       etapa: data.etapa ?? null,
       comentario: data.comentario ?? null,
+      vigenciaFim: data.vigenciaFim ? new Date(data.vigenciaFim + 'T00:00:00Z') : null,
       createdById,
     },
     include,
@@ -55,6 +65,12 @@ export async function update(id: string, data: UpdateDocumentoInput) {
       ...(data.projetista !== undefined && { projetista: data.projetista }),
       ...(data.etapa !== undefined && { etapa: data.etapa }),
       ...(data.comentario !== undefined && { comentario: data.comentario }),
+      // vigência nova = novo ciclo: decisão de extensão anterior deixa de valer
+      ...(data.vigenciaFim !== undefined && {
+        vigenciaFim: data.vigenciaFim ? new Date(data.vigenciaFim + 'T00:00:00Z') : null,
+        ...(data.seguroDecisao === undefined && { seguroDecisao: null }),
+      }),
+      ...(data.seguroDecisao !== undefined && { seguroDecisao: data.seguroDecisao }),
       ...(data.obsoleto !== undefined && { obsoleto: data.obsoleto }),
     },
     include,
@@ -184,6 +200,15 @@ export async function bulkUpload(
   const hoje = new Date();
   const metaPorNome = new Map((meta ?? []).map(m => [m.nome, m]));
 
+  // valida ANTES de subir qualquer arquivo: apólice de Seguro nova sem vigência barra o lote
+  for (const file of files) {
+    const m = metaPorNome.get(file.originalname);
+    if (m?.disciplina !== 'Seguro' || m.vigenciaFim) continue;
+    const cod = m.codigo.trim();
+    const jaExiste = await prisma.projetoDocumento.findUnique({ where: { obraId_codigo: { obraId, codigo: cod } } });
+    if (!jaExiste) throw AppError.badRequest(`"${file.originalname}": documento de Seguro exige a vigência (vencimento da apólice)`);
+  }
+
   for (const file of files) {
     const m = metaPorNome.get(file.originalname);
     const { codigo, revisao } = m
@@ -216,6 +241,7 @@ export async function bulkUpload(
           disciplina: m?.disciplina ?? 'Outra',
           titulo: m?.titulo ?? null,
           projetista: m?.projetista ?? null,
+          vigenciaFim: m?.vigenciaFim ? new Date(m.vigenciaFim + 'T00:00:00Z') : null,
           createdById,
           revisoes: {
             create: { revisao, data: hoje, arquivoUrl: url, arquivoNome: file.originalname, observacao: m?.observacao ?? null, createdById },

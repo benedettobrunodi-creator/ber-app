@@ -49,6 +49,8 @@ export const createDocumentoSchema = z.object({
   projetista: z.string().max(150).nullable().optional(),
   etapa: z.enum(DOCUMENTO_ETAPAS).nullable().optional(),
   comentario: z.string().max(1000).nullable().optional(),
+  vigenciaFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), // obrigatória p/ Seguro (validação no service)
+  seguroDecisao: z.enum(['extensao', 'sem_extensao']).nullable().optional(),
 });
 
 export const updateDocumentoSchema = createDocumentoSchema.partial().extend({ obsoleto: z.boolean().optional() });
@@ -79,6 +81,7 @@ export const bulkMetaItemSchema = z.object({
   titulo: z.string().max(255).nullable().optional(),
   projetista: z.string().max(150).nullable().optional(),
   observacao: z.string().max(1000).nullable().optional(), // comentário do lote → observação da revisão
+  vigenciaFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), // apólice de Seguro no lote
 });
 export const bulkMetaSchema = z.array(bulkMetaItemSchema).max(200);
 export type BulkMetaItem = z.infer<typeof bulkMetaItemSchema>;

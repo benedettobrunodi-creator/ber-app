@@ -35,4 +35,13 @@ router.delete('/:documentoId/revisoes/:revisaoId', requireRole('campo'), control
 // (código/revisão detectados do nome) ou revisão nova de documento existente.
 router.post('/bulk-upload', requireRole('campo'), upload.array('files', 200), controller.bulkUpload);
 
+// Disparo manual do alerta de seguros vencendo (teste/reenvio) — ?dry=1 só simula
+router.post('/alerta-seguros', requireRole('campo'), async (req, res, next) => {
+  try {
+    const { checkSegurosVencendo } = await import('./alertas-seguro');
+    const data = await checkSegurosVencendo({ send: req.query.dry !== '1' });
+    res.json({ data });
+  } catch (e) { next(e); }
+});
+
 export default router;
