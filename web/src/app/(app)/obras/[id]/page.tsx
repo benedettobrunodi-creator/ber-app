@@ -505,7 +505,7 @@ export default function ObraDetailPage() {
       // tarefa-resumo; sem fase identificável, cai no cronograma inteiro.
       const ehConstrucao = (nome: string) => {
         const n = nome.toLowerCase();
-        if (/pr[eé][\s-]*obra|p[oó]s[\s-]*obra|planejament|mobiliza|close[\s-]*out|encerramento/.test(n)) return false;
+        if (/pr[eé][\s-]*(obra|constru)|p[oó]s[\s-]*(obra|constru)|pre[\s-]*construction|post[\s-]*construction|planejament|mobiliza|close[\s-]*out|encerramento|punch/.test(n)) return false;
         return /constru|execu[cç]|\bobra(s)?\b/.test(n);
       };
       const faseConstrucao = tarefas.find(t => t.ehResumo && t.inicio && t.fim && ehConstrucao(t.nome)) ?? null;
