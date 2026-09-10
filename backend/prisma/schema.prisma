@@ -121,6 +121,7 @@ model User {
 
   recebimentosResponsavel RecebimentoRelatorio[] @relation("RecebimentoResponsavel")
   @@map("users")
+  liberacaoMedicaoAutor LiberacaoMedicaoOverride[] @relation("LiberacaoMedicaoAutor")
 }
 
 model CustomRole {
@@ -244,6 +245,7 @@ model Obra {
   histograma         ObraHistograma[]
 
   @@map("obras")
+  liberacaoMedicaoOverrides LiberacaoMedicaoOverride[]
 }
 
 model ComprasMeta {
@@ -2582,6 +2584,7 @@ model ObraContratacaoPlano {
   @@index([obraId])
   @@index([status])
   @@map("obra_contratacao_planos")
+  liberacaoOverrides LiberacaoMedicaoOverride[]
 }
 
 // ─── ObraHistograma (mão de obra plan × real por mês) ────────────────────
@@ -3242,4 +3245,26 @@ model RecebimentoFoto {
   @@index([relatorioId])
   @@index([ambienteId])
   @@map("recebimento_fotos")
+}
+
+// ─── Liberação de Medição (Bruno 10/09/26) ───
+// A medição em si acontece no app de medição; aqui fica o SEMÁFORO: pode medir
+// ou não, por fornecedor (pacote do Cronograma de Contratações), com base na
+// qualidade (FVS pendente/NC bloqueia). Override de exceção só diretoria/PMO,
+// com justificativa — vale 31 dias (um ciclo de medição).
+model LiberacaoMedicaoOverride {
+  id            String   @id @default(uuid()) @db.Uuid
+  obraId        String   @map("obra_id") @db.Uuid
+  planoId       String   @map("plano_id") @db.Uuid // ObraContratacaoPlano
+  liberado      Boolean // true = liberação excepcional; false = bloqueio manual
+  justificativa String
+  criadoPorId   String?  @map("criado_por") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  obra      Obra                 @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  plano     ObraContratacaoPlano @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  criadoPor User?                @relation("LiberacaoMedicaoAutor", fields: [criadoPorId], references: [id])
+
+  @@index([obraId, planoId, createdAt])
+  @@map("liberacao_medicao_overrides")
 }

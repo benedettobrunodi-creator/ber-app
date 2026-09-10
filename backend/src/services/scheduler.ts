@@ -102,6 +102,18 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // Liberação de Medição — resumo do ciclo, dia 25 às 7h BRT (Bruno 10/09/26)
+  cron.schedule('0 7 25 * *', async () => {
+    console.log('[Scheduler] Resumo liberação de medição iniciado...');
+    try {
+      const { resumoLiberacaoMedicao } = await import('../modules/liberacao-medicao/alertas');
+      const r = await resumoLiberacaoMedicao();
+      console.log(`[Scheduler] Liberação de medição — ${r.obras} obras${r.enviado ? ', e-mail enviado' : ''}`);
+    } catch (err) {
+      console.error('[Scheduler] Liberação de medição falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Sequenciamento (FVS) — fases "ficou pra trás" — diariamente às 08h20 (BRT)
   cron.schedule('20 8 * * *', async () => {
     console.log('[Scheduler] FVS fases atrasadas iniciado...');
