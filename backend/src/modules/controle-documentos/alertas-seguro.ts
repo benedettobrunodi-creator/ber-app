@@ -16,6 +16,8 @@ const DESTINATARIOS = [
 ];
 
 const OBRA_STATUS_IGNORADOS = ['cancelada', 'concluida', 'encerrada'];
+// obras fora dos alertas por decisão do Bruno (10/09/26)
+const OBRAS_EXCLUIDAS_ALERTA = ['Higienópolis'];
 
 const fmtBR = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
@@ -34,7 +36,7 @@ export async function checkSegurosVencendo(opts?: { send?: boolean }) {
     orderBy: [{ vigenciaFim: 'asc' }],
   });
 
-  const abertos = docs.filter((d) => !OBRA_STATUS_IGNORADOS.includes(d.obra.status));
+  const abertos = docs.filter((d) => !OBRA_STATUS_IGNORADOS.includes(d.obra.status) && !OBRAS_EXCLUIDAS_ALERTA.some((n) => d.obra.name.includes(n)));
   if (abertos.length === 0) return { enviado: false, itens: 0 };
 
   const linhas = abertos

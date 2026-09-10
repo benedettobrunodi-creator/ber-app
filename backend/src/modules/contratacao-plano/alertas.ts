@@ -18,6 +18,9 @@ const DESTINATARIOS = [
 ];
 
 const OBRA_STATUS_IGNORADOS = ['cancelada', 'concluida', 'encerrada'];
+// obras fora dos alertas por decisão do Bruno (10/09/26)
+const OBRAS_EXCLUIDAS_ALERTA = ['Higienópolis'];
+const obraExcluida = (nome: string) => OBRAS_EXCLUIDAS_ALERTA.some((n) => nome.includes(n));
 
 const fmtBR = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
@@ -54,8 +57,9 @@ export async function checkContratacoesAtrasadas(opts?: { send?: boolean }) {
     orderBy: [{ obraId: 'asc' }],
   });
 
-  const abertos = planos.filter((p) => !OBRA_STATUS_IGNORADOS.includes(p.obra.status));
-  if (abertos.length === 0 && semData.length === 0) return { enviado: false, itens: 0 };
+  const abertos = planos.filter((p) => !OBRA_STATUS_IGNORADOS.includes(p.obra.status) && !obraExcluida(p.obra.name));
+  const semDataFiltrado = semData.filter((p) => !obraExcluida(p.obra.name));
+  if (abertos.length === 0 && semDataFiltrado.length === 0) return { enviado: false, itens: 0 };
 
   const porObra = new Map<string, typeof abertos>();
   for (const p of abertos) {
@@ -93,11 +97,11 @@ export async function checkContratacoesAtrasadas(opts?: { send?: boolean }) {
       <h2 style="color:#2D2D2D;font-size:17px;margin:0 0 6px;">🔴 Contratações em atraso</h2>
       <p style="color:#5A7A7A;font-size:13px;margin:0;">${abertos.length} ${abertos.length === 1 ? 'item aberto' : 'itens abertos'} com prazo limite vencido, agrupados por obra. Este aviso se repete diariamente até o item ser contratado ou o prazo ajustado.</p>
       ${blocos}
-      ${semData.length > 0 ? `
+      ${semDataFiltrado.length > 0 ? `
       <h2 style="color:#2D2D2D;font-size:15px;margin:24px 0 6px;">⚪ Itens sem data-limite preenchida</h2>
       <p style="color:#5A7A7A;font-size:12px;margin:0 0 6px;">Obras em planejamento/andamento com pacote de contratação SEM data definida — sem data, o item não entra na régua de atraso. Resumo por obra (até 10 exemplos cada; lista completa no painel da obra).</p>
       ${Array.from(
-        semData.reduce((m, p) => { const l = m.get(p.obra.name) ?? []; l.push(p.pacote); m.set(p.obra.name, l); return m; }, new Map<string, string[]>()).entries()
+        semDataFiltrado.reduce((m, p) => { const l = m.get(p.obra.name) ?? []; l.push(p.pacote); m.set(p.obra.name, l); return m; }, new Map<string, string[]>()).entries()
       ).map(([obra, pacotes]) => `
         <p style="color:#5A7A7A;font-size:13px;font-weight:600;margin:10px 0 4px;">${obra} — ${pacotes.length} ${pacotes.length === 1 ? 'item sem data' : 'itens sem data'}</p>
         <ul style="margin:0;padding-left:18px;">${pacotes.slice(0, 10).map((pc) => `<li style="color:#2D2D2D;font-size:13px;line-height:1.6;">${pc}</li>`).join('')}${pacotes.length > 10 ? `<li style="color:#8B8D82;font-size:12px;">… e mais ${pacotes.length - 10} — ver no painel da obra</li>` : ''}</ul>`).join('')}
@@ -111,11 +115,11 @@ export async function checkContratacoesAtrasadas(opts?: { send?: boolean }) {
     await sendEmailObra({
       to: DESTINATARIOS,
       subject: abertos.length > 0
-        ? `🔴 ${abertos.length} ${abertos.length === 1 ? 'contratação atrasada' : 'contratações atrasadas'}${semData.length ? ` · ${semData.length} sem data` : ''} — Cronograma de Contratações · BÈR`
-        : `⚪ ${semData.length} ${semData.length === 1 ? 'item sem data-limite' : 'itens sem data-limite'} — Cronograma de Contratações · BÈR`,
+        ? `🔴 ${abertos.length} ${abertos.length === 1 ? 'contratação atrasada' : 'contratações atrasadas'}${semDataFiltrado.length ? ` · ${semDataFiltrado.length} sem data` : ''} — Cronograma de Contratações · BÈR`
+        : `⚪ ${semDataFiltrado.length} ${semDataFiltrado.length === 1 ? 'item sem data-limite' : 'itens sem data-limite'} — Cronograma de Contratações · BÈR`,
       html,
     });
   }
 
-  return { enviado: send, itens: abertos.length, semData: semData.length, obras: porObra.size };
+  return { enviado: send, itens: abertos.length, semData: semDataFiltrado.length, obras: porObra.size };
 }
