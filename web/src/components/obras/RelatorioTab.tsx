@@ -248,6 +248,7 @@ const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: ObraInfo }) {
   const [detalhe, setDetalhe] = useState<Relatorio | null>(null);
   const [emailModalRelId, setEmailModalRelId] = useState<string | null>(null);
+  const [waStatus, setWaStatus] = useState<string | null>(null); // envio WhatsApp (piloto 10/09/26)
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [curvaS, setCurvaS]         = useState<CurvaSPonto[]>([]);
   const [ambientes, setAmbientes]   = useState<ObraAmbiente[]>([]);
@@ -720,6 +721,22 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                 >
                   ✉ Enviar por e-mail
                 </button>
+                <button
+                  onClick={async () => {
+                    if (waStatus === 'enviando') return;
+                    setWaStatus('enviando');
+                    try {
+                      const r = await api.post(`/obras/${obraId}/relatorios-whatsapp/${detalhe.id}`);
+                      const d = r.data.data as { criados: number; destinatarios: string[] };
+                      setWaStatus(`✓ ${d.criados} na fila (${d.destinatarios.join(', ')}) — dispara em até 2 min pelo WhatsApp da BÈR`);
+                    } catch { setWaStatus('erro ao enfileirar'); }
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-[#25D366] text-white hover:opacity-90 disabled:opacity-60"
+                  title="Piloto: envia pro círculo interno (residentes, Chris, Bruno, Gritti) pelo WhatsApp da BÈR"
+                >
+                  📱 Enviar por WhatsApp
+                </button>
+                {waStatus && <span className="text-[11px] text-ber-gray self-center max-w-xs">{waStatus}</span>}
                 <button
                   onClick={() => { setDetalhe(null); openEdit(detalhe); }}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border hover:bg-ber-surface ml-auto"

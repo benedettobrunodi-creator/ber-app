@@ -367,6 +367,11 @@ app.use('/v1/diario', ...perm('diario'), diarioRouter);
 // — Sub-rotas de obras (cronograma/relatórios) —
 app.use('/v1/obras/:id/cronograma', ...perm('obras'), cronogramaRouter);
 app.use('/v1/obras/:id/relatorios', ...perm('obras'), relatorioRouter);
+// — Envio de relatórios por WhatsApp (piloto interno 10/09/26) — fila consumida
+// pelo worker do Mac mini (gateway OpenClaw local; a nuvem não o alcança)
+import { obraWhatsappRouter, whatsappEnviosRouter } from './modules/whatsapp-envios/routes';
+app.use('/v1/obras/:obraId/relatorios-whatsapp', ...perm('obras'), obraWhatsappRouter);
+app.use('/v1/whatsapp-envios', whatsappEnviosRouter);
 // — Módulo: aprovação de amostras (Durante a Obra, 31/08/26) —
 import amostrasRouter from './modules/amostras/routes';
 app.use('/v1/obras/:id/amostras', ...perm('obras'), amostrasRouter);

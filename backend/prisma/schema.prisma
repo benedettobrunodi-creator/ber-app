@@ -2383,6 +2383,29 @@ model CrmMetaVendas {
   @@map("crm_metas_vendas")
 }
 
+// Fila de envio de relatórios por WhatsApp (Bruno 10/09/26 — piloto 1ª semana:
+// residentes + Chris + Bruno + Gritti). O ber-app (nuvem) só ENFILEIRA; quem
+// dispara é um worker no Mac mini (launchd com.bruno.whatsapp-envios) via
+// gateway OpenClaw/número da Clara — a nuvem não alcança o gateway local.
+model WhatsappEnvio {
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  relatorioId   String    @map("relatorio_id") @db.Uuid
+  destinatario  String    @db.VarChar(150)
+  telefone      String    @db.VarChar(30)
+  legenda       String
+  arquivoPath   String    @map("arquivo_path") // rota relativa do PDF no ber-app (worker baixa com o próprio JWT)
+  status        String    @default("pendente") @db.VarChar(20) // pendente | enviado | falha
+  tentativas    Int       @default(0)
+  erro          String?
+  enviadoEm     DateTime? @map("enviado_em")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("whatsapp_envios")
+}
+
 model RelatorioSemanal {
   id                   String    @id @default(uuid()) @db.Uuid
   obraId               String    @map("obra_id") @db.Uuid
