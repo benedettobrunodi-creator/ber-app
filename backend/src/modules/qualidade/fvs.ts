@@ -26,14 +26,20 @@ export function prazoDiasUteis(dias: number, base = new Date()): Date {
   return d;
 }
 
-/** Critérios da IT viram itens da ficha — uma linha não-vazia por critério. */
-function criteriosParaItens(criteriosQualidade: string | null, steps: unknown): string[] {
+/** Critérios da IT viram itens da ficha. Ordem de fonte (reforma 10/09):
+ *  1. approvalCriteria (lista ESTRUTURADA da IT — 1 campo por critério);
+ *  2. criteriosQualidade (texto livre legado, quebrado por linha);
+ *  3. item único genérico. */
+function criteriosParaItens(criteriosQualidade: string | null, approvalCriteria: unknown): string[] {
+  if (Array.isArray(approvalCriteria)) {
+    const est = approvalCriteria.map((c) => String(c ?? '').trim()).filter((c) => c.length > 2);
+    if (est.length > 0) return est;
+  }
   const linhas = (criteriosQualidade ?? '')
     .split('\n')
     .map((l) => l.trim().replace(/^[-•*]\s*/, ''))
     .filter((l) => l.length > 2);
   if (linhas.length > 0) return linhas;
-  // Fallback raro: IT sem critérios → item único genérico
   return ['Serviço executado conforme a IT (passo a passo e pontos de atenção)'];
 }
 
@@ -44,30 +50,34 @@ function criteriosParaItens(criteriosQualidade: string | null, steps: unknown): 
  */
 export async function garantirFvsParaAtividades(
   obraId: string,
-  atividades: { itCode?: string | null; titulo: string }[],
-  vistoriaId: string,
+  atividades: { itCode?: string | null; titulo: string; trecho?: string | null }[],
+  vistoriaId: string | null,
 ) {
   const criadas: { id: string; itCode: string | null; titulo: string }[] = [];
   for (const a of atividades) {
     if (!a.itCode) continue; // atividade livre não gera ficha automática (sem critérios)
+    // Reforma 10/09: ficha por FRENTE DE SERVIÇO — "IT-042 · 3º pavimento".
+    // Dedupe por IT+trecho: alvenaria no 3º e no 4º são fichas distintas.
+    const trecho = (a.trecho ?? '').trim() || null;
     const existente = await prisma.atividadeFvs.findFirst({
-      where: { obraId, itCode: a.itCode, status: 'pendente' },
+      where: { obraId, itCode: a.itCode, trecho, status: 'pendente' },
       select: { id: true },
     });
     if (existente) continue;
     const it = await prisma.instrucaoTecnica.findFirst({
       where: { code: a.itCode },
-      select: { criteriosQualidade: true, steps: true, title: true },
+      select: { criteriosQualidade: true, approvalCriteria: true, title: true },
     });
     const fvs = await prisma.atividadeFvs.create({
       data: {
         obraId,
         itCode: a.itCode,
         titulo: it?.title ?? a.titulo,
+        trecho,
         prazo: prazoDiasUteis(PRAZO_DIAS_UTEIS),
         criadaPorVistoriaId: vistoriaId,
         itens: {
-          create: criteriosParaItens(it?.criteriosQualidade ?? null, it?.steps).map((texto, i) => ({
+          create: criteriosParaItens(it?.criteriosQualidade ?? null, it?.approvalCriteria).map((texto, i) => ({
             ordem: i,
             texto,
           })),
@@ -126,6 +136,7 @@ export async function responderFvs(
     include: { itens: { select: { id: true } } },
   });
   if (!fvs) throw AppError.notFound('Ficha');
+  // (obraId/itCode/trecho/contratacaoId do próprio fvs alimentam a reinspeção abaixo)
 
   const validIds = new Set(fvs.itens.map((i) => i.id));
   const respostas = input.respostas.filter((r) => validIds.has(r.itemId));
@@ -148,6 +159,36 @@ export async function responderFvs(
   // Todos os itens respondidos → ficha preenchida
   const restantes = await prisma.atividadeFvsItem.count({ where: { fvsId, resposta: null } });
   const preenchida = restantes === 0;
+
+  // Ciclo de reinspeção (reforma 10/09): ficha fechada com não-conformidade
+  // abre AUTOMATICAMENTE a reinspeção da mesma IT+trecho — a NC só morre
+  // quando uma ficha limpa fechar o ciclo (e é isso que libera a medição).
+  if (preenchida) {
+    const temNc = await prisma.atividadeFvsItem.count({ where: { fvsId, resposta: 'nao_conforme' } });
+    if (temNc > 0 && fvs.itCode) {
+      const jaPendente = await prisma.atividadeFvs.findFirst({
+        where: { obraId: fvs.obraId, itCode: fvs.itCode, trecho: input.trecho ?? fvs.trecho, status: 'pendente' },
+        select: { id: true },
+      });
+      if (!jaPendente) {
+        const itensOrig = await prisma.atividadeFvsItem.findMany({
+          where: { fvsId }, orderBy: { ordem: 'asc' }, select: { texto: true },
+        });
+        await prisma.atividadeFvs.create({
+          data: {
+            obraId: fvs.obraId,
+            itCode: fvs.itCode,
+            titulo: fvs.titulo.startsWith('Reinspeção') ? fvs.titulo : `Reinspeção — ${fvs.titulo}`,
+            trecho: input.trecho ?? fvs.trecho,
+            prazo: prazoDiasUteis(PRAZO_DIAS_UTEIS),
+            contratacaoId: fvs.contratacaoId,
+            itens: { create: itensOrig.map((i, ordem) => ({ ordem, texto: i.texto })) },
+          },
+        });
+      }
+    }
+  }
+
   return prisma.atividadeFvs.update({
     where: { id: fvsId },
     data: {
@@ -253,4 +294,54 @@ export async function alertarFvsVencidas({ dryRun = false } = {}) {
     alertas++;
   }
   return { alertas, vencidas };
+}
+
+
+/**
+ * Abertura automática pelo CRONOGRAMA (reforma 10/09, decisão 17/17 do Bruno):
+ * atividade do cronograma em execução hoje (inicio<=hoje<=fim, <100%) cujo nome
+ * casa com uma IT publicada → garante ficha pendente, sem depender de vistoria.
+ * Matching conservador: contenção de título normalizado (só match forte cria).
+ */
+const soLetras = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+export async function abrirFvsPeloCronograma() {
+  const obras = await prisma.obra.findMany({
+    where: { status: 'em_andamento' },
+    select: { id: true, name: true },
+  });
+  const its = await prisma.instrucaoTecnica.findMany({
+    where: { status: 'publicada' },
+    select: { code: true, title: true },
+  });
+  const itsNorm = its.map((it) => ({ ...it, norm: soLetras(it.title) })).filter((it) => it.norm.length >= 6);
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  let criadasTotal = 0;
+  for (const obra of obras) {
+    const crono = await prisma.cronograma.findFirst({
+      where: { obraId: obra.id, parsedData: { not: undefined } },
+      orderBy: { updatedAt: 'desc' },
+      select: { parsedData: true },
+    });
+    const tasks = (crono?.parsedData as { tasks?: { nome?: string; inicio?: string | null; fim?: string | null; percentual_concluido?: number | null; eh_resumo?: boolean }[] } | null)?.tasks ?? [];
+    const emExecucao = tasks.filter((t) =>
+      !t.eh_resumo && t.nome && t.inicio && t.fim &&
+      t.inicio <= hoje && hoje <= t.fim && (t.percentual_concluido ?? 0) < 100,
+    );
+    const alvo: { itCode: string; titulo: string }[] = [];
+    for (const t of emExecucao) {
+      const tNorm = soLetras(t.nome!);
+      if (tNorm.length < 6) continue;
+      const it = itsNorm.find((x) => tNorm.includes(x.norm) || x.norm.includes(tNorm));
+      if (it && !alvo.some((a) => a.itCode === it.code)) alvo.push({ itCode: it.code, titulo: it.title });
+    }
+    if (alvo.length === 0) continue;
+    const criadas = await garantirFvsParaAtividades(obra.id, alvo, null);
+    if (criadas.length > 0) {
+      criadasTotal += criadas.length;
+      console.log(`[FVS Cronograma] ${obra.name}: ${criadas.map((c) => c.itCode).join(', ')}`);
+    }
+  }
+  return { criadas: criadasTotal, obras: obras.length };
 }

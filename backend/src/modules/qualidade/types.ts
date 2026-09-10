@@ -18,6 +18,8 @@ export const createVistoriaSchema = z.object({
   atividades: z.array(z.object({
     itCode: z.string().max(20).nullable().optional(),
     titulo: z.string().min(1).max(200),
+    /** Frente de serviço/trecho (reforma 10/09) — vira o trecho da FVS */
+    trecho: z.string().max(150).nullable().optional(),
     // Conferência com projeto (Bruno 10/09/26) — categoria 'Aderência ao Projeto'
     projetoDisciplina: z.string().max(80).nullable().optional(),
     revisaoOk: z.enum(['sim', 'nao', 'na']).nullable().optional(),

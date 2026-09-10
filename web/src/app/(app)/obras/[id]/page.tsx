@@ -734,7 +734,7 @@ export default function ObraDetailPage() {
       // própria; Qualidade e Segurança ganham módulos próprios depois.
       { type: 'tab', key: 'recebimento', label: 'Rel. Recebimento' },
       { type: 'link', href: 'controle-documentos', label: 'Documentos' },
-      { type: 'tab', key: 'fvs', label: `Sequenciamento (${obraFvsList.length})` },
+      { type: 'tab', key: 'fvs', label: `Passo a Passo (${obraFvsList.length})` },
       { type: 'tab', key: 'diario', label: 'Diário' },
       { type: 'link', href: 'atas', label: 'Atas' },
       { type: 'link', href: 'aditivos', label: 'Change Orders' },

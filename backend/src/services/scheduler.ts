@@ -102,6 +102,19 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // FVS pelo cronograma (reforma 10/09): atividade em execução no cronograma
+  // com IT correspondente → ficha abre sozinha, sem depender de vistoria
+  cron.schedule('10 7 * * 1-6', async () => {
+    console.log('[Scheduler] FVS pelo cronograma iniciado...');
+    try {
+      const { abrirFvsPeloCronograma } = await import('../modules/qualidade/fvs');
+      const r = await abrirFvsPeloCronograma();
+      console.log(`[Scheduler] FVS pelo cronograma — ${r.criadas} ficha(s) aberta(s) em ${r.obras} obras`);
+    } catch (err) {
+      console.error('[Scheduler] FVS pelo cronograma falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Liberação de Medição — resumo do ciclo, dia 25 às 7h BRT (Bruno 10/09/26)
   cron.schedule('0 7 25 * *', async () => {
     console.log('[Scheduler] Resumo liberação de medição iniciado...');

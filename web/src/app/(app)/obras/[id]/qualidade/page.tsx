@@ -137,6 +137,7 @@ export default function QualidadePage() {
   type FotoUp = { status: 'subindo' | 'ok' | 'erro'; url?: string };
   const [fotoUp, setFotoUp] = useState<Record<string, FotoUp>>({}); // evidência por item ("Não")
   const [pano, setPano] = useState<Record<string, FotoUp>>({}); // panorâmica por categoria
+  const [trechos, setTrechos] = useState<Record<string, string>>({}); // frente de serviço por atividade
   const DRAFT_KEY = `vq-rascunho-${obraId}`;
 
   async function load() {
@@ -201,14 +202,14 @@ export default function QualidadePage() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         respostas, obs, obsGeral, dataVistoria, etapa,
-        atividadesSel: [...atividadesSel], atividadesLivres, projCheck,
+        atividadesSel: [...atividadesSel], atividadesLivres, projCheck, trechos,
         fotoUp: Object.fromEntries(Object.entries(fotoUp).filter(([, v]) => v.status === 'ok')),
         pano: Object.fromEntries(Object.entries(pano).filter(([, v]) => v.status === 'ok')),
         em: new Date().toISOString(),
       }));
     } catch { /* quota cheia não pode travar a vistoria */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preenchendo, respostas, obs, obsGeral, dataVistoria, etapa, atividadesSel, atividadesLivres, projCheck, fotoUp, pano]);
+  }, [preenchendo, respostas, obs, obsGeral, dataVistoria, etapa, atividadesSel, atividadesLivres, projCheck, trechos, fotoUp, pano]);
 
   // Upload em segundo plano: comprime e sobe assim que a foto é anexada
   async function subirFoto(destino: 'item' | 'pano', chave: string, file: File) {
@@ -284,6 +285,7 @@ export default function QualidadePage() {
       setAtividadesSel(new Set((draft.atividadesSel as string[]) ?? []));
       setAtividadesLivres((draft.atividadesLivres as string[]) ?? []);
       setProjCheck((draft.projCheck as Record<string, ProjCheck>) ?? {});
+      setTrechos((draft.trechos as Record<string, string>) ?? {});
       setFotoUp((draft.fotoUp as Record<string, FotoUp>) ?? {});
       setPano((draft.pano as Record<string, FotoUp>) ?? {});
       setEtapa(Number(draft.etapa ?? 0));
@@ -296,6 +298,7 @@ export default function QualidadePage() {
       setAtividadesSel(new Set());
       setAtividadesLivres([]);
       setProjCheck({});
+      setTrechos({});
       setObsGeral('');
       setDataVistoria(new Date().toISOString().slice(0, 10));
       setEtapa(0);
@@ -341,11 +344,11 @@ export default function QualidadePage() {
         atividades: [
           ...catalogo.filter(c => atividadesSel.has(c.code)).map(c => {
             const pc = projCheck[c.code];
-            return { itCode: c.code, titulo: c.title, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
+            return { itCode: c.code, titulo: c.title, trecho: (trechos[c.code] ?? '').trim() || null, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
           }),
           ...atividadesLivres.map((t, i) => {
             const pc = projCheck[`livre:${i}`];
-            return { titulo: t, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
+            return { titulo: t, trecho: (trechos[`livre:${i}`] ?? '').trim() || null, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
           }),
         ],
       };
@@ -450,6 +453,9 @@ export default function QualidadePage() {
                         <span className="ml-1 text-ber-gray/70">· FVS será aberta ao concluir</span>
                       )}
                     </p>
+                    <input value={trechos[c.code] ?? ''} onChange={e => setTrechos(prev => ({ ...prev, [c.code]: e.target.value }))}
+                      placeholder="Frente/trecho — ex.: 3º pavimento, bloco B (vira a FVS desta frente)"
+                      className="mt-1 ml-3 w-full max-w-md rounded border border-ber-border px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-ber-teal" />
                     <ConfProjeto ck={c.code} />
                   </div>
                 );
@@ -476,6 +482,9 @@ export default function QualidadePage() {
                     {t}
                     <button onClick={() => setAtividadesLivres(prev => prev.filter((_, j) => j !== i))} className="text-ber-gray hover:text-red-600"><X size={12} /></button>
                   </span>
+                  <input value={trechos[`livre:${i}`] ?? ''} onChange={e => setTrechos(prev => ({ ...prev, [`livre:${i}`]: e.target.value }))}
+                    placeholder="Frente/trecho — ex.: 3º pavimento (vira a FVS desta frente)"
+                    className="mt-1 ml-3 w-full max-w-md rounded border border-ber-border px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-ber-teal" />
                   <ConfProjeto ck={`livre:${i}`} />
                 </div>
               ))}
