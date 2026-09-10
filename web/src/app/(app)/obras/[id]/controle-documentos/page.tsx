@@ -450,14 +450,15 @@ export default function ControleDocumentosPage() {
       <div className="mb-4 rounded-xl bg-ber-carbon/[0.06] border border-ber-border p-1">
         <nav className="flex items-center gap-1 overflow-x-auto">
           {([
+            // alfabética; "Todos" abre e "Obsoletos" fecha (Bruno 10/09/26)
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
-            { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
-            { key: 'sds', label: 'Shop Drawings (SDs)', count: documentos.filter(d => !d.obsoleto && SETOR_SDS.includes(d.disciplina)).length },
             { key: 'arts', label: 'ARTs', count: documentos.filter(d => !d.obsoleto && SETOR_ARTS.includes(d.disciplina)).length },
-            { key: 'seguro', label: 'Seguro', count: documentos.filter(d => !d.obsoleto && SETOR_SEGURO.includes(d.disciplina)).length },
             { key: 'condominio', label: 'Docs do Condomínio', count: documentos.filter(d => !d.obsoleto && SETOR_CONDOMINIO.includes(d.disciplina)).length },
             { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
+            { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
+            { key: 'seguro', label: 'Seguro', count: documentos.filter(d => !d.obsoleto && SETOR_SEGURO.includes(d.disciplina)).length },
+            { key: 'sds', label: 'Shop Drawings (SDs)', count: documentos.filter(d => !d.obsoleto && SETOR_SDS.includes(d.disciplina)).length },
             { key: 'obsoletos', label: 'Obsoletos', count: obsoletosCount },
           ] as { key: Setor; label: string; count: number }[]).map(t => (
             <button key={t.key}
