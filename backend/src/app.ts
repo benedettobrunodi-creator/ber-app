@@ -138,6 +138,12 @@ app.use('/v1/recebimento', ...perm('obras'), recebimentoRouter);
 // Qualidade — vistoria com scorecard (03/09/26)
 app.use('/v1/obras/:id/qualidade', ...perm('obras'), qualidadeRouter);
 app.use('/v1/obras/:id/liberacao-medicao', ...perm('obras'), liberacaoMedicaoRouter);
+// Ranking de qualidade entre obras (10/09) — consumido pelo dashboard
+import { Router as QRankRouter } from 'express';
+import { ranking as qualidadeRanking } from './modules/qualidade/controller';
+const qualidadeRankingRouter = QRankRouter();
+qualidadeRankingRouter.get('/', qualidadeRanking);
+app.use('/v1/qualidade-ranking', ...perm('obras'), qualidadeRankingRouter);
 app.use('/v1/obras/:obraId/tasks', ...perm('obras'), obraTaskRoutes);
 app.use('/v1/tasks', ...perm('obras'), taskRoutes);
 app.use('/v1/obras/:obraId/photos', ...perm('obras'), obraPhotoRoutes);

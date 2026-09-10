@@ -24,6 +24,43 @@ export async function getOne(req: Request, res: Response) {
   sendSuccess(res, await service.getVistoria(req.params.vistoriaId));
 }
 
+export async function vistoriaPdf(req: Request, res: Response) {
+  const { renderToBuffer } = await import('@react-pdf/renderer');
+  const { VistoriaPdf } = await import('./vistoria-pdf');
+  const React = await import('react');
+  const v = await service.getVistoria(req.params.vistoriaId);
+  const obra = await (await import('../../config/database')).prisma.obra.findUnique({
+    where: { id: v.obraId }, select: { name: true },
+  });
+  const data = {
+    obraNome: obra?.name ?? 'Obra',
+    data: v.data,
+    vistoriador: v.vistoriador?.name ?? null,
+    cienciaNome: (v as { cienciaNome?: string | null }).cienciaNome ?? null,
+    notaFinal: v.notaFinal,
+    classificacao: v.classificacao,
+    resumo: v.resumo as never,
+    atividades: (v.atividades ?? []) as never,
+    observacoes: v.observacoes,
+    pendencias: v.itens.filter((i) => i.resposta === 'nao').map((i) => ({
+      itemKey: i.itemKey, texto: i.texto, observacao: i.observacao, fotoUrl: i.fotoUrl, resolvido: i.resolvido,
+    })),
+  };
+  const buffer = await renderToBuffer(React.createElement(VistoriaPdf, { d: data }) as never);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="vistoria-qualidade-${req.params.vistoriaId.slice(0, 8)}.pdf"`);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.end(buffer);
+}
+
+export async function atribuirPendencia(req: Request, res: Response) {
+  sendSuccess(res, await service.atribuirPendencia(req.params.itemId, req.body));
+}
+
+export async function ranking(_req: Request, res: Response) {
+  sendSuccess(res, await service.rankingObras());
+}
+
 export async function resolverPendencia(req: Request, res: Response) {
   sendSuccess(res, await service.resolverPendencia(req.params.itemId, req.user!.userId, req.body.resolvido));
 }

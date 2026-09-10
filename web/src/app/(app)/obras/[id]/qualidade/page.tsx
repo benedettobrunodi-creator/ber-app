@@ -60,7 +60,11 @@ interface Pendencia {
   observacao: string | null;
   fotoUrl: string | null;
   vistoria: { id: string; data: string };
+  responsavel?: { id: string; name: string } | null;
+  prazo?: string | null;
 }
+
+interface Membro { id: string; name: string }
 
 /** Comprime a foto no cliente (mesma técnica do Rel. de Recebimento). */
 async function comprimirFoto(file: File): Promise<Blob> {
@@ -138,6 +142,8 @@ export default function QualidadePage() {
   const [fotoUp, setFotoUp] = useState<Record<string, FotoUp>>({}); // evidência por item ("Não")
   const [pano, setPano] = useState<Record<string, FotoUp>>({}); // panorâmica por categoria
   const [trechos, setTrechos] = useState<Record<string, string>>({}); // frente de serviço por atividade
+  const [membros, setMembros] = useState<Membro[]>([]);
+  const [cienciaNome, setCienciaNome] = useState('');
   const DRAFT_KEY = `vq-rascunho-${obraId}`;
 
   async function load() {
@@ -154,7 +160,11 @@ export default function QualidadePage() {
       setVistorias(p.data.data?.vistorias ?? []);
       setPendencias(p.data.data?.pendencias ?? []);
       setFichas(p.data.data?.fichas ?? []);
-      if (o) setObraNome(o.data.data?.name ?? '');
+      if (o) {
+        setObraNome(o.data.data?.name ?? '');
+        const ms = (o.data.data?.members ?? []) as { user: { id: string; name: string } }[];
+        setMembros(ms.map(m => ({ id: m.user.id, name: m.user.name })));
+      }
       if (cat) setCatalogo(cat.data.data ?? []);
       if (docs) {
         // disciplinas de PROJETO (ART/Seguro/adm ficam fora da conferência)
@@ -300,6 +310,7 @@ export default function QualidadePage() {
       setProjCheck({});
       setTrechos({});
       setObsGeral('');
+      setCienciaNome('');
       setDataVistoria(new Date().toISOString().slice(0, 10));
       setEtapa(0);
     }
@@ -340,6 +351,7 @@ export default function QualidadePage() {
           return { categoriaKey, itemKey, resposta, observacao: (obs[k] ?? '').trim() || null, fotoUrl: fotoDoItem[k] ?? null };
         }),
         observacoes: obsGeral.trim() || null,
+        cienciaNome: cienciaNome.trim() || null,
         data: dataVistoria || undefined,
         atividades: [
           ...catalogo.filter(c => atividadesSel.has(c.code)).map(c => {
@@ -365,6 +377,23 @@ export default function QualidadePage() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function atribuir(p: Pendencia, patch: { responsavelId?: string | null; prazo?: string | null }) {
+    try {
+      const r = await api.patch(`/obras/${obraId}/qualidade/pendencias/${p.id}/atribuicao`, patch);
+      const novo = r.data.data as { responsavel?: { id: string; name: string } | null; prazo?: string | null };
+      setPendencias(prev => prev.map(x => x.id === p.id ? { ...x, responsavel: novo.responsavel ?? null, prazo: novo.prazo ?? null } : x));
+    } catch { alert('Erro ao atribuir pendência'); }
+  }
+
+  async function abrirPdf(v: Vistoria) {
+    try {
+      const r = await api.get(`/obras/${obraId}/qualidade/vistorias/${v.id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { alert('Erro ao gerar o PDF'); }
   }
 
   async function resolver(p: Pendencia) {
@@ -400,6 +429,27 @@ export default function QualidadePage() {
         </div>
 
         {etapa === 0 && (<>
+        {pendencias.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-amber-800">Reinspeção — {pendencias.length} pendência(s) da(s) visita(s) anterior(es)</p>
+            <p className="mt-0.5 text-xs text-amber-700">Antes do checklist: o que foi reprovado foi corrigido?</p>
+            <div className="mt-2 divide-y divide-amber-200">
+              {pendencias.map(p => (
+                <div key={p.id} className="flex items-start justify-between gap-3 py-2">
+                  <div className="min-w-0 text-xs text-ber-carbon">
+                    <p><span className="text-ber-gray/70 mr-1">{p.itemKey}</span>{p.texto}</p>
+                    <p className="text-[11px] text-ber-gray">de {fmtBR(p.vistoria.data)}{p.responsavel ? ` · resp. ${p.responsavel.name}` : ''}</p>
+                  </div>
+                  <button onClick={() => resolver(p)}
+                    className="shrink-0 rounded-lg border border-ber-green/40 px-2.5 py-1 text-[11px] font-semibold text-ber-green hover:bg-ber-green/10">
+                    Corrigida ✓
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-amber-700">O que continuar errado, reprova de novo no item correspondente do checklist.</p>
+          </div>
+        )}
         <div className="mb-4 flex items-end gap-4 flex-wrap rounded-xl border border-ber-border bg-white p-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-ber-carbon">Data da vistoria</label>
@@ -632,6 +682,10 @@ export default function QualidadePage() {
           </div>
 
           <div className="rounded-xl border border-ber-border bg-white p-4">
+            <label className="mb-1 block text-xs font-medium text-ber-carbon">Visita acompanhada por (ciência da obra — opcional)</label>
+            <input value={cienciaNome} onChange={e => setCienciaNome(e.target.value)}
+              placeholder="Nome de quem acompanhou pela obra (residente, mestre…)"
+              className="mb-3 w-full rounded-lg border border-ber-border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ber-teal" />
             <label className="mb-1 block text-xs font-medium text-ber-carbon">Observações gerais da vistoria (opcional)</label>
             <textarea className="w-full rounded-lg border border-ber-border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ber-teal" rows={3}
               value={obsGeral} onChange={e => setObsGeral(e.target.value)} />
@@ -723,6 +777,40 @@ export default function QualidadePage() {
             </div>
           </div>
 
+          {/* Evolução por categoria (10/09): tendência das últimas visitas */}
+          {vistorias.length >= 2 && (
+            <div className="mb-5 rounded-xl border border-ber-border bg-white p-4">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-ber-gray">Evolução por categoria (últimas {Math.min(5, vistorias.length)} visitas)</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <tbody>
+                    {(vistorias[0]?.resumo ?? []).map(cat => {
+                      const serie = vistorias.slice(0, 5).reverse().map(v => {
+                        const c = (v.resumo ?? []).find(x => x.key === cat.key);
+                        return c?.nota ?? null;
+                      });
+                      const validos = serie.filter((n): n is number => n !== null);
+                      const ult = validos[validos.length - 1] ?? null;
+                      const pen = validos[validos.length - 2] ?? null;
+                      const antepen = validos[validos.length - 3] ?? null;
+                      const caiu2 = ult !== null && pen !== null && antepen !== null && ult < pen && pen < antepen;
+                      const seta = ult !== null && pen !== null ? (ult > pen + 0.05 ? '↑' : ult < pen - 0.05 ? '↓' : '→') : '';
+                      return (
+                        <tr key={cat.key} className="border-b border-ber-border/40 last:border-0">
+                          <td className="py-1.5 pr-3 text-ber-carbon whitespace-nowrap">{cat.nome}{caiu2 && <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">caiu 2 visitas seguidas</span>}</td>
+                          <td className="py-1.5 text-right whitespace-nowrap text-ber-gray">
+                            {serie.map((n, i) => <span key={i} className="ml-2 tabular-nums">{n === null ? '·' : fmtNota(n)}</span>)}
+                            <span className={`ml-2 font-bold ${seta === '↓' ? 'text-red-600' : seta === '↑' ? 'text-ber-green' : 'text-ber-gray'}`}>{seta}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Pendências */}
           <div className="mb-5 rounded-xl border border-ber-border bg-white p-4">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-ber-gray">
@@ -742,10 +830,21 @@ export default function QualidadePage() {
                         {p.fotoUrl && <> · <a href={p.fotoUrl} target="_blank" rel="noreferrer" className="text-ber-teal hover:underline">ver foto</a></>}
                       </p>
                     </div>
-                    <button onClick={() => resolver(p)}
-                      className="shrink-0 rounded-lg border border-ber-green/40 px-2.5 py-1 text-xs font-semibold text-ber-green hover:bg-ber-green/10">
-                      Resolver
-                    </button>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <button onClick={() => resolver(p)}
+                        className="rounded-lg border border-ber-green/40 px-2.5 py-1 text-xs font-semibold text-ber-green hover:bg-ber-green/10">
+                        Resolver
+                      </button>
+                      <select value={p.responsavel?.id ?? ''}
+                        onChange={e => atribuir(p, { responsavelId: e.target.value || null })}
+                        className="rounded border border-ber-border bg-white px-1.5 py-0.5 text-[11px] max-w-[150px]">
+                        <option value="">sem dono…</option>
+                        {membros.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                      <input type="date" value={p.prazo ? p.prazo.slice(0, 10) : ''}
+                        onChange={e => atribuir(p, { prazo: e.target.value || null })}
+                        className="rounded border border-ber-border bg-white px-1.5 py-0.5 text-[11px]" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -821,6 +920,9 @@ export default function QualidadePage() {
                           {delta > 0 ? `▲ +${fmtNota(delta)}` : delta < 0 ? `▼ ${fmtNota(delta)}` : '—'}
                         </span>
                       )}
+                      <button onClick={() => abrirPdf(v)} className="rounded border border-ber-border px-2 py-0.5 text-[11px] font-semibold text-ber-carbon hover:bg-ber-surface" title="PDF da vistoria (identidade BÈR)">
+                        PDF
+                      </button>
                       <button onClick={() => excluirVistoria(v)} className="text-ber-gray/40 hover:text-red-500" title="Excluir vistoria (coordenação+)">
                         <Trash2 size={13} />
                       </button>

@@ -152,6 +152,12 @@ export default function ObrasPage() {
   const [deleteObra, setDeleteObra] = useState<Obra | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  // Ranking de qualidade entre obras (10/09)
+  type RankLinha = { obraId: string; nome: string; nota: number | null; classificacao: string | null; tendencia: 'subiu' | 'caiu' | 'estavel' | null; pendencias: number };
+  const [ranking, setRanking] = useState<RankLinha[]>([]);
+  useEffect(() => {
+    api.get('/qualidade-ranking').then(r => setRanking(r.data.data ?? [])).catch(() => {});
+  }, []);
 
   async function fetchObras() {
     setLoading(true);
@@ -245,8 +251,31 @@ export default function ObrasPage() {
     }
   }
 
+  const RANK_COR: Record<string, string> = {
+    excelente: 'text-ber-green', boa: 'text-[#5E6B0F]', regular: 'text-amber-700', critico: 'text-orange-700', inaceitavel: 'text-red-700',
+  };
+
   return (
     <div className="p-4 md:p-6">
+      {ranking.filter(r => r.nota !== null).length >= 2 && (
+        <div className="mb-5 rounded-xl border border-ber-border bg-white p-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-ber-gray">Ranking de qualidade — última vistoria por obra</p>
+          <div className="divide-y divide-ber-border/50">
+            {ranking.filter(r => r.nota !== null).map((r, i) => (
+              <Link key={r.obraId} href={`/obras/${r.obraId}/qualidade`} className="flex items-center justify-between gap-3 py-1.5 hover:bg-ber-surface/60 -mx-2 px-2 rounded">
+                <p className="text-sm text-ber-carbon truncate"><span className="mr-1.5 text-xs text-ber-gray">{i + 1}º</span>{r.nome}</p>
+                <p className="shrink-0 text-sm font-bold tabular-nums">
+                  <span className={RANK_COR[r.classificacao ?? ''] ?? 'text-ber-carbon'}>{r.nota!.toFixed(2).replace('.', ',')}</span>
+                  <span className={`ml-1.5 ${r.tendencia === 'caiu' ? 'text-red-600' : r.tendencia === 'subiu' ? 'text-ber-green' : 'text-ber-gray'}`}>
+                    {r.tendencia === 'subiu' ? '↑' : r.tendencia === 'caiu' ? '↓' : r.tendencia === 'estavel' ? '→' : ''}
+                  </span>
+                  {r.pendencias > 0 && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">{r.pendencias} pend.</span>}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Obras</h1>

@@ -14,6 +14,8 @@ export const createVistoriaSchema = z.object({
   observacoes: z.string().max(5000).nullable().optional(),
   /** Data da vistoria (YYYY-MM-DD) — permite registro retroativo; default hoje. */
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Quem acompanhou a visita pela obra (ciência) — vira registro e sai no PDF. */
+  cienciaNome: z.string().max(150).nullable().optional(),
   /** Atividades em execução no momento (itCode = IT do catálogo; sem itCode = texto livre). */
   atividades: z.array(z.object({
     itCode: z.string().max(20).nullable().optional(),
@@ -30,6 +32,12 @@ export const createVistoriaSchema = z.object({
 
 export const resolverPendenciaSchema = z.object({
   resolvido: z.boolean(),
+});
+
+/** Pendência com dono e prazo (10/09) */
+export const atribuirPendenciaSchema = z.object({
+  responsavelId: z.string().uuid().nullable().optional(),
+  prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 export const responderFvsSchema = z.object({

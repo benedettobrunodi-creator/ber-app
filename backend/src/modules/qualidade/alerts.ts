@@ -195,3 +195,47 @@ export async function resumoSemanalQualidade({ dryRun = false } = {}) {
   });
   return { enviado: true, linhas };
 }
+
+
+/**
+ * Cobrança de pendência vencida (item 8, 10/09): pendência com responsável e
+ * prazo estourado → e-mail diário pro responsável até resolver.
+ */
+export async function alertaPendenciasVencidas() {
+  const hoje = new Date();
+  const vencidas = await prisma.qualidadeVistoriaItem.findMany({
+    where: { resposta: 'nao', resolvido: false, prazo: { lt: hoje }, responsavelId: { not: null } },
+    include: {
+      responsavel: { select: { name: true, email: true } },
+      vistoria: { select: { data: true, obra: { select: { name: true } } } },
+    },
+  });
+  if (vencidas.length === 0) return { enviados: 0 };
+
+  // agrupa por responsável — um e-mail por pessoa
+  const porEmail = new Map<string, typeof vencidas>();
+  for (const p of vencidas) {
+    const email = p.responsavel?.email;
+    if (!email) continue;
+    if (!porEmail.has(email)) porEmail.set(email, []);
+    porEmail.get(email)!.push(p);
+  }
+  const { sendEmailObra } = await import('../../services/email-obras');
+  let enviados = 0;
+  for (const [email, itens] of porEmail) {
+    const linhas = itens.map((p) =>
+      `<li style="margin-bottom:8px"><b>${p.texto}</b><br><span style="color:#5C5E54;font-size:12px">${p.vistoria.obra.name} · vistoria de ${p.vistoria.data.toLocaleDateString('pt-BR')} · prazo ${p.prazo!.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>${p.observacao ? `<br><span style="color:#B42318;font-size:12px">${p.observacao}</span>` : ''}</li>`,
+    ).join('');
+    try {
+      await sendEmailObra({
+        to: [email],
+        subject: `⏰ ${itens.length} pendência(s) de qualidade VENCIDA(S) sob sua responsabilidade · BÈR`,
+        html: `<div style="font-family:Montserrat,Arial,sans-serif;max-width:640px;margin:0 auto"><p>Olá, ${itens[0].responsavel?.name ?? ''} — estas pendências passaram do prazo:</p><ul>${linhas}</ul><p style="color:#8B8D82;font-size:12px">Resolva no BER App → Obra → Qualidade → Pendências. Este lembrete repete todo dia até resolver.</p></div>`,
+      });
+      enviados++;
+    } catch (err) {
+      console.error('[Qualidade] cobrança de pendência falhou:', (err as Error).message);
+    }
+  }
+  return { enviados };
+}

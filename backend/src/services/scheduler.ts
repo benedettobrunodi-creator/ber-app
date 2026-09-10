@@ -115,6 +115,18 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // Pendências de qualidade vencidas — cobrança diária 7h55 BRT (item 8, 10/09)
+  cron.schedule('55 7 * * 1-6', async () => {
+    console.log('[Scheduler] Pendências de qualidade vencidas iniciado...');
+    try {
+      const { alertaPendenciasVencidas } = await import('../modules/qualidade/alerts');
+      const r = await alertaPendenciasVencidas();
+      console.log(`[Scheduler] Pendências vencidas — ${r.enviados} responsável(is) cobrados`);
+    } catch (err) {
+      console.error('[Scheduler] Pendências vencidas falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Liberação de Medição — resumo do ciclo, dia 25 às 7h BRT (Bruno 10/09/26)
   cron.schedule('0 7 25 * *', async () => {
     console.log('[Scheduler] Resumo liberação de medição iniciado...');

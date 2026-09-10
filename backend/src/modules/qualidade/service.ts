@@ -125,6 +125,7 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
       resumo: resumo as object[],
       atividades: (input.atividades ?? []) as object[],
       observacoes: input.observacoes ?? null,
+      cienciaNome: input.cienciaNome?.trim() || null,
       itens: {
         create: [
           ...respostas.map((r) => ({
@@ -177,7 +178,10 @@ export async function getPainel(obraId: string) {
   const pendencias = await prisma.qualidadeVistoriaItem.findMany({
     where: { vistoria: { obraId }, resposta: 'nao', resolvido: false },
     orderBy: { vistoria: { data: 'desc' } },
-    include: { vistoria: { select: { id: true, data: true } } },
+    include: {
+      vistoria: { select: { id: true, data: true } },
+      responsavel: { select: { id: true, name: true } },
+    },
   });
 
   const { listFvs } = await import('./fvs');
@@ -196,6 +200,73 @@ export async function getVistoria(vistoriaId: string) {
   });
   if (!v) throw AppError.notFound('Vistoria');
   return v;
+}
+
+/** Pendência com dono e prazo (10/09): atribui responsável e data-limite;
+ *  avisa o responsável por e-mail (fire-and-forget). */
+export async function atribuirPendencia(
+  itemId: string,
+  input: { responsavelId?: string | null; prazo?: string | null },
+) {
+  const item = await prisma.qualidadeVistoriaItem.findUnique({
+    where: { id: itemId },
+    include: { vistoria: { select: { obraId: true, obra: { select: { name: true } } } } },
+  });
+  if (!item) throw AppError.notFound('Item');
+  if (item.resposta !== 'nao') throw AppError.badRequest('Só itens "Não" são pendências');
+  const atualizado = await prisma.qualidadeVistoriaItem.update({
+    where: { id: itemId },
+    data: {
+      ...(input.responsavelId !== undefined && { responsavelId: input.responsavelId }),
+      ...(input.prazo !== undefined && { prazo: input.prazo ? new Date(`${input.prazo}T12:00:00Z`) : null }),
+    },
+    include: { responsavel: { select: { id: true, name: true, email: true } } },
+  });
+  if (input.responsavelId && atualizado.responsavel?.email) {
+    void import('../../services/email-obras').then(({ sendEmailObra }) => sendEmailObra({
+      to: [atualizado.responsavel!.email],
+      subject: `✅ Pendência de qualidade sob sua responsabilidade — ${item.vistoria.obra.name} · BÈR`,
+      html: `<div style="font-family:Montserrat,Arial,sans-serif;max-width:640px;margin:0 auto"><p><b>${item.texto}</b></p><p>${item.observacao ?? ''}</p><p>Obra: <b>${item.vistoria.obra.name}</b>${atualizado.prazo ? ` · prazo <b>${atualizado.prazo.toISOString().slice(0, 10).split('-').reverse().join('/')}</b>` : ''}</p><p style="color:#8B8D82;font-size:12px">Resolva no BER App → Obra → Qualidade → Pendências.</p></div>`,
+    })).catch((err) => console.error('[Qualidade] e-mail de atribuição falhou:', (err as Error).message));
+  }
+  return atualizado;
+}
+
+/** Ranking de qualidade entre obras ativas (10/09): última nota + tendência. */
+export async function rankingObras() {
+  const obras = await prisma.obra.findMany({
+    where: { status: { in: ['em_andamento', 'planejamento'] } },
+    select: { id: true, name: true, status: true },
+    orderBy: { name: 'asc' },
+  });
+  const linhas = [] as { obraId: string; nome: string; nota: number | null; classificacao: string | null; data: Date | null; tendencia: 'subiu' | 'caiu' | 'estavel' | null; pendencias: number }[];
+  for (const o of obras) {
+    const ultimas = await prisma.qualidadeVistoria.findMany({
+      where: { obraId: o.id },
+      orderBy: { data: 'desc' },
+      take: 2,
+      select: { notaFinal: true, classificacao: true, data: true },
+    });
+    const pend = await prisma.qualidadeVistoriaItem.count({
+      where: { vistoria: { obraId: o.id }, resposta: 'nao', resolvido: false },
+    });
+    const atual = ultimas[0] ?? null;
+    const anterior = ultimas[1] ?? null;
+    let tendencia: 'subiu' | 'caiu' | 'estavel' | null = null;
+    if (atual && anterior) {
+      const d = Number(atual.notaFinal) - Number(anterior.notaFinal);
+      tendencia = d > 0.05 ? 'subiu' : d < -0.05 ? 'caiu' : 'estavel';
+    }
+    linhas.push({
+      obraId: o.id, nome: o.name,
+      nota: atual ? Number(atual.notaFinal) : null,
+      classificacao: atual?.classificacao ?? null,
+      data: atual?.data ?? null,
+      tendencia,
+      pendencias: pend,
+    });
+  }
+  return linhas.sort((a, b) => (b.nota ?? -1) - (a.nota ?? -1));
 }
 
 export async function resolverPendencia(itemId: string, userId: string, resolvido: boolean) {
