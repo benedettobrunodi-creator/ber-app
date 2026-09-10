@@ -112,7 +112,7 @@ export default function QualidadePage() {
   const [preenchendo, setPreenchendo] = useState(false);
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({}); // `${catKey}:${itemKey}`
   const [obs, setObs] = useState<Record<string, string>>({});
-  const [fotos, setFotos] = useState<Record<string, File>>({});
+
   const [obsGeral, setObsGeral] = useState('');
   const [dataVistoria, setDataVistoria] = useState('');
   const [vistoriadorNome, setVistoriadorNome] = useState('');
@@ -132,6 +132,12 @@ export default function QualidadePage() {
     });
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<Vistoria | null>(null);
+  // ─── Onda 1 UX (aprovação 1-a-1, 10/09): wizard + rascunho + upload em 2º plano ───
+  const [etapa, setEtapa] = useState(0); // 0 = dados/atividades · 1..N = categorias · N+1 = revisão
+  type FotoUp = { status: 'subindo' | 'ok' | 'erro'; url?: string };
+  const [fotoUp, setFotoUp] = useState<Record<string, FotoUp>>({}); // evidência por item ("Não")
+  const [pano, setPano] = useState<Record<string, FotoUp>>({}); // panorâmica por categoria
+  const DRAFT_KEY = `vq-rascunho-${obraId}`;
 
   async function load() {
     setLoading(true);
@@ -167,10 +173,57 @@ export default function QualidadePage() {
   const semJustificativa = useMemo(() =>
     Object.entries(respostas).filter(([k, r]) => (r === 'nao' || r === 'na') && !(obs[k] ?? '').trim()).length,
   [respostas, obs]);
-  // Foto obrigatória em TODO item Sim/Não ("foto pra tudo", Bruno 03/09)
+  // Regra de foto 10/09 (substitui o "foto pra tudo" de 03/09): evidência
+  // obrigatória no "Não"; os "Sim" são cobertos pela panorâmica da categoria.
   const semFoto = useMemo(() =>
-    Object.entries(respostas).filter(([k, r]) => (r === 'sim' || r === 'nao') && !fotos[k]).length,
-  [respostas, fotos]);
+    Object.entries(respostas).filter(([k, r]) => r === 'nao' && fotoUp[k]?.status !== 'ok').length,
+  [respostas, fotoUp]);
+  const panoFaltando = useMemo(() =>
+    template.filter(cat => cat.itens.some(i => respostas[`${cat.key}:${i.key}`] === 'sim') && pano[cat.key]?.status !== 'ok').length,
+  [template, respostas, pano]);
+  const subindo = useMemo(() =>
+    [...Object.values(fotoUp), ...Object.values(pano)].filter(f => f.status === 'subindo').length,
+  [fotoUp, pano]);
+  // Nota parcial ao vivo — espelho do cálculo do servidor
+  const notaParcial = useMemo(() => {
+    const cats = template.map(cat => {
+      const rs = cat.itens.map(i => respostas[`${cat.key}:${i.key}`]).filter(Boolean);
+      const sim = rs.filter(r => r === 'sim').length; const nao = rs.filter(r => r === 'nao').length;
+      return { peso: cat.peso, nota: sim + nao > 0 ? (sim / (sim + nao)) * 5 : null };
+    }).filter(c => c.nota !== null) as { peso: number; nota: number }[];
+    const somaP = cats.reduce((a, c) => a + c.peso, 0);
+    return somaP > 0 ? Math.round((cats.reduce((a, c) => a + c.nota * c.peso, 0) / somaP) * 100) / 100 : null;
+  }, [template, respostas]);
+
+  // Rascunho automático: tudo (menos foto ainda subindo) salvo no aparelho a cada mudança
+  useEffect(() => {
+    if (!preenchendo) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        respostas, obs, obsGeral, dataVistoria, etapa,
+        atividadesSel: [...atividadesSel], atividadesLivres, projCheck,
+        fotoUp: Object.fromEntries(Object.entries(fotoUp).filter(([, v]) => v.status === 'ok')),
+        pano: Object.fromEntries(Object.entries(pano).filter(([, v]) => v.status === 'ok')),
+        em: new Date().toISOString(),
+      }));
+    } catch { /* quota cheia não pode travar a vistoria */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preenchendo, respostas, obs, obsGeral, dataVistoria, etapa, atividadesSel, atividadesLivres, projCheck, fotoUp, pano]);
+
+  // Upload em segundo plano: comprime e sobe assim que a foto é anexada
+  async function subirFoto(destino: 'item' | 'pano', chave: string, file: File) {
+    const setMap = destino === 'item' ? setFotoUp : setPano;
+    setMap(prev => ({ ...prev, [chave]: { status: 'subindo' } }));
+    try {
+      const blob = await comprimirFoto(file);
+      const fd = new FormData();
+      fd.append('file', blob, `${chave.replace(/[^a-zA-Z0-9]/g, '-')}.jpg`);
+      const r = await api.post(`/obras/${obraId}/qualidade/foto-temp`, fd);
+      setMap(prev => ({ ...prev, [chave]: { status: 'ok', url: r.data.data.url } }));
+    } catch {
+      setMap(prev => ({ ...prev, [chave]: { status: 'erro' } }));
+    }
+  }
 
   // Bloco de conferência com projeto de uma atividade (Bruno 10/09):
   // qual projeto rege + revisão vigente em uso + execução conforme.
@@ -216,16 +269,38 @@ export default function QualidadePage() {
     );
   }
 
-  function iniciarVistoria() {
-    setRespostas({});
-    setObs({});
-    setFotos({});
-    setAtividadesSel(new Set());
-    setAtividadesLivres([]);
+  async function iniciarVistoria() {
+    // Rascunho automático (10/09): oferece retomar exatamente de onde parou
+    let draft: Record<string, unknown> | null = null;
+    try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null'); } catch { draft = null; }
+    if (draft?.em && await confirmar(
+      `Existe uma vistoria em andamento salva (${new Date(String(draft.em)).toLocaleString('pt-BR')}). Retomar de onde parou?`,
+      { titulo: 'Rascunho encontrado', confirmarLabel: 'Retomar' },
+    )) {
+      setRespostas((draft.respostas as Record<string, Resposta>) ?? {});
+      setObs((draft.obs as Record<string, string>) ?? {});
+      setObsGeral(String(draft.obsGeral ?? ''));
+      setDataVistoria(String(draft.dataVistoria ?? '') || new Date().toISOString().slice(0, 10));
+      setAtividadesSel(new Set((draft.atividadesSel as string[]) ?? []));
+      setAtividadesLivres((draft.atividadesLivres as string[]) ?? []);
+      setProjCheck((draft.projCheck as Record<string, ProjCheck>) ?? {});
+      setFotoUp((draft.fotoUp as Record<string, FotoUp>) ?? {});
+      setPano((draft.pano as Record<string, FotoUp>) ?? {});
+      setEtapa(Number(draft.etapa ?? 0));
+    } else {
+      localStorage.removeItem(DRAFT_KEY);
+      setRespostas({});
+      setObs({});
+      setFotoUp({});
+      setPano({});
+      setAtividadesSel(new Set());
+      setAtividadesLivres([]);
+      setProjCheck({});
+      setObsGeral('');
+      setDataVistoria(new Date().toISOString().slice(0, 10));
+      setEtapa(0);
+    }
     setAtividadeLivreInput('');
-    setProjCheck({});
-    setObsGeral('');
-    setDataVistoria(new Date().toISOString().slice(0, 10));
     setVistoriadorNome(nomeUsuarioLogado());
     setResultado(null);
     setPreenchendo(true);
@@ -235,7 +310,9 @@ export default function QualidadePage() {
   async function enviarVistoria() {
     if (respondidos === 0) { alert('Responda ao menos um item'); return; }
     if (semJustificativa > 0) { alert(`${semJustificativa} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`); return; }
-    if (semFoto > 0) { alert(`${semFoto} item(ns) sem foto — toda resposta Sim/Não precisa de foto de evidência`); return; }
+    if (semFoto > 0) { alert(`${semFoto} item(ns) "Não" sem foto da falha — evidência é obrigatória no que reprovou`); return; }
+    if (panoFaltando > 0) { alert(`${panoFaltando} categoria(s) com "Sim" sem a foto panorâmica`); return; }
+    if (subindo > 0) { alert(`${subindo} foto(s) ainda subindo — aguarda uns segundos e tenta de novo`); return; }
     const confSemJust = Object.values(projCheck).filter(pc => (pc.rev === 'nao' || pc.rev === 'na' || pc.exec === 'nao' || pc.exec === 'na') && !pc.obs.trim()).length;
     if (confSemJust > 0) { alert(`${confSemJust} conferência(s) de projeto com "Não"/"N.A." sem justificativa — descreva o motivo`); return; }
     if (respondidos < totalItens && !(await confirmar(
@@ -244,10 +321,20 @@ export default function QualidadePage() {
     ))) return;
     setEnviando(true);
     try {
+      // fotos: cada "Não" leva a própria evidência; a panorâmica da categoria
+      // entra no primeiro "Sim" sem foto própria (regra aprovada 10/09)
+      const fotoDoItem: Record<string, string> = {};
+      for (const [k, f] of Object.entries(fotoUp)) if (f.status === 'ok' && f.url) fotoDoItem[k] = f.url;
+      for (const cat of template) {
+        const pn = pano[cat.key];
+        if (pn?.status !== 'ok' || !pn.url) continue;
+        const alvo = cat.itens.find(i => respostas[`${cat.key}:${i.key}`] === 'sim' && !fotoDoItem[`${cat.key}:${i.key}`]);
+        if (alvo) fotoDoItem[`${cat.key}:${alvo.key}`] = pn.url;
+      }
       const payload = {
         respostas: Object.entries(respostas).map(([k, resposta]) => {
           const [categoriaKey, itemKey] = k.split(':');
-          return { categoriaKey, itemKey, resposta, observacao: (obs[k] ?? '').trim() || null };
+          return { categoriaKey, itemKey, resposta, observacao: (obs[k] ?? '').trim() || null, fotoUrl: fotoDoItem[k] ?? null };
         }),
         observacoes: obsGeral.trim() || null,
         data: dataVistoria || undefined,
@@ -264,21 +351,7 @@ export default function QualidadePage() {
       };
       const r = await api.post(`/obras/${obraId}/qualidade`, payload);
       const vistoria = r.data.data as Vistoria & { itens: { id: string; categoriaKey: string; itemKey: string }[] };
-
-      // Sobe as fotos comprimidas, item a item (falha avisa mas não perde a vistoria)
-      const itemId = new Map(vistoria.itens.map(i => [`${i.categoriaKey}:${i.itemKey}`, i.id]));
-      let falhas = 0;
-      for (const [k, file] of Object.entries(fotos)) {
-        const id = itemId.get(k);
-        if (!id) continue;
-        try {
-          const blob = await comprimirFoto(file);
-          const fd = new FormData();
-          fd.append('file', blob, `${k.replace(':', '-')}.jpg`);
-          await api.post(`/obras/${obraId}/qualidade/itens/${id}/foto`, fd);
-        } catch { falhas++; }
-      }
-      if (falhas > 0) alert(`Vistoria registrada, mas ${falhas} foto(s) falharam ao subir — dá pra reenviar depois`);
+      localStorage.removeItem(DRAFT_KEY); // registrada — o rascunho cumpriu o papel
 
       setResultado(vistoria);
       setPreenchendo(false);
@@ -323,6 +396,7 @@ export default function QualidadePage() {
           <button onClick={() => setPreenchendo(false)} className="text-ber-gray hover:text-ber-carbon shrink-0"><X size={20} /></button>
         </div>
 
+        {etapa === 0 && (<>
         <div className="mb-4 flex items-end gap-4 flex-wrap rounded-xl border border-ber-border bg-white p-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-ber-carbon">Data da vistoria</label>
@@ -408,23 +482,41 @@ export default function QualidadePage() {
             </div>
           )}
         </div>
+        </>)}
 
         <div className="sticky top-0 z-10 -mx-4 md:-mx-6 mb-4 border-b border-ber-border bg-white/95 px-4 md:px-6 py-2.5 backdrop-blur">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-ber-gray">
-              <span className="font-bold text-ber-carbon">{respondidos}</span> de {totalItens} respondidos
-              {semJustificativa > 0 && <span className="text-red-600 font-semibold"> · {semJustificativa} sem justificativa</span>}
-              {semFoto > 0 && <span className="text-amber-700 font-semibold"> · {semFoto} sem foto</span>}
+              <span className="font-bold text-ber-carbon">
+                {etapa === 0 ? 'Atividades' : etapa <= template.length ? `${template[etapa - 1]?.nome ?? ''} · ${etapa}/${template.length}` : 'Revisão final'}
+              </span>
+              <span className="ml-2">{respondidos}/{totalItens}</span>
+              {notaParcial !== null && <span className="ml-2 font-bold text-ber-carbon">nota parcial {fmtNota(notaParcial)}</span>}
+              {subindo > 0 && <span className="ml-2 text-ber-teal font-semibold">↑ {subindo} foto(s) subindo…</span>}
+              {semJustificativa > 0 && <span className="ml-2 text-red-600 font-semibold">{semJustificativa} sem justificativa</span>}
             </p>
-            <button onClick={enviarVistoria} disabled={enviando}
-              className="rounded-lg bg-ber-olive px-4 py-1.5 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
-              {enviando ? 'Enviando…' : 'Concluir vistoria'}
-            </button>
+            <div className="flex gap-2">
+              {etapa > 0 && (
+                <button onClick={() => { setEtapa(e => e - 1); window.scrollTo({ top: 0 }); }}
+                  className="rounded-lg border border-ber-border px-3 py-1.5 text-sm text-ber-carbon hover:bg-ber-surface">← Voltar</button>
+              )}
+              {etapa <= template.length ? (
+                <button onClick={() => { setEtapa(e => e + 1); window.scrollTo({ top: 0 }); }}
+                  className="rounded-lg bg-ber-olive px-4 py-1.5 text-sm font-semibold text-ber-carbon hover:brightness-95">
+                  {etapa === 0 ? 'Começar checklist →' : 'Avançar →'}
+                </button>
+              ) : (
+                <button onClick={enviarVistoria} disabled={enviando}
+                  className="rounded-lg bg-ber-olive px-4 py-1.5 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
+                  {enviando ? 'Enviando…' : 'Concluir vistoria'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="space-y-5">
-          {template.map(cat => {
+          {template.filter((_, ci) => ci === etapa - 1).map(cat => {
             const catRespondidos = cat.itens.filter(i => respostas[`${cat.key}:${i.key}`]).length;
             return (
               <div key={cat.key} className="rounded-xl border border-ber-border bg-white overflow-hidden">
@@ -432,6 +524,22 @@ export default function QualidadePage() {
                   <p className="text-sm font-bold text-ber-carbon">{cat.nome}</p>
                   <p className="text-[11px] text-ber-gray">peso {Math.round(cat.peso * 100)}% · {catRespondidos}/{cat.itens.length}</p>
                 </div>
+                {cat.itens.some(i => respostas[`${cat.key}:${i.key}`] === 'sim') && (
+                  <div className="border-b border-ber-border bg-white px-4 py-2">
+                    <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                      pano[cat.key]?.status === 'ok' ? 'border-ber-green/40 text-ber-green bg-ber-green/5'
+                      : pano[cat.key]?.status === 'subindo' ? 'border-ber-border text-ber-gray'
+                      : 'border-amber-400 text-amber-700 bg-amber-50'
+                    }`}>
+                      📷 {pano[cat.key]?.status === 'ok' ? 'Panorâmica anexada ✓'
+                        : pano[cat.key]?.status === 'subindo' ? 'Subindo…'
+                        : pano[cat.key]?.status === 'erro' ? 'Falhou — tocar pra tentar de novo'
+                        : 'Foto panorâmica da categoria (obrigatória — cobre os "Sim")'}
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) subirFoto('pano', cat.key, f); e.target.value = ''; }} />
+                    </label>
+                  </div>
+                )}
                 <div className="divide-y divide-ber-border/60">
                   {cat.itens.map(item => {
                     const k = `${cat.key}:${item.key}`;
@@ -474,23 +582,20 @@ export default function QualidadePage() {
                             onChange={e => setObs(prev => ({ ...prev, [k]: e.target.value }))}
                           />
                         )}
-                        {(r === 'sim' || r === 'nao') && (
+                        {r === 'nao' && (
                           <div className="mt-2 flex items-center gap-2">
                             <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                              fotos[k] ? 'border-ber-green/40 text-ber-green bg-ber-green/5' : 'border-amber-400 text-amber-700 bg-amber-50'
+                              fotoUp[k]?.status === 'ok' ? 'border-ber-green/40 text-ber-green bg-ber-green/5'
+                              : fotoUp[k]?.status === 'subindo' ? 'border-ber-border text-ber-gray'
+                              : 'border-amber-400 text-amber-700 bg-amber-50'
                             }`}>
-                              📷 {fotos[k] ? 'Foto anexada ✓' : 'Tirar foto (obrigatória)'}
-                              <input type="file" accept="image/*" className="hidden"
-                                onChange={e => {
-                                  const f = e.target.files?.[0];
-                                  if (f) setFotos(prev => ({ ...prev, [k]: f }));
-                                  e.target.value = '';
-                                }} />
+                              📷 {fotoUp[k]?.status === 'ok' ? 'Evidência anexada ✓'
+                                : fotoUp[k]?.status === 'subindo' ? 'Subindo…'
+                                : fotoUp[k]?.status === 'erro' ? 'Falhou — tocar pra tentar de novo'
+                                : 'Foto da falha (obrigatória)'}
+                              <input type="file" accept="image/*" capture="environment" className="hidden"
+                                onChange={e => { const f = e.target.files?.[0]; if (f) subirFoto('item', k, f); e.target.value = ''; }} />
                             </label>
-                            {fotos[k] && (
-                              <button onClick={() => setFotos(prev => { const n = { ...prev }; delete n[k]; return n; })}
-                                className="text-xs text-ber-gray hover:text-red-600">trocar/remover</button>
-                            )}
                           </div>
                         )}
                       </div>
@@ -500,6 +605,22 @@ export default function QualidadePage() {
               </div>
             );
           })}
+
+          {etapa > template.length && (<>
+          <div className="rounded-xl border border-ber-border bg-white p-4">
+            <p className="mb-2 text-sm font-bold text-ber-carbon">Revisão final</p>
+            <p className="text-xs text-ber-gray">
+              {respondidos} de {totalItens} itens respondidos
+              {notaParcial !== null && <> · nota parcial <b className="text-ber-carbon">{fmtNota(notaParcial)}</b></>}
+            </p>
+            {(semJustificativa > 0 || semFoto > 0 || panoFaltando > 0) && (
+              <ul className="mt-2 space-y-1 text-xs text-red-700">
+                {semJustificativa > 0 && <li>• {semJustificativa} item(ns) "Não"/"N/A" sem justificativa</li>}
+                {semFoto > 0 && <li>• {semFoto} item(ns) "Não" sem foto da falha</li>}
+                {panoFaltando > 0 && <li>• {panoFaltando} categoria(s) com "Sim" sem panorâmica</li>}
+              </ul>
+            )}
+          </div>
 
           <div className="rounded-xl border border-ber-border bg-white p-4">
             <label className="mb-1 block text-xs font-medium text-ber-carbon">Observações gerais da vistoria (opcional)</label>
@@ -511,6 +632,7 @@ export default function QualidadePage() {
             className="w-full rounded-lg bg-ber-olive py-3 text-sm font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
             {enviando ? 'Enviando…' : 'Concluir vistoria'}
           </button>
+          </>)}
         </div>
       </div>
     );

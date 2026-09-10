@@ -133,6 +133,7 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
             texto: itemTexto.get(`${r.categoriaKey}:${r.itemKey}`)!,
             resposta: r.resposta,
             observacao: r.observacao ?? null,
+            fotoUrl: r.fotoUrl ?? null,
           })),
           ...aderencia.map((r) => ({
             categoriaKey: r.categoriaKey,
@@ -217,6 +218,19 @@ export async function listAtividadesCatalogo() {
     select: { code: true, title: true, discipline: true },
     orderBy: { code: 'asc' },
   });
+}
+
+/** Upload em segundo plano: guarda no R2 antes da vistoria existir e devolve a
+ *  URL — o submit referencia via resposta.fotoUrl (Onda 1 UX, 10/09). */
+export async function uploadFotoTemp(file: { buffer: Buffer; originalname: string; mimetype: string }) {
+  const { uploadToR2, isR2Configured } = await import('../../services/storage');
+  if (!isR2Configured()) throw AppError.badRequest('Storage de arquivos não configurado no servidor');
+  const url = await uploadToR2(
+    file.buffer,
+    `qualidade/temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname}`,
+    file.mimetype,
+  );
+  return { url };
 }
 
 export async function uploadFotoItem(

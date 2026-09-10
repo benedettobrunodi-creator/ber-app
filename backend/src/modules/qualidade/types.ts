@@ -5,6 +5,8 @@ export const respostaSchema = z.object({
   itemKey: z.string().min(1).max(30),
   resposta: z.enum(['sim', 'nao', 'na']),
   observacao: z.string().max(2000).nullable().optional(),
+  /** URL já subida via /foto-temp (upload em segundo plano) */
+  fotoUrl: z.string().url().max(500).nullable().optional(),
 });
 
 export const createVistoriaSchema = z.object({

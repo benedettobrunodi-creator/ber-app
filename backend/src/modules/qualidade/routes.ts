@@ -24,6 +24,10 @@ router.patch('/pendencias/:itemId', requireRole('campo'), validate(resolverPende
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 router.post('/itens/:itemId/foto', requireRole('campo'), upload.single('file'), controller.uploadFoto);
 
+// Upload em segundo plano (Onda 1 UX, Bruno 10/09): a foto sobe assim que é
+// anexada, ANTES da vistoria existir — devolve a URL e o submit só referencia.
+router.post('/foto-temp', requireRole('campo'), upload.single('file'), controller.uploadFotoTemp);
+
 // FVS por atividade — ficha gerada dos critérios da IT
 router.get('/fvs/:fvsId', controller.getFvs);
 router.patch('/fvs/:fvsId', requireRole('campo'), validate(responderFvsSchema), controller.responderFvs);
