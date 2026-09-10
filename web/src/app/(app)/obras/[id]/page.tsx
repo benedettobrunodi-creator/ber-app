@@ -258,6 +258,11 @@ export default function ObraDetailPage() {
   const tabParam = searchParams.get('tab');
   const initialTab = ((tabParam === 'cockpit' ? 'capa' : tabParam) as TabKey) || 'capa';
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // Menu por fase (Bruno 10/09): dropdown abre no hover (desktop) e no toque (mobile)
+  const [menuFase, setMenuFase] = useState<string | null>(null);
+  const menuFaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abrirMenuFase = (g: string) => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); setMenuFase(g); };
+  const fecharMenuFase = () => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); menuFaseTimer.current = setTimeout(() => setMenuFase(null), 220); };
   const [loading, setLoading] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '', priority: 'medium' as TaskPriority, dueDate: '' });
@@ -1427,39 +1432,64 @@ export default function ObraDetailPage() {
 
       </div>
 
-      {/* Tabs — agrupadas por fase do ciclo de vida da obra */}
-      <div className="mt-6 overflow-x-auto border-b border-ber-gray/20">
-        <div className="flex items-stretch">
-          {TAB_GROUPS.map((g, gi) => (
-            <div key={g.grupo} className={`flex shrink-0 flex-col ${gi > 0 ? 'ml-2 border-l border-ber-gray/15 pl-2' : ''}`}>
-              <span className="px-3 pb-0.5 pt-1 text-[9px] font-bold uppercase tracking-wider text-ber-gray/50 whitespace-nowrap">
-                {g.grupo}
-              </span>
-              <div className="flex items-end gap-1">
-                {g.tabs.map((t) => t.type === 'tab' ? (
-                  <button
-                    key={t.key}
-                    onClick={() => setActiveTab(t.key)}
-                    className={`shrink-0 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
-                      activeTab === t.key
-                        ? 'border-b-2 border-ber-olive text-ber-carbon'
-                        : 'text-ber-gray hover:text-ber-carbon'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ) : (
-                  <Link
-                    key={t.href}
-                    href={`/obras/${params.id}/${t.href}`}
-                    className="shrink-0 px-3 py-2 text-sm font-medium whitespace-nowrap text-ber-gray hover:text-ber-carbon transition-colors"
-                  >
-                    {t.label}
-                  </Link>
-                ))}
+      {/* Tabs — fases do ciclo em dropdown (hover no desktop, toque no mobile — Bruno 10/09) */}
+      <div className="mt-6 border-b border-ber-gray/20">
+        <div className="flex items-center gap-1">
+          {TAB_GROUPS.map((g) => {
+            const unico = g.tabs.length === 1;
+            const tabAtivaDoGrupo = g.tabs.find((t) => t.type === 'tab' && activeTab === t.key);
+            const grupoAtivo = Boolean(tabAtivaDoGrupo);
+            if (unico) {
+              const t = g.tabs[0];
+              return t.type === 'tab' ? (
+                <button key={g.grupo} onClick={() => setActiveTab(t.key)}
+                  className={`shrink-0 px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
+                    activeTab === t.key ? 'border-b-2 border-ber-olive text-ber-carbon' : 'text-ber-gray hover:text-ber-carbon'
+                  }`}>
+                  {t.label}
+                </button>
+              ) : (
+                <Link key={g.grupo} href={`/obras/${params.id}/${t.href}`}
+                  className="shrink-0 px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-ber-gray hover:text-ber-carbon transition-colors">
+                  {t.label}
+                </Link>
+              );
+            }
+            return (
+              <div key={g.grupo} className="relative shrink-0"
+                onMouseEnter={() => abrirMenuFase(g.grupo)}
+                onMouseLeave={fecharMenuFase}>
+                <button
+                  onClick={() => setMenuFase(menuFase === g.grupo ? null : g.grupo)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
+                    grupoAtivo ? 'border-b-2 border-ber-olive text-ber-carbon' : 'text-ber-gray hover:text-ber-carbon'
+                  }`}>
+                  {g.grupo}
+                  {tabAtivaDoGrupo && <span className="text-[11px] font-medium text-ber-teal">· {(tabAtivaDoGrupo as { label: string }).label}</span>}
+                  <ChevronDown size={13} className={`transition-transform ${menuFase === g.grupo ? 'rotate-180' : ''}`} />
+                </button>
+                {menuFase === g.grupo && (
+                  <div className="absolute left-0 top-full z-40 mt-0.5 min-w-52 rounded-lg border border-ber-border bg-white py-1.5 shadow-lg">
+                    {g.tabs.map((t) => t.type === 'tab' ? (
+                      <button key={t.key}
+                        onClick={() => { setActiveTab(t.key); setMenuFase(null); }}
+                        className={`block w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors ${
+                          activeTab === t.key ? 'font-semibold text-ber-carbon bg-ber-surface' : 'text-ber-gray hover:bg-ber-surface hover:text-ber-carbon'
+                        }`}>
+                        {t.label}
+                      </button>
+                    ) : (
+                      <Link key={t.href} href={`/obras/${params.id}/${t.href}`}
+                        onClick={() => setMenuFase(null)}
+                        className="block px-4 py-2 text-sm whitespace-nowrap text-ber-gray hover:bg-ber-surface hover:text-ber-carbon transition-colors">
+                        {t.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
