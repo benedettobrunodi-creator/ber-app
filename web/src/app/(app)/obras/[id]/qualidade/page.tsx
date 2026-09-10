@@ -121,17 +121,27 @@ export default function QualidadePage() {
   const [atividadesSel, setAtividadesSel] = useState<Set<string>>(new Set()); // itCodes
   const [atividadesLivres, setAtividadesLivres] = useState<string[]>([]);
   const [atividadeLivreInput, setAtividadeLivreInput] = useState('');
+  // Conferência com projeto por atividade (Bruno 10/09) — chave: itCode ou `livre:${i}`
+  type ProjCheck = { disc: string; rev: '' | Resposta; exec: '' | Resposta; obs: string };
+  const [projCheck, setProjCheck] = useState<Record<string, ProjCheck>>({});
+  const [disciplinas, setDisciplinas] = useState<string[]>([]);
+  const setPC = (k: string, patch: Partial<ProjCheck>) =>
+    setProjCheck(prev => {
+      const base: ProjCheck = prev[k] ?? { disc: '', rev: '', exec: '', obs: '' };
+      return { ...prev, [k]: { ...base, ...patch } };
+    });
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<Vistoria | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      const [t, p, o, cat] = await Promise.all([
+      const [t, p, o, cat, docs] = await Promise.all([
         api.get(`/obras/${obraId}/qualidade/template`),
         api.get(`/obras/${obraId}/qualidade`),
         api.get(`/obras/${obraId}`).catch(() => null),
         api.get(`/obras/${obraId}/qualidade/atividades`).catch(() => null),
+        api.get(`/obras/${obraId}/controle-documentos`).catch(() => null),
       ]);
       setTemplate(t.data.data ?? []);
       setVistorias(p.data.data?.vistorias ?? []);
@@ -139,6 +149,13 @@ export default function QualidadePage() {
       setFichas(p.data.data?.fichas ?? []);
       if (o) setObraNome(o.data.data?.name ?? '');
       if (cat) setCatalogo(cat.data.data ?? []);
+      if (docs) {
+        // disciplinas de PROJETO (ART/Seguro/adm ficam fora da conferência)
+        const fora = new Set(['ART', 'Seguro', 'Docs do Condomínio', 'SD - Aprovações']);
+        const ds = [...new Set(((docs.data.data ?? []) as { disciplina: string; obsoleto?: boolean }[])
+          .filter(d => !d.obsoleto && !fora.has(d.disciplina)).map(d => d.disciplina))].sort();
+        setDisciplinas(ds);
+      }
     } catch {} finally { setLoading(false); }
   }
 
@@ -155,6 +172,50 @@ export default function QualidadePage() {
     Object.entries(respostas).filter(([k, r]) => (r === 'sim' || r === 'nao') && !fotos[k]).length,
   [respostas, fotos]);
 
+  // Bloco de conferência com projeto de uma atividade (Bruno 10/09):
+  // qual projeto rege + revisão vigente em uso + execução conforme.
+  function ConfProjeto({ ck }: { ck: string }) {
+    const pc = projCheck[ck] ?? { disc: '', rev: '', exec: '', obs: '' };
+    const precisaObs = pc.rev === 'nao' || pc.rev === 'na' || pc.exec === 'nao' || pc.exec === 'na';
+    const Trio = ({ campo }: { campo: 'rev' | 'exec' }) => (
+      <span className="inline-flex gap-1">
+        {(['sim', 'nao', 'na'] as const).map(v => (
+          <button key={v} type="button" onClick={() => setPC(ck, { [campo]: pc[campo] === v ? '' : v } as Partial<typeof pc>)}
+            className={`rounded px-2 py-0.5 text-[11px] font-semibold border transition-colors ${
+              pc[campo] === v
+                ? v === 'sim' ? 'border-ber-green bg-ber-green text-white' : v === 'nao' ? 'border-red-600 bg-red-600 text-white' : 'border-ber-gray bg-ber-gray text-white'
+                : 'border-ber-border bg-white text-ber-carbon hover:bg-ber-surface'
+            }`}>
+            {v === 'sim' ? 'Sim' : v === 'nao' ? 'Não' : 'N.A.'}
+          </button>
+        ))}
+      </span>
+    );
+    return (
+      <div className="mt-1.5 mb-2 ml-3 rounded-lg border border-ber-border bg-ber-surface/60 p-2.5 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-ber-carbon">
+          <span className="font-semibold">Conferência com projeto:</span>
+          <select value={pc.disc} onChange={e => setPC(ck, { disc: e.target.value })}
+            className="rounded border border-ber-border bg-white px-2 py-0.5 text-[11px]">
+            <option value="">projeto/disciplina…</option>
+            {disciplinas.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-ber-gray">
+          <span>Última revisão em uso no canteiro?</span> <Trio campo="rev" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-ber-gray">
+          <span>Execução conforme o projeto?</span> <Trio campo="exec" />
+        </div>
+        {(precisaObs || pc.obs) && (
+          <input value={pc.obs} onChange={e => setPC(ck, { obs: e.target.value })}
+            placeholder={precisaObs ? 'Justificativa obrigatória — o que diverge?' : 'Observação (opcional)'}
+            className={`w-full rounded border px-2 py-1 text-[11px] focus:outline-none ${precisaObs && !pc.obs.trim() ? 'border-red-400' : 'border-ber-border'}`} />
+        )}
+      </div>
+    );
+  }
+
   function iniciarVistoria() {
     setRespostas({});
     setObs({});
@@ -162,6 +223,7 @@ export default function QualidadePage() {
     setAtividadesSel(new Set());
     setAtividadesLivres([]);
     setAtividadeLivreInput('');
+    setProjCheck({});
     setObsGeral('');
     setDataVistoria(new Date().toISOString().slice(0, 10));
     setVistoriadorNome(nomeUsuarioLogado());
@@ -174,6 +236,8 @@ export default function QualidadePage() {
     if (respondidos === 0) { alert('Responda ao menos um item'); return; }
     if (semJustificativa > 0) { alert(`${semJustificativa} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`); return; }
     if (semFoto > 0) { alert(`${semFoto} item(ns) sem foto — toda resposta Sim/Não precisa de foto de evidência`); return; }
+    const confSemJust = Object.values(projCheck).filter(pc => (pc.rev === 'nao' || pc.rev === 'na' || pc.exec === 'nao' || pc.exec === 'na') && !pc.obs.trim()).length;
+    if (confSemJust > 0) { alert(`${confSemJust} conferência(s) de projeto com "Não"/"N.A." sem justificativa — descreva o motivo`); return; }
     if (respondidos < totalItens && !(await confirmar(
       `${totalItens - respondidos} item(ns) ficaram em branco e não entram no cálculo. Enviar assim mesmo?`,
       { titulo: 'Itens em branco', confirmarLabel: 'Enviar' },
@@ -188,8 +252,14 @@ export default function QualidadePage() {
         observacoes: obsGeral.trim() || null,
         data: dataVistoria || undefined,
         atividades: [
-          ...catalogo.filter(c => atividadesSel.has(c.code)).map(c => ({ itCode: c.code, titulo: c.title })),
-          ...atividadesLivres.map(t => ({ titulo: t })),
+          ...catalogo.filter(c => atividadesSel.has(c.code)).map(c => {
+            const pc = projCheck[c.code];
+            return { itCode: c.code, titulo: c.title, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
+          }),
+          ...atividadesLivres.map((t, i) => {
+            const pc = projCheck[`livre:${i}`];
+            return { titulo: t, projetoDisciplina: pc?.disc || null, revisaoOk: pc?.rev || null, conformeProjeto: pc?.exec || null, projetoObs: pc?.obs?.trim() || null };
+          }),
         ],
       };
       const r = await api.post(`/obras/${obraId}/qualidade`, payload);
@@ -295,16 +365,19 @@ export default function QualidadePage() {
                 const ficha = fichas.find(f => f.itCode === c.code && f.status === 'pendente')
                   ?? fichas.find(f => f.itCode === c.code);
                 return (
-                  <p key={c.code} className="text-xs text-ber-gray">
-                    {c.code} · {c.title} — <Link href={`/instrucoes?it=${c.code}`} target="_blank" className="text-ber-teal hover:underline">abrir IT ↗</Link>
-                    {ficha ? (
-                      ficha.status === 'pendente'
-                        ? <span className="ml-1 font-semibold text-amber-700">· FVS pendente ⚠</span>
-                        : <span className="ml-1 font-semibold text-ber-green">· FVS preenchida ✓</span>
-                    ) : (
-                      <span className="ml-1 text-ber-gray/70">· FVS será aberta ao concluir</span>
-                    )}
-                  </p>
+                  <div key={c.code}>
+                    <p className="text-xs text-ber-gray">
+                      {c.code} · {c.title} — <Link href={`/instrucoes?it=${c.code}`} target="_blank" className="text-ber-teal hover:underline">abrir IT ↗</Link>
+                      {ficha ? (
+                        ficha.status === 'pendente'
+                          ? <span className="ml-1 font-semibold text-amber-700">· FVS pendente ⚠</span>
+                          : <span className="ml-1 font-semibold text-ber-green">· FVS preenchida ✓</span>
+                      ) : (
+                        <span className="ml-1 text-ber-gray/70">· FVS será aberta ao concluir</span>
+                      )}
+                    </p>
+                    <ConfProjeto ck={c.code} />
+                  </div>
                 );
               })}
             </div>
@@ -324,10 +397,13 @@ export default function QualidadePage() {
           {atividadesLivres.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {atividadesLivres.map((t, i) => (
-                <span key={`${t}-${i}`} className="inline-flex items-center gap-1 rounded-full bg-ber-surface px-3 py-1 text-xs text-ber-carbon">
-                  {t}
-                  <button onClick={() => setAtividadesLivres(prev => prev.filter((_, j) => j !== i))} className="text-ber-gray hover:text-red-600"><X size={12} /></button>
-                </span>
+                <div key={`${t}-${i}`} className="w-full">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-ber-surface px-3 py-1 text-xs text-ber-carbon">
+                    {t}
+                    <button onClick={() => setAtividadesLivres(prev => prev.filter((_, j) => j !== i))} className="text-ber-gray hover:text-red-600"><X size={12} /></button>
+                  </span>
+                  <ConfProjeto ck={`livre:${i}`} />
+                </div>
               ))}
             </div>
           )}

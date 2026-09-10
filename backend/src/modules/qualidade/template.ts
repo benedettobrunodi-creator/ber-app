@@ -22,9 +22,20 @@ export interface ChecklistCategoria {
 
 export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
+    // Conferência das atividades em execução contra os projetos técnicos
+    // (Bruno 10/09/26): itens DINÂMICOS — cada atividade da vistoria gera as
+    // perguntas "revisão vigente em uso?" e "execução conforme o projeto?".
+    // Pesos rebalanceados nessa data (antes: doc .15, seg .15, org .10, log .07,
+    // exec .20, prot .08, sinal .05, equipe .10, imagem .10).
+    key: 'aderencia_projeto',
+    nome: 'Aderência ao Projeto',
+    peso: 0.15,
+    itens: [],
+  },
+  {
     key: 'documentacao',
     nome: 'Documentação e Planejamento',
-    peso: 0.15,
+    peso: 0.13,
     itens: [
       { key: '1.1', texto: 'Cronograma físico atualizado e impresso no canteiro' },
       { key: '1.2', texto: 'Planejamento semanal afixado e atualizado (Kanban)' },
@@ -38,7 +49,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'seguranca',
     nome: 'Segurança do Trabalho (EHS)',
-    peso: 0.15,
+    peso: 0.13,
     itens: [
       { key: '2.1', texto: 'EPIs completos, em uso e em bom estado' },
       { key: '2.2', texto: 'Sinalização de segurança visível (rotas de fuga, EPIs obrigatórios)' },
@@ -49,7 +60,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'organizacao',
     nome: 'Organização e Limpeza do Canteiro',
-    peso: 0.10,
+    peso: 0.09,
     itens: [
       { key: '3.1', texto: 'Limpeza geral adequada (sem entulhos, poeira excessiva ou resíduos)' },
       { key: '3.2', texto: 'Caminhos e áreas de circulação desobstruídos' },
@@ -60,7 +71,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'armazenamento',
     nome: 'Armazenamento e Logística',
-    peso: 0.07,
+    peso: 0.05,
     itens: [
       { key: '4.1', texto: 'Produtos identificados por tipo' },
       { key: '4.2', texto: 'Controle de entrada e saída de materiais atualizado' },
@@ -70,7 +81,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'execucao',
     nome: 'Execução e Qualidade',
-    peso: 0.20,
+    peso: 0.18,
     itens: [
       { key: '5.1', texto: 'Validação de serviços conforme última revisão de projeto' },
       { key: '5.2', texto: 'Checklists internos de execução preenchidos (ex.: alvenaria, pintura, elétrica)' },
@@ -84,7 +95,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'protecoes',
     nome: 'Proteções e Acabamentos',
-    peso: 0.08,
+    peso: 0.07,
     itens: [
       { key: '6.1', texto: 'Proteções de piso, rodapés e esquadrias instaladas e íntegras' },
       { key: '6.2', texto: 'Barreira física nas áreas críticas (vidros, guarda-corpos, shafts)' },
@@ -95,7 +106,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'sinalizacao',
     nome: 'Sinalização e Identidade da Obra',
-    peso: 0.05,
+    peso: 0.03,
     itens: [
       { key: '7.1', texto: 'Placas de identificação de ambientes visíveis, atualizadas e conservadas' },
       { key: '7.2', texto: 'Comunicação visual interna (cronograma, plantas) padronizada' },
@@ -106,7 +117,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'equipe',
     nome: 'Equipe e Conduta',
-    peso: 0.10,
+    peso: 0.09,
     itens: [
       { key: '8.1', texto: 'Uniformes padronizados e limpos (BÈR e fornecedores)' },
       { key: '8.3', texto: 'Equipe ciente das metas de qualidade e prazos' },
@@ -116,7 +127,7 @@ export const QUALIDADE_CHECKLIST: ChecklistCategoria[] = [
   {
     key: 'imagem',
     nome: 'Imagem e Percepção do Cliente',
-    peso: 0.10,
+    peso: 0.08,
     itens: [
       { key: '9.1', texto: 'Organização geral transmite padrão BÈR Engenharia' },
       { key: '9.2', texto: 'Áreas visitáveis em padrão de apresentação' },

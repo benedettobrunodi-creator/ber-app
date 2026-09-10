@@ -66,9 +66,25 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
   const respostas = input.respostas.filter((r) => itemTexto.has(`${r.categoriaKey}:${r.itemKey}`));
   if (respostas.length === 0) throw AppError.badRequest('Nenhum item respondido');
 
+  // ─── Aderência ao Projeto (Bruno 10/09/26) ───
+  // Cada atividade em execução pode trazer a conferência contra o projeto
+  // técnico: revisão vigente em uso + execução conforme. Itens dinâmicos na
+  // categoria 'aderencia_projeto' — entram na nota e, se "não", viram pendência.
+  const aderencia: { categoriaKey: string; itemKey: string; resposta: 'sim' | 'nao' | 'na'; observacao: string | null; texto: string }[] = [];
+  (input.atividades ?? []).forEach((a, i) => {
+    const rot = `«${a.titulo}»${a.projetoDisciplina ? ` (projeto: ${a.projetoDisciplina})` : ''}`;
+    const obs = (a.projetoObs ?? '').trim() || null;
+    if (a.revisaoOk) {
+      aderencia.push({ categoriaKey: 'aderencia_projeto', itemKey: `AP.${i + 1}.rev`, resposta: a.revisaoOk, observacao: obs, texto: `${rot} — canteiro executando com a última revisão vigente do projeto?` });
+    }
+    if (a.conformeProjeto) {
+      aderencia.push({ categoriaKey: 'aderencia_projeto', itemKey: `AP.${i + 1}.exec`, resposta: a.conformeProjeto, observacao: obs, texto: `${rot} — execução conforme o que o projeto especifica?` });
+    }
+  });
+
   // Critério (03/09, Bruno): "Não" e "N/A" exigem justificativa escrita —
   // ninguém reprova ou pula item sem dizer por quê.
-  const semJustificativa = respostas.filter(
+  const semJustificativa = [...respostas, ...aderencia].filter(
     (r) => (r.resposta === 'nao' || r.resposta === 'na') && !(r.observacao ?? '').trim(),
   );
   if (semJustificativa.length > 0) {
@@ -96,7 +112,7 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
     }
   }
 
-  const { resumo, notaFinal, classificacao } = calcularScore(respostas);
+  const { resumo, notaFinal, classificacao } = calcularScore([...respostas, ...aderencia]);
 
   const vistoria = await prisma.qualidadeVistoria.create({
     data: {
@@ -110,13 +126,22 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
       atividades: (input.atividades ?? []) as object[],
       observacoes: input.observacoes ?? null,
       itens: {
-        create: respostas.map((r) => ({
-          categoriaKey: r.categoriaKey,
-          itemKey: r.itemKey,
-          texto: itemTexto.get(`${r.categoriaKey}:${r.itemKey}`)!,
-          resposta: r.resposta,
-          observacao: r.observacao ?? null,
-        })),
+        create: [
+          ...respostas.map((r) => ({
+            categoriaKey: r.categoriaKey,
+            itemKey: r.itemKey,
+            texto: itemTexto.get(`${r.categoriaKey}:${r.itemKey}`)!,
+            resposta: r.resposta,
+            observacao: r.observacao ?? null,
+          })),
+          ...aderencia.map((r) => ({
+            categoriaKey: r.categoriaKey,
+            itemKey: r.itemKey,
+            texto: r.texto,
+            resposta: r.resposta,
+            observacao: r.observacao,
+          })),
+        ],
       },
     },
     include: { vistoriador: { select: { id: true, name: true } }, itens: true },

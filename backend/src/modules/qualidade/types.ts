@@ -16,6 +16,11 @@ export const createVistoriaSchema = z.object({
   atividades: z.array(z.object({
     itCode: z.string().max(20).nullable().optional(),
     titulo: z.string().min(1).max(200),
+    // Conferência com projeto (Bruno 10/09/26) — categoria 'Aderência ao Projeto'
+    projetoDisciplina: z.string().max(80).nullable().optional(),
+    revisaoOk: z.enum(['sim', 'nao', 'na']).nullable().optional(),
+    conformeProjeto: z.enum(['sim', 'nao', 'na']).nullable().optional(),
+    projetoObs: z.string().max(2000).nullable().optional(),
   })).max(40).optional(),
 });
 
