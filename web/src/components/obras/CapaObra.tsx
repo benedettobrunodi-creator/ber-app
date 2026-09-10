@@ -69,6 +69,8 @@ interface ObraInfo {
 
 interface Contratacao { status: string }
 interface ContratacoesResp { contratacoes: Contratacao[]; totals: { total: number; byStatus: Record<string, number> } }
+/** Pacote do Cronograma de Contratações (contratacao-plano) — fonte primária do donut (10/09/26). */
+interface PlanoLite { status: string; dataLimite: string | null }
 
 /** Atividade do relatório semanal. `tipo` separa o período atual do próximo. */
 interface AtividadeSemana {
@@ -137,6 +139,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
 
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
+  const [planos, setPlanos] = useState<PlanoLite[]>([]);
   const [curvaS, setCurvaS] = useState<CurvaSPonto[]>([]);
   const [temperaturas, setTemperaturas] = useState<TemperaturaRow[]>([]);
   const [ultimoRelatorio, setUltimoRelatorio] = useState<RelatorioLite | null>(null);
@@ -148,9 +151,10 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   async function load() {
     setLoading(true);
     const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-    const [o, c, curva, temps, rels, fvs] = await Promise.all([
+    const [o, c, pl, curva, temps, rels, fvs] = await Promise.all([
       safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
       safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
+      safe(api.get<{ data: PlanoLite[] }>(`/obras/${obraId}/contratacao-plano`).then(r => r.data.data)),
       safe(api.get<{ data: CurvaSPonto[] }>(`/obras/${obraId}/relatorios/curva-s`).then(r => r.data.data)),
       safe(api.get<{ data: TemperaturaRow[] }>(`/obras/${obraId}/temperatura`).then(r => r.data.data)),
       safe(api.get<{ data: RelatorioLite[] }>(`/obras/${obraId}/relatorios`).then(r => r.data.data)),
@@ -158,6 +162,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     ]);
     setObra(o);
     setContratos(c);
+    setPlanos(pl ?? []);
     setCurvaS(curva ?? []);
     setTemperaturas(temps ?? []);
     setFases(fvs ?? []);
@@ -190,14 +195,21 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const diasFalt2 = daysBetween(today(), entrega2D);
 
   // ─── Contratações (donut) ──────────────────────────────────────────────
-  const total = contratos?.totals.total ?? 0;
-  const byStatus = contratos?.totals.byStatus ?? {};
-  const contratados = (Number(byStatus['ativo'] ?? 0) + Number(byStatus['contratado'] ?? 0));
-  const aContratar = total - contratados;
-  // "Em atraso" = contratações que não estão ativas/contratadas e cujo plano deve estar atrasado.
-  // Sem campo direto, aproximação: usa Math.min(aContratar, contratos.contratacoes.filter status === 'atrasado').length
-  const emAtraso = Number(byStatus['atrasado'] ?? 0);
-  const previstos = total > 0 ? total : 35; // fallback do exemplo da planilha enquanto não há dados
+  // Fonte primária: CRONOGRAMA DE CONTRATAÇÕES (contratacao-plano) — é onde o
+  // time opera (Bruno 10/09/26). Fallback: módulo antigo de contratações.
+  const { previstos, contratados, aContratar, emAtraso } = (() => {
+    if (planos.length > 0) {
+      const agora = Date.now();
+      const contratadosN = planos.filter(pl => pl.status === 'contratado').length;
+      const atrasadosN = planos.filter(pl => pl.status !== 'contratado' && pl.dataLimite && new Date(pl.dataLimite).getTime() < agora).length;
+      return { previstos: planos.length, contratados: contratadosN, aContratar: planos.length - contratadosN, emAtraso: atrasadosN };
+    }
+    const total = contratos?.totals.total ?? 0;
+    const byStatus = contratos?.totals.byStatus ?? {};
+    const contratadosN = (Number(byStatus['ativo'] ?? 0) + Number(byStatus['contratado'] ?? 0));
+    return { previstos: total, contratados: contratadosN, aContratar: total - contratadosN, emAtraso: Number(byStatus['atrasado'] ?? 0) };
+  })();
+  const total = previstos;
 
   const donutData = total > 0
     ? [
@@ -348,9 +360,13 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
 
   // ─── Linha do tempo (régua Início → Hoje → Prazo) ──────────────────────
   // % do prazo já consumido. Serve de referência visual contra o avanço real.
-  const tempoPct = prazoObra != null && prazoObra > 0 && diasDecorridos != null
-    ? Math.min(100, Math.max(0, Math.round(diasDecorridos / prazoObra * 100)))
-    : null;
+  // Obra em PLANEJAMENTO ainda não consome prazo — régua zerada (Bruno 10/09/26)
+  const emPlanejamento = (obra.status ?? '').toLowerCase().includes('planejamento');
+  const tempoPct = emPlanejamento
+    ? 0
+    : prazoObra != null && prazoObra > 0 && diasDecorridos != null
+      ? Math.min(100, Math.max(0, Math.round(diasDecorridos / prazoObra * 100)))
+      : null;
 
   return (
     <div className={embedded ? 'bg-white' : 'p-3 md:p-6 print:p-0 bg-white min-h-screen'}>
@@ -519,7 +535,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                 </div>
                 <div className="mt-1 flex justify-between text-[9px] text-ber-gray">
                   <span>Início</span>
-                  <span className="font-semibold text-ber-carbon">Hoje · {tempoPct}% do prazo</span>
+                  <span className="font-semibold text-ber-carbon">{emPlanejamento ? 'Pré-obra · prazo não iniciado' : `Hoje · ${tempoPct}% do prazo`}</span>
                   <span>Prazo</span>
                 </div>
               </div>
@@ -702,7 +718,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       {/* Mesma curva do PDF do relatório (módulo Relatórios → aba Curva S). */}
       <div className="border border-ber-gray/30">
         <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
-          <span>CURVA S — PLANEJADO VS. REALIZADO</span>
+          <span>{curva.some(p => p.realizado != null) ? 'CURVA S — PLANEJADO VS. REALIZADO' : 'CURVA S — PLANEJADO'}</span>
           <button onClick={load}
             className="print:hidden inline-flex items-center gap-1 rounded border border-white/30 px-2 py-0.5 text-[10px] font-medium text-white/90 hover:bg-white/10">
             <RefreshCw size={10} /> Atualizar
@@ -753,9 +769,13 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-[#3B82F6]" /> Planejado acumulado
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-5 bg-[#22C55E]" /> Realizado acumulado
-              </span>
+              {curva.some(p => p.realizado != null) ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-0.5 w-5 bg-[#22C55E]" /> Realizado acumulado
+                </span>
+              ) : (
+                <span className="italic">Realizado entra quando o 1º relatório semanal for emitido</span>
+              )}
               {planejadoHoje != null && (
                 <span className="ml-auto">Planejado para hoje: <span className="font-bold text-ber-carbon">{planejadoHoje}%</span></span>
               )}
