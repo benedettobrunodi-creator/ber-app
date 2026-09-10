@@ -228,6 +228,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const endIso = (obra.dataFimObra ?? obra.expectedEndDate ?? '').slice(0, 10) || null;
   const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
 
+  // Sem curva cadastrada mas com datas da obra → curva PLANEJADA linear gerada
+  // na hora (Bruno 10/09/26: cockpit nunca fica sem a curva do planejado).
+  const curvaEhFallback = curvaS.length === 0 && !!startIso && !!endIso;
   const curva: CurvaPt[] = (() => {
     const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
     curvaS.forEach(p => {
@@ -237,6 +240,23 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       if (p.realizadoPct != null) entry.realizado = Number(p.realizadoPct);
       map.set(k, entry);
     });
+    if (map.size === 0 && curvaEhFallback) {
+      const ini = new Date(startIso + 'T00:00:00');
+      const fim = new Date(endIso + 'T00:00:00');
+      const span = fim.getTime() - ini.getTime();
+      if (span > 0) {
+        // começa na segunda-feira anterior ao início
+        const w = new Date(ini);
+        const dow = w.getDay();
+        w.setDate(w.getDate() - (dow === 0 ? 6 : dow - 1));
+        while (w <= fim) {
+          const fimSemana = new Date(w); fimSemana.setDate(fimSemana.getDate() + 6);
+          const pct = Math.min(100, Math.max(0, Math.round((fimSemana.getTime() - ini.getTime()) / span * 1000) / 10));
+          map.set(w.toISOString().slice(0, 10), { semana: w.toISOString().slice(0, 10), planejado: pct });
+          w.setDate(w.getDate() + 7);
+        }
+      }
+    }
     if (map.size === 0) return [];
     // Ancora nas datas oficiais da obra pra curva cobrir o projeto inteiro
     if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
@@ -769,6 +789,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-[#3B82F6]" /> Planejado acumulado
               </span>
+              {curvaEhFallback && (
+                <span className="italic">curva linear das datas da obra — gere a oficial no Cronograma (botão Gerar Curva S)</span>
+              )}
               {curva.some(p => p.realizado != null) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-0.5 w-5 bg-[#22C55E]" /> Realizado acumulado
