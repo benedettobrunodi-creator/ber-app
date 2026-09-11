@@ -81,7 +81,8 @@ const PGS_GARANTIA = [53, 54, 55];
 const PGS_NAO_COBERTOS = [58, 59, 60, 61];
 const PGS_UTILIDADE = [62, 63, 64, 65];
 const PGS_PRAZOS_GARANTIA = [67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86];
-const PGS_TERMOS = [87, 88];
+// Termos de aceite provisório/definitivo (pgs 87-88 do modelo) EXCLUÍDOS do
+// databook a pedido do Bruno (11/09/26) — assinados fora do manual.
 const PG_CARTAO = 89;
 const PG_SOBRE = 6;
 
@@ -632,7 +633,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       {PGS_MANUTENCAO.map((n) => <PaginaModeloComp key={n} num={n} />)}
 
       {/* ─── SEÇÃO 06 · GARANTIAS ─── */}
-      <SecaoEscura num="06" titulo="Termos das garantias" desc="Prazos de garantia, o que está coberto, contatos de assistência e os termos de entrega." />
+      <SecaoEscura num="06" titulo="Termos das garantias" desc="Prazos de garantia, o que está coberto e os contatos de assistência." />
       {PGS_GARANTIA.map((n) => <PaginaModeloComp key={n} num={n} />)}
 
       {/* Fornecedores dinâmicos */}
@@ -662,7 +663,6 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       {PGS_NAO_COBERTOS.map((n) => <PaginaModeloComp key={n} num={n} />)}
       {PGS_UTILIDADE.map((n) => <PaginaModeloComp key={n} num={n} />)}
       {PGS_PRAZOS_GARANTIA.map((n) => <PaginaModeloComp key={n} num={n} />)}
-      {PGS_TERMOS.map((n) => <PaginaModeloComp key={n} num={n} />)}
 
       {/* Cartão rápido final */}
       <PaginaModeloComp num={PG_CARTAO} kickerOverride={`${obra.name.toUpperCase()} — CARTÃO RÁPIDO`} />
