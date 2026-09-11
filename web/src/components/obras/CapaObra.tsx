@@ -181,6 +181,25 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     catch (err) { alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao remover'); }
   }
 
+  // Fase de CONSTRUÇÃO do cronograma pro fallback da curva (Bruno 10/09):
+  // pré/pós-obra fora da régua. HOOKS AQUI NO TOPO — nunca depois do return
+  // de loading (violação de Rules of Hooks derrubou a página em 10/09 21h).
+  const [faseObra, setFaseObra] = useState<{ inicio: string; fim: string } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    api.get(`/obras/${obraId}/cronograma`).then(r => {
+      const tarefas = (r.data.data?.parsedData?.tarefas ?? []) as { nome: string; inicio?: string | null; fim?: string | null; ehResumo?: boolean }[];
+      const ehConstrucao = (nome: string) => {
+        const n = nome.toLowerCase();
+        if (/pr[eé][\s-]*(obra|constru)|p[oó]s[\s-]*(obra|constru)|pre[\s-]*construction|post[\s-]*construction|planejament|mobiliza|close[\s-]*out|encerramento|punch/.test(n)) return false;
+        return /constru|execu[cç]|\bobra(s)?\b/.test(n);
+      };
+      const fase = tarefas.find(t => t.ehResumo && t.inicio && t.fim && ehConstrucao(t.nome));
+      if (vivo && fase) setFaseObra({ inicio: fase.inicio!.slice(0, 10), fim: fase.fim!.slice(0, 10) });
+    }).catch(() => { /* sem cronograma processado: fallback usa as datas da obra */ });
+    return () => { vivo = false; };
+  }, [obraId]);
+
   if (loading || !obra) {
     return <div className={embedded ? 'py-6 text-sm text-ber-gray' : 'p-6 text-sm text-ber-gray'}>Carregando capa…</div>;
   }
@@ -234,10 +253,12 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const startIso = (obra.dataInicioObra ?? obra.startDate ?? '').slice(0, 10) || null;
   const endIso = (obra.dataFimObra ?? obra.expectedEndDate ?? '').slice(0, 10) || null;
   const startMs = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
+  const fbStartIso = faseObra?.inicio ?? startIso;
+  const fbEndIso = faseObra?.fim ?? endIso;
 
   // Sem curva cadastrada mas com datas da obra → curva PLANEJADA linear gerada
   // na hora (Bruno 10/09/26: cockpit nunca fica sem a curva do planejado).
-  const curvaEhFallback = curvaS.length === 0 && !!startIso && !!endIso;
+  const curvaEhFallback = curvaS.length === 0 && !!fbStartIso && !!fbEndIso;
   const curva: CurvaPt[] = (() => {
     const map = new Map<string, { semana: string; planejado?: number; realizado?: number }>();
     curvaS.forEach(p => {
@@ -248,8 +269,8 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       map.set(k, entry);
     });
     if (map.size === 0 && curvaEhFallback) {
-      const ini = new Date(startIso + 'T00:00:00');
-      const fim = new Date(endIso + 'T00:00:00');
+      const ini = new Date(fbStartIso + 'T00:00:00');
+      const fim = new Date(fbEndIso + 'T00:00:00');
       const span = fim.getTime() - ini.getTime();
       if (span > 0) {
         // começa na segunda-feira anterior ao início
@@ -265,9 +286,11 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       }
     }
     if (map.size === 0) return [];
-    // Ancora nas datas oficiais da obra pra curva cobrir o projeto inteiro
-    if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
-    if (endIso && !map.has(endIso)) map.set(endIso, { semana: endIso });
+    // Âncora: curva oficial cobre o projeto inteiro; fallback ancora na fase de obra
+    const ancIni = curvaEhFallback ? fbStartIso : startIso;
+    const ancFim = curvaEhFallback ? fbEndIso : endIso;
+    if (ancIni && !map.has(ancIni)) map.set(ancIni, { semana: ancIni });
+    if (ancFim && !map.has(ancFim)) map.set(ancFim, { semana: ancFim });
     return Array.from(map.values())
       .sort((a, b) => a.semana.localeCompare(b.semana))
       .map((pt, i) => {
@@ -808,7 +831,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                 <span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-[#3B82F6]" /> Planejado acumulado
               </span>
               {curvaEhFallback && (
-                <span className="italic">curva linear das datas da obra — gere a oficial no Cronograma (botão Gerar Curva S)</span>
+                <span className="italic">curva linear {faseObra ? 'da fase de construção do cronograma' : 'das datas da obra'} — gere a oficial no Cronograma (botão Gerar Curva S)</span>
               )}
               {curva.some(p => p.realizado != null) ? (
                 <span className="inline-flex items-center gap-1.5">
