@@ -661,7 +661,29 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       )}
 
       {PGS_NAO_COBERTOS.map((n) => <PaginaModeloComp key={n} num={n} />)}
-      {PGS_UTILIDADE.map((n) => <PaginaModeloComp key={n} num={n} />)}
+      {/* 6.3 · pg 62 reconstruída COM a Tabela das Concessionárias — a tabela do
+          Caderno se perdeu na extração do modelo (Bruno, 11/09/26) */}
+      <Page size="A4" style={s.page}>
+        <Cabecalho eyebrow="Manual do Proprietário" kicker="6.3 SERVIÇOS DE UTILIDADE PÚBLICA" titulo="Serviços de utilidade pública" />
+        <CorpoModelo lines={pagina(62)?.lines ?? []} startIdx={2} />
+        <View style={{ marginTop: 18 }}>
+          <Text style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.4, color: OLIVA_DARK, textTransform: 'uppercase', marginBottom: 6, paddingBottom: 3, borderBottomWidth: 1.5, borderBottomColor: OLIVA }}>
+            Tabela das concessionárias
+          </Text>
+          {[
+            ['Água — SABESP', '0800 055 0195'],
+            ['Luz e força — ENEL', '0800 72 72 120'],
+            ['Gás — COMGÁS', '0800 011 0197'],
+          ].map(([nome, tel]) => (
+            <View key={nome} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: LINE, paddingVertical: 7 }}>
+              <Text style={{ flex: 2, fontSize: 9.5, fontWeight: 600, color: CARVAO }}>{nome}</Text>
+              <Text style={{ flex: 1, fontSize: 9.5, fontWeight: 700, color: OLIVA_DARK, textAlign: 'right' }}>{tel}</Text>
+            </View>
+          ))}
+        </View>
+        <Rodape />
+      </Page>
+      {PGS_UTILIDADE.filter((n) => n !== 62).map((n) => <PaginaModeloComp key={n} num={n} />)}
       {PGS_PRAZOS_GARANTIA.map((n) => <PaginaModeloComp key={n} num={n} />)}
 
       {/* Cartão rápido final */}

@@ -15,7 +15,7 @@ import RelatorioTab from '@/components/obras/RelatorioTab';
 import ObraInfoModal from '@/components/obras/ObraInfoModal';
 
 
-type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida';
+type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida' | 'cancelada';
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -117,6 +117,9 @@ const STATUS_CONFIG: Record<ObraStatus, { label: string; badge: string; selectBo
   pos_obra: { label: 'Pós Obra', badge: 'bg-ber-olive/10 text-ber-olive/80', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
   pausada: { label: 'Pausada', badge: 'bg-amber-100 text-amber-700', selectBorder: 'border-amber-400 focus:ring-amber-400' },
   concluida: { label: 'Concluída', badge: 'bg-ber-olive/15 text-ber-olive', selectBorder: 'border-ber-olive focus:ring-ber-olive' },
+  // 'cancelada' = Arquivada (mesmo rótulo da lista de obras) — faltava no menu
+  // e a capa imprimia "CANCELADA" cru (divergência apontada pelo Bruno 11/09)
+  cancelada: { label: 'Arquivada', badge: 'bg-red-50 text-red-500', selectBorder: 'border-ber-gray focus:ring-ber-gray' },
 };
 
 type TabKey = 'capa' | 'equipe' | 'recebimento' | 'canteiro' | 'fvs' | 'kanban' | 'cronograma' | 'diario' | 'relatorios';
@@ -1405,6 +1408,7 @@ export default function ObraDetailPage() {
                 <option value="pos_obra">Pós Obra</option>
                 <option value="pausada">Pausada</option>
                 <option value="concluida">Concluída</option>
+                <option value="cancelada">Arquivada</option>
               </select>
               <ChevronDown size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ber-gray" />
             </div>

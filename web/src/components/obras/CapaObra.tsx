@@ -108,6 +108,7 @@ const OBRA_STATUS: Record<string, { label: string; cor: string }> = {
   pos_obra:     { label: 'Pós Obra',                cor: 'text-ber-olive/80' },
   pausada:      { label: 'Pausada',                 cor: 'text-amber-600' },
   concluida:    { label: 'Concluída',               cor: 'text-ber-olive' },
+  cancelada:    { label: 'Arquivada',               cor: 'text-red-500' },
 };
 
 /** Fase do Passo a Passo (obra_fvs) — só o que a Capa precisa pra dar o status. */
