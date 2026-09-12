@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/api', '/uploads', '/manifest'];
+// /sw.js e /icones do PWA precisam ser públicos: service worker não pode ser
+// servido atrás de redirect (o browser recusa o registro) — bug pego em 12/09.
+const PUBLIC_PATHS = ['/login', '/api', '/uploads', '/manifest', '/sw.js', '/icone-'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
