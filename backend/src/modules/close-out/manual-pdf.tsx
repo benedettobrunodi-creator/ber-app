@@ -207,6 +207,7 @@ export interface ManualPdfData {
     textoBemVindos: string | null;
     materiais: string[];
     galeria: { url: string; legenda?: string | null }[];
+    galeriaProjetos?: { url: string; legenda?: string | null }[] | null;
     acabamentos: { grupo: string; nome: string; cor?: string | null; tipo?: string | null; fornecedor?: string | null }[];
     mobiliario: { nome: string; medida?: string | null; descricao?: string | null }[];
     fornecedores: { categoria: string; nome: string; telefone?: string | null; email?: string | null; endereco?: string | null }[];
@@ -574,6 +575,34 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
         )}
         <Rodape />
       </Page>
+
+      {/* ─── 3.2 PROJETOS — PRANCHAS (imagens, separado da galeria de fotos — pedido 12/09) ─── */}
+      {(manual.galeriaProjetos ?? []).length > 0 &&
+        Array.from({ length: Math.ceil((manual.galeriaProjetos ?? []).length / 4) }).map((_, pageIdx) => {
+          const imgs = (manual.galeriaProjetos ?? []).slice(pageIdx * 4, pageIdx * 4 + 4);
+          return (
+            <Page key={`galproj-${pageIdx}`} size="A4" style={s.page}>
+              <Cabecalho
+                eyebrow="Manual do Proprietário · Lista de projetos"
+                kicker="3.2 PROJETOS — PRANCHAS"
+                titulo={pageIdx === 0 ? 'Imagens dos projetos' : 'Imagens dos projetos (continuação)'}
+              />
+              {[0, 2].map((rowStart) => (
+                <View key={rowStart} style={s.galRow}>
+                  {imgs.slice(rowStart, rowStart + 2).map((g, i) => (
+                    <View key={i} style={[s.galCol, { position: 'relative' }]}>
+                      <Image src={g.url} style={s.galFotoHalf} />
+                      {g.legenda ? (
+                        <View style={s.galLegenda}><Text style={s.galLegendaTxt}>{g.legenda}</Text></View>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ))}
+              <Rodape />
+            </Page>
+          );
+        })}
 
       {/* ─── SEÇÃO 04 · DEFINIÇÕES ─── */}
       <SecaoEscura num="04" titulo="Definições" desc="As normas de referência e o memorial com os materiais e acabamentos aplicados na sua obra." />

@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { toast } from '@/lib/toast';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, Upload, BookOpen, Download } from 'lucide-react';
@@ -31,6 +32,7 @@ interface Manual {
   textoBemVindos: string | null;
   materiais: string[];
   galeria: ItemGaleria[];
+  galeriaProjetos: ItemGaleria[];
   acabamentos: ItemAcabamento[];
   mobiliario: ItemMobiliario[];
   fornecedores: ItemFornecedor[];
@@ -71,6 +73,7 @@ export default function ManualProprietarioPage() {
   const [gerando, setGerando] = useState(false);
   const capaInput = useRef<HTMLInputElement | null>(null);
   const galeriaInput = useRef<HTMLInputElement | null>(null);
+  const galeriaProjInput = useRef<HTMLInputElement | null>(null);
   const anexoInput = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -86,6 +89,7 @@ export default function ManualProprietarioPage() {
         textoBemVindos: m.textoBemVindos ?? null,
         materiais: m.materiais ?? [],
         galeria: m.galeria ?? [],
+        galeriaProjetos: m.galeriaProjetos ?? [],
         acabamentos: m.acabamentos ?? [],
         mobiliario: m.mobiliario ?? [],
         fornecedores: m.fornecedores ?? [],
@@ -94,7 +98,7 @@ export default function ManualProprietarioPage() {
       });
       setBib(d.biblioteca ?? []);
       setAuto(d.auto ?? null);
-    }).catch(() => alert('Erro ao carregar o manual'));
+    }).catch(() => toast('Erro ao carregar o manual', 'erro'));
   }, [obraId]);
 
   async function salvar() {
@@ -105,7 +109,7 @@ export default function ManualProprietarioPage() {
       setSavedAt(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-      alert(m || 'Erro ao salvar');
+      toast(m || 'Erro ao salvar', 'erro');
     } finally {
       setSaving(false);
     }
@@ -123,7 +127,7 @@ export default function ManualProprietarioPage() {
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
-      alert('Erro ao gerar o PDF — confira os dados e tente de novo');
+      toast('Erro ao gerar o PDF — confira os dados e tente de novo', 'erro');
     } finally {
       setGerando(false);
     }
@@ -197,7 +201,7 @@ export default function ManualProprietarioPage() {
                   setUploading(true);
                   const url = await uploadArquivo(f, true);
                   setUploading(false);
-                  if (url) upd('fotoCapaUrl', url); else alert('Falha no upload');
+                  if (url) upd('fotoCapaUrl', url); else toast('Falha no upload', 'erro');
                 }} />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -250,7 +254,7 @@ export default function ManualProprietarioPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className={secTitle}>Galeria da obra ({manual.galeria.length})</p>
-              <p className={secHint}>Fotos da entrega com legenda — viram a seção 1.1 do manual.</p>
+              <p className={secHint}>Só fotos da obra/entrega — viram a seção 1.1. Plantas e projetos vão no grupo abaixo.</p>
             </div>
             <button type="button" onClick={() => galeriaInput.current?.click()} disabled={uploading}
               className="inline-flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
@@ -282,6 +286,51 @@ export default function ManualProprietarioPage() {
                       placeholder="Legenda" value={g.legenda ?? ''}
                       onChange={e => upd('galeria', manual.galeria.map((x, j) => j === i ? { ...x, legenda: e.target.value } : x))} />
                     <button onClick={() => upd('galeria', manual.galeria.filter((_, j) => j !== i))}
+                      className="text-ber-gray/50 hover:text-red-500"><X size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Projetos — pranchas (grupo separado da galeria de fotos, pedido 12/09) */}
+        <div className={cardCls}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={secTitle}>Projetos · pranchas e desenhos ({manual.galeriaProjetos.length})</p>
+              <p className={secHint}>Imagens de plantas e projetos — viram a seção 3.2 do manual, separadas das fotos.</p>
+            </div>
+            <button type="button" onClick={() => galeriaProjInput.current?.click()} disabled={uploading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
+              <Upload size={13} /> {uploading ? 'Subindo…' : 'Adicionar imagens'}
+            </button>
+            <input ref={galeriaProjInput} type="file" accept="image/*" multiple className="hidden"
+              onChange={async e => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = '';
+                if (files.length === 0) return;
+                setUploading(true);
+                const novas: ItemGaleria[] = [];
+                for (const f of files) {
+                  const url = await uploadArquivo(f, true);
+                  if (url) novas.push({ url, legenda: '' });
+                }
+                setUploading(false);
+                upd('galeriaProjetos', [...manual.galeriaProjetos, ...novas]);
+              }} />
+          </div>
+          {manual.galeriaProjetos.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+              {manual.galeriaProjetos.map((g, i) => (
+                <div key={`${g.url}-${i}`} className="overflow-hidden rounded-lg border border-ber-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={g.url} alt="" className="h-28 w-full object-cover" />
+                  <div className="flex items-center gap-1 p-1.5">
+                    <input className="w-full rounded border border-ber-border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                      placeholder="Legenda" value={g.legenda ?? ''}
+                      onChange={e => upd('galeriaProjetos', manual.galeriaProjetos.map((x, j) => j === i ? { ...x, legenda: e.target.value } : x))} />
+                    <button onClick={() => upd('galeriaProjetos', manual.galeriaProjetos.filter((_, j) => j !== i))}
                       className="text-ber-gray/50 hover:text-red-500"><X size={14} /></button>
                   </div>
                 </div>

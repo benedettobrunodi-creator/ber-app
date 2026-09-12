@@ -1182,6 +1182,7 @@ model ManualProprietario {
   textoBemVindos   String?   @map("texto_bem_vindos") // override do texto padrão
   materiais        String[]  @default([]) // keys da biblioteca "usar e manter"
   galeria          Json      @default("[]") // [{url, legenda}]
+  galeriaProjetos  Json      @default("[]") @map("galeria_projetos") // [{url, legenda}] — pranchas/imagens de projetos (pedido 12/09: separar fotos × projetos)
   acabamentos      Json      @default("[]") // [{grupo, nome, cor, tipo, fornecedor}]
   mobiliario       Json      @default("[]") // [{nome, medida, descricao}]
   fornecedores     Json      @default("[]") // [{categoria, nome, telefone, email, endereco}]
