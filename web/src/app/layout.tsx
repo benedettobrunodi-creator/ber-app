@@ -24,10 +24,16 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "BÈR App",
   },
+  icons: {
+    icon: "/icon-192x192.png",
+    apple: "/icon-192x192.png", // ícone do atalho no iPhone (identidade BÈR, 11/09)
+  },
   formatDetection: {
     telephone: false,
   },
 };
+
+import { PwaSetup } from '@/components/pwa/PwaSetup';
 
 export default function RootLayout({
   children,
@@ -36,7 +42,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${montserrat.variable} h-full min-h-dvh`}>
-      <body className="h-full min-h-dvh antialiased">{children}</body>
+      <body className="h-full min-h-dvh antialiased"><PwaSetup />
+        {children}</body>
     </html>
   );
 }
