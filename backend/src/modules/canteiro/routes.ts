@@ -19,6 +19,7 @@ obraCanteiroRouter.post('/', requireRole('campo'), controller.createForCurrentWe
 // Canteiro-specific routes (mounted at /canteiro/:id)
 const router = Router();
 router.use(authenticate);
+router.get('/resumo-obras', controller.resumoObras);
 router.get('/:id', controller.getById);
 router.patch('/:id/items/:itemId', validate(answerCanteiroItemSchema), controller.answerItem);
 router.patch('/:id/submit', controller.submitChecklist);

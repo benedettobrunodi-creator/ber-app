@@ -69,24 +69,9 @@ export default function CanteiroPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        const obrasRes = await api.get('/obras');
-        const obras: Obra[] = obrasRes.data.data;
-
-        const results = await Promise.all(
-          obras.map(async (obra) => {
-            try {
-              const res = await api.get(`/obras/${obra.id}/canteiro`);
-              const checklists: CanteiroChecklist[] = res.data.data;
-              const current = checklists.find((c) => {
-                const ws = new Date(c.weekStart).toISOString().split('T')[0];
-                return ws === weekISO;
-              }) ?? null;
-              return { obra, checklist: current };
-            } catch {
-              return { obra, checklist: null };
-            }
-          }),
-        );
+        // Agregado anti-N+1 (auditoria 11/09): 1 request no lugar de 1+N
+        const res = await api.get(`/canteiro/resumo-obras?weekStart=${weekISO}`);
+        const results: { obra: Obra; checklist: CanteiroChecklist | null }[] = res.data.data ?? [];
 
         results.sort((a, b) => {
           if (a.checklist && !b.checklist) return -1;

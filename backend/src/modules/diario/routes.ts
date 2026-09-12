@@ -25,6 +25,7 @@ const diarioRouter = Router();
 diarioRouter.get('/publico/:token', controller.getPublico);
 
 diarioRouter.use(authenticate);
+diarioRouter.get('/resumo-obras', controller.resumoObras);
 diarioRouter.get('/:diarioId', controller.getById);
 diarioRouter.patch('/:diarioId', validate(updateDiarioSchema), controller.update);
 diarioRouter.post('/:diarioId/fechar', controller.fechar);

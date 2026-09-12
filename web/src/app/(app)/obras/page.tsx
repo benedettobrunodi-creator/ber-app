@@ -369,7 +369,44 @@ export default function ObrasPage() {
           </p>
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-ber-gray/10 bg-white">
+        <>
+        {/* Cards mobile (auditoria 11/09) — a tabela de 960px fica só no desktop */}
+        <div className="mt-6 space-y-3 md:hidden">
+          {visiveis.map((obra) => {
+            const statusCfg = STATUS_CONFIG[obra.status] ?? STATUS_CONFIG.planejamento;
+            const atrasado = relatorioAtrasado(obra);
+            const dias = diasSemRelatorio(obra);
+            return (
+              <Link key={obra.id} href={`/obras/${obra.id}`}
+                className={`block rounded-xl border border-ber-gray/10 bg-white p-4 active:bg-ber-teal/5 ${obra.status === 'cancelada' ? 'opacity-50' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-semibold text-ber-carbon">{obra.name}</p>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${statusCfg.className}`}>{statusCfg.label}</span>
+                </div>
+                {obra.client && <p className="mt-0.5 truncate text-xs text-ber-gray">{obra.client}</p>}
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ber-gray">
+                  {obra.coordinator && <span className="flex items-center gap-1"><User size={11} />{obra.coordinator.name}</span>}
+                  {obra.expectedEndDate && <span className={`flex items-center gap-1 ${prazoClasse(obra)}`}><Calendar size={11} />{formatDate(obra.expectedEndDate)}</span>}
+                  {obra.status === 'em_andamento' && (
+                    obra.ultimoRelatorioEm
+                      ? <span className={atrasado ? 'font-semibold text-red-600' : ''}>rel. {formatDate(obra.ultimoRelatorioEm)}{dias !== null && dias > 7 ? ` (${dias}d)` : ''}</span>
+                      : <span className="font-semibold text-red-600">sem relatório</span>
+                  )}
+                </div>
+                {obra.progressoRelatorio !== null && (
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 rounded-full bg-ber-offwhite">
+                      <div className={`h-full rounded-full ${atrasado ? 'bg-red-500' : 'bg-ber-olive'}`} style={{ width: `${obra.progressoRelatorio}%` }} />
+                    </div>
+                    <span className={`text-xs font-bold ${atrasado ? 'text-red-600' : 'text-ber-olive'}`}>{obra.progressoRelatorio}%</span>
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 hidden overflow-x-auto rounded-lg border border-ber-gray/10 bg-white md:block">
           <div className="min-w-[960px]">
             {/* List header */}
             <div className="grid grid-cols-[1fr_auto_56px_150px_120px_120px_100px_64px] items-center gap-4 border-b border-ber-gray/10 bg-ber-offwhite px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
@@ -479,6 +516,7 @@ export default function ObrasPage() {
             })}
           </div>
         </div>
+        </>
       )}
 
       {modalOpen && (

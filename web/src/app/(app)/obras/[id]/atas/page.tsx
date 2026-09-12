@@ -427,7 +427,36 @@ function TopicosTable({
   });
 
   return (
-    <div className="mt-3 max-h-[70vh] overflow-auto rounded-xl border border-ber-gray/15 bg-white shadow-sm">
+    <>
+    {/* Cards mobile (auditoria 11/09): a tabela de 16 colunas fica só no desktop */}
+    <div className="mt-3 space-y-3 md:hidden">
+      {topicos.map((t) => {
+        const st = STATUS_OPTIONS.find(o => o.value === t.status);
+        return (
+          <div key={t.id} className="rounded-xl border border-ber-gray/15 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 text-sm font-semibold text-ber-carbon">{t.tema || t.disciplina || `Tópico #${t.ordem}`}</p>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${st?.cls ?? ''}`}>{st?.label ?? t.status}</span>
+            </div>
+            {t.observacoes && <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-ber-gray">{t.observacoes}</p>}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ber-gray">
+              {(t.responsavel?.name || t.responsavelStakeholder?.nome) && <span>resp. {t.responsavel?.name ?? t.responsavelStakeholder?.nome}</span>}
+              {t.dataAlvo && <span>alvo {new Date(t.dataAlvo).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>}
+              {t.changeOrder && <span className="font-semibold text-amber-700">CO</span>}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <StatusSelect value={t.status} onChange={v => onUpdateTopico(t.id, 'status', v)} />
+              <input type="date" value={t.dataAlvo ? t.dataAlvo.slice(0, 10) : ''}
+                onChange={e => onUpdateTopico(t.id, 'dataAlvo', (e.target.value || null) as Topico['dataAlvo'])}
+                className="min-h-[36px] rounded border border-ber-gray/20 bg-white px-2 py-1 text-xs" />
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-center text-[11px] text-ber-gray/70">Edição completa dos tópicos: use o computador (tabela integral).</p>
+    </div>
+
+    <div className="mt-3 hidden max-h-[70vh] overflow-auto rounded-xl border border-ber-gray/15 bg-white shadow-sm md:block">
       <table className="min-w-max text-xs">
         <thead className="bg-ber-bg sticky top-0 z-10">
           <tr className="border-b border-ber-gray/20 text-left">
@@ -535,6 +564,7 @@ function TopicosTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

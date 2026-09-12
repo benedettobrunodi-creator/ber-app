@@ -40,22 +40,9 @@ export default function DiarioListPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.get('/obras?status=em_andamento&limit=100');
-        const lista: { id: string; name: string; client: string | null; status: string }[] = res.data?.data ?? [];
-
-        const obrasComDiario = await Promise.all(
-          lista.map(async (obra) => {
-            try {
-              const dr = await api.get(`/obras/${obra.id}/diario`);
-              const diarios: any[] = dr.data?.data ?? [];
-              return { ...obra, ultimoDiario: diarios[0] ?? null };
-            } catch {
-              return { ...obra, ultimoDiario: null };
-            }
-          })
-        );
-
-        setObras(obrasComDiario);
+        // Agregado anti-N+1 (auditoria 11/09): 1 request no lugar de 1+N
+        const res = await api.get('/diario/resumo-obras');
+        setObras(res.data?.data ?? []);
       } finally {
         setLoading(false);
       }

@@ -480,3 +480,23 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   }
   sendSuccess(res, { ok: true, enviadoPara: emails });
 }
+
+
+/** Resumo agregado pra LISTA do diário (auditoria mobile 11/09): as telas de
+ *  entrada faziam 1+N requests (30+ no 4G do canteiro). Uma query só. */
+export async function resumoObras(_req: Request, res: Response) {
+  const { prisma } = await import('../../config/database');
+  const obras = await prisma.obra.findMany({
+    where: { status: 'em_andamento' },
+    select: { id: true, name: true, client: true, status: true },
+    orderBy: { name: 'asc' },
+  });
+  const ultimos = await prisma.diarioObra.findMany({
+    where: { obraId: { in: obras.map((o) => o.id) } },
+    orderBy: [{ obraId: 'asc' }, { data: 'desc' }],
+    distinct: ['obraId'],
+    select: { obraId: true, id: true, data: true, status: true },
+  });
+  const porObra = new Map(ultimos.map((d) => [d.obraId, d]));
+  sendSuccess(res, obras.map((o) => ({ ...o, ultimoDiario: porObra.get(o.id) ?? null })));
+}
