@@ -76,7 +76,7 @@ const USAR_MANTER_POR_MATERIAL: Record<string, number[]> = {
 const PG_IMPORTANTE = 22;
 const PGS_RESPONSABILIDADES = [9, 10];
 const PG_NORMAS = 18;
-const PGS_MANUTENCAO = [46, 47, 48, 49, 50, 51];
+// pgs 46-51 do modelo (manutenção preventiva) substituídas por Secao52Manutencao — tabela estruturada (12/09)
 const PGS_GARANTIA = [53, 54, 55];
 const PGS_NAO_COBERTOS = [58, 59, 60, 61];
 const PGS_UTILIDADE = [62, 63, 64, 65];
@@ -235,6 +235,17 @@ const Rodape: React.FC<{ escuro?: boolean }> = ({ escuro }) => (
   </>
 );
 
+const RodapeFixo: React.FC = () => (
+  <>
+    <View style={s.footerRegua} fixed />
+    <View style={s.footer} fixed>
+      <Text style={s.footerMarca}>BÈR</Text>
+      <Text style={s.footerCentro}>Manual do Proprietário · Engenharia BÈR</Text>
+      <Text style={s.footerPag} render={({ pageNumber }) => String(pageNumber)} />
+    </View>
+  </>
+);
+
 const Cabecalho: React.FC<{ eyebrow: string; kicker?: string; titulo: string }> = ({ eyebrow, kicker, titulo }) => (
   <View>
     <View style={s.eyebrowRegua} />
@@ -339,6 +350,115 @@ const PaginaModeloComp: React.FC<{ num: number; kickerOverride?: string }> = ({ 
     </Page>
   );
 };
+
+// ─── 5.2 Manutenção preventiva mínima — tabela ESTRUTURADA ──────────────────
+// As pgs 46-51 do modelo eram tabelas com células mescladas que o pdftotext
+// -layout fragmenta (tabela saía desconfigurada — reclamação 12/09). Conteúdo
+// reconstruído à mão, mesma solução da Tabela das Concessionárias (6.3).
+const MANUT_52: { periodo: string; itens: { sist: string; comp?: string; ativ: string; resp?: string; nota?: string }[] }[] = [
+  {
+    periodo: 'A CADA 1 MÊS',
+    itens: [
+      { sist: 'Equipamentos industrializados', comp: 'Ar condicionado', ativ: 'Verificar todos os componentes do sistema e, caso seja detectada qualquer anomalia, providenciar reparos necessários', resp: 'Equipe de manutenção local / Proprietário', nota: 'Verificar se está funcionando corretamente, se as unidades de montagem estão firmemente instaladas e se a rede frigorígena está devidamente isolada termicamente.' },
+      { sist: 'Equipamentos industrializados', comp: 'Sistema de exaustão mecânica', ativ: 'Realizar a manutenção dos ventiladores que compõem os sistemas de exaustão', resp: 'Empresa especializada' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Pedras naturais (mármore, granito, pedra mineira, mosaico e outros)', ativ: 'No caso de peças polidas (ex.: pisos, bancadas de granito etc.), verificar e, se necessário, encerar', nota: 'Nas áreas de circulação intensa o enceramento deve acontecer com periodicidade inferior, para manter uma camada protetora.' },
+    ],
+  },
+  {
+    periodo: 'A CADA 1 MÊS OU MENOS, CASO NECESSÁRIO',
+    itens: [
+      { sist: 'Equipamentos industrializados', comp: 'Ar condicionado', ativ: 'Realizar a limpeza dos componentes e filtros, mesmo em período de não utilização', resp: 'Equipe de manutenção local / Proprietário' },
+    ],
+  },
+  {
+    periodo: 'A CADA 3 MESES',
+    itens: [
+      { sist: 'Sistemas hidrossanitários', comp: 'Elementos do sistema de distribuição de água quente e fria, esgoto e água da chuva', ativ: 'Limpeza dos dispositivos que impossibilitem a entrada de resíduos na tubulação' },
+      { sist: 'Esquadrias de alumínio', ativ: 'Efetuar limpeza geral das esquadrias e seus componentes' },
+    ],
+  },
+  {
+    periodo: 'A CADA 6 MESES',
+    itens: [
+      { sist: 'Instalações elétricas', ativ: 'Testar o disjuntor tipo DR apertando o botão localizado no próprio aparelho — a energia será interrompida. Caso isso não ocorra, trocar o DR', resp: 'Equipe de manutenção local / Proprietário / Empresa capacitada' },
+      { sist: 'Instalações hidrossanitárias', comp: 'Água potável / não potável', ativ: 'Limpar e verificar a regulagem dos mecanismos de descarga e os mecanismos internos da caixa acoplada; limpar os aeradores (bicos removíveis) das torneiras; verificar a estanqueidade dos registros de gaveta', resp: 'Equipe de manutenção local / Proprietário', nota: 'Abrir e fechar completamente os registros para evitar emperramentos e mantê-los em condições de manobra.' },
+      { sist: 'Esquadrias de ferro e aço', ativ: 'Verificar as esquadrias para identificação de pontos de oxidação e, se necessário, proceder os reparos', resp: 'Empresa capacitada / especializada' },
+      { sist: 'Esquadrias de madeira', ativ: 'Verificar a existência de fungos, mofos, bolores e focos de insetos e tratar, quando necessário', resp: 'Equipe de manutenção local / Empresa capacitada' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Pisos de madeira e laminados', ativ: 'Verificar a existência de fungos, mofos, bolores e focos de insetos e tratar, quando necessário' },
+    ],
+  },
+  {
+    periodo: 'A CADA 1 ANO',
+    itens: [
+      { sist: 'Sistemas hidrossanitários', comp: 'Água potável / não potável', ativ: 'Verificar a estanqueidade da válvula de descarga, torneira automática e torneira eletrônica', resp: 'Equipe de manutenção local' },
+      { sist: 'Sistemas hidrossanitários', comp: 'Água potável / não potável', ativ: 'Verificar as tubulações de água potável para detectar obstruções, perda de estanqueidade e sua fixação; recuperar sua integridade onde necessário', resp: 'Equipe de manutenção local / Proprietário / Empresa capacitada', nota: 'Verificar e, se necessário, substituir os vedantes (courinhos) das torneiras, misturadores e registros de pressão, para garantir a vedação e evitar vazamentos.' },
+      { sist: 'Sistemas hidrossanitários', ativ: 'Verificar o funcionamento do sistema de aquecimento individual e efetuar limpeza e regulagem, conforme legislação vigente', resp: 'Empresa capacitada' },
+      { sist: 'Sistemas hidrossanitários', ativ: 'Verificar a integridade e reconstituir os rejuntamentos dos ralos, peças sanitárias, bordas de banheiras e outros elementos, onde houver', resp: 'Equipe de manutenção local / Proprietário / Empresa especializada' },
+      { sist: 'Sistemas hidrossanitários', ativ: 'Verificar as tubulações de água servida para detectar obstruções, perda de estanqueidade e sua fixação, reconstituindo sua integridade onde necessário', resp: 'Equipe de manutenção local / Empresa capacitada' },
+      { sist: 'Instalações elétricas', ativ: 'Rever o estado de isolamento das emendas de fios e, no caso de problemas, providenciar as correções; verificar e, se necessário, reapertar as conexões do quadro de distribuição', resp: 'Empresa especializada', nota: 'Verificar o estado dos contatos elétricos; caso possuam desgaste, substituir as peças (tomadas, interruptores, pontos de luz e outros).' },
+      { sist: 'Impermeabilização', ativ: 'Verificar a integridade e reconstituir os rejuntamentos internos e externos de pisos, paredes, peitoris, soleiras, ralos, peças sanitárias, bordas de banheiras e outros elementos', resp: 'Empresa capacitada / especializada', nota: 'Verificar a integridade dos sistemas de impermeabilização e reconstituir a proteção mecânica, sinais de infiltração ou falhas da impermeabilização exposta.' },
+      { sist: 'Esquadrias de ferro e aço', ativ: 'Verificar e, se necessário, pintar ou executar serviços com as mesmas especificações da pintura original; verificar a vedação e a fixação dos vidros' },
+      { sist: 'Guarda-corpos e corrimãos', ativ: 'Realizar inspeção das condições de fixação e solidez do guarda-corpo, corrimão e barras; reconstituir onde necessário', resp: 'Equipe de manutenção local / Empresa capacitada' },
+      { sist: 'Esquadrias de madeira', ativ: 'Verificar falhas de vedação e fixação das esquadrias e reconstituir sua integridade onde for necessário. No caso de esquadrias envernizadas, recomenda-se a reaplicação do produto', resp: 'Empresa capacitada / especializada' },
+      { sist: 'Esquadrias de alumínio', ativ: 'Verificar a presença de fissuras, falhas na vedação e fixação dos caixilhos e reconstituir sua integridade onde for necessário', resp: 'Empresa capacitada / especializada' },
+      { sist: 'Esquadrias de alumínio', ativ: 'Verificar vedação e fixação dos vidros', resp: 'Equipe de manutenção local' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Revestimento cerâmico', ativ: 'Verificar e, se necessário, efetuar as manutenções, a fim de manter a estanqueidade do sistema', resp: 'Empresa capacitada / especializada', nota: 'Verificar sua integridade e reconstituir os rejuntamentos internos e externos de pisos, paredes, peitoris, soleiras, ralos, peças sanitárias, bordas de banheiras e outros elementos.' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Paredes e tetos em argamassa ou gesso e forro de gesso (interno e externo)', ativ: 'Repintar os forros dos banheiros e áreas úmidas' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Pedras naturais (mármore, granito, pedra mineira, mosaico e outros)', ativ: 'Verificar a integridade e reconstituir, onde necessário, os rejuntamentos internos e externos, respeitando a recomendação do projeto original ou especificação de especialista', nota: 'Atentar para as juntas de dilatação, que devem ser preenchidas com mastique — nunca com argamassa de rejuntamento.' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Pisos de madeira e laminados', ativ: 'Verificar e, se necessário, refazer a calafetação das juntas', resp: 'Equipe de manutenção local / Proprietário / Empresa capacitada' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Rejuntes', ativ: 'Verificar sua integridade e reconstituir os rejuntamentos internos e externos de pisos, paredes, peitoris, soleiras, ralos, peças sanitárias, bordas de banheiras e outros elementos, onde houver', resp: 'Equipe de manutenção local / Proprietário / Empresa especializada' },
+      { sist: 'Vidros', ativ: 'Verificar o desempenho das vedações e fixações dos vidros nos caixilhos', resp: 'Empresa especializada', nota: 'Nos vidros temperados, efetuar inspeção do funcionamento do sistema de molas e dobradiças e verificar a necessidade de lubrificação.' },
+    ],
+  },
+  {
+    periodo: 'A CADA 2 ANOS',
+    itens: [
+      { sist: 'Instalações elétricas', ativ: 'Reapertar todas as conexões (tomadas, interruptores, pontos de luz, entre outros)', resp: 'Empresa capacitada / especializada' },
+      { sist: 'Esquadrias de madeira', ativ: 'Nos casos das esquadrias enceradas, é aconselhável o tratamento de todas as partes' },
+      { sist: 'Revestimentos de piso, parede, teto e bancadas', comp: 'Paredes e tetos em argamassa ou gesso, forro de gesso (interno e externo) e pintura', ativ: 'Revisar a pintura das áreas secas e, se necessário, repintá-las, evitando o envelhecimento, a perda de brilho, o descascamento e eventuais fissuras' },
+    ],
+  },
+  {
+    periodo: 'A CADA 3 ANOS',
+    itens: [
+      { sist: 'Esquadrias de madeira', ativ: 'Nos casos de esquadrias pintadas, repintar', nota: 'No caso de esquadrias envernizadas, recomenda-se, além do tratamento anual, efetuar a raspagem total e a reaplicação do verniz.' },
+    ],
+  },
+];
+
+const Secao52Manutencao: React.FC = () => (
+  <Page size="A4" style={s.page} wrap>
+    <Cabecalho eyebrow="Manual do Proprietário" kicker="5.2 MANUTENÇÃO PREVENTIVA MÍNIMA" titulo="Manutenção preventiva mínima" />
+    <Text style={s.p}>No momento da entrega, é fundamental que o cliente realize a verificação de possíveis falhas aparentes e ocorrências nos acabamentos, sistemas, componentes e equipamentos. A identificação dessas irregularidades deve ser feita de forma detalhada e imediata, garantindo que qualquer situação seja devidamente registrada e solucionada dentro dos parâmetros de garantia estabelecidos pela BÈR.</Text>
+    <Text style={s.p}>A partir do momento da entrega do imóvel, é imperativo que o cliente assuma a demanda de manutenções do seu novo espaço, abrangendo, mas não se limitando a:</Text>
+    {MANUT_52.map((grupo) => (
+      <View key={grupo.periodo} style={{ marginTop: 10 }}>
+        <View style={s.destaque} wrap={false}>
+          <Text style={s.destaqueTxt}>{grupo.periodo}</Text>
+        </View>
+        <View style={s.trHead} wrap={false}>
+          <Text style={[s.thTxt, { flex: 1.3, paddingRight: 6 }]}>Sistema · Elemento</Text>
+          <Text style={[s.thTxt, { flex: 2, paddingRight: 6 }]}>Atividade</Text>
+          <Text style={[s.thTxt, { flex: 1 }]}>Responsável</Text>
+        </View>
+        {grupo.itens.map((it, i) => (
+          <View key={i} wrap={false}>
+            <View style={[s.tr, ...(i % 2 ? [s.trAlt] : [])]}>
+              <View style={{ flex: 1.3, paddingRight: 6 }}>
+                <Text style={[s.tdTxt, { fontWeight: 600 }]}>{it.sist}</Text>
+                {it.comp ? <Text style={[s.tdTxt, { fontSize: 7, color: GRAY }]}>{it.comp}</Text> : null}
+              </View>
+              <Text style={[s.tdTxt, { flex: 2, paddingRight: 6 }]}>{it.ativ}</Text>
+              <Text style={[s.tdTxt, { flex: 1 }]}>{it.resp ?? '—'}</Text>
+            </View>
+            {it.nota ? <Text style={s.notaTabela}>{it.nota}</Text> : null}
+          </View>
+        ))}
+      </View>
+    ))}
+    <RodapeFixo />
+  </Page>
+);
 
 // ─── Documento ──────────────────────────────────────────────────────────────
 export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
@@ -659,7 +779,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       <SecaoEscura num="05" titulo="Usar e manter" desc="Como usar, limpar e conservar cada material e sistema — para durar mais e manter a garantia." />
       <PaginaModeloComp num={PG_IMPORTANTE} />
       {paginasUsarManter.map((n) => <PaginaModeloComp key={n} num={n} />)}
-      {PGS_MANUTENCAO.map((n) => <PaginaModeloComp key={n} num={n} />)}
+      <Secao52Manutencao />
 
       {/* ─── SEÇÃO 06 · GARANTIAS ─── */}
       <SecaoEscura num="06" titulo="Termos das garantias" desc="Prazos de garantia, o que está coberto e os contatos de assistência." />
