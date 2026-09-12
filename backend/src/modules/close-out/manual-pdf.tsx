@@ -80,7 +80,7 @@ const PG_NORMAS = 18;
 const PGS_GARANTIA = [53, 54, 55];
 // pgs 58-61 (serviços não cobertos) substituídas por Secao62NaoCobertos — tabela estruturada (12/09)
 const PGS_UTILIDADE = [62, 63, 64, 65];
-const PGS_PRAZOS_GARANTIA = [67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86];
+// pgs 67-86 (prazos de garantia NBR 17170) substituídas por Secao64Garantia — tabela estruturada (12/09)
 // Termos de aceite provisório/definitivo (pgs 87-88 do modelo) EXCLUÍDOS do
 // databook a pedido do Bruno (11/09/26) — assinados fora do manual.
 const PG_CARTAO = 89;
@@ -566,6 +566,458 @@ const Secao62NaoCobertos: React.FC = () => (
   </Page>
 );
 
+// ─── 6.4 Prazos de garantia (NBR 17170) — tabela ESTRUTURADA ────────────────
+// Pgs 67-86 do modelo: 20 páginas de tabela com células mescladas que o
+// pdftotext fragmentava (até rodapé embutido no meio das células). Transcrição
+// fiel reconstruída em 12/09. Bloco duplicado de prevenção/combate a incêndio
+// do modelo (pg 80) foi deduplicado.
+type ItemGarantia = { desc: string; falhas: string; prazo: string };
+const GARANTIA_64: { sistema: string; itens: ItemGarantia[]; notas?: string[] }[] = [
+  {
+    sistema: 'Pisos de ambientes internos — camadas não estruturais do sistema de pisos, exceto impermeabilização',
+    itens: [
+      { desc: 'Camada de regularização (contrapiso)', falhas: 'Dessolidarização (a); desagregação/pulverulência na superfície da camada de um ambiente', prazo: '3 anos' },
+      { desc: 'Camada isolante acústica incorporada ao revestimento', falhas: 'Desintegração/ruptura do produto isolante; dessolidarização', prazo: '1 ano' },
+      { desc: 'Camada de revestimento/acabamento e sua fixação', falhas: 'Perda de aderência, desgaste (b)', prazo: '1 ano' },
+      { desc: 'Rejuntamento e juntas de sistemas de componentes de piso', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+      { desc: 'Pisos de estacionamentos/garagens cobertos', falhas: 'Desgaste; dessolidarização', prazo: '3 anos' },
+      { desc: 'Selantes, juntas de dilatação', falhas: 'Descolamento, ressecamento', prazo: '1 ano' },
+    ],
+    notas: [
+      '(a) Falha caracterizada pela condição em que uma camada de um material ou componente se separa do sistema ou equipamento de que faz parte, deixando de cumprir sua função. Não confundir com as situações em que "dessolidarização" é usada no sentido de separar materiais que devem de fato ser separados (ex.: juntas de dessolidarização, pisos flutuantes com manta acústica).',
+      '(b) O desgaste em sistemas de pisos se refere à resistência à abrasão, avaliada por métodos de ensaio definidos em normas específicas.',
+    ],
+  },
+  {
+    sistema: 'Pisos de ambientes externos',
+    itens: [
+      { desc: 'Camada de regularização (contrapiso)', falhas: 'Dessolidarização; desagregação/pulverulência na superfície da camada de um ambiente', prazo: '3 anos' },
+      { desc: 'Camada isolante térmica', falhas: 'Desintegração/ruptura do produto isolante, para camadas desprotegidas', prazo: '1 ano' },
+      { desc: 'Camada isolante térmica', falhas: 'Desintegração/ruptura do produto isolante; dessolidarização, para camadas protegidas', prazo: '3 anos' },
+      { desc: 'Camada isolante acústica', falhas: 'Desintegração/ruptura do produto isolante, para camadas desprotegidas', prazo: '1 ano' },
+      { desc: 'Camada isolante acústica', falhas: 'Desintegração/ruptura do produto isolante; dessolidarização, para camadas protegidas', prazo: '3 anos' },
+      { desc: 'Camada de revestimento/acabamento e sua fixação', falhas: 'Dessolidarização, empenamento, ruptura, desgaste, deterioração por umidade', prazo: '1 ano' },
+      { desc: 'Rejuntamento de componentes de piso', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+      { desc: 'Selantes, juntas de dilatação', falhas: 'Descolamento, ressecamento', prazo: '1 ano' },
+      { desc: 'Pisos cobertos e descobertos de estacionamentos/garagens externos ao edifício', falhas: 'Desgaste; dessolidarização; ruptura; deterioração por umidade', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Pavimentação externa à edificação',
+    itens: [
+      { desc: 'Pavimentos de acesso de pedestres à edificação', falhas: 'Desgaste; dessolidarização', prazo: '3 anos' },
+      { desc: 'Pavimentos de acesso de automóveis à edificação', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+      { desc: 'Pavimentos de acesso de veículos de carga e descarga', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Rodapés',
+    itens: [
+      { desc: 'Rodapés de quaisquer naturezas', falhas: 'Desgaste; dessolidarização; ruptura; deterioração por umidade', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Componentes estruturais de sistemas de pisos',
+    itens: [
+      { desc: 'Suportes de pisos elevados', falhas: 'Ruptura, desgaste', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Vedações verticais externas',
+    itens: [
+      { desc: 'Vedações das fachadas — alvenaria, pele de vidro, painéis de concreto ou de outros materiais, paredes moldadas "in loco" ou outras, excetuando-se as esquadrias entre vãos', falhas: 'Perda de integridade, dessolidarização de materiais ou componentes que fazem parte da vedação', prazo: '5 anos' },
+      { desc: 'Selantes, juntas de dilatação', falhas: 'Perda de estanqueidade', prazo: '3 anos' },
+    ],
+    notas: [
+      'NOTA 1 — As fachadas, diante da exposição a variações térmicas, ventos, umidade, chuva, poluentes e névoa salina, têm maior probabilidade de falhas que as vedações internas. A garantia é condicionada a que as orientações de uso, operação, conservação e manutenção indicadas pelo construtor sejam estritamente seguidas.',
+    ],
+  },
+  {
+    sistema: 'Revestimentos de vedações verticais externas',
+    itens: [
+      { desc: 'Camada de revestimento que faz parte do sistema de vedação (ex.: revestimento argamassado sobre alvenaria)', falhas: 'Dessolidarização', prazo: '5 anos' },
+      { desc: 'Camada de revestimento que faz parte do sistema de vedação', falhas: 'Desgaste, empolamento, descascamento, esfarelamento, perda de estanqueidade', prazo: '3 anos' },
+      { desc: 'Camada de acabamento decorativo aderido (ex.: revestimentos cerâmicos, pedras naturais ou outros de função decorativa que não façam parte da vedação)', falhas: 'Dessolidarização', prazo: '5 anos' },
+      { desc: 'Rejuntamento', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+      { desc: 'Selantes, juntas de dilatação', falhas: 'Perda de aderência', prazo: '3 anos' },
+    ],
+    notas: [
+      'NOTA 2 — O desgaste nos revestimentos externos se refere a depressões ou perda de massa por falhas de suas propriedades frente às condições de exposição — não a desgastes decorrentes de ações externas como impactos, descargas atmosféricas ou granizo.',
+      'NOTA 3 — A estanqueidade das vedações verticais externas está definida na ABNT NBR 15575-4, avaliada por ensaio específico, com tolerâncias em relação a manchas de umidade.',
+    ],
+  },
+  {
+    sistema: 'Pintura externa',
+    itens: [
+      { desc: 'Camada de acabamento decorativo — tinta látex standard', falhas: 'Perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento), eflorescência, bolhas, bolor, fungo, mofo e algas (manchas esverdeadas, rosadas ou escuras)', prazo: '1 ano' },
+      { desc: 'Camada de acabamento decorativo — tinta látex premium e super premium', falhas: 'Perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento), eflorescência, bolhas, bolor, fungo, mofo e algas (manchas esverdeadas, rosadas ou escuras)', prazo: '3 anos' },
+      { desc: 'Camada de acabamento decorativo — esmalte sintético e tinta a óleo base solvente', falhas: 'Enrugamento, bolhas, perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento)', prazo: '1 ano' },
+      { desc: 'Camada de acabamento decorativo — textura', falhas: 'Perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento) e bolhas', prazo: '3 anos' },
+    ],
+    notas: [
+      'NOTA 4 — A vida útil da pintura está associada ao correto preparo da superfície (ABNT NBR 13245) e à escolha do nível de desempenho do produto (ABNT NBR 15079 partes 1 e 2). Tintas látex externas: 1 ano para nível standard; 3 anos para premium e super premium.',
+    ],
+  },
+  {
+    sistema: 'Vedações verticais internas (áreas comuns e privativas)',
+    itens: [
+      { desc: 'Vedações verticais em ambientes internos sem função estrutural, compostas de quaisquer materiais e componentes', falhas: 'Perda de integridade, dessolidarização de materiais ou componentes que fazem parte da vedação', prazo: '5 anos' },
+    ],
+  },
+  {
+    sistema: 'Revestimentos de vedações verticais internas',
+    itens: [
+      { desc: 'Camada de revestimento que faz parte do sistema de vedação (ex.: revestimento argamassado sobre alvenaria)', falhas: 'Desgaste, empolamento, dessolidarização, descascamento, esfarelamento, perda de estanqueidade', prazo: '3 anos' },
+      { desc: 'Camada de acabamento decorativo aderido (ex.: cerâmicos, pedras naturais ou outros de função decorativa)', falhas: 'Desgaste, dessolidarização', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Pintura interna',
+    itens: [
+      { desc: 'Camada de acabamento decorativo — tinta látex', falhas: 'Perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento), eflorescência, bolhas, bolor, fungo, mofo e algas (manchas esverdeadas, rosadas ou escuras)', prazo: '1 ano' },
+      { desc: 'Camada de acabamento decorativo — esmalte sintético e tinta a óleo base solvente', falhas: 'Enrugamento, bolhas, perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento)', prazo: '1 ano' },
+      { desc: 'Camada de acabamento decorativo — verniz sintético interior base solvente', falhas: 'Enrugamento, bolhas, perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento)', prazo: '1 ano' },
+      { desc: 'Camada de acabamento decorativo — com textura', falhas: 'Perda de integridade da película (má aderência e descolamento, pulverulência, craqueamento) e bolhas', prazo: '3 anos' },
+      { desc: 'Rejuntamento', falhas: 'Perda de aderência; desgaste', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Esquadrias internas e externas — janelas e portas entre vãos (aço, alumínio, madeira e PVC)',
+    itens: [
+      { desc: 'Guarnições, escovas, elementos de vedação', falhas: 'Desencaixe/deslocamento', prazo: '1 ano' },
+      { desc: 'Guarnições, escovas, elementos de vedação', falhas: 'Perda de vedação', prazo: '3 anos' },
+      { desc: 'Componentes de movimentação e fechamentos (fechos, roldanas, parafusos, articulações e braços)', falhas: 'Desencaixe/deslocamento', prazo: '1 ano' },
+      { desc: 'Componentes de movimentação e fechamentos', falhas: 'Folgas nos elementos quanto à vedação, encaixe e fixação', prazo: '3 anos' },
+      { desc: 'Componentes de movimentação e fechamentos', falhas: 'Deformação, corrosão, ruptura; dessolidarização', prazo: '5 anos' },
+      { desc: 'Perfis principais que constituem a estrutura da esquadria', falhas: 'Ruptura, deformação, flexão, surgimento de trincas, cavidades', prazo: '5 anos' },
+      { desc: 'Perfis principais que constituem a estrutura da esquadria', falhas: 'Falha no tratamento superficial (ex.: pintura, alteração da cor, descascamento e perda de brilho)', prazo: '3 anos' },
+      { desc: 'Mecanismos automatizados de abertura e fechamento de persianas/venezianas/vidros', falhas: 'Mau funcionamento', prazo: '1 ano' },
+      { desc: 'Perfil de palheta de persianas/venezianas', falhas: 'Desencaixe ou deformação permanente da palheta', prazo: '1 ano' },
+      { desc: 'Perfil de palheta de persianas/venezianas', falhas: 'Ruptura, deformação, flexão, amarelamento', prazo: '5 anos' },
+      { desc: 'Vidros', falhas: 'Trincas, rachaduras, com impacto iminente', prazo: 'n/a' },
+      { desc: 'Vidros', falhas: 'Trincas, rachaduras, sem impacto iminente', prazo: '3 meses' },
+      { desc: 'Vidros', falhas: 'Delaminação', prazo: '1 ano' },
+      { desc: 'Vidros', falhas: 'Dessolidarização em relação à esquadria', prazo: '1 ano' },
+      { desc: 'Perfis que compõem as esquadrias de madeira', falhas: 'Falha no tratamento superficial (ex.: fissuras na pintura ou verniz)', prazo: '1 ano' },
+      { desc: 'Reforço metálico de perfis principais de PVC (aço ou alumínio)', falhas: 'Corrosão, ruptura, deformação, flexão', prazo: '5 anos' },
+      { desc: 'Vedação entre componentes da esquadria', falhas: 'Perda de estanqueidade devido à falta de aderência e vedação', prazo: '3 anos' },
+    ],
+    notas: [
+      'NOTA 5 — A oxidação é o início da degradação do metal e deve ser tratada logo que surge, para não dar origem à corrosão. Começa quando a superfície desprotegida entra em contato direto com ar, vapor d’água ou água.',
+      'NOTA 6 — A corrosão é a deterioração de um material (geralmente metal) por reação química ou eletroquímica com o ambiente, com comprometimento da integridade do elemento.',
+      'NOTA 7 — Os prazos deste item não se aplicam a esquadrias de ferro produzidas sob medida em processo fabril não industrializado.',
+    ],
+  },
+  {
+    sistema: 'Vidros com funções de proteção contra incêndio',
+    itens: [
+      { desc: 'Vidros com resistência ao fogo (corta-fogo, para-chamas ou redutores de radiação)', falhas: 'Perda de integridade', prazo: '3 anos' },
+      { desc: 'Vidros com resistência ao fogo', falhas: 'Delaminação de camadas do vidro', prazo: '3 anos' },
+      { desc: 'Vidros com resistência ao fogo', falhas: 'Dessolidarização', prazo: '5 anos' },
+    ],
+  },
+  {
+    sistema: '"Brises" ou elementos decorativos ou de sombreamento nas fachadas',
+    itens: [
+      { desc: 'Componentes como placas/chapas, trilhos e fixações', falhas: 'Oxidação; deformações', prazo: '3 anos' },
+      { desc: 'Componentes como placas/chapas, trilhos e fixações', falhas: 'Dessolidarização', prazo: '5 anos' },
+    ],
+    notas: [
+      'O "brise-soleil" é um dispositivo arquitetônico que impede a incidência direta de radiação solar nos ambientes internos, contribuindo para o desempenho térmico e a eficiência energética.',
+    ],
+  },
+  {
+    sistema: 'Elementos e componentes construtivos de proteção',
+    itens: [
+      { desc: 'Peitoris e guarda-corpos, componentes de ancoragem de equipamentos de segurança individual ou coletiva', falhas: 'Ruptura ou perda de estabilidade', prazo: '5 anos' },
+      { desc: 'Peitoris e guarda-corpos, componentes de ancoragem', falhas: 'Oxidação que não acarrete a perda de seção da peça, a ruptura ou perda de estabilidade', prazo: '1 ano' },
+      { desc: 'Corrimãos', falhas: 'Ruptura ou perda de estabilidade', prazo: '3 anos' },
+      { desc: 'Corrimãos', falhas: 'Oxidação que não acarrete a perda de seção da peça, a ruptura ou perda de estabilidade', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Portas de acesso às edificações, às suas unidades e portas internas',
+    itens: [
+      { desc: 'Guarnições, escovas, elementos de vedação', falhas: 'Desencaixe, deslocamento', prazo: '1 ano' },
+      { desc: 'Guarnições, escovas, elementos de vedação', falhas: 'Perda de vedação', prazo: '3 anos' },
+      { desc: 'Componentes de movimentação e fechamentos (fechos, roldanas, parafusos, articulações e braços)', falhas: 'Desencaixe, deslocamento', prazo: '1 ano' },
+      { desc: 'Componentes de movimentação e fechamentos', falhas: 'Deformação, oxidação, ruptura; dessolidarização e falha de funcionamento', prazo: '3 anos' },
+      { desc: 'Folhas móveis, incluindo persianas ou venezianas', falhas: 'Desencaixe, deslocamento', prazo: '1 ano' },
+      { desc: 'Folhas móveis, incluindo persianas ou venezianas', falhas: 'Folgas nos elementos quanto à vedação, encaixe e fixação', prazo: '3 anos' },
+      { desc: 'Folhas móveis, incluindo persianas ou venezianas', falhas: 'Deformação, corrosão, ruptura; dessolidarização', prazo: '5 anos' },
+      { desc: 'Perfis principais que constituem a estrutura da esquadria', falhas: 'Ruptura, deformação, flexão, surgimento de trincas', prazo: '5 anos' },
+      { desc: 'Mecanismos automatizados de abertura e fechamento de persianas/venezianas/vidros', falhas: 'Mau funcionamento', prazo: '1 ano' },
+      { desc: 'Perfil de palheta de persianas e venezianas', falhas: 'Desencaixe ou deslocamento da palheta', prazo: '1 ano' },
+      { desc: 'Perfil de palheta de persianas e venezianas', falhas: 'Ruptura, deformação, flexão ou amarelamento', prazo: '5 anos' },
+      { desc: 'Reforço metálico de perfis principais de PVC (aço ou alumínio)', falhas: 'Corrosão, ruptura, deformação ou flexão', prazo: '5 anos' },
+      { desc: 'Perfis que compõem as esquadrias', falhas: 'Falha no tratamento superficial (ex.: pintura, alteração da cor, descascamento, perda de brilho)', prazo: '3 anos' },
+      { desc: 'Marcos e folhas que compõem as esquadrias de madeira', falhas: 'Empenamento; descolamento de camadas da folha, incluindo revestimentos; falha no tratamento superficial (ex.: manchas, amarelamento, fissuras e desplacamento da tinta ou verniz)', prazo: '1 ano' },
+      { desc: 'Marcos e folhas que compõem as esquadrias de madeira', falhas: 'Ruptura, flexão', prazo: '3 anos' },
+      { desc: 'Perfis principais que constituem a estrutura da esquadria de PVC', falhas: 'Amarelamento', prazo: '5 anos' },
+      { desc: 'Interface vedação vertical e esquadria', falhas: 'Perda de aderência e vedação', prazo: '3 anos' },
+      { desc: 'Vidros', falhas: 'Delaminação', prazo: '1 ano' },
+      { desc: 'Vidros', falhas: 'Dessolidarização em relação à esquadria', prazo: '5 anos' },
+    ],
+    notas: [
+      'NOTA 8 — Os prazos deste item não se aplicam a esquadrias de ferro produzidas sob medida em processo fabril não industrializado.',
+    ],
+  },
+  {
+    sistema: 'Portas com resistência ao fogo',
+    itens: [
+      { desc: 'Molas, dobradiças, barras antipânico ou maçanetas', falhas: 'Mau funcionamento, fixação e corrosão', prazo: '1 ano' },
+      { desc: 'Folha da porta e marcos (batentes)', falhas: 'Deformação, ruptura; dessolidarização', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Portões, gradis, grades, portinholas e alçapões',
+    itens: [
+      { desc: 'Perfis principais que constituem a estrutura da esquadria, folhas móveis, incluindo venezianas', falhas: 'Mau funcionamento; oxidação que não acarrete a perda de seção da peça', prazo: '1 ano' },
+      { desc: 'Perfis principais e folhas móveis', falhas: 'Folgas nos elementos quanto à vedação, encaixe e fixação', prazo: '3 anos' },
+      { desc: 'Perfis principais e folhas móveis', falhas: 'Ruptura, deformação, corrosão, dessolidarização, flexão, surgimento de trincas, cavidades', prazo: '5 anos' },
+    ],
+  },
+  {
+    sistema: 'Portões de acesso à edificação',
+    itens: [
+      { desc: 'Portões e motores/dispositivos de controle de abertura e fechamento', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Portões e motores/dispositivos de controle de abertura e fechamento', falhas: 'Falhas de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Muros externos',
+    itens: [
+      { desc: 'Muros constituídos por quaisquer tipos de materiais e componentes', falhas: 'Ruptura/tombamento', prazo: '5 anos' },
+      { desc: 'Muros constituídos por quaisquer tipos de materiais e componentes', falhas: 'Fissuração', prazo: '3 anos' },
+      { desc: 'Muros constituídos por quaisquer tipos de materiais e componentes', falhas: 'Deterioração por umidade', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Componentes e elementos de vedações blindados — portas, esquadrias/vidros, alvenaria',
+    itens: [
+      { desc: 'Componentes com tratamento de blindagem com as classificações previstas nas normas específicas', falhas: 'Deformação, ruptura, dessolidarização, delaminação dos componentes de blindagem', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Forros',
+    itens: [
+      { desc: 'Forros constituídos por quaisquer materiais e componentes; sancas', falhas: 'Dessolidarização ou ruptura', prazo: '3 anos' },
+      { desc: 'Forros e sancas', falhas: 'Deformações, empenamento e fissuras além dos limites de normas técnicas', prazo: '1 ano' },
+    ],
+    notas: [
+      'NOTA 9 — Podem ser incorporadas películas refletivas ou isolantes, com a finalidade de melhorar o desempenho térmico da cobertura.',
+    ],
+  },
+  {
+    sistema: 'Telhamento',
+    itens: [
+      { desc: 'Telhamento de qualquer tipo e suas fixações', falhas: 'Dessolidarização ou ruptura', prazo: '3 anos' },
+      { desc: 'Telhamento de qualquer tipo e suas fixações', falhas: 'Deformações e permeabilidade além dos limites de normas técnicas', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Impermeabilização — sistemas aplicados em qualquer elemento ou sistema construtivo',
+    itens: [
+      { desc: 'Conjunto de materiais e componentes que asseguram a estanqueidade à água de elementos estruturais, vedações verticais, pisos, coberturas, piscinas, reservatórios e/ou quaisquer outros elementos construtivos', falhas: 'Perda de estanqueidade de produtos e instalação, desde que a causa da falha não seja decorrente de intervenções não previstas, avarias, danos ou falhas nos substratos, camadas ou outros materiais determinantes do desempenho do sistema', prazo: '5 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas hidráulicos — água fria e quente, esgotos sanitários e pluviais, reúso e drenagem, incluindo as ligações com a rede pública',
+    itens: [
+      { desc: 'Tubos e conexões em prumadas/colunas que alimentam ramais e sub-ramais, reservatórios, estações de tratamento de esgoto e de água — excetuando-se equipamentos industrializados (aquecedores, medidores, motobombas, filtros etc.)', falhas: 'Ruptura/dessolidarização; perda da integridade do sistema; perda de estanqueidade', prazo: '5 anos' },
+      { desc: 'Ramais e sub-ramais de tubulações em ambientes internos e externos', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Ramais e sub-ramais de tubulações', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Engate flexível, sifão, válvulas, ralos e seus acabamentos', falhas: 'Falhas dos produtos e instalação', prazo: '1 ano' },
+      { desc: 'Louças sanitárias (cerâmicas) — lavatórios, bacias, caixas de descarga, tanques, banheiras e tanques de concreto ou outros materiais', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Louças sanitárias', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Bancadas de pias e cubas', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Bancadas de pias e cubas', falhas: 'Perda de estanqueidade entre bancada e frontão e na fixação de cubas', prazo: '1 ano' },
+      { desc: 'Bancadas de pias e cubas', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Chuveiros, duchas, torneiras, misturadores e monocomandos entregues instalados', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Chuveiros, duchas, torneiras, misturadores e monocomandos', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Motobombas, medidores, hidrômetros e outros equipamentos do sistema', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Motobombas, medidores, hidrômetros e outros equipamentos', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Saunas, spas e banheiras de hidromassagem',
+    itens: [
+      { desc: 'Equipamentos e motores', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Equipamentos e motores', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+    notas: [
+      '"Spa" provém do latim "salute per aqua" (saúde pela água). Há equipamentos de várias naturezas denominados spas, instalados em ambientes privativos ou de uso comum.',
+    ],
+  },
+  {
+    sistema: 'Sistemas de prevenção e combate a incêndio',
+    itens: [
+      { desc: 'Prumadas de sistema de combate a incêndio — incluindo comandos setoriais', falhas: 'Falhas de produtos e de instalação', prazo: '5 anos' },
+      { desc: 'Tubos e suas conexões em ramais e sub-ramais', falhas: 'Falhas de produtos e de instalação', prazo: '3 anos' },
+      { desc: 'Sistemas de extração e detecção de fumaça, alarme de incêndio, equipamentos para hidrantes, materiais e componentes de proteção passiva (fitas, anéis e pinturas intumescentes), sinalização de prevenção e combate a incêndio', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Sistemas de extração, detecção, alarme, hidrantes, proteção passiva e sinalização', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de distribuição de gases e fluidos (exceto água) de toda natureza',
+    itens: [
+      { desc: 'Prumadas ou colunas de gás', falhas: 'Falhas dos produtos e de instalação quanto a estanqueidade', prazo: '5 anos' },
+      { desc: 'Ramais e sub-ramais de gás natural ou GLP, incluindo tubulações, medidores, centrais e demais componentes; em edificações com outros tipos de gases, todos os sistemas presentes', falhas: 'Falhas dos produtos com instalação aparente', prazo: '1 ano' },
+      { desc: 'Ramais e sub-ramais de gás', falhas: 'Falhas de produtos não acessíveis e da instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas elétricos',
+    itens: [
+      { desc: 'Prumadas de distribuição', falhas: 'Falhas dos produtos', prazo: '3 anos' },
+      { desc: 'Prumadas de distribuição', falhas: 'Falhas de instalação', prazo: '5 anos' },
+      { desc: 'Componentes dos circuitos elétricos, incluindo SPDA — eletrodutos, disjuntores, tomadas e interruptores, fios e cabos, barramentos, terminais e bornes, quadros e painéis, dispositivos de proteção e manobra, iluminação de emergência; excetuando-se luminárias, lâmpadas e acessórios de acabamento (espelhos)', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Componentes dos circuitos elétricos', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Geradores, transformadores, blocos autônomos, sistemas fotovoltaicos e outros equipamentos do sistema elétrico', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Geradores, transformadores e outros equipamentos', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Luminárias de ambientes internos, exceto lâmpadas', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+      { desc: 'Luminárias de ambientes externos, exceto lâmpadas', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+      { desc: 'Dispositivo para carregamento de automóveis elétricos', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+      { desc: 'Sistemas para canalização e acomodação dos condutores (eletrodutos, eletrocalhas, caixas de passagem)', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Sistemas para canalização e acomodação dos condutores', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Entrada de energia, câmaras e cabines de transformação e seus componentes, transformadores, cabines de barramentos, subestações (exceto equipamentos fornecidos pela concessionária local)', falhas: 'Falhas dos produtos/materiais', prazo: '1 ano' },
+      { desc: 'Entrada de energia, câmaras e cabines de transformação', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de automação',
+    itens: [
+      { desc: 'Sistemas de automação e supervisão que atuam sobre instalações hidráulicas e elétricas, transportes verticais e horizontais, ar-condicionado, exaustão e ventilação e motores (portões)', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Sistema de SPDA',
+    itens: [
+      { desc: 'Cabos, barramentos e componentes de equipotencialização', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de calefação',
+    itens: [
+      { desc: 'Infraestrutura do sistema, componentes e equipamentos, e sistemas de pisos radiantes', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura, componentes e pisos radiantes', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de exaustão, pressurização e ventilação',
+    itens: [
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Componentes e equipamentos', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de comunicação interna e externa',
+    itens: [
+      { desc: 'Infraestrutura do sistema de interfone e telefone', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura de interfone e telefone', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Equipamentos e acessórios — interfones ou outros', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+      { desc: 'Infraestrutura do sistema de leitor biométrico ou facial', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura de leitor biométrico ou facial', falhas: 'Falhas de instalação', prazo: '3 anos' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de segurança patrimonial',
+    itens: [
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Componentes e equipamentos', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Componentes e acessórios para acessibilidade (tecnologias assistivas)',
+    itens: [
+      { desc: 'Barras de apoio; maçanetas e puxadores específicos; pisos táteis; assentos especiais; sinalização visual e tátil; alarmes e sinais sonoros', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de cabeamento, infraestrutura e equipamentos de áudio, imagem e dados',
+    itens: [
+      { desc: 'Cabos, caixas, quadros e infraestrutura', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Cabos, caixas, quadros e infraestrutura', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Equipamentos e acessórios', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Antenas coletivas',
+    itens: [
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura do sistema', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Componentes e equipamentos', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Sistemas de transporte vertical e horizontal',
+    itens: [
+      { desc: 'Infraestrutura, componentes e equipamentos de elevadores, escadas e esteiras rolantes, plataformas para pessoas com necessidades especiais, ou outros com função de transporte de pessoas e/ou objetos', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Infraestrutura, componentes e equipamentos de transporte', falhas: 'Falhas de instalação', prazo: '1 ano' },
+    ],
+  },
+  {
+    sistema: 'Piscinas, espelhos de água e fontes',
+    itens: [
+      { desc: 'Tanque', falhas: 'Perda de estanqueidade', prazo: '5 anos' },
+      { desc: 'Revestimentos', falhas: 'Dessolidarização', prazo: '3 anos' },
+      { desc: 'Rejuntamento e juntas de sistemas de componentes de piso', falhas: 'Desgaste; dessolidarização', prazo: '1 ano' },
+      { desc: 'Sistema de aquecimento — infraestrutura, componentes e equipamentos', falhas: 'Falhas dos produtos', prazo: '1 ano' },
+      { desc: 'Sistema de aquecimento', falhas: 'Falhas de instalação', prazo: '3 anos' },
+      { desc: 'Acessórios como escadas e barras de apoio', falhas: 'Falhas dos produtos e de instalação', prazo: '3 anos' },
+      { desc: 'Equipamento de acesso a pessoas com necessidades especiais', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+      { desc: 'Sistema de iluminação — excetuando-se lâmpadas', falhas: 'Falhas dos produtos e de instalação', prazo: '1 ano' },
+    ],
+  },
+];
+
+const GruposGarantia: React.FC<{ grupos: typeof GARANTIA_64 }> = ({ grupos }) => (
+  <>
+    {grupos.map((grupo) => (
+      <View key={grupo.sistema}>
+        <View style={[s.destaque, { marginTop: 10 }]} wrap={false}>
+          <Text style={s.destaqueTxt}>{grupo.sistema}</Text>
+        </View>
+        <View style={s.trHead} wrap={false}>
+          <Text style={[s.thTxt, { flex: 1.4, paddingRight: 6 }]}>Descrição</Text>
+          <Text style={[s.thTxt, { flex: 1.6, paddingRight: 6 }]}>Tipos de falhas</Text>
+          <Text style={[s.thTxt, { flex: 0.55, textAlign: 'right' }]}>Prazo recomendado</Text>
+        </View>
+        {grupo.itens.map((it, i) => (
+          <View key={i} style={[s.tr, ...(i % 2 ? [s.trAlt] : [])]} wrap={false}>
+            <Text style={[s.tdTxt, { flex: 1.4, paddingRight: 6, fontWeight: 600 }]}>{it.desc}</Text>
+            <Text style={[s.tdTxt, { flex: 1.6, paddingRight: 6 }]}>{it.falhas}</Text>
+            <Text style={[s.tdTxt, { flex: 0.55, textAlign: 'right', fontWeight: 700, color: OLIVA_DARK }]}>{it.prazo}</Text>
+          </View>
+        ))}
+        {(grupo.notas ?? []).map((n, i) => (
+          <Text key={`n${i}`} style={s.notaTabela}>{n}</Text>
+        ))}
+      </View>
+    ))}
+  </>
+);
+
+// Dividida em duas <Page wrap>: a seção inteira numa página única estoura o
+// layout engine do react-pdf ("unsupported number" — altura virtual excessiva).
+const Secao64Garantia: React.FC = () => (
+  <>
+    <Page size="A4" style={s.page} wrap>
+      <Cabecalho eyebrow="Manual do Proprietário · Termos das garantias" kicker="6.4 GARANTIA DE OBRAS" titulo="Prazos de garantia" />
+      <Text style={s.p}>Em conformidade com a ABNT (Associação Brasileira de Normas Técnicas), em seu normativo NBR 17170:2022, a BÈR oferece uma cobertura de garantia que assegura a qualidade e o bom funcionamento de seus produtos, oferecendo tranquilidade aos nossos clientes. A seguir, apresentamos os itens cobertos e os respectivos prazos de garantia, detalhando as condições para cada situação e garantindo o compromisso da empresa com a excelência e a satisfação do cliente.</Text>
+      <GruposGarantia grupos={GARANTIA_64.slice(0, 20)} />
+      <RodapeFixo />
+    </Page>
+    <Page size="A4" style={s.page} wrap>
+      <Cabecalho eyebrow="Manual do Proprietário · Termos das garantias" kicker="6.4 GARANTIA DE OBRAS" titulo="Prazos de garantia (continuação)" />
+      <GruposGarantia grupos={GARANTIA_64.slice(20)} />
+      <RodapeFixo />
+    </Page>
+  </>
+);
+
 // ─── Documento ──────────────────────────────────────────────────────────────
 export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
   const { obra, manual, projetos } = data;
@@ -939,7 +1391,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
         <Rodape />
       </Page>
       {PGS_UTILIDADE.filter((n) => n !== 62).map((n) => <PaginaModeloComp key={n} num={n} />)}
-      {PGS_PRAZOS_GARANTIA.map((n) => <PaginaModeloComp key={n} num={n} />)}
+      <Secao64Garantia />
 
       {/* Cartão rápido final */}
       <PaginaModeloComp num={PG_CARTAO} kickerOverride={`${obra.name.toUpperCase()} — CARTÃO RÁPIDO`} />
