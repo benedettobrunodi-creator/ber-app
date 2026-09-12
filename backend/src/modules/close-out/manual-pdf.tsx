@@ -78,7 +78,7 @@ const PGS_RESPONSABILIDADES = [9, 10];
 const PG_NORMAS = 18;
 // pgs 46-51 do modelo (manutenção preventiva) substituídas por Secao52Manutencao — tabela estruturada (12/09)
 const PGS_GARANTIA = [53, 54, 55];
-const PGS_NAO_COBERTOS = [58, 59, 60, 61];
+// pgs 58-61 (serviços não cobertos) substituídas por Secao62NaoCobertos — tabela estruturada (12/09)
 const PGS_UTILIDADE = [62, 63, 64, 65];
 const PGS_PRAZOS_GARANTIA = [67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86];
 // Termos de aceite provisório/definitivo (pgs 87-88 do modelo) EXCLUÍDOS do
@@ -460,6 +460,112 @@ const Secao52Manutencao: React.FC = () => (
   </Page>
 );
 
+// ─── 6.2 Serviços não cobertos — tabela ESTRUTURADA ─────────────────────────
+// Pgs 58-61 do modelo: mesma doença da 5.2 (células mescladas fragmentadas
+// pelo pdftotext). Reconstruída à mão em 12/09 (2º print do Bruno).
+const NAO_COBERTOS_62: { sistema: string; itens: { comp: string; desc: string }[] }[] = [
+  {
+    sistema: 'VEDAÇÕES VERTICAIS EXTERNAS E INTERNAS',
+    itens: [
+      { comp: 'Portas corta-fogo', desc: 'Falha de regulagem de dobradiças e molas. Ocorrências em acabamentos: manchas, lascamento de pintura ou acabamento superficial.' },
+      { comp: 'Portas de acesso e internas de áreas comuns e privativas', desc: 'Ocorrências em acabamentos: manchas, lascamento de pintura ou acabamento superficial.' },
+      { comp: 'Revestimentos decorativos de qualquer natureza', desc: 'Ocorrências em acabamentos: lascamento, diferenças de tonalidades, manchas e riscos, falhas de rejuntamento.' },
+      { comp: 'Pinturas', desc: 'Ocorrências em acabamentos: lascamento, diferenças de tonalidades, manchas e riscos.' },
+      { comp: 'Esquadrias de alumínio, madeira, aço e PVC', desc: 'Falha pela dificuldade de abertura ou fechamento. Ocorrências em acabamentos: riscos, manchas, amassamento, lascamento.' },
+      { comp: 'Vidros', desc: 'Ocorrências em acabamentos: lascamento, trincas, quebras, riscos ou manchas.' },
+    ],
+  },
+  {
+    sistema: 'PISOS',
+    itens: [
+      { comp: 'Contrapiso', desc: 'Ocorrências em acabamentos: depressões e irregularidades, quebra.' },
+      { comp: 'Revestimentos/acabamento de qualquer natureza, inclusive o rejuntamento', desc: 'Ocorrências em acabamentos: lascamento, diferenças de tonalidades, manchas e riscos, falhas de rejuntamento, falhas de polimento.' },
+      { comp: 'Pisos acabados', desc: 'Alagamentos em pisos de qualquer natureza, decorrentes de entupimento das tubulações de coleta de água pluvial por quaisquer elementos decorrentes de sua exposição ao tempo (ventos, chuvas, acúmulo de sujidades nos coletores etc.).' },
+      { comp: 'Pisos acabados', desc: 'Alagamentos provenientes de esquadrias (portas, janelas, envidraçamento de varanda) deixadas abertas ou semiabertas, que permitam entrada de águas que danifiquem pisos de madeira, móveis, marcenarias, tecidos etc.' },
+      { comp: 'Pisos acabados', desc: 'Manchas em revestimentos por aplicação de produtos incorretos, independente da informação constante ou ausente no manual de entrega.' },
+    ],
+  },
+  {
+    sistema: 'ACESSIBILIDADE',
+    itens: [
+      { comp: 'Sinalização', desc: 'Ocorrências em acabamentos: trincas, quebras, amassados ou manchas.' },
+      { comp: 'Sinalização — piso tátil', desc: 'Destacamentos, descolamentos, desprendimentos de peças ou partes.' },
+    ],
+  },
+  {
+    sistema: 'FORROS',
+    itens: [
+      { comp: 'Superfície', desc: 'Ocorrências em acabamentos: lascamentos, quebras, manchas, irregularidades e desnivelamentos.' },
+      { comp: 'Forros acabados', desc: 'Alagamentos em forros decorrentes de entupimento das tubulações de coleta de água pluvial por quaisquer elementos decorrentes de sua exposição ao tempo (ventos, chuvas, acúmulo de sujidades nos coletores etc.).' },
+    ],
+  },
+  {
+    sistema: 'COBERTURAS',
+    itens: [
+      { comp: 'Telhados e coberturas', desc: 'Alagamentos decorrentes de entupimento das tubulações de coleta de água pluvial por quaisquer elementos decorrentes de sua exposição ao tempo (ventos, chuvas, acúmulo de sujidades nos coletores etc.).' },
+    ],
+  },
+  {
+    sistema: 'SISTEMAS HIDRÁULICOS',
+    itens: [
+      { comp: 'Louças sanitárias, banheiras, bancadas e cubas', desc: 'Ocorrências em acabamentos: lascamento, quebra, manchas, fixação, riscos ou amassados.' },
+      { comp: 'Metais sanitários', desc: 'Ocorrências em acabamentos: manchamento. Falhas de fixação; falha de abertura e fechamento.' },
+      { comp: 'Obstrução de vazão', desc: 'Entupimentos, parcial ou total, na tubulação hidráulica (banheiros, cozinhas, copa, áreas gourmet, jardins etc.), decorrentes do descarte, intencional ou não, de quaisquer resíduos inapropriados à tubulação (cabelos, alimentos, plásticos e afins). Inclui entupimento de caixa de gordura, com seu provável transbordamento e potencial estrago de pisos, móveis e acabamentos no entorno, até mesmo em vizinhos abaixo.' },
+    ],
+  },
+  {
+    sistema: 'SISTEMAS ELÉTRICOS',
+    itens: [
+      { comp: 'Espelhos de tomadas, interruptores e outros dispositivos', desc: 'Falha de fixação e de instalação, componentes danificados.' },
+      { comp: 'Conduítes, fiações, interligações', desc: 'Alagamentos em tubulações elétricas, decorrentes de entupimento das tubulações de coleta de água pluvial por quaisquer elementos decorrentes de sua exposição ao tempo (ventos, chuvas, acúmulo de sujidades nos coletores etc.).' },
+    ],
+  },
+  {
+    sistema: 'PISCINAS',
+    itens: [
+      { comp: 'Revestimentos, iluminação', desc: 'Ocorrências em acabamentos: lascamento, quebras, diferença de tonalidade.' },
+    ],
+  },
+  {
+    sistema: 'QUADRAS POLIESPORTIVAS',
+    itens: [
+      { comp: 'Equipamentos da quadra, pisos e alambrados', desc: 'Ocorrências em acabamentos: lascamento e falhas na pintura, riscos ou manchas.' },
+    ],
+  },
+  {
+    sistema: 'PREVENÇÃO E COMBATE A INCÊNDIO',
+    itens: [
+      { comp: 'Sinalização', desc: 'Ocorrências em acabamentos: lascamento, diferenças de tonalidades, manchas e riscos, falhas de colagem, falhas de polimento.' },
+    ],
+  },
+];
+
+const Secao62NaoCobertos: React.FC = () => (
+  <Page size="A4" style={s.page} wrap>
+    <Cabecalho eyebrow="Manual do Proprietário · Termos das garantias" kicker="6.2 SERVIÇOS NÃO COBERTOS POR GARANTIA" titulo="Serviços não cobertos" />
+    <Text style={s.p}>Falhas aparentes e ocorrências em acabamentos, sistemas, componentes e equipamentos cuja identificação deve ser feita no ato da entrega.</Text>
+    <View style={[s.trHead, { marginTop: 8 }]} wrap={false}>
+      <Text style={[s.thTxt, { flex: 1.2, paddingRight: 6 }]}>Sistema · Componente</Text>
+      <Text style={[s.thTxt, { flex: 2.5 }]}>Tipos de falhas aparentes e ocorrências em acabamentos</Text>
+    </View>
+    {NAO_COBERTOS_62.map((grupo) => (
+      <View key={grupo.sistema}>
+        <View style={s.destaque} wrap={false}>
+          <Text style={s.destaqueTxt}>{grupo.sistema}</Text>
+        </View>
+        {grupo.itens.map((it, i) => (
+          <View key={i} style={[s.tr, ...(i % 2 ? [s.trAlt] : [])]} wrap={false}>
+            <Text style={[s.tdTxt, { flex: 1.2, paddingRight: 6, fontWeight: 600 }]}>{it.comp}</Text>
+            <Text style={[s.tdTxt, { flex: 2.5 }]}>{it.desc}</Text>
+          </View>
+        ))}
+      </View>
+    ))}
+    <Text style={s.notaTabela}>Manchas em revestimentos por aplicação de produtos incorretos não são cobertas, independente da informação constante ou ausente no manual de entrega.</Text>
+    <RodapeFixo />
+  </Page>
+);
+
 // ─── Documento ──────────────────────────────────────────────────────────────
 export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
   const { obra, manual, projetos } = data;
@@ -809,7 +915,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
         </Page>
       )}
 
-      {PGS_NAO_COBERTOS.map((n) => <PaginaModeloComp key={n} num={n} />)}
+      <Secao62NaoCobertos />
       {/* 6.3 · pg 62 reconstruída COM a Tabela das Concessionárias — a tabela do
           Caderno se perdeu na extração do modelo (Bruno, 11/09/26) */}
       <Page size="A4" style={s.page}>
