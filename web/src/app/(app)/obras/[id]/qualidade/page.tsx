@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, ClipboardCheck, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { confirmar } from '@/lib/confirmar';
 
 // ─── Tipos ───
@@ -256,7 +257,7 @@ export default function QualidadePage() {
   function avancarEtapa() {
     const faltas = pendenciasDaEtapa();
     if (faltas.length > 0) {
-      alert(`Antes de avançar, resolva nesta etapa:\n• ${faltas.join('\n• ')}`);
+      toast(`Antes de avançar, resolva nesta etapa:\n• ${faltas.join('\n• ')}`);
       return;
     }
     setEtapa(e => e + 1);
@@ -363,13 +364,13 @@ export default function QualidadePage() {
   }
 
   async function enviarVistoria() {
-    if (respondidos === 0) { alert('Responda ao menos um item'); return; }
-    if (semJustificativa > 0) { alert(`${semJustificativa} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`); return; }
-    if (semFoto > 0) { alert(`${semFoto} item(ns) "Não" sem foto da falha — evidência é obrigatória no que reprovou`); return; }
-    if (panoFaltando > 0) { alert(`${panoFaltando} categoria(s) com "Sim" sem a foto panorâmica`); return; }
-    if (subindo > 0) { alert(`${subindo} foto(s) ainda subindo — aguarda uns segundos e tenta de novo`); return; }
+    if (respondidos === 0) { toast('Responda ao menos um item', 'erro'); return; }
+    if (semJustificativa > 0) { toast(`${semJustificativa} item(ns) "Não"/"N/A" sem justificativa — descreva o motivo em cada um`, 'erro'); return; }
+    if (semFoto > 0) { toast(`${semFoto} item(ns) "Não" sem foto da falha — evidência é obrigatória no que reprovou`, 'erro'); return; }
+    if (panoFaltando > 0) { toast(`${panoFaltando} categoria(s) com "Sim" sem a foto panorâmica`, 'erro'); return; }
+    if (subindo > 0) { toast(`${subindo} foto(s) ainda subindo — aguarda uns segundos e tenta de novo`, 'erro'); return; }
     const confSemJust = Object.values(projCheck).filter(pc => (pc.rev === 'nao' || pc.rev === 'na' || pc.exec === 'nao' || pc.exec === 'na') && !pc.obs.trim()).length;
-    if (confSemJust > 0) { alert(`${confSemJust} conferência(s) de projeto com "Não"/"N.A." sem justificativa — descreva o motivo`); return; }
+    if (confSemJust > 0) { toast(`${confSemJust} conferência(s) de projeto com "Não"/"N.A." sem justificativa — descreva o motivo`, 'erro'); return; }
     if (respondidos < totalItens && !(await confirmar(
       `${totalItens - respondidos} item(ns) ficaram em branco e não entram no cálculo. Enviar assim mesmo?`,
       { titulo: 'Itens em branco', confirmarLabel: 'Enviar' },
@@ -414,7 +415,7 @@ export default function QualidadePage() {
       load();
     } catch (e) {
       const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-      alert(m || 'Erro ao enviar vistoria');
+      toast(m || 'Erro ao enviar vistoria', 'erro');
     } finally {
       setEnviando(false);
     }
@@ -425,7 +426,7 @@ export default function QualidadePage() {
       const r = await api.patch(`/obras/${obraId}/qualidade/pendencias/${p.id}/atribuicao`, patch);
       const novo = r.data.data as { responsavel?: { id: string; name: string } | null; prazo?: string | null };
       setPendencias(prev => prev.map(x => x.id === p.id ? { ...x, responsavel: novo.responsavel ?? null, prazo: novo.prazo ?? null } : x));
-    } catch { alert('Erro ao atribuir pendência'); }
+    } catch { toast('Erro ao atribuir pendência', 'erro'); }
   }
 
   async function abrirPdf(v: Vistoria) {
@@ -435,14 +436,14 @@ export default function QualidadePage() {
       const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
       if (win) win.location.href = url; else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch { alert('Erro ao gerar o PDF'); }
+    } catch { toast('Erro ao gerar o PDF', 'erro'); }
   }
 
   async function resolver(p: Pendencia) {
     try {
       await api.patch(`/obras/${obraId}/qualidade/pendencias/${p.id}`, { resolvido: true });
       setPendencias(prev => prev.filter(x => x.id !== p.id));
-    } catch { alert('Erro ao resolver pendência'); }
+    } catch { toast('Erro ao resolver pendência', 'erro'); }
   }
 
   async function excluirVistoria(v: Vistoria) {
@@ -452,7 +453,7 @@ export default function QualidadePage() {
       load();
     } catch (e) {
       const status = (e as { response?: { status?: number } })?.response?.status;
-      alert(status === 403 ? 'Excluir vistoria exige coordenação ou acima.' : 'Erro ao excluir');
+      toast(status === 403 ? 'Excluir vistoria exige coordenação ou acima.' : 'Erro ao excluir', 'erro');
     }
   }
 
@@ -879,13 +880,13 @@ export default function QualidadePage() {
                       </button>
                       <select value={p.responsavel?.id ?? ''}
                         onChange={e => atribuir(p, { responsavelId: e.target.value || null })}
-                        className="rounded border border-ber-border bg-white px-1.5 py-0.5 text-[11px] max-w-[150px]">
+                        className="min-h-[36px] max-w-[170px] rounded border border-ber-border bg-white px-2 py-1.5 text-xs">
                         <option value="">sem dono…</option>
                         {membros.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                       <input type="date" value={p.prazo ? p.prazo.slice(0, 10) : ''}
                         onChange={e => atribuir(p, { prazo: e.target.value || null })}
-                        className="rounded border border-ber-border bg-white px-1.5 py-0.5 text-[11px]" />
+                        className="min-h-[36px] rounded border border-ber-border bg-white px-2 py-1.5 text-xs" />
                     </div>
                   </div>
                 ))}

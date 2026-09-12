@@ -297,7 +297,7 @@ export default function DiarioObraPage() {
       setDiarios(prev => [{ ...novo, _count: { efetivos: 0, atividades: 0, fotos: 0 }, criadoPor: novo.criadoPor }, ...prev]);
       setSelected(novo);
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro ao criar diário');
+      toast(e?.response?.data?.message ?? 'Erro ao criar diário', 'erro');
     } finally {
       setSaving(false);
     }
@@ -312,7 +312,7 @@ export default function DiarioObraPage() {
       setShowPreview(false);
       await loadList();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     } finally {
       setSaving(false);
     }
@@ -326,7 +326,7 @@ export default function DiarioObraPage() {
       setSelected(res.data?.data);
       await loadList();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     } finally {
       setSaving(false);
     }
@@ -340,7 +340,7 @@ export default function DiarioObraPage() {
       setSelected(res.data?.data);
       await loadList();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     } finally {
       setSaving(false);
     }
@@ -354,7 +354,7 @@ export default function DiarioObraPage() {
       setSelected(res.data?.data);
       await loadList();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     } finally {
       setSaving(false);
     }
@@ -369,7 +369,7 @@ export default function DiarioObraPage() {
       setSelected(null);
       await loadList();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     } finally {
       setSaving(false);
     }
@@ -382,7 +382,7 @@ export default function DiarioObraPage() {
       const res = await api.patch(`/diario/${selected.id}`, data);
       setSelected(res.data?.data);
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro ao salvar');
+      toast(e?.response?.data?.message ?? 'Erro ao salvar', 'erro');
     } finally {
       setPatchingHeader(false);
     }
@@ -398,7 +398,7 @@ export default function DiarioObraPage() {
       setObra(prev => prev ? { ...prev, dataInicioObra: res.data?.data?.dataInicioObra ?? null, dataFimObra: res.data?.data?.dataFimObra ?? null } : prev);
       setEditingDatas(false);
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro ao salvar datas');
+      toast(e?.response?.data?.message ?? 'Erro ao salvar datas', 'erro');
     } finally {
       setSavingDatas(false);
     }
@@ -414,7 +414,7 @@ export default function DiarioObraPage() {
       await api.delete(endpoint);
       refresh();
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? 'Erro');
+      toast(e?.response?.data?.message ?? 'Erro', 'erro');
     }
   }
 
@@ -441,7 +441,7 @@ export default function DiarioObraPage() {
         }
         refreshDetail();
       } catch (ex: any) {
-        alert(ex?.response?.data?.message ?? 'Erro no upload');
+        toast(ex?.response?.data?.message ?? 'Erro no upload', 'erro');
       } finally {
         setUploadingFoto(false);
         if (fileRef.current) fileRef.current.value = '';
@@ -514,15 +514,15 @@ export default function DiarioObraPage() {
       try {
         await api.post(`/diario/${selected.id}/efetivos`, { categoria, quantidade });
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     function Stepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
       return (
         <div className="flex items-center gap-1">
-          <button onClick={() => onChange(Math.max(0, value - 1))} className="w-6 h-6 rounded-md border border-ber-border text-ber-gray hover:bg-gray-100 flex items-center justify-center text-sm font-bold">−</button>
+          <button onClick={() => onChange(Math.max(0, value - 1))} className="h-10 w-10 rounded-md border border-ber-border text-ber-gray hover:bg-gray-100 flex items-center justify-center text-sm font-bold">−</button>
           <span className="w-6 text-center text-sm font-semibold text-ber-carbon">{value}</span>
-          <button onClick={() => onChange(value + 1)} className="w-6 h-6 rounded-md border border-ber-border text-ber-gray hover:bg-gray-100 flex items-center justify-center text-sm font-bold">+</button>
+          <button onClick={() => onChange(value + 1)} className="h-10 w-10 rounded-md border border-ber-border text-ber-gray hover:bg-gray-100 flex items-center justify-center text-sm font-bold">+</button>
         </div>
       );
     }
@@ -549,7 +549,7 @@ export default function DiarioObraPage() {
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/efetivos/${ef.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -628,7 +628,7 @@ export default function DiarioObraPage() {
         });
         setDesc(''); setAddingAtividade(false);
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     async function importarEtapa(etapa: ObraEtapa) {
@@ -640,7 +640,7 @@ export default function DiarioObraPage() {
           obraEtapaId: etapa.id,
         });
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     const statusColors: Record<string, string> = {
@@ -684,7 +684,7 @@ export default function DiarioObraPage() {
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/atividades/${at.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -730,7 +730,7 @@ export default function DiarioObraPage() {
         await api.post(`/diario/${selected.id}/ocorrencias`, { tipo, descricao: desc, visivelCliente });
         setDesc(''); setAddingOcorrencia(false);
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     return (
@@ -744,7 +744,7 @@ export default function DiarioObraPage() {
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/ocorrencias/${oc.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -787,7 +787,7 @@ export default function DiarioObraPage() {
         await api.post(`/diario/${selected.id}/visitas`, { tipo, nome: nome || undefined, observacao: obs || undefined });
         setNome(''); setObs(''); setAddingVisita(false);
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     return (
@@ -801,7 +801,7 @@ export default function DiarioObraPage() {
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/visitas/${vi.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2 shrink-0">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -846,7 +846,7 @@ export default function DiarioObraPage() {
         });
         setDesc(''); setQtd(''); setAddingMaterial(false);
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     return (
@@ -861,7 +861,7 @@ export default function DiarioObraPage() {
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/materiais/${mat.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -902,7 +902,7 @@ export default function DiarioObraPage() {
         await api.post(`/diario/${selected.id}/equipamentos`, { nome });
         setNome(''); setAddingEquipamento(false);
         refreshDetail();
-      } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+      } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
 
     return (
@@ -912,7 +912,7 @@ export default function DiarioObraPage() {
             <span className="text-ber-carbon">{eq.nome}</span>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/equipamentos/${eq.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2">
-                <X size={14} />
+                <X size={18} />
               </button>
             )}
           </div>
@@ -1053,10 +1053,10 @@ export default function DiarioObraPage() {
                       if (!email?.trim()) return;
                       try {
                         await api.post(`/diario/${selected.id}/enviar-email`, { email });
-                        alert('Diário enviado ao cliente ✓');
+                        toast('Diário enviado ao cliente ✓');
                       } catch (e) {
                         const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-                        alert(m || 'Erro ao enviar e-mail');
+                        toast(m || 'Erro ao enviar e-mail', 'erro');
                       }
                     }}
                     className="flex items-center gap-1 rounded-lg bg-ber-teal/10 border border-ber-teal/30 px-2.5 py-1.5 text-xs font-semibold text-ber-teal hover:bg-ber-teal/20">
@@ -1277,8 +1277,8 @@ export default function DiarioObraPage() {
                         onClick={async () => {
                           try {
                             await api.patch(`/obras/${obraId}`, { progressPercent: selected.avancoDia });
-                            alert(`✅ Progresso da obra atualizado para ${selected.avancoDia}%`);
-                          } catch { alert('Erro ao atualizar progresso'); }
+                            toast(`✅ Progresso da obra atualizado para ${selected.avancoDia}%`);
+                          } catch { toast('Erro ao atualizar progresso', 'erro'); }
                         }}
                         className="mt-1 text-[10px] text-ber-teal hover:underline flex items-center gap-1"
                       >

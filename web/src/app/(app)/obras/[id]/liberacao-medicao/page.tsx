@@ -12,6 +12,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Scale, ShieldCheck, ShieldAlert } from 'lucide-react';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 
 type Linha = {
   planoId: string;
@@ -51,7 +52,7 @@ export default function LiberacaoMedicaoPage() {
       setLinhas(r.data.data?.linhas ?? []);
       setFichasSoltas(r.data.data?.fichasSemVinculo ?? []);
       setObraNome(r.data.data?.obra?.nome ?? '');
-    } catch { /* painel indisponível */ } finally { setLoading(false); }
+    } catch { toast('Não consegui carregar o painel — sem conexão?', 'erro'); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [obraId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -77,13 +78,16 @@ export default function LiberacaoMedicaoPage() {
 
   async function removerOverride(l: Linha) {
     try { await api.delete(`/obras/${obraId}/liberacao-medicao/${l.planoId}/override`); await load(); }
-    catch { alert('Remoção restrita à diretoria/coordenação.'); }
+    catch { toast('Remoção restrita à diretoria/coordenação', 'erro'); }
   }
 
   async function vincular(fvsId: string, planoId: string) {
     if (!planoId) return;
-    await api.patch(`/obras/${obraId}/liberacao-medicao/fichas/${fvsId}/vinculo`, { planoId });
-    await load();
+    try {
+      await api.patch(`/obras/${obraId}/liberacao-medicao/fichas/${fvsId}/vinculo`, { planoId });
+      toast('Ficha vinculada ✓');
+      await load();
+    } catch { toast('Não consegui vincular — tente de novo', 'erro'); }
   }
 
   return (

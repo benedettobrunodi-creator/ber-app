@@ -115,7 +115,7 @@ export default function CanteiroPage() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-ber-carbon">Canteiro</h1>

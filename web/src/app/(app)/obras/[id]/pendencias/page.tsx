@@ -252,7 +252,7 @@ export default function PendenciasPage() {
   );
 
   return (
-    <div className="w-full max-w-[1500px] pb-24">
+    <div className="w-full max-w-[1500px] px-4 pb-24 md:px-6">
       <Link href={`/obras/${obraId}`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Voltar à obra
       </Link>
@@ -507,7 +507,7 @@ export default function PendenciasPage() {
       {/* ── Card de detalhe (clique na linha) ── */}
       {detalhe && !editando && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setDetalhe(null)}>
-          <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl max-h-[92dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-ber-border px-5 py-3.5 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${STATUS_CFG[detalhe.status].cls}`}>{STATUS_CFG[detalhe.status].label}</span>
@@ -685,7 +685,7 @@ export default function PendenciasPage() {
       {/* ── Nova pendência ── */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !busy && setShowForm(false)}>
-          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-ber-carbon">Nova pendência</h2>
               <button onClick={() => setShowForm(false)} disabled={busy} className="text-ber-gray hover:text-ber-carbon"><X size={20} /></button>
@@ -762,7 +762,7 @@ function EditSheet({ pendencia, busy, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => !busy && onClose()}>
-      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-5 max-h-[92dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-ber-carbon">Editar pendência</h2>
           <button onClick={onClose} disabled={busy} className="text-ber-gray hover:text-ber-carbon"><X size={20} /></button>

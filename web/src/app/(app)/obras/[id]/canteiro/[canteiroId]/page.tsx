@@ -305,7 +305,7 @@ export default function CanteiroDetailPage() {
   const banner = STATUS_BANNER[canteiro.status];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Status banner */}
       {banner && (
         <div className={`flex items-center gap-3 rounded-lg ${banner.bg} border ${banner.border} p-4`}>

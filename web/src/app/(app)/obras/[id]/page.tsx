@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
 import { ArrowLeft, Plus, Calendar, User, ChevronDown, X, ClipboardCheck, Tent, XCircle, Lock, Clock, Pencil, ChevronUp, Trash2, Camera, Image as ImageIcon, ChevronRight, Upload, RefreshCw } from 'lucide-react';
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, useDroppable, useDraggable, DragOverlay, pointerWithin } from '@dnd-kit/core';
@@ -347,7 +348,7 @@ export default function ObraDetailPage() {
       const r = await api.put(`/obras/${params.id}/fase-seq`, { faseManual: fase });
       setFaseSeq(r.data.data);
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? 'Erro ao salvar fase');
+      toast(e?.response?.data?.error?.message ?? 'Erro ao salvar fase', 'erro');
     } finally { setFaseSeqBusy(false); }
   };
   const relerCronogramaSeq = async () => {
@@ -356,7 +357,7 @@ export default function ObraDetailPage() {
       const r = await api.post(`/obras/${params.id}/fase-seq/reler`);
       setFaseSeq(r.data.data);
     } catch (e: any) {
-      alert(e?.response?.data?.error?.message ?? 'Leitura do cronograma falhou — tente de novo em instantes');
+      toast(e?.response?.data?.error?.message ?? 'Leitura do cronograma falhou — tente de novo em instantes', 'erro');
     } finally { setFaseSeqBusy(false); }
   };
   const [fvsFilter, setFvsFilter] = useState<string>('todos');
@@ -489,7 +490,7 @@ export default function ObraDetailPage() {
       const r = await api.post(`/obras/${params.id}/cronograma/upload`, form);
       setCronograma(r.data.data);
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro no upload');
+      toast((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro no upload', 'erro');
     } finally {
       setCronogramaUploading(false);
     }
@@ -502,7 +503,7 @@ export default function ObraDetailPage() {
       const r = await api.post(`/obras/${params.id}/cronograma/parse`);
       setCronograma(r.data.data);
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao processar');
+      toast((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Erro ao processar', 'erro');
     } finally {
       setCronogramaParsing(false);
     }
@@ -534,11 +535,11 @@ export default function ObraDetailPage() {
       if (faseConstrucao && folhas.length === 0) {
         folhas = folhasTodas.filter(t => t.inicio! >= faseConstrucao.inicio! && t.fim! <= faseConstrucao.fim!);
       }
-      if (!folhas.length) { alert('Sem tarefas com cronograma para gerar Curva S.'); return; }
+      if (!folhas.length) { toast('Sem tarefas com cronograma para gerar Curva S.', 'erro'); return; }
       const totalDias = folhas.reduce((s, t) => s + (t.duracaoDias ?? 0), 0);
       if (!totalDias) return;
       const raiz = faseConstrucao ?? tarefas.find(t => t.ehResumo && t.inicio && t.fim);
-      if (!raiz?.inicio || !raiz?.fim) { alert('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.'); return; }
+      if (!raiz?.inicio || !raiz?.fim) { toast('Tarefa-raiz sem datas. Processe o cronograma com IA primeiro.', 'erro'); return; }
       // planejado uses linear time within root task span — matches cockpit "% planejado"
       // (task-weighted approach gives wrong results when parsedData covers only part of project)
       const raizStartMs = new Date(raiz.inicio + 'T00:00:00').getTime();
@@ -593,10 +594,10 @@ export default function ObraDetailPage() {
       await api.put(`/obras/${params.id}/relatorios/curva-s`, { pontos });
       setRelatorioTabKey(k => k + 1);
       setActiveTab('relatorios');
-      alert(faseConstrucao
+      toast(faseConstrucao
         ? `Curva S gerada com ${pontos.length} semanas — só a fase "${faseConstrucao.nome}" (pré/pós-obra fora da régua).`
-        : `Curva S gerada com ${pontos.length} semanas (fase de construção não identificada no cronograma — usei o período inteiro).`);
-    } catch { alert('Erro ao gerar Curva S.'); }
+        : `Curva S gerada com ${pontos.length} semanas (fase de construção não identificada no cronograma — usei o período inteiro).`, 'erro');
+    } catch { toast('Erro ao gerar Curva S.', 'erro'); }
     finally { setCronogramaGerandoCurvaS(false); }
   }
 
@@ -654,7 +655,7 @@ export default function ObraDetailPage() {
       const res = await api.get('/users/responsaveis');
       setAllUsers(res.data.data ?? res.data);
     } catch (e) {
-      alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui carregar a lista de colaboradores. Tente novamente.');
+      toast((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui carregar a lista de colaboradores. Tente novamente.', 'erro');
     } finally { setLoadingUsers(false); }
   }
 
@@ -666,7 +667,7 @@ export default function ObraDetailPage() {
       setShowAddMemberModal(false);
       fetchData();
     } catch (e) {
-      alert((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui adicionar o membro. Verifique sua permissão e tente novamente.');
+      toast((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Não consegui adicionar o membro. Verifique sua permissão e tente novamente.', 'erro');
     } finally { setAddingMember(false); }
   }
 
@@ -806,7 +807,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch (e: any) {
-            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar');
+            toast(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro ao salvar', 'erro');
           } finally { setFvsSubmitting(false); }
         };
 
@@ -821,7 +822,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch {
-            alert('Erro ao salvar observação');
+            toast('Erro ao salvar observação', 'erro');
           }
         };
 
@@ -834,7 +835,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch {
-            alert('Erro ao salvar prazo');
+            toast('Erro ao salvar prazo', 'erro');
           }
         };
 
@@ -853,7 +854,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch {
-            alert('Erro ao salvar área responsável');
+            toast('Erro ao salvar área responsável', 'erro');
           }
         };
 
@@ -868,7 +869,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch (e: any) {
-            alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload');
+            toast(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload', 'erro');
           } finally { setFvsSubmitting(false); }
         };
 
@@ -1114,7 +1115,7 @@ export default function ObraDetailPage() {
             setActiveFvs(updated);
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
           } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro');
+            toast(e?.response?.data?.message ?? 'Erro', 'erro');
           } finally { setFvsSubmitting(false); }
         };
 
@@ -1127,7 +1128,7 @@ export default function ObraDetailPage() {
             setObraFvsList(prev => prev.map(f => f.id === fvs.id ? updated : f));
             setFvsResetConfirm(false);
           } catch (e: any) {
-            alert(e?.response?.data?.message ?? 'Erro ao resetar FVS');
+            toast(e?.response?.data?.message ?? 'Erro ao resetar FVS', 'erro');
           } finally { setFvsSubmitting(false); }
         };
 
@@ -1251,7 +1252,7 @@ export default function ObraDetailPage() {
                                 setAddFvsItemDesc('');
                                 setAddFvsItemOpen(false);
                               } catch (e: any) {
-                                alert(e?.response?.data?.message ?? 'Erro ao adicionar etapa');
+                                toast(e?.response?.data?.message ?? 'Erro ao adicionar etapa', 'erro');
                               } finally { setFvsSubmitting(false); }
                             }}
                             className="rounded-md bg-ber-carbon px-4 py-1.5 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
@@ -2250,7 +2251,7 @@ export default function ObraDetailPage() {
             const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i), status: r.data.data.status ?? cl.status };
             setActiveCl(updated as ObraBerChecklist);
             setBerChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
-          } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+          } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro', 'erro'); }
           finally { setClSubmitting(false); }
         };
 
@@ -2264,7 +2265,7 @@ export default function ObraDetailPage() {
             const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
             setActiveCl(updated as ObraBerChecklist);
             setBerChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
-          } catch (e: any) { alert(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload'); }
+          } catch (e: any) { toast(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Erro no upload', 'erro'); }
           finally { setClSubmitting(false); }
         };
 
@@ -2310,7 +2311,7 @@ export default function ObraDetailPage() {
                           setActiveCl(updated);
                           setBerChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
                           setNewAmbiente('');
-                        } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+                        } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro', 'erro'); }
                       }}
                       className="rounded-md bg-ber-carbon px-3 py-1.5 text-xs font-bold text-white hover:bg-ber-black disabled:opacity-50">
                       + Ambiente
@@ -2378,7 +2379,7 @@ export default function ObraDetailPage() {
                         const updated = r.data.data as ObraBerChecklist;
                         setActiveCl(updated);
                         setBerChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
-                      } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro ao concluir'); }
+                      } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro ao concluir', 'erro'); }
                       finally { setClSubmitting(false); }
                     }}
                     className="rounded-md bg-green-500 px-5 py-2 text-sm font-bold text-white hover:bg-green-600 disabled:opacity-50">
@@ -2423,7 +2424,7 @@ export default function ObraDetailPage() {
                     // já abre a fase recém-criada na trilha
                     setExpandedFvs(prev => new Set(prev).add(r.data.data.id));
                     setCreateFvsModal(false);
-                  } catch (e: any) { alert(e?.response?.data?.message ?? 'Erro'); }
+                  } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
                 }}
                 className="rounded-md bg-ber-carbon px-5 py-2 text-sm font-bold text-white hover:bg-ber-black disabled:opacity-50">
                 Criar ficha

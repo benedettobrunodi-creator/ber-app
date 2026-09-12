@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { ChevronLeft, Camera, X, MapPin, HardHat, ClipboardCheck } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,17 +98,19 @@ export default function ChecklistsPage() {
 
   // ── Checklist actions ──
 
+  // Auditoria 11/09: submitting por ITEM — o lock global travava a tela toda
+  const [salvandoItens, setSalvandoItens] = useState<Record<string, boolean>>({});
   const toggleItem = async (cl: ObraBerChecklist, itemId: string) => {
     const item = cl.items.find(i => i.id === itemId);
-    if (!item || cl.status === 'concluido') return;
-    setSubmitting(true);
+    if (!item || cl.status === 'concluido' || salvandoItens[itemId]) return;
+    setSalvandoItens(prev => ({ ...prev, [itemId]: true }));
     try {
       const r = await api.patch(`/obra-ber-checklists/${cl.id}/items/${itemId}`, { checked: !item.checked });
       const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
       setActiveCl(updated as ObraBerChecklist);
       setChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
-    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
-    finally { setSubmitting(false); }
+    } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Não salvou — toque de novo', 'erro'); }
+    finally { setSalvandoItens(prev => ({ ...prev, [itemId]: false })); }
   };
 
   const uploadPhoto = async (cl: ObraBerChecklist, itemId: string, file: File) => {
@@ -120,7 +123,7 @@ export default function ChecklistsPage() {
       const updated = { ...cl, items: cl.items.map(i => i.id === itemId ? { ...i, ...r.data.data } : i) };
       setActiveCl(updated as ObraBerChecklist);
       setChecklists(prev => prev.map(c => c.id === cl.id ? updated as ObraBerChecklist : c));
-    } catch { alert('Erro no upload'); }
+    } catch { toast('Erro no upload', 'erro'); }
     finally { setSubmitting(false); }
   };
 
@@ -131,7 +134,7 @@ export default function ChecklistsPage() {
       const updated = r.data.data as ObraBerChecklist;
       setActiveCl(updated);
       setChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
-    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+    } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro', 'erro'); }
     finally { setSubmitting(false); }
   };
 
@@ -142,7 +145,7 @@ export default function ChecklistsPage() {
       const newCl = r.data.data as ObraBerChecklist;
       setChecklists(prev => [...prev, newCl]);
       setActiveCl(newCl);
-    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+    } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro', 'erro'); }
   };
 
   const addAmbiente = async (cl: ObraBerChecklist, nome: string) => {
@@ -152,7 +155,7 @@ export default function ChecklistsPage() {
       setActiveCl(updated);
       setChecklists(prev => prev.map(c => c.id === cl.id ? updated : c));
       setNewAmbiente('');
-    } catch (e: any) { alert(e?.response?.data?.error?.message ?? 'Erro'); }
+    } catch (e: any) { toast(e?.response?.data?.error?.message ?? 'Erro', 'erro'); }
   };
 
   // ── RENDER: Obra grid ──────────────────────────────────────────────────────
@@ -375,11 +378,14 @@ export default function ChecklistsPage() {
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ber-gray">{secao}</p>
                     <div className="space-y-2">
                       {items.map(item => (
-                        <div key={item.id} className={`rounded-lg border p-3 transition-colors ${item.checked ? 'border-green-200 bg-green-50' : 'border-ber-gray/10 bg-ber-offwhite/40'}`}>
+                        <div key={item.id}
+                          onClick={() => { if (!isLocked && !salvandoItens[item.id]) toggleItem(cl, item.id); }}
+                          className={`rounded-lg border p-3 transition-colors ${!isLocked ? 'cursor-pointer active:opacity-70' : ''} ${item.checked ? 'border-green-200 bg-green-50' : 'border-ber-gray/10 bg-ber-offwhite/40'}`}>
                           <div className="flex items-start gap-3">
-                            <input type="checkbox" checked={item.checked} disabled={isLocked || submitting}
+                            <input type="checkbox" checked={item.checked} disabled={isLocked || !!salvandoItens[item.id]}
                               onChange={() => toggleItem(cl, item.id)}
-                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-green-500 disabled:opacity-40" />
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5 h-6 w-6 shrink-0 cursor-pointer rounded accent-green-500 disabled:opacity-40" />
                             <div className="flex-1 min-w-0">
                               <p className={`text-sm leading-snug ${item.checked ? 'text-green-700 line-through' : 'text-ber-carbon'}`}>
                                 {item.templateItem?.fotoObrigatoria && <span className="mr-1 text-amber-500">📷</span>}
@@ -387,19 +393,20 @@ export default function ChecklistsPage() {
                               </p>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 {item.fotoUrl && (
-                                  <a href={item.fotoUrl} target="_blank" rel="noreferrer">
+                                  <a href={item.fotoUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                     <img src={item.fotoUrl} alt="" className="h-12 w-12 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
                                   </a>
                                 )}
                                 {!isLocked && (
-                                  <label className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${
+                                  <label onClick={(e) => e.stopPropagation()} className={`flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                                     item.templateItem?.fotoObrigatoria
                                       ? item.fotoUrl ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600 hover:bg-amber-50'
                                       : 'border-ber-gray/20 text-ber-gray/60 hover:bg-ber-offwhite'
                                   }`}>
-                                    <Camera size={11} />
+                                    <Camera size={13} />
                                     {item.fotoUrl ? 'Trocar' : item.templateItem?.fotoObrigatoria ? 'Foto obrigatória' : '+ Foto'}
-                                    <input type="file" accept="image/*" className="hidden"
+                                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                                      onClick={(e) => e.stopPropagation()}
                                       onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(cl, item.id, f); }} />
                                   </label>
                                 )}
