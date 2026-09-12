@@ -487,7 +487,7 @@ export default function ManualProprietarioPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className={secTitle}>Documentos técnicos ({manual.anexos.length})</p>
-              <p className={secHint}>ART, RRT e outros — seção 2.1 (entram na versão digital do manual).</p>
+              <p className={secHint}>SÓ documentos técnicos-legais: ART, RRT, Habite-se, AVCB, laudos. NÃO subir projetos aqui — a lista de projetos (seção 3.1) já entra automática do Controle de Documentos.</p>
             </div>
             <button type="button" onClick={() => anexoInput.current?.click()} disabled={uploading}
               className="inline-flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-60">
