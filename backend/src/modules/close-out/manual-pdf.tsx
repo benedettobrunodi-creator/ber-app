@@ -1158,17 +1158,20 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
 
       {/* ─── ACESSO RÁPIDO ─── */}
       <Page size="A4" style={s.page}>
-        <Cabecalho eyebrow="Manual do Proprietário · Acesso rápido" titulo="Do que você precisa agora?" />
+        <Cabecalho eyebrow="Manual do Proprietário · Guia rápido" titulo="Onde encontrar cada assunto" />
+        <Text style={s.p}>Os quatro assuntos mais consultados deste manual e a seção onde cada um está:</Text>
         <View style={s.arGrid}>
           {[
-            { tag: 'Usar e Manter', titulo: 'Limpar e manter', desc: 'Como cuidar de cada piso, parede, vidro e equipamento.' },
-            { tag: 'Garantias', titulo: 'Acionar a garantia', desc: 'O que está coberto, até quando e como acionar.' },
-            { tag: 'Contatos', titulo: 'Contatos e fornecedores', desc: 'Assistência técnica e o diretório de fornecedores.' },
-            { tag: 'Manutenção', titulo: 'Rotina de manutenção', desc: 'O calendário por mês, trimestre e ano.' },
+            { secao: '5.0', titulo: 'Limpar e manter', desc: 'Como cuidar de cada piso, parede, vidro e equipamento — seção Usar e Manter.' },
+            { secao: '5.2', titulo: 'Rotina de manutenção', desc: 'O calendário de manutenção preventiva por mês, trimestre e ano.' },
+            { secao: '6.4', titulo: 'Acionar a garantia', desc: 'O que está coberto, até quando e como acionar — prazos por sistema.' },
+            { secao: '6.1', titulo: 'Contatos e fornecedores', desc: 'Assistência técnica e o diretório de fornecedores da obra.' },
           ].map((c, i) => (
             <View key={i} style={s.arCard}>
-              <Text style={s.arTag}>{c.tag}</Text>
-              <View style={s.arIcone} />
+              <Text style={s.arTag}>Seção {c.secao}</Text>
+              <View style={[s.arIcone, { width: 34, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ fontSize: 10, fontWeight: 700, color: CARVAO }}>{c.secao}</Text>
+              </View>
               <Text style={s.arTitulo}>{c.titulo}</Text>
               <Text style={s.arDesc}>{c.desc}</Text>
             </View>
