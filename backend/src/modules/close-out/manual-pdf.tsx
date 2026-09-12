@@ -74,7 +74,7 @@ const USAR_MANTER_POR_MATERIAL: Record<string, number[]> = {
 
 // Blocos estáticos sempre presentes
 const PG_IMPORTANTE = 22;
-const PGS_RESPONSABILIDADES = [9, 10];
+// pgs 9-10 (responsabilidades) substituídas por Secao20Responsabilidades — banners no lugar certo (12/09)
 const PG_NORMAS = 18;
 // pgs 46-51 do modelo (manutenção preventiva) substituídas por Secao52Manutencao — tabela estruturada (12/09)
 const PGS_GARANTIA = [53, 54, 55];
@@ -1018,6 +1018,47 @@ const Secao64Garantia: React.FC = () => (
   </>
 );
 
+// ─── 2.0 Responsabilidades — páginas ESTRUTURADAS ───────────────────────────
+// Pgs 9-10 do modelo: o pdftotext jogava os banners ("É RESPONSABILIDADE DO
+// CONSTRUTOR"/"DO PROPRIETÁRIO") no FIM da página, órfãos, e os itens saíam
+// todos misturados em bloco único (3º print do Bruno, 12/09). Reconstruídas
+// com cada item sob o banner certo, conforme o guia CBIC citado pelo modelo.
+const Secao20Responsabilidades: React.FC = () => (
+  <>
+    <Page size="A4" style={s.page}>
+      <Cabecalho eyebrow="Manual do Proprietário · Responsabilidades" kicker="2.0 RESPONSABILIDADES" titulo="Norma de desempenho NBR 15.575" />
+      <Text style={s.p}>A norma estabelece quais os requisitos de desempenho das edificações habitacionais, independente dos materiais utilizados e/ou sistemas construtivos aplicados.</Text>
+      <Text style={s.p}>A NBR 15.575 aplica-se ao incorporador, ao projetista, ao construtor e ao usuário, uma vez que todos, em diferentes momentos — planejamento, projetos, execução, uso e manutenção —, são considerados responsáveis pelo desempenho da edificação. A união dessas responsabilidades torna possível que a vida útil do projeto e o desempenho dos sistemas construtivos sejam alcançados.</Text>
+      <Text style={s.p}>Assim, em atendimento à norma, a BÈR Engenharia editou este manual especificamente para sua obra, dado que materiais e revestimentos, bem como sua correta especificação, são responsabilidades dos projetistas, apoiados por informações dos fornecedores e fabricantes.</Text>
+      <Text style={s.p}>Segundo o guia de elaboração de manuais da Câmara Brasileira da Indústria da Construção (CBIC), as responsabilidades dos projetistas e usuários são as seguintes:</Text>
+      <View style={[s.destaque, { marginTop: 10 }]}>
+        <Text style={s.destaqueTxt}>É responsabilidade dos projetistas</Text>
+      </View>
+      <Text style={s.p}>• Fornecer aos construtores e usuários todas as informações essenciais para a elaboração dos manuais, com ênfase nas orientações sobre o uso correto, a manutenção adequada, as cargas previstas, as cargas máximas permitidas e os riscos envolvidos no uso.</Text>
+      <Text style={s.p}>• Especificar os componentes e sistemas, sempre em conformidade com os critérios estabelecidos pela norma de desempenho ABNT NBR 15.575, destacando especialmente os requisitos relacionados à durabilidade e à facilidade de manutenção.</Text>
+      <Rodape />
+    </Page>
+    <Page size="A4" style={s.page}>
+      <Cabecalho eyebrow="Manual do Proprietário · Responsabilidades" kicker="2.0 RESPONSABILIDADES" titulo="Construtor e proprietário" />
+      <View style={s.destaque}>
+        <Text style={s.destaqueTxt}>É responsabilidade do construtor</Text>
+      </View>
+      <Text style={s.p}>• Realizar as obras e reformas seguindo as diretrizes da norma ABNT NBR 16280 — e, por óbvio, durante uma obra os produtos utilizados devem ser de qualidade e apresentar garantia ou certificado de vida útil.</Text>
+      <Text style={s.p}>• Informar ao usuário/proprietário quais são as exigências de uso e manutenção, através de um manual que deve conter todas as condições da implantação, do uso e das manutenções necessárias, assim como a forma de realizá-las e os prazos.</Text>
+      <Text style={s.p}>• Atender às normas específicas de cada material; a instalação deve ser executada conforme as instruções do fabricante, para que as funções e o desempenho do produto sejam alcançados e sua garantia seja válida.</Text>
+      <View style={[s.destaque, { marginTop: 12 }]}>
+        <Text style={s.destaqueTxt}>É responsabilidade do proprietário / usuário</Text>
+      </View>
+      <Text style={s.p}>• Não usar a edificação fora das condições previstas e projetadas, e não realizar modificações na edificação sem conhecimento e prévia anuência do construtor e/ou projetistas.</Text>
+      <Text style={s.p}>• Não realizar ou contratar subsequentes reformas sem seguir as diretrizes da norma ABNT NBR 16280.</Text>
+      <Text style={s.p}>• Seguir o Manual de uso e manutenção da edificação, implantar e executar o sistema de gestão de manutenção.</Text>
+      <Text style={s.p}>• Garantir que as manutenções somente sejam realizadas pelos indicados no sistema de gestão de manutenção, e registrar as manutenções e inspeções realizadas.</Text>
+      <Text style={s.p}>• Atualizar o Manual nos casos em que ocorram modificações na edificação/unidade.</Text>
+      <Rodape />
+    </Page>
+  </>
+);
+
 // ─── Documento ──────────────────────────────────────────────────────────────
 export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
   const { obra, manual, projetos } = data;
@@ -1212,7 +1253,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
 
       {/* ─── SEÇÃO 02 · RESPONSABILIDADES ─── */}
       <SecaoEscura num="02" titulo="Responsabilidades" desc="O que é responsabilidade da BÈR, do construtor e sua — como proprietário — a partir da entrega da obra." />
-      {PGS_RESPONSABILIDADES.map((n) => <PaginaModeloComp key={n} num={n} />)}
+      <Secao20Responsabilidades />
 
       {/* Documentos técnicos (anexos dinâmicos) */}
       <Page size="A4" style={s.page}>
