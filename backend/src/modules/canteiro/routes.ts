@@ -21,6 +21,7 @@ const router = Router();
 router.use(authenticate);
 router.get('/:id', controller.getById);
 router.patch('/:id/items/:itemId', validate(answerCanteiroItemSchema), controller.answerItem);
+router.patch('/:id/submit', controller.submitChecklist);
 router.patch('/:id/approve', requireRole('coordenacao'), validate(approveCanteiroSchema), controller.approveChecklist);
 
 export { templateRouter as canteiroTemplateRouter, obraCanteiroRouter };

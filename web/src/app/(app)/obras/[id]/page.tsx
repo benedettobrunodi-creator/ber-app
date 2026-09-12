@@ -266,6 +266,17 @@ export default function ObraDetailPage() {
   const menuFaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abrirMenuFase = (g: string) => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); setMenuFase(g); };
   const fecharMenuFase = () => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); menuFaseTimer.current = setTimeout(() => setMenuFase(null), 220); };
+  // Auditoria 11/09: no touch o menu ficava aberto pra sempre — clique-fora/Escape fecham
+  useEffect(() => {
+    if (!menuFase) return;
+    const aoTocarFora = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-menu-fase]')) setMenuFase(null);
+    };
+    const aoTecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuFase(null); };
+    document.addEventListener('pointerdown', aoTocarFora);
+    document.addEventListener('keydown', aoTecla);
+    return () => { document.removeEventListener('pointerdown', aoTocarFora); document.removeEventListener('keydown', aoTecla); };
+  }, [menuFase]);
   const [loading, setLoading] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', assignedTo: '', priority: 'medium' as TaskPriority, dueDate: '' });
@@ -1439,7 +1450,7 @@ export default function ObraDetailPage() {
 
       {/* Tabs — fases do ciclo em dropdown (hover no desktop, toque no mobile — Bruno 10/09) */}
       <div className="mt-6 border-b border-ber-gray/20">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {TAB_GROUPS.map((g) => {
             const unico = g.tabs.length === 1;
             const tabAtivaDoGrupo = g.tabs.find((t) => t.type === 'tab' && activeTab === t.key);
@@ -1461,9 +1472,9 @@ export default function ObraDetailPage() {
               );
             }
             return (
-              <div key={g.grupo} className="relative shrink-0"
-                onMouseEnter={() => abrirMenuFase(g.grupo)}
-                onMouseLeave={fecharMenuFase}>
+              <div key={g.grupo} className="relative shrink-0" data-menu-fase
+                onPointerEnter={(e) => { if (e.pointerType === 'mouse') abrirMenuFase(g.grupo); }}
+                onPointerLeave={(e) => { if (e.pointerType === 'mouse') fecharMenuFase(); }}>
                 <button
                   onClick={() => setMenuFase(menuFase === g.grupo ? null : g.grupo)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
@@ -1474,11 +1485,11 @@ export default function ObraDetailPage() {
                   <ChevronDown size={13} className={`transition-transform ${menuFase === g.grupo ? 'rotate-180' : ''}`} />
                 </button>
                 {menuFase === g.grupo && (
-                  <div className="absolute left-0 top-full z-40 mt-0.5 min-w-52 rounded-lg border border-ber-border bg-white py-1.5 shadow-lg">
+                  <div className="absolute left-0 top-full z-40 mt-0.5 min-w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-ber-border bg-white py-1.5 shadow-lg last:right-0">
                     {g.tabs.map((t) => t.type === 'tab' ? (
                       <button key={t.key}
                         onClick={() => { setActiveTab(t.key); setMenuFase(null); }}
-                        className={`block w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors ${
+                        className={`block min-h-[44px] w-full px-4 py-2.5 text-left text-sm whitespace-nowrap transition-colors ${
                           activeTab === t.key ? 'font-semibold text-ber-carbon bg-ber-surface' : 'text-ber-gray hover:bg-ber-surface hover:text-ber-carbon'
                         }`}>
                         {t.label}
@@ -1486,7 +1497,7 @@ export default function ObraDetailPage() {
                     ) : (
                       <Link key={t.href} href={`/obras/${params.id}/${t.href}`}
                         onClick={() => setMenuFase(null)}
-                        className="block px-4 py-2 text-sm whitespace-nowrap text-ber-gray hover:bg-ber-surface hover:text-ber-carbon transition-colors">
+                        className="block min-h-[44px] px-4 py-2.5 text-sm whitespace-nowrap text-ber-gray hover:bg-ber-surface hover:text-ber-carbon transition-colors">
                         {t.label}
                       </Link>
                     ))}

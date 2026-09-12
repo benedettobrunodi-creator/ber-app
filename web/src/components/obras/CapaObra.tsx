@@ -23,6 +23,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
 import { useBackToObra } from '@/hooks/useBackToObra';
 
 const TIPOS_TEMPERATURA = [
@@ -177,7 +178,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   useEffect(() => { load(); }, [obraId]);
 
   async function deleteTemperatura(id: string) {
-    if (!confirm('Remover esta avaliação?')) return;
+    if (!(await confirmar('Remover esta avaliação de temperatura?', { confirmarLabel: 'Remover' }))) return;
     try { await api.delete(`/temperatura/${id}`); load(); }
     catch (err) { alert(((err as { response?: { data?: { error?: { message?: string } | string } } })?.response?.data?.error as { message?: string } | string | undefined)?.toString() ?? 'Erro ao remover'); }
   }
@@ -686,7 +687,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                   </span>
                   <button
                     onClick={() => deleteTemperatura(t.id)}
-                    className="print:hidden opacity-0 group-hover/temp:opacity-100 text-ber-gray hover:text-red-600 transition-opacity"
+                    className="print:hidden opacity-100 md:opacity-0 md:group-hover/temp:opacity-100 text-ber-gray hover:text-red-600 transition-opacity"
                     title="Remover"
                   >
                     <Trash2 size={11} />

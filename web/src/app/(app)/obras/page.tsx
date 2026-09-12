@@ -460,7 +460,7 @@ export default function ObrasPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="flex items-center justify-end gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                     {obra.status === 'cancelada' ? (
                       <button onClick={() => handleUnarchive(obra)} title="Desarquivar" className="rounded p-1 text-ber-gray hover:bg-green-50 hover:text-green-600">
                         <ArchiveRestore size={14} />

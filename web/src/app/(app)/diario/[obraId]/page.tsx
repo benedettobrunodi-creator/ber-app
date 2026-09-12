@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { confirmar } from '@/lib/confirmar';
+import { toast } from '@/lib/toast';
+import { pedirTexto } from '@/lib/prompt-sheet';
 import { useAuthStore } from '@/stores/authStore';
 import {
   ArrowLeft, Plus, X, Lock, Unlock, Sun, Cloud, CloudSun, CloudRain, Zap,
@@ -359,7 +362,7 @@ export default function DiarioObraPage() {
 
   async function excluirDiario() {
     if (!selected) return;
-    if (!confirm('Excluir este diário permanentemente?')) return;
+    if (!(await confirmar('Excluir este diário permanentemente?', { confirmarLabel: 'Excluir' }))) return;
     setSaving(true);
     try {
       await api.delete(`/diario/${selected.id}`);
@@ -406,7 +409,7 @@ export default function DiarioObraPage() {
   }
 
   async function deleteItem(endpoint: string, refresh: () => void) {
-    if (!confirm('Remover item?')) return;
+    if (!(await confirmar('Remover este item?', { confirmarLabel: 'Remover' }))) return;
     try {
       await api.delete(endpoint);
       refresh();
@@ -459,7 +462,7 @@ export default function DiarioObraPage() {
               {!fechado && (
                 <button
                   onClick={() => deleteItem(`/diario/${selected!.id}/fotos/${foto.id}`, refreshDetail)}
-                  className="absolute top-1 right-1 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 rounded-full bg-black/60 p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                 >
                   <X size={10} className="text-white" />
                 </button>
@@ -1046,7 +1049,7 @@ export default function DiarioObraPage() {
                   </a>
                   <button
                     onClick={async () => {
-                      const email = window.prompt('Enviar atualização do dia para — separe múltiplos por vírgula:', '');
+                      const email = await pedirTexto('Enviar atualização do dia para (múltiplos separados por vírgula):', { tipo: 'email', placeholder: 'cliente@empresa.com' });
                       if (!email?.trim()) return;
                       try {
                         await api.post(`/diario/${selected.id}/enviar-email`, { email });

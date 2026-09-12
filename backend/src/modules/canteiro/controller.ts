@@ -27,6 +27,10 @@ export async function answerItem(req: Request, res: Response) {
   sendSuccess(res, item);
 }
 
+export async function submitChecklist(req: Request, res: Response) {
+  sendSuccess(res, await canteiroService.submitChecklist(req.params.id));
+}
+
 export async function approveChecklist(req: Request, res: Response) {
   const checklist = await canteiroService.approveChecklist(req.params.id, req.user!.userId, req.body);
   sendSuccess(res, checklist);

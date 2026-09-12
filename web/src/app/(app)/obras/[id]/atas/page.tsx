@@ -147,12 +147,13 @@ export default function AtaCorridaPage() {
   // Envio da ata aos stakeholders por e-mail, com o PDF anexo (Bruno 10/09)
   async function enviarStakeholders() {
     if (enviando) return;
-    if (!confirm('Enviar a ata atualizada (PDF) por e-mail a TODOS os stakeholders com e-mail cadastrado?')) return;
+    if (!(await confirmar('Enviar a ata atualizada (PDF) por e-mail a TODOS os stakeholders com e-mail cadastrado?', { titulo: 'Enviar ata', confirmarLabel: 'Enviar' }))) return;
     setEnviando(true);
     try {
       const r = await api.post(`/obras/${obraId}/atas/enviar`);
       const lista = (r.data.data?.enviados ?? []) as { nome: string; email: string }[];
-      alert(`Ata enviada para ${lista.length} destinatário(s):\n${lista.map(d => `• ${d.nome} — ${d.email}`).join('\n')}`);
+      const { toast } = await import('@/lib/toast');
+      toast(`Ata enviada pra ${lista.length} destinatário(s) ✓`);
     } catch (err) {
       alert(errMsg(err, 'Não consegui enviar a ata.'));
     } finally {
@@ -163,9 +164,10 @@ export default function AtaCorridaPage() {
   async function gerarPdf() {
     setGeneratingPdf(true);
     try {
+      const win = window.open('', '_blank'); // aberto SÍNCRONO no toque — iOS não bloqueia
       const res = await api.get(`/obras/${obraId}/atas/pdf`, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
-      window.open(url, '_blank');
+      if (win) win.location.href = url; else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       alert(errMsg(err, 'Não consegui gerar o PDF da ata.'));

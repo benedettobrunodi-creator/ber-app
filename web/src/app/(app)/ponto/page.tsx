@@ -8,7 +8,8 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { 'Accept-Language': 'pt-BR' } },
+      // Auditoria 11/09: sem timeout isso segurava o POST do ponto indefinidamente
+      { headers: { 'Accept-Language': 'pt-BR' }, signal: AbortSignal.timeout(4000) },
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -18,6 +19,28 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 import { useAuthStore } from '@/stores/authStore';
+import { confirmar } from '@/lib/confirmar';
+
+/** GPS com caminho de escape (auditoria 11/09): galpão/subsolo sem sinal não
+ *  pode impedir o ponto — oferece registrar sem localização (fica anotado). */
+async function obterLocalizacao(): Promise<{ latitude?: number; longitude?: number; address?: string } | null> {
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+    });
+    const { latitude, longitude } = position.coords;
+    const address = await reverseGeocode(latitude, longitude);
+    return { latitude, longitude, ...(address ? { address } : {}) };
+  } catch (err) {
+    if ((err as { code?: number })?.code === 1) throw err; // permissão negada: orientar, não contornar
+    const seguir = await confirmar(
+      'Não consegui obter tua localização (sem sinal de GPS). Registrar o ponto mesmo assim? Ficará anotado "sem localização".',
+      { titulo: 'GPS indisponível', confirmarLabel: 'Registrar sem GPS' },
+    );
+    if (!seguir) return null;
+    return { address: 'Sem localização (GPS indisponível no momento do registro)' };
+  }
+}
 import { LogIn, LogOut, MapPin, Clock, AlertCircle, Download, Users, Calendar, HardHat, X } from 'lucide-react';
 
 // --- Types ---
@@ -150,7 +173,7 @@ export default function ApontamentoPage() {
       ]);
       setStatus(statusRes.data.data);
       setEntries(entriesRes.data.data);
-    } catch { /* interceptor */ } finally {
+    } catch { setError('Sem conexão — não consegui carregar teu status de ponto. Recarrega a tela.'); } finally {
       setLoading(false);
     }
   }, []);
@@ -231,16 +254,9 @@ export default function ApontamentoPage() {
       // Checkout — use the same obra from the last checkin, no modal
       setSubmitting(true);
       try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-          });
-        });
-
-        const { latitude, longitude } = position.coords;
-        const address = await reverseGeocode(latitude, longitude);
-        const payload: any = { latitude, longitude, ...(address ? { address } : {}) };
+        const loc = await obterLocalizacao();
+        if (!loc) { setSubmitting(false); return; }
+        const payload: any = { ...loc };
         if (checkinObra) payload.obraId = checkinObra.id;
 
         await api.post('/time-entries/checkout', payload);
@@ -285,16 +301,9 @@ export default function ApontamentoPage() {
     setSubmitting(true);
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-      const address = await reverseGeocode(latitude, longitude);
-      const payload: Record<string, any> = { latitude, longitude, ...(address ? { address } : {}) };
+      const loc = await obterLocalizacao();
+      if (!loc) { setSubmitting(false); return; }
+      const payload: Record<string, any> = { ...loc };
       // obraId vazio = Escritório (sem obra)
       if (obraId) payload.obraId = obraId;
 

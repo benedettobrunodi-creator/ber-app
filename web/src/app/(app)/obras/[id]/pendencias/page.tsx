@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Camera, PauseCircle, PlayCircle, X, AlertTriangle, Pencil, FileDown, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
+import { pedirTexto } from '@/lib/prompt-sheet';
 import { confirmar } from '@/lib/confirmar';
 
 interface Pendencia {
@@ -229,9 +230,10 @@ export default function PendenciasPage() {
     try {
       const params = new URLSearchParams({ filtro: pdfFiltro, fotos: pdfFotos ? '1' : '0' });
       if (pdfAmbiente !== 'todos') params.set('ambiente', pdfAmbiente);
+      const win = window.open('', '_blank'); // síncrono no toque — iOS não bloqueia
       const r = await api.get(`/obras/${obraId}/pendencias/pdf?${params}`, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([r.data as BlobPart], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      if (win) win.location.href = url; else window.open(url, '_blank');
       setShowPdf(false);
     } catch { setErro('Erro ao gerar PDF'); }
     finally { setBusy(false); }
@@ -386,7 +388,10 @@ export default function PendenciasPage() {
       </div>
 
       {erro && (
-        <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+        /* fixo e acima dos modais (z-[75]) — antes ficava ATRÁS do modal e o
+           "Criar pendência" parecia não fazer nada (auditoria 11/09) */
+        <div className="fixed inset-x-4 top-4 z-[75] mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-lg md:inset-x-auto md:left-1/2 md:w-[28rem] md:-translate-x-1/2"
+          onClick={() => setErro(null)}>
           <AlertTriangle size={15} /> {erro}
         </div>
       )}
@@ -487,7 +492,7 @@ export default function PendenciasPage() {
                       )}
                       <input
                         ref={(el) => { fotoConclusaoInputs.current[p.id] = el; }}
-                        type="file" accept="image/*" className="hidden"
+                        type="file" accept="image/*" capture="environment" className="hidden"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFotoConclusao(p, f); e.target.value = ''; }}
                       />
                     </td>
@@ -559,7 +564,7 @@ export default function PendenciasPage() {
                       <span className="text-[11px]">Adicionar foto do estado atual</span>
                     </button>
                   )}
-                  <input ref={detFotoAberturaInput} type="file" accept="image/*" className="hidden"
+                  <input ref={detFotoAberturaInput} type="file" accept="image/*" capture="environment" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'abertura', f); e.target.value = ''; }} />
                 </div>
                 <div>
@@ -580,7 +585,7 @@ export default function PendenciasPage() {
                       <span className="text-[11px]">Adicionar foto do resolvido</span>
                     </button>
                   )}
-                  <input ref={detFotoConclusaoInput} type="file" accept="image/*" className="hidden"
+                  <input ref={detFotoConclusaoInput} type="file" accept="image/*" capture="environment" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarFoto(detalhe, 'conclusao', f); e.target.value = ''; }} />
                 </div>
               </div>
@@ -598,7 +603,7 @@ export default function PendenciasPage() {
                     ) : (
                       <button
                         disabled={busy}
-                        onClick={() => { const motivo = window.prompt('Motivo do bloqueio:'); if (motivo?.trim()) mudarStatus(detalhe, 'bloqueada', motivo.trim()); }}
+                        onClick={async () => { const motivo = await pedirTexto('Motivo do bloqueio:', { placeholder: 'ex.: aguardando material do cliente' }); if (motivo?.trim()) mudarStatus(detalhe, 'bloqueada', motivo.trim()); }}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-ber-border text-ber-gray hover:bg-ber-surface disabled:opacity-50"
                       >
                         <PauseCircle size={13} /> Bloquear
@@ -725,7 +730,7 @@ export default function PendenciasPage() {
               <label className="flex items-center gap-2 text-sm text-ber-gray border border-dashed border-ber-border rounded-lg px-3 py-3 cursor-pointer hover:bg-ber-surface">
                 <Camera size={18} className="text-ber-teal" />
                 {fFoto ? <span className="text-ber-carbon font-medium">{fFoto.name}</span> : 'Foto do estado atual (opcional)'}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => setFFoto(e.target.files?.[0] ?? null)} />
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setFFoto(e.target.files?.[0] ?? null)} />
               </label>
               <button onClick={criar} disabled={busy} className="w-full bg-ber-carbon text-white font-bold text-sm py-3 rounded-lg hover:opacity-90 disabled:opacity-50">
                 {busy ? 'Salvando…' : 'Criar pendência'}

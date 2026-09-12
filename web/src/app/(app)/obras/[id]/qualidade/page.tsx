@@ -430,9 +430,10 @@ export default function QualidadePage() {
 
   async function abrirPdf(v: Vistoria) {
     try {
+      const win = window.open('', '_blank'); // síncrono no toque — iOS não bloqueia
       const r = await api.get(`/obras/${obraId}/qualidade/vistorias/${v.id}/pdf`, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
+      if (win) win.location.href = url; else window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch { alert('Erro ao gerar o PDF'); }
   }

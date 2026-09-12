@@ -120,13 +120,34 @@ export async function answerItem(checklistId: string, itemId: string, userId: st
   });
 }
 
-export async function approveChecklist(id: string, userId: string, input: ApproveCanteiroInput) {
+/** Campo envia pra aprovação (10º bug da auditoria mobile 11/09: o botão do
+ *  front era um alert sem API). Valida obrigatórios e marca aguardando. */
+export async function submitChecklist(id: string) {
   const checklist = await prisma.canteiroChecklist.findUnique({
     where: { id },
     include: { items: true },
   });
   if (!checklist) throw AppError.notFound('Checklist de canteiro');
   if (checklist.status !== 'em_andamento') {
+    throw AppError.badRequest('Este checklist já foi enviado ou finalizado');
+  }
+  const semResposta = checklist.items.filter((i) => i.required && !i.answer);
+  if (semResposta.length > 0) {
+    throw AppError.badRequest(`${semResposta.length} item(ns) obrigatório(s) sem resposta`);
+  }
+  return prisma.canteiroChecklist.update({
+    where: { id },
+    data: { status: 'aguardando_aprovacao' },
+  });
+}
+
+export async function approveChecklist(id: string, userId: string, input: ApproveCanteiroInput) {
+  const checklist = await prisma.canteiroChecklist.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+  if (!checklist) throw AppError.notFound('Checklist de canteiro');
+  if (!['em_andamento', 'aguardando_aprovacao'].includes(checklist.status)) {
     throw AppError.badRequest('Este checklist já foi finalizado');
   }
 

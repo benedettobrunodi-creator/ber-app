@@ -7,6 +7,8 @@ import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { usePeriodStore } from '@/stores/periodStore';
 import api from '@/lib/api';
 import { ConfirmHost } from '@/lib/confirmar';
+import { ToastHost } from '@/lib/toast';
+import { PromptHost } from '@/lib/prompt-sheet';
 import {
   HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
@@ -355,11 +357,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Confirmação própria do app (window.confirm é bloqueado em PWA mobile) */}
       <ConfirmHost />
+      <ToastHost />
+      <PromptHost />
 
       {/* ─── Bottom navigation — mobile only ─── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
         {BOTTOM_NAV.filter(item => {
-          const permKey = item.href === '/configuracoes' ? 'configuracoes' : item.href.replace('/', '');
+          // Auditoria 11/09: usar o MESMO mapa do guard de rota — antes o campo
+          // via "Config" no bottom-nav, tocava e era expulso pelo guard
+          const rota = ROUTE_PERMS.find(r => item.href.startsWith(r.prefix));
+          const permKey = rota?.perm ?? item.href.replace('/', '');
           return perms[permKey] !== false;
         }).map((item) => {
           const Icon = item.icon;

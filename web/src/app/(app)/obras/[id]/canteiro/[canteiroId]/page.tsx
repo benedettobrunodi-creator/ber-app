@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
 import {
   ArrowLeft,
@@ -148,6 +149,8 @@ export default function CanteiroDetailPage() {
     if (isFinalized) return;
     setSavingItems((prev) => ({ ...prev, [itemId]: true }));
     try {
+      // Auditoria 11/09: estado só muda DEPOIS do servidor confirmar — antes o
+      // item "parecia" respondido mesmo com o PATCH falhando (dado fantasma).
       await api.patch(`/canteiro/${canteiroId}/items/${itemId}`, {
         answer,
         observation: observations[itemId] || null,
@@ -170,7 +173,7 @@ export default function CanteiroDetailPage() {
         };
       });
     } catch {
-      /* handled */
+      toast('Não salvou — confira a conexão e toque de novo', 'erro');
     } finally {
       setSavingItems((prev) => ({ ...prev, [itemId]: false }));
     }
@@ -198,7 +201,7 @@ export default function CanteiroDetailPage() {
         };
       });
     } catch {
-      /* handled */
+      toast('Falha de conexão — ação não concluída', 'erro');
     } finally {
       setSavingItems((prev) => ({ ...prev, [itemId]: false }));
     }
@@ -232,7 +235,7 @@ export default function CanteiroDetailPage() {
         };
       });
     } catch {
-      /* handled */
+      toast('Falha de conexão — ação não concluída', 'erro');
     } finally {
       setUploadingItems((prev) => ({ ...prev, [itemId]: false }));
     }
@@ -241,7 +244,17 @@ export default function CanteiroDetailPage() {
   // ─── Approval actions ─────────────────────────────────────────────────────
 
   async function handleSubmitForApproval() {
-    alert('Checklist pronto para revisão da coordenação.');
+    setSubmittingApproval(true);
+    try {
+      await api.patch(`/canteiro/${canteiroId}/submit`);
+      toast('Checklist enviado pra aprovação da coordenação ✓');
+      fetchData();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      toast(msg ?? 'Não consegui enviar — tente de novo', 'erro');
+    } finally {
+      setSubmittingApproval(false);
+    }
   }
 
   async function handleApprove(status: 'aprovado' | 'reprovado') {
@@ -250,7 +263,7 @@ export default function CanteiroDetailPage() {
       await api.patch(`/canteiro/${canteiroId}/approve`, { status });
       fetchData();
     } catch {
-      /* handled */
+      toast('Falha de conexão — ação não concluída', 'erro');
     } finally {
       setSubmittingApproval(false);
     }
@@ -475,7 +488,7 @@ export default function CanteiroDetailPage() {
                           <input
                             type="file"
                             accept="image/*"
-                           
+                            capture="environment"
                             className="hidden"
                             disabled={isFinalized || uploadingItems[item.id]}
                             onChange={(e) => {
@@ -524,7 +537,7 @@ export default function CanteiroDetailPage() {
               className="w-full rounded-lg bg-ber-olive px-4 py-3 text-sm font-bold text-ber-black transition-colors hover:bg-ber-olive/80 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <AlertTriangle size={18} />
-              Enviar para Aprovação
+              {submittingApproval ? 'Enviando…' : 'Enviar para Aprovação'}
             </button>
           )}
 
