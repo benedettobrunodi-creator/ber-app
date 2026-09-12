@@ -163,6 +163,14 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
     void import('./alerts')
       .then((a) => a.alertaVistoriaCritica(vistoria, obra.name))
       .catch((err) => console.error('[Qualidade] alerta crítico falhou:', (err as Error).message));
+    // push no celular de todos os inscritos (PWA 11/09)
+    void import('../push/service')
+      .then(({ enviarPush }) => enviarPush(null, {
+        title: `Vistoria CRÍTICA — ${obra.name}`,
+        body: `Nota ${notaFinal.toFixed(2)} na vistoria de qualidade — ver pendências`,
+        url: `/obras/${obraId}/qualidade`,
+      }))
+      .catch(() => {});
   }
 
   return vistoria;
@@ -222,6 +230,12 @@ export async function atribuirPendencia(
     },
     include: { responsavel: { select: { id: true, name: true, email: true } } },
   });
+  if (input.responsavelId) {
+    void import('../push/service').then(({ enviarPush }) => enviarPush(
+      [input.responsavelId!],
+      { title: 'Pendência de qualidade pra você', body: item.texto.slice(0, 120), url: `/obras/${item.vistoria.obraId}/qualidade` },
+    )).catch(() => {});
+  }
   if (input.responsavelId && atualizado.responsavel?.email) {
     void import('../../services/email-obras').then(({ sendEmailObra }) => sendEmailObra({
       to: [atualizado.responsavel!.email],

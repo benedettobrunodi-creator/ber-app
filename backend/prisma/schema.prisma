@@ -123,6 +123,7 @@ model User {
   @@map("users")
   liberacaoMedicaoAutor LiberacaoMedicaoOverride[] @relation("LiberacaoMedicaoAutor")
   qualidadePendenciasResponsavel QualidadeVistoriaItem[] @relation("QualidadePendenciaResponsavel")
+  pushSubscriptions PushSubscription[]
 }
 
 model CustomRole {
@@ -3273,4 +3274,19 @@ model LiberacaoMedicaoOverride {
 
   @@index([obraId, planoId, createdAt])
   @@map("liberacao_medicao_overrides")
+}
+
+// ─── Web Push (PWA, 11/09/26) — alertas no celular da equipe ───
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

@@ -227,6 +227,11 @@ export async function alertaPendenciasVencidas() {
       `<li style="margin-bottom:8px"><b>${p.texto}</b><br><span style="color:#5C5E54;font-size:12px">${p.vistoria.obra.name} · vistoria de ${p.vistoria.data.toLocaleDateString('pt-BR')} · prazo ${p.prazo!.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>${p.observacao ? `<br><span style="color:#B42318;font-size:12px">${p.observacao}</span>` : ''}</li>`,
     ).join('');
     try {
+      // push no celular do responsável (PWA 11/09) — além do e-mail
+      void import('../push/service').then(({ enviarPush }) => enviarPush(
+        [itens[0].responsavelId!],
+        { title: 'Pendência de qualidade vencida', body: `${itens.length} pendência(s) passaram do prazo — ${itens[0].vistoria.obra.name}`, url: '/obras' },
+      )).catch(() => {});
       await sendEmailObra({
         to: [email],
         subject: `⏰ ${itens.length} pendência(s) de qualidade VENCIDA(S) sob sua responsabilidade · BÈR`,

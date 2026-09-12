@@ -144,6 +144,8 @@ import { ranking as qualidadeRanking } from './modules/qualidade/controller';
 const qualidadeRankingRouter = QRankRouter();
 qualidadeRankingRouter.get('/', qualidadeRanking);
 app.use('/v1/qualidade-ranking', ...perm('obras'), qualidadeRankingRouter);
+import pushRouter from './modules/push/routes';
+app.use('/v1/push', pushRouter);
 app.use('/v1/obras/:obraId/tasks', ...perm('obras'), obraTaskRoutes);
 app.use('/v1/tasks', ...perm('obras'), taskRoutes);
 app.use('/v1/obras/:obraId/photos', ...perm('obras'), obraPhotoRoutes);

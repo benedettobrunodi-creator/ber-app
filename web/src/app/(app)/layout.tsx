@@ -9,6 +9,7 @@ import api from '@/lib/api';
 import { ConfirmHost } from '@/lib/confirmar';
 import { ToastHost } from '@/lib/toast';
 import { PromptHost } from '@/lib/prompt-sheet';
+import { PushSetup } from '@/components/pwa/PushSetup';
 import {
   HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
@@ -359,6 +360,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ConfirmHost />
       <ToastHost />
       <PromptHost />
+      <PushSetup />
 
       {/* ─── Bottom navigation — mobile only ─── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-ber-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
