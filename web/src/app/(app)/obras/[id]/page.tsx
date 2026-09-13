@@ -264,8 +264,20 @@ export default function ObraDetailPage() {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   // Menu por fase (Bruno 10/09): dropdown abre no hover (desktop) e no toque (mobile)
   const [menuFase, setMenuFase] = useState<string | null>(null);
+  // Posição FIXED do dropdown: a régua de abas tem overflow-x-auto (mobile), e
+  // overflow em ancestral CLIPA filho absolute — o menu abria mas ficava
+  // invisível no desktop (bug reportado 13/09). Fixed escapa do clipping.
+  const [menuFasePos, setMenuFasePos] = useState<{ left: number; top: number } | null>(null);
   const menuFaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abrirMenuFase = (g: string) => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); setMenuFase(g); };
+  const ancorarMenuFase = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setMenuFasePos({ left: Math.max(8, Math.min(r.left, window.innerWidth - 228)), top: r.bottom + 2 });
+  };
+  const abrirMenuFase = (g: string, el: HTMLElement) => {
+    if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current);
+    ancorarMenuFase(el);
+    setMenuFase(g);
+  };
   const fecharMenuFase = () => { if (menuFaseTimer.current) clearTimeout(menuFaseTimer.current); menuFaseTimer.current = setTimeout(() => setMenuFase(null), 220); };
   // Auditoria 11/09: no touch o menu ficava aberto pra sempre — clique-fora/Escape fecham
   useEffect(() => {
@@ -274,9 +286,11 @@ export default function ObraDetailPage() {
       if (!(e.target as HTMLElement).closest('[data-menu-fase]')) setMenuFase(null);
     };
     const aoTecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuFase(null); };
+    const aoRolar = () => setMenuFase(null);
     document.addEventListener('pointerdown', aoTocarFora);
     document.addEventListener('keydown', aoTecla);
-    return () => { document.removeEventListener('pointerdown', aoTocarFora); document.removeEventListener('keydown', aoTecla); };
+    window.addEventListener('scroll', aoRolar, true);
+    return () => { document.removeEventListener('pointerdown', aoTocarFora); document.removeEventListener('keydown', aoTecla); window.removeEventListener('scroll', aoRolar, true); };
   }, [menuFase]);
   const [loading, setLoading] = useState(true);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -1474,10 +1488,13 @@ export default function ObraDetailPage() {
             }
             return (
               <div key={g.grupo} className="relative shrink-0" data-menu-fase
-                onPointerEnter={(e) => { if (e.pointerType === 'mouse') abrirMenuFase(g.grupo); }}
+                onPointerEnter={(e) => { if (e.pointerType === 'mouse') abrirMenuFase(g.grupo, e.currentTarget); }}
                 onPointerLeave={(e) => { if (e.pointerType === 'mouse') fecharMenuFase(); }}>
                 <button
-                  onClick={() => setMenuFase(menuFase === g.grupo ? null : g.grupo)}
+                  onClick={(e) => {
+                    if (menuFase === g.grupo) setMenuFase(null);
+                    else abrirMenuFase(g.grupo, e.currentTarget);
+                  }}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
                     grupoAtivo ? 'border-b-2 border-ber-olive text-ber-carbon' : 'text-ber-gray hover:text-ber-carbon'
                   }`}>
@@ -1485,8 +1502,9 @@ export default function ObraDetailPage() {
                   {tabAtivaDoGrupo && <span className="text-[11px] font-medium text-ber-teal">· {(tabAtivaDoGrupo as { label: string }).label}</span>}
                   <ChevronDown size={13} className={`transition-transform ${menuFase === g.grupo ? 'rotate-180' : ''}`} />
                 </button>
-                {menuFase === g.grupo && (
-                  <div className="absolute left-0 top-full z-40 mt-0.5 min-w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-ber-border bg-white py-1.5 shadow-lg last:right-0">
+                {menuFase === g.grupo && menuFasePos && (
+                  <div style={{ position: 'fixed', left: menuFasePos.left, top: menuFasePos.top }}
+                    className="z-50 min-w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-ber-border bg-white py-1.5 shadow-lg">
                     {g.tabs.map((t) => t.type === 'tab' ? (
                       <button key={t.key}
                         onClick={() => { setActiveTab(t.key); setMenuFase(null); }}
