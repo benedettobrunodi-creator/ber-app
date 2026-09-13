@@ -892,6 +892,20 @@ export default function ObraDetailPage() {
         // motivo. A única trava que resta é a foto obrigatória.
         const isItemBlocked = (_item: ObraFvsItemType, _sectionItems: ObraFvsItemType[]) => false;
 
+        // Quem preencheu (pedido de usuário via Bruno 13/09): filledBy/filler já
+        // vinham do backend — agora aparecem no item concluído, pra auditoria.
+        const carimboPreenchimento = (item: ObraFvsItemType) => {
+          if (!item.checked || !item.filler) return null;
+          const quando = item.filledAt
+            ? new Date(item.filledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+            : null;
+          return (
+            <span className="ml-2 inline-flex items-center gap-1 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 whitespace-nowrap align-middle">
+              ✓ {item.filler.name.split(' ')[0]}{quando ? ` · ${quando}` : ''}
+            </span>
+          );
+        };
+
         const renderSection = (sectionItems: ObraFvsItemType[], momento: string) => {
           const sorted = [...sectionItems].sort((a, b) => (a.templateItem?.ordem ?? 0) - (b.templateItem?.ordem ?? 0));
           const grouped = bySecao(sorted);
@@ -949,6 +963,7 @@ export default function ObraDetailPage() {
                                 <img src={item.fotoUrl} alt="foto" className="h-6 w-6 rounded object-cover border border-ber-gray/15 hover:opacity-80" />
                               </a>
                             )}
+                            {carimboPreenchimento(item)}
                           </td>
                           <td className="px-3 py-3 align-top">
                             <select
@@ -1054,6 +1069,7 @@ export default function ObraDetailPage() {
                             )}
                           </div>
                         )}
+                        {carimboPreenchimento(item) && <div className="mt-1.5">{carimboPreenchimento(item)}</div>}
                         {/* Observação + Responsável + Prazo — bloco com destaque, senão passa despercebido */}
                         <div className="mt-2 rounded-lg border border-ber-gray/25 bg-ber-offwhite/50 p-2 space-y-1.5">
                           <input
