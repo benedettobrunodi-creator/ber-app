@@ -33,8 +33,8 @@ const s = StyleSheet.create({
   page: { padding: 46, paddingBottom: 58, fontSize: 9.5, color: CARVAO, fontFamily: 'Montserrat', fontWeight: 400, lineHeight: 1.5, backgroundColor: '#FBFBF9' },
   regua: { width: 30, height: 3, backgroundColor: OLIVA, marginBottom: 6 },
   eyebrow: { fontSize: 8, fontWeight: 700, letterSpacing: 1.6, color: GRAY, textTransform: 'uppercase', marginBottom: 8 },
-  h1: { fontSize: 19, fontWeight: 700, marginBottom: 2 },
-  sub: { fontSize: 10.5, color: GRAY, marginBottom: 14 },
+  h1: { fontSize: 19, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 },
+  sub: { fontSize: 10.5, color: GRAY, lineHeight: 1.3, marginBottom: 16 },
   cards: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   card: { flex: 1, backgroundColor: CREME, borderLeftWidth: 3, borderLeftColor: OLIVA, padding: 8 },
   cardLabel: { fontSize: 7, fontWeight: 700, letterSpacing: 1, color: OLIVA_DARK, textTransform: 'uppercase', marginBottom: 2 },
@@ -54,7 +54,7 @@ const s = StyleSheet.create({
 });
 
 const CLIMA_LABEL: Record<string, string> = { sol: 'Sol', nublado: 'Nublado', chuva: 'Chuva', chuva_forte: 'Chuva forte' };
-const COND_LABEL: Record<string, string> = { praticavel: 'Praticável', impraticavel: 'Impraticável', parcial: 'Parcial' };
+const COND_LABEL: Record<string, string> = { praticavel: 'Praticável', impraticavel: 'Impraticável', parcial: 'Parcial', normal: 'Normal' };
 const ATIV_STATUS: Record<string, string> = { concluida: 'Concluída', em_andamento: 'Em andamento', paralisada: 'Paralisada' };
 
 export interface DiarioPdfProps {
@@ -95,13 +95,13 @@ export function DiarioPDF(p: DiarioPdfProps) {
           {p.clima && (
             <View style={s.card}>
               <Text style={s.cardLabel}>Clima</Text>
-              <Text style={s.cardValor}>{CLIMA_LABEL[p.clima] ?? p.clima}</Text>
+              <Text style={s.cardValor}>{CLIMA_LABEL[p.clima] ?? (p.clima.charAt(0).toUpperCase() + p.clima.slice(1))}</Text>
             </View>
           )}
           {p.condicaoTrabalho && (
             <View style={s.card}>
               <Text style={s.cardLabel}>Condição de trabalho</Text>
-              <Text style={s.cardValor}>{COND_LABEL[p.condicaoTrabalho] ?? p.condicaoTrabalho}</Text>
+              <Text style={s.cardValor}>{COND_LABEL[p.condicaoTrabalho] ?? (p.condicaoTrabalho.charAt(0).toUpperCase() + p.condicaoTrabalho.slice(1))}</Text>
             </View>
           )}
           {totalEfetivo > 0 && (
