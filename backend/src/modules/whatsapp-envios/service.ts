@@ -18,6 +18,12 @@ export function normalizarTelefone(raw: string): string | null {
   return null;
 }
 
+
+/** Nome de exibição do PDF no WhatsApp: sem uuid, sem "BER — Obra |", sem chars proibidos. */
+function nomeObraLimpo(name: string): string {
+  return name.replace(/^BER\s*[—–-]\s*Obra\s*\|?\s*/i, '').replace(/[\/\\:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /** Enfileira o PDF do relatório pros destinatários; o worker do Mac mini dispara em até 2 min. */
 export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: string) {
   const relatorio = await prisma.relatorioSemanal.findFirst({ where: { id: relatorioId, obraId } });
@@ -40,6 +46,7 @@ export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: s
 
   const legenda = `📋 Relatório Semanal nº ${relatorio.numero} — ${obra.name}. Enviado automaticamente pelo BER App.`;
   const arquivoPath = `/v1/obras/${obraId}/relatorios/${relatorioId}/pdf`;
+  const arquivoNome = `Relatório Semanal ${String(relatorio.numero).padStart(2, '0')} — ${nomeObraLimpo(obra.name)}.pdf`;
 
   // idempotência: não re-enfileira pro mesmo telefone se já há envio pendente/enviado deste relatório
   const existentes = await prisma.whatsappEnvio.findMany({
@@ -52,7 +59,7 @@ export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: s
   if (novos.length > 0) {
     await prisma.whatsappEnvio.createMany({
       data: novos.map((d) => ({
-        obraId, relatorioId, destinatario: d.nome, telefone: d.telefone, legenda, arquivoPath, status: 'pendente',
+        obraId, relatorioId, destinatario: d.nome, telefone: d.telefone, legenda, arquivoPath, arquivoNome, status: 'pendente',
       })),
     });
   }
@@ -88,6 +95,7 @@ export async function enfileirarDiarioWhatsapp(obraId: string, diarioId: string,
   const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   const legenda = `📍 Diário de obra ${dataFmt} — ${diario.obra.name}. Enviado automaticamente pelo BER App.`;
   const arquivoPath = `/v1/diario/${diarioId}/pdf`;
+  const arquivoNome = `Diário de Obra ${dataFmt.replace(/\//g, '-')} — ${nomeObraLimpo(diario.obra.name)}.pdf`;
 
   const existentes = await prisma.whatsappEnvio.findMany({
     where: { diarioId, telefone: { in: destinatarios.map((d) => d.telefone) }, status: { in: ['pendente', 'enviado'] } },
@@ -99,7 +107,7 @@ export async function enfileirarDiarioWhatsapp(obraId: string, diarioId: string,
   if (novos.length > 0) {
     await prisma.whatsappEnvio.createMany({
       data: novos.map((d) => ({
-        obraId, diarioId, destinatario: d.nome, telefone: d.telefone, legenda, arquivoPath, status: 'pendente',
+        obraId, diarioId, destinatario: d.nome, telefone: d.telefone, legenda, arquivoPath, arquivoNome, status: 'pendente',
       })),
     });
   }

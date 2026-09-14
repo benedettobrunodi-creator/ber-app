@@ -2410,6 +2410,7 @@ model WhatsappEnvio {
   telefone      String    @db.VarChar(30)
   legenda       String
   arquivoPath   String    @map("arquivo_path") // rota relativa do PDF no ber-app (worker baixa com o próprio JWT)
+  arquivoNome   String?   @map("arquivo_nome") @db.VarChar(200) // nome de exibição do PDF no WhatsApp (14/09)
   status        String    @default("pendente") @db.VarChar(20) // pendente | enviado | falha
   tentativas    Int       @default(0)
   erro          String?
