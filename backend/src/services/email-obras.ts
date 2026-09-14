@@ -80,7 +80,7 @@ const footer = `
   </p>`;
 
 export function diarioClienteHtml({ obraNome, dataFmt, link, observacoes }: {
-  obraNome: string; dataFmt: string; link: string; observacoes?: string | null;
+  obraNome: string; dataFmt: string; link?: string | null; observacoes?: string | null;
 }): string {
   return `
   <div style="font-family:'Montserrat',Arial,sans-serif;max-width:560px;margin:0 auto;background:#F7F7F5;padding:24px;">
@@ -90,9 +90,9 @@ export function diarioClienteHtml({ obraNome, dataFmt, link, observacoes }: {
       <p style="color:#5A7A7A;font-size:13px;font-weight:600;margin:0 0 16px;">${obraNome} · ${dataFmt}</p>
       ${observacoes ? `<p style="color:#2D2D2D;font-size:14px;line-height:1.6;margin:0 0 16px;">${observacoes}</p>` : ''}
       <p style="color:#2D2D2D;font-size:14px;line-height:1.6;margin:0 0 20px;">
-        O diário de obra de hoje está disponível, com o avanço do dia, as atividades executadas e o registro fotográfico.
+        Segue em anexo o diário de obra do dia em PDF, com o avanço, as atividades executadas e o registro fotográfico.
       </p>
-      <a href="${link}" style="display:inline-block;background:#2D2D2D;color:#fff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Ver atualização do dia</a>
+      ${link ? `<a href="${link}" style="display:inline-block;background:#2D2D2D;color:#fff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">Ver atualização do dia</a>` : ''}
     </div>
     ${footer}
   </div>`;

@@ -105,6 +105,45 @@ export async function update(req: Request, res: Response) {
   sendSuccess(res, updated);
 }
 
+
+/** PDF cliente-facing do diário (14/09/26) — anexado nos e-mails no lugar do link. */
+async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome: string } | null> {
+  try {
+    const d = await prisma.diarioObra.findUnique({
+      where: { id: diarioId },
+      include: {
+        obra: { select: { name: true } },
+        atividades: { orderBy: { createdAt: 'asc' } },
+        efetivos: { orderBy: { createdAt: 'asc' } },
+        fotos: { include: { ambiente: { select: { nome: true } } }, orderBy: { ordem: 'asc' } },
+      },
+    });
+    if (!d) return null;
+    const React = await import('react');
+    const { renderToBuffer } = await import('@react-pdf/renderer');
+    const { DiarioPDF } = await import('./diario-pdf');
+    const buffer = await renderToBuffer(
+      React.createElement(DiarioPDF, {
+        obraNome: d.obra.name,
+        data: d.data,
+        clima: d.clima,
+        condicaoTrabalho: d.condicaoTrabalho,
+        avancoDia: d.avancoDia != null ? Number(d.avancoDia) : null,
+        observacoesCliente: d.observacoesCliente,
+        atividades: d.atividades.map((a) => ({ descricao: a.descricao, status: a.status })),
+        efetivo: d.efetivos.map((e) => ({ funcao: e.funcao, categoria: e.categoria, quantidade: e.quantidade })),
+        fotos: d.fotos.map((f) => ({ fileUrl: f.fileUrl, legenda: f.legenda, ambiente: f.ambiente?.nome ?? null })),
+      }) as never,
+    );
+    const dia = new Date(d.data).toISOString().slice(0, 10);
+    const slug = d.obra.name.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 40);
+    return { buffer: Buffer.from(buffer), nome: `diario-${slug}-${dia}.pdf` };
+  } catch (e) {
+    console.error('[diario] falha ao montar PDF:', e);
+    return null;
+  }
+}
+
 export async function fechar(req: Request, res: Response) {
   const diario = await prisma.diarioObra.findUnique({
     where: { id: req.params.diarioId },
@@ -130,11 +169,16 @@ export async function fechar(req: Request, res: Response) {
       const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
       const { destinatariosDaObra } = await import('../../services/email-obras');
       const emailsAuto = await destinatariosDaObra(diario.obraId, 'diario');
-      if (emailsAuto.length) await sendEmailObra({
-        to: emailsAuto,
-        subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
-        html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: `${appUrl}/atualizacao/${tokenPublico}`, observacoes: diario.observacoesCliente }),
-      });
+      if (emailsAuto.length) {
+        // PDF anexo no lugar do link (Bruno 14/09: destinatário externo não tem login)
+        const pdf = await montarPdfDiario(req.params.diarioId);
+        await sendEmailObra({
+          to: emailsAuto,
+          subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
+          html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: pdf ? null : `${appUrl}/atualizacao/${tokenPublico}`, observacoes: diario.observacoesCliente }),
+          ...(pdf ? { attachments: [{ filename: pdf.nome, content: pdf.buffer.toString('base64') }] } : {}),
+        });
+      }
     } catch (e) {
       console.error('[diario] falha no e-mail ao cliente:', e);
     }
@@ -468,10 +512,12 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   if (emails.length === 0) throw AppError.badRequest('Nenhum destinatário: marque "Recebe diário" nos Stakeholders da obra (ou informe e-mails manualmente)');
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
   const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  const pdf = await montarPdfDiario(req.params.diarioId);
   await sendEmailObra({
     to: emails,
     subject: `Atualização da obra ${diario.obra.name} — ${dataFmt} · BÈR Engenharia`,
-    html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: `${appUrl}/atualizacao/${diario.tokenPublico}`, observacoes: diario.observacoesCliente }),
+    html: diarioClienteHtml({ obraNome: diario.obra.name, dataFmt, link: pdf ? null : `${appUrl}/atualizacao/${diario.tokenPublico}`, observacoes: diario.observacoesCliente }),
+    ...(pdf ? { attachments: [{ filename: pdf.nome, content: pdf.buffer.toString('base64') }] } : {}),
   });
 
   const emailsStr = emails.join(', ');
