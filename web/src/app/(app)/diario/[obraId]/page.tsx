@@ -207,7 +207,7 @@ function PreviewFecharModal({ diario, obraNome, onConfirm, onCancel, saving }: {
             disabled={saving}
             className="w-full rounded-lg border border-ber-border px-4 py-2 text-sm text-ber-gray hover:bg-gray-50 disabled:opacity-60"
           >
-            Fechar sem enviar
+            Fechar sem enviar (nem e-mail, nem WhatsApp)
           </button>
           <button onClick={onCancel} className="w-full text-xs text-ber-gray hover:text-ber-carbon py-1">Cancelar</button>
         </div>
@@ -310,11 +310,13 @@ export default function DiarioObraPage() {
     }
   }
 
-  async function fecharDiario(enviarWhatsapp: boolean) {
+  async function fecharDiario(enviar: boolean) {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await api.post(`/diario/${selected.id}/fechar`, { enviarWhatsapp });
+      // "Fechar sem enviar" = SEM NADA: nem WhatsApp nem e-mail (Bruno 14/09 —
+      // antes o e-mail saía mesmo no "sem enviar")
+      const res = await api.post(`/diario/${selected.id}/fechar`, { enviarWhatsapp: enviar, enviarEmail: enviar });
       setSelected(res.data?.data);
       setShowPreview(false);
       await loadList();
