@@ -367,14 +367,15 @@ export async function enviarEmailCliente(req: Request, res: Response) {
   const { buffer, filename } = await buildRelatorioPdf(obraId, relatorioId);
   const attachments: { filename: string; content: string }[] = [{ filename, content: buffer.toString('base64') }];
 
-  // Anexo opcional do cronograma (30/08: engenheiro escolhe na hora do envio) —
-  // reaproveita o PDF já cadastrado como Cronograma oficial da obra.
-  if (req.body?.incluirCronograma) {
-    const cronograma = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
-    if (!cronograma) throw AppError.badRequest('Nenhum cronograma cadastrado nesta obra pra anexar');
-    const cronBuffer = await downloadFile(cronograma.fileUrl);
-    attachments.push({ filename: cronograma.fileName, content: cronBuffer.toString('base64') });
+  // Cronograma é anexo OBRIGATÓRIO (Bruno 14/09, cobrança do Gritti: relatório
+  // não sai sem o cronograma atualizado). Reaproveita o PDF do Cronograma
+  // oficial da obra; sem cronograma cadastrado, o envio é bloqueado.
+  const cronograma = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
+  if (!cronograma) {
+    throw AppError.badRequest('O cronograma atualizado é obrigatório: suba o PDF do cronograma da obra antes de enviar o relatório');
   }
+  const cronBuffer = await downloadFile(cronograma.fileUrl);
+  attachments.push({ filename: cronograma.fileName, content: cronBuffer.toString('base64') });
 
   const fmt = (d: Date) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   await sendEmailObra({

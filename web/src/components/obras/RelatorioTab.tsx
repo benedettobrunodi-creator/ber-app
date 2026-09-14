@@ -1596,7 +1596,7 @@ function EnviarEmailModal({
   );
   const [cronograma, setCronograma] = useState<CronogramaResumo | null>(null);
   const [loadingCron, setLoadingCron] = useState(true);
-  const [incluirCronograma, setIncluirCronograma] = useState(false);
+
   const [uploadingCron, setUploadingCron] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -1606,7 +1606,7 @@ function EnviarEmailModal({
     api.get(`/obras/${obraId}/cronograma`)
       .then(r => {
         const c = r.data?.data;
-        if (c) { setCronograma(c); setIncluirCronograma(true); }
+        if (c) setCronograma(c);
       })
       .catch(() => {})
       .finally(() => setLoadingCron(false));
@@ -1647,7 +1647,6 @@ function EnviarEmailModal({
       form.append('file', file);
       const r = await api.post(`/obras/${obraId}/cronograma/upload`, form);
       setCronograma(r.data.data);
-      setIncluirCronograma(true);
     } catch {
       setError('Erro ao subir o cronograma. Tenta de novo?');
     } finally {
@@ -1657,12 +1656,12 @@ function EnviarEmailModal({
 
   async function handleSend() {
     if (emails.length === 0) { setError('Informe pelo menos um e-mail'); return; }
+    if (!cronograma) { setError('O cronograma atualizado é obrigatório — suba o PDF antes de enviar.'); return; }
     setSending(true);
     setError('');
     try {
       await api.post(`/obras/${obraId}/relatorios/${relatorioId}/enviar-email`, {
         email: emails.join(', '),
-        incluirCronograma: incluirCronograma && !!cronograma,
       });
       alert('Relatório enviado ao cliente ✓');
       onClose();
@@ -1744,11 +1743,16 @@ function EnviarEmailModal({
             <Upload size={12} /> {uploadingCron ? 'Enviando…' : cronograma ? 'Substituir PDF' : 'Subir cronograma em PDF'}
           </button>
 
-          {cronograma && (
-            <label className="flex items-center gap-2 text-xs text-ber-carbon">
-              <input type="checkbox" checked={incluirCronograma} onChange={e => setIncluirCronograma(e.target.checked)} />
-              Anexar cronograma em PDF a este e-mail
-            </label>
+          {cronograma ? (
+            <p className="rounded-md bg-green-50 px-2.5 py-1.5 text-xs text-green-800">
+              ✓ Cronograma será anexado (obrigatório): <span className="font-semibold">{cronograma.fileName}</span>
+              {cronograma.updatedAt && <> · enviado em {new Date(cronograma.updatedAt).toLocaleDateString('pt-BR')}</>}
+              <span className="block text-[11px] text-green-700/80">Se estiver desatualizado, substitua o PDF acima antes de enviar.</span>
+            </p>
+          ) : !loadingCron && (
+            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800">
+              ⚠ O envio está bloqueado: o cronograma atualizado é obrigatório. Suba o PDF acima.
+            </p>
           )}
         </div>
 
@@ -1760,7 +1764,7 @@ function EnviarEmailModal({
           </button>
           <button
             onClick={handleSend}
-            disabled={sending || uploadingCron}
+            disabled={sending || uploadingCron || !cronograma}
             className="flex-1 rounded-lg bg-ber-carbon py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             {sending ? 'Enviando…' : 'Enviar'}
