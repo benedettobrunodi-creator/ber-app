@@ -732,7 +732,7 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
                     } catch { setWaStatus('erro ao enfileirar'); }
                   }}
                   className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg bg-[#25D366] text-white hover:opacity-90 disabled:opacity-60"
-                  title="Piloto: envia pro círculo interno (residentes, Chris, Bruno, Gritti) pelo WhatsApp da BÈR"
+                  title="Envia pros stakeholders com 'Recebe relatório' e telefone cadastrado (+ Bruno) pelo WhatsApp da BÈR — também sai automático junto do e-mail"
                 >
                   📱 Enviar por WhatsApp
                 </button>

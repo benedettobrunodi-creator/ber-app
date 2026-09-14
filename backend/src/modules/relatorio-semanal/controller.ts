@@ -391,5 +391,16 @@ export async function enviarEmailCliente(req: Request, res: Response) {
       await prisma.obra.update({ where: { id: obraId }, data: { clienteEmail: emailsStr } });
     }
   }
-  sendSuccess(res, { ok: true, enviadoPara: emails });
+
+  // Publicou (enviou ao cliente) → WhatsApp automático pros stakeholders registrados
+  // ("Recebe relatório" + telefone) e sempre pro Bruno (pedido 14/09). Falha aqui
+  // não derruba o envio do e-mail — fila é best-effort e o botão manual cobre.
+  let whatsapp: { criados: number; destinatarios: string[] } | null = null;
+  try {
+    const { enfileirarRelatorioWhatsapp } = await import('../whatsapp-envios/service');
+    whatsapp = await enfileirarRelatorioWhatsapp(obraId, relatorioId);
+  } catch (e) {
+    console.error('[relatorio] falha ao enfileirar WhatsApp:', (e as Error).message);
+  }
+  sendSuccess(res, { ok: true, enviadoPara: emails, whatsapp });
 }
