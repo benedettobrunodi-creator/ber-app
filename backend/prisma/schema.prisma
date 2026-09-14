@@ -2784,6 +2784,7 @@ model ReuniaoEngenharia {
   participantesIds String[]  @default([]) @map("participantes_ids") @db.Uuid
   obrasIds         String[]  @default([]) @map("obras_ids") @db.Uuid
   snapshot         Json?     // [{obraId, obraNome, coordenador, topicos: [...]}] no encerramento
+  participantesPorObra Json? @map("participantes_por_obra") // {obraId: userId[]} — quem participou da discussão de cada obra (Bruno 14/09)
   encerradaEm      DateTime? @map("encerrada_em")
   enviadaEm        DateTime? @map("enviada_em")
   criadaPor        String?   @map("criada_por") @db.Uuid

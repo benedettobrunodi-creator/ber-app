@@ -36,11 +36,27 @@ type SnapshotObra = {
   obraNome: string;
   coordenadorId: string | null;
   coordenadorNome: string | null;
+  engenheiroId?: string | null;
   engenheiroNome?: string | null;
+  participantes?: { id: string; name: string }[];
   topicos: unknown[];
 };
 
-async function coletarEstadoObras(obrasIds: string[]): Promise<SnapshotObra[]> {
+async function resolverParticipantesPorObra(participantesPorObra: unknown): Promise<Map<string, { id: string; name: string; email: string | null }[]>> {
+  const mapa = (participantesPorObra ?? {}) as Record<string, string[]>;
+  const todos = Array.from(new Set(Object.values(mapa).flat()));
+  const users = todos.length
+    ? await prisma.user.findMany({ where: { id: { in: todos } }, select: { id: true, name: true, email: true } })
+    : [];
+  const porId = new Map(users.map((u) => [u.id, u]));
+  const out = new Map<string, { id: string; name: string; email: string | null }[]>();
+  for (const [obraId, ids] of Object.entries(mapa)) {
+    out.set(obraId, (ids ?? []).map((id) => porId.get(id)).filter((u): u is NonNullable<typeof u> => Boolean(u)));
+  }
+  return out;
+}
+
+async function coletarEstadoObras(obrasIds: string[], participantesPorObra?: unknown): Promise<SnapshotObra[]> {
   const obras = await prisma.obra.findMany({
     where: { id: { in: obrasIds } },
     select: {
@@ -55,12 +71,15 @@ async function coletarEstadoObras(obrasIds: string[]): Promise<SnapshotObra[]> {
     orderBy: [{ ordem: 'asc' }, { createdAt: 'asc' }],
     select: { ...topicoSelect, obraId: true },
   });
+  const parts = await resolverParticipantesPorObra(participantesPorObra);
   return obras.map((o) => ({
     obraId: o.id,
     obraNome: o.name,
     coordenadorId: o.coordinatorId,
     coordenadorNome: o.coordinator?.name ?? null,
+    engenheiroId: o.residentEngineer?.id ?? null,
     engenheiroNome: o.residentEngineer?.name ?? null,
+    participantes: (parts.get(o.id) ?? []).map((u) => ({ id: u.id, name: u.name })),
     topicos: topicos.filter((t) => t.obraId === o.id),
   }));
 }
@@ -99,13 +118,14 @@ export async function criar(userId: string | null) {
   if (obras.length === 0) throw AppError.badRequest('Nenhuma obra em andamento/pós-obra pra montar a reunião');
 
   // participantes default: os da reunião anterior (o time semanal muda pouco)
-  const anterior = await prisma.reuniaoEngenharia.findFirst({ orderBy: { data: 'desc' }, select: { participantesIds: true } });
+  const anterior = await prisma.reuniaoEngenharia.findFirst({ orderBy: { data: 'desc' }, select: { participantesIds: true, participantesPorObra: true } });
 
   return prisma.reuniaoEngenharia.create({
     data: {
       criadaPor: userId,
       obrasIds: obras.map((o) => o.id),
       participantesIds: anterior?.participantesIds ?? [],
+      participantesPorObra: anterior?.participantesPorObra ?? {},
     },
   });
 }
@@ -125,7 +145,7 @@ export async function detalhe(id: string) {
     return { reuniao, participantes, obras: (reuniao.snapshot ?? []) as SnapshotObra[], diffBase: null };
   }
 
-  const obras = await coletarEstadoObras(reuniao.obrasIds);
+  const obras = await coletarEstadoObras(reuniao.obrasIds, reuniao.participantesPorObra);
 
   // diff vs o snapshot da última reunião ENCERRADA anterior a esta
   const base = await prisma.reuniaoEngenharia.findFirst({
@@ -163,6 +183,16 @@ export async function detalhe(id: string) {
   };
 }
 
+export async function atualizarParticipantesObra(id: string, obraId: string, userIds: string[]) {
+  const reuniao = await prisma.reuniaoEngenharia.findUnique({ where: { id }, select: { status: true, participantesPorObra: true, obrasIds: true } });
+  if (!reuniao) throw AppError.notFound('Reunião');
+  if (reuniao.status !== 'aberta') throw AppError.badRequest('Reunião encerrada não muda mais');
+  if (!reuniao.obrasIds.includes(obraId)) throw AppError.badRequest('Obra não faz parte desta reunião');
+  const mapa = ((reuniao.participantesPorObra ?? {}) as Record<string, string[]>);
+  mapa[obraId] = userIds;
+  return prisma.reuniaoEngenharia.update({ where: { id }, data: { participantesPorObra: mapa as never } });
+}
+
 export async function atualizarParticipantes(id: string, participantesIds: string[]) {
   const reuniao = await prisma.reuniaoEngenharia.findUnique({ where: { id }, select: { status: true } });
   if (!reuniao) throw AppError.notFound('Reunião');
@@ -174,7 +204,7 @@ export async function encerrar(id: string) {
   const reuniao = await prisma.reuniaoEngenharia.findUnique({ where: { id } });
   if (!reuniao) throw AppError.notFound('Reunião');
   if (reuniao.status === 'encerrada') return reuniao; // idempotente
-  const snapshot = await coletarEstadoObras(reuniao.obrasIds);
+  const snapshot = await coletarEstadoObras(reuniao.obrasIds, reuniao.participantesPorObra);
   return prisma.reuniaoEngenharia.update({
     where: { id },
     data: { status: 'encerrada', encerradaEm: new Date(), snapshot: snapshot as never },
@@ -187,7 +217,7 @@ export async function estadoParaPdf(id: string) {
   if (!reuniao) throw AppError.notFound('Reunião');
   const obras = reuniao.status === 'encerrada' && reuniao.snapshot
     ? ((reuniao.snapshot as unknown) as SnapshotObra[])
-    : await coletarEstadoObras(reuniao.obrasIds);
+    : await coletarEstadoObras(reuniao.obrasIds, reuniao.participantesPorObra);
   const participantes = reuniao.participantesIds.length
     ? await prisma.user.findMany({
         where: { id: { in: reuniao.participantesIds } },

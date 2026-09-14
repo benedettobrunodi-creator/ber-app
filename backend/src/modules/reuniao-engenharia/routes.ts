@@ -11,6 +11,7 @@ router.get('/', w(ctrl.listar));
 router.post('/', w(ctrl.criar));
 router.get('/:id', w(ctrl.detalhe));
 router.patch('/:id/participantes', w(ctrl.atualizarParticipantes));
+router.patch('/:id/participantes-obra', w(ctrl.atualizarParticipantesObra));
 router.post('/:id/encerrar', w(ctrl.encerrar));
 router.get('/:id/pdf', w(ctrl.pdf));
 router.post('/:id/enviar', w(ctrl.enviar));

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronDown, ChevronRight, ClipboardList, FileDown, Lock, Plus, Users } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, ClipboardList, FileDown, Lock, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { confirmar } from '@/lib/confirmar';
@@ -29,7 +29,9 @@ interface SnapshotTopico {
 interface ObraDaReuniao {
   obraId: string; obraNome: string;
   coordenadorId: string | null; coordenadorNome: string | null;
+  engenheiroId?: string | null;
   engenheiroNome?: string | null;
+  participantes?: { id: string; name: string }[];
   topicos: SnapshotTopico[];
 }
 interface Detalhe {
@@ -50,8 +52,6 @@ export default function ReuniaoDetalhePage() {
   const [det, setDet] = useState<Detalhe | null>(null);
   const [loading, setLoading] = useState(true);
   const [equipe, setEquipe] = useState<UserRow[]>([]);
-  const [mostrarEquipe, setMostrarEquipe] = useState(false);
-  const [salvandoPart, setSalvandoPart] = useState(false);
   const [encerrando, setEncerrando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -73,23 +73,6 @@ export default function ReuniaoDetalhePage() {
   }, []);
 
   const aberta = det?.reuniao.status === 'aberta';
-
-  async function toggleParticipante(userId: string) {
-    if (!det || !aberta || salvandoPart) return;
-    const atual = new Set(det.reuniao.participantesIds);
-    if (atual.has(userId)) atual.delete(userId); else atual.add(userId);
-    const ids = Array.from(atual);
-    setSalvandoPart(true);
-    try {
-      await api.patch(`/reunioes-engenharia/${reuniaoId}/participantes`, { participantesIds: ids });
-      setDet(prev => prev ? {
-        ...prev,
-        reuniao: { ...prev.reuniao, participantesIds: ids },
-        participantes: equipe.filter(u => ids.includes(u.id)).map(u => ({ id: u.id, name: u.name, email: u.email ?? null })),
-      } : prev);
-    } catch { toast('Erro ao salvar participantes', 'erro'); }
-    finally { setSalvandoPart(false); }
-  }
 
   async function encerrar() {
     if (!(await confirmar('Encerrar a reunião? O estado atual de todas as obras vira a fotografia definitiva desta ata (não muda mais).', { titulo: 'Encerrar reunião', confirmarLabel: 'Encerrar' }))) return;
@@ -115,23 +98,25 @@ export default function ReuniaoDetalhePage() {
   }
 
   async function enviar() {
-    const n = det?.participantes.filter(p => p.email).length ?? 0;
-    if (!(await confirmar(`Enviar o PDF consolidado por e-mail pra ${n} participante(s)?`, { titulo: 'Enviar ata', confirmarLabel: 'Enviar' }))) return;
+    if (!(await confirmar('Enviar a ata por e-mail? Cada engenheiro residente recebe as SUAS obras, com os participantes da obra em cópia.', { titulo: 'Enviar por engenheiro', confirmarLabel: 'Enviar' }))) return;
     setEnviando(true);
     try {
       const r = await api.post(`/reunioes-engenharia/${reuniaoId}/enviar`);
-      toast(`Ata enviada pra ${(r.data.data?.enviados ?? []).length} participante(s) ✓`);
+      const d = r.data.data ?? {};
+      const n = (d.enviados ?? []).length;
+      const fora = (d.semEngenheiro ?? []).length;
+      toast(`E-mail enviado pra ${n} engenheiro(s) ✓${fora ? ` — ${fora} obra(s) sem engenheiro ficaram fora` : ''}`, fora ? 'aviso' : 'ok');
       await load();
     } catch (e) { toast(errMsg(e, 'Erro ao enviar'), 'erro'); }
     finally { setEnviando(false); }
   }
 
-  // obras agrupadas por coordenador (mesma ordem do PDF)
+  // obras agrupadas por ENGENHEIRO residente (Bruno 14/09: a reunião é por engenheiro)
   const grupos = useMemo(() => {
     if (!det) return [];
     const m = new Map<string, ObraDaReuniao[]>();
     for (const o of det.obras) {
-      const k = o.coordenadorNome ?? 'Sem coordenador';
+      const k = o.engenheiroNome ?? 'Sem engenheiro';
       m.set(k, [...(m.get(k) ?? []), o]);
     }
     return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
@@ -165,10 +150,10 @@ export default function ReuniaoDetalhePage() {
             className="flex min-h-[36px] items-center gap-1.5 rounded-lg border border-ber-carbon px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-carbon hover:text-white disabled:opacity-50">
             <FileDown size={14} /> {gerandoPdf ? 'Gerando…' : 'PDF consolidado'}
           </button>
-          <button onClick={enviar} disabled={enviando || det.participantes.length === 0}
-            title={det.participantes.length === 0 ? 'Seleciona os participantes primeiro' : 'Envia o PDF por e-mail a todos os participantes'}
+          <button onClick={enviar} disabled={enviando}
+            title="Cada engenheiro residente recebe um e-mail com as SUAS obras (participantes da obra em cópia)"
             className="flex min-h-[36px] items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:brightness-95 disabled:opacity-50">
-            ✉ {enviando ? 'Enviando…' : 'Enviar aos participantes'}
+            ✉ {enviando ? 'Enviando…' : 'Enviar por engenheiro'}
           </button>
           {aberta && (
             <button onClick={encerrar} disabled={encerrando}
@@ -177,40 +162,6 @@ export default function ReuniaoDetalhePage() {
             </button>
           )}
         </div>
-      </div>
-
-      {/* Participantes (equipe BÈR) */}
-      <div className="mb-5 rounded-xl border border-ber-gray/15 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-ber-gray"><Users size={12} className="mr-1 inline" /> Participantes</p>
-            <p className="mt-1 text-sm text-ber-carbon">
-              {det.participantes.length === 0
-                ? <span className="italic text-ber-gray/60">ninguém selecionado ainda</span>
-                : det.participantes.map(p => p.name).join(' · ')}
-            </p>
-          </div>
-          {aberta && (
-            <button onClick={() => setMostrarEquipe(v => !v)}
-              className="shrink-0 rounded-lg border border-ber-gray/30 px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite">
-              {mostrarEquipe ? 'Fechar' : 'Selecionar equipe'}
-            </button>
-          )}
-        </div>
-        {aberta && mostrarEquipe && (
-          <div className="mt-3 grid grid-cols-1 gap-1.5 border-t border-ber-gray/10 pt-3 sm:grid-cols-2 lg:grid-cols-3">
-            {equipe.filter(u => u.isActive !== false).map(u => {
-              const marcado = det.reuniao.participantesIds.includes(u.id);
-              return (
-                <label key={u.id} className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${marcado ? 'border-ber-olive bg-ber-olive/10 font-medium text-ber-carbon' : 'border-ber-gray/15 text-ber-gray hover:bg-ber-offwhite'}`}>
-                  <input type="checkbox" checked={marcado} disabled={salvandoPart}
-                    onChange={() => toggleParticipante(u.id)} className="h-4 w-4 accent-ber-olive" />
-                  <span className="truncate">{u.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {det.diffBase && aberta && (
@@ -229,7 +180,7 @@ export default function ReuniaoDetalhePage() {
           </h2>
           <div className="space-y-2.5">
             {obras.map(o => aberta
-              ? <ObraSecaoViva key={o.obraId} obraId={o.obraId} obraNome={o.obraNome} engenheiroNome={o.engenheiroNome} totalTopicos={o.topicos.length} diff={det.diff} />
+              ? <ObraSecaoViva key={o.obraId} reuniaoId={reuniaoId} obraId={o.obraId} obraNome={o.obraNome} coordenadorNome={o.coordenadorNome} participantesIniciais={o.participantes ?? []} equipe={equipe} totalTopicos={o.topicos.length} diff={det.diff} />
               : <ObraSecaoSnapshot key={o.obraId} obra={o} />)}
           </div>
         </div>
@@ -240,11 +191,24 @@ export default function ReuniaoDetalhePage() {
 
 /* ─── Reunião ABERTA: ata viva da obra, editável (mesma API da página da obra) ─── */
 
-function ObraSecaoViva({ obraId, obraNome, engenheiroNome, totalTopicos, diff }: {
-  obraId: string; obraNome: string; engenheiroNome?: string | null; totalTopicos: number;
+function ObraSecaoViva({ reuniaoId, obraId, obraNome, coordenadorNome, participantesIniciais, equipe, totalTopicos, diff }: {
+  reuniaoId: string; obraId: string; obraNome: string; coordenadorNome?: string | null;
+  participantesIniciais: { id: string; name: string }[];
+  equipe: UserRow[];
+  totalTopicos: number;
   diff?: Record<string, 'novo' | 'alterado' | 'concluido'>;
 }) {
   const [open, setOpen] = useState(false);
+  const [parts, setParts] = useState<{ id: string; name: string }[]>(participantesIniciais);
+  const [mostrarSeletor, setMostrarSeletor] = useState(false);
+  async function togglePart(u: UserRow) {
+    const tem = parts.some(p => p.id === u.id);
+    const novos = tem ? parts.filter(p => p.id !== u.id) : [...parts, { id: u.id, name: u.name }];
+    setParts(novos);
+    try {
+      await api.patch(`/reunioes-engenharia/${reuniaoId}/participantes-obra`, { obraId, userIds: novos.map(p => p.id) });
+    } catch { toast('Erro ao salvar participantes', 'erro'); setParts(parts); }
+  }
   const [ata, setAta] = useState<AtaCorrida | null>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -305,7 +269,7 @@ function ObraSecaoViva({ obraId, obraNome, engenheiroNome, totalTopicos, diff }:
       <button onClick={() => setOpen(v => !v)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {open ? <ChevronDown size={16} className="shrink-0 text-ber-gray" /> : <ChevronRight size={16} className="shrink-0 text-ber-gray" />}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obraNome}{engenheiroNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Eng. {engenheiroNome.split(' ')[0]}</span>}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obraNome}{coordenadorNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Coord. {coordenadorNome.split(' ')[0]}</span>}{parts.length > 0 && <span className="ml-2 font-normal text-xs text-ber-teal">· {parts.length} participante(s)</span>}</span>
         {badges.novo > 0 && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{badges.novo} novo(s)</span>}
         {badges.alterado > 0 && <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">{badges.alterado} alterado(s)</span>}
         {badges.concluido > 0 && <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">{badges.concluido} concluído(s)</span>}
@@ -317,6 +281,31 @@ function ObraSecaoViva({ obraId, obraNome, engenheiroNome, totalTopicos, diff }:
             <p className="py-6 text-center text-xs text-ber-gray">Carregando ata…</p>
           ) : ata ? (
             <>
+              <div className="mb-2 rounded-lg border border-ber-gray/15 bg-ber-offwhite/50 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-ber-gray">Participantes desta obra</p>
+                  <button onClick={() => setMostrarSeletor(v => !v)}
+                    className="rounded border border-ber-gray/30 px-2 py-1 text-[11px] font-medium text-ber-carbon hover:bg-white">
+                    {mostrarSeletor ? 'Fechar' : 'Selecionar'}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-ber-carbon">
+                  {parts.length === 0 ? <span className="italic text-ber-gray/60">ninguém marcado</span> : parts.map(p => p.name).join(' · ')}
+                </p>
+                {mostrarSeletor && (
+                  <div className="mt-2 grid grid-cols-1 gap-1 border-t border-ber-gray/10 pt-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {equipe.filter(u => u.isActive !== false).map(u => {
+                      const marcado = parts.some(p => p.id === u.id);
+                      return (
+                        <label key={u.id} className={`flex min-h-[36px] cursor-pointer items-center gap-2 rounded border px-2 py-1 text-xs ${marcado ? 'border-ber-olive bg-ber-olive/10 font-medium' : 'border-ber-gray/15 text-ber-gray hover:bg-white'}`}>
+                          <input type="checkbox" checked={marcado} onChange={() => togglePart(u)} className="h-3.5 w-3.5 accent-ber-olive" />
+                          <span className="truncate">{u.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
               <div className="mb-1 flex items-center justify-between gap-3">
                 <Link href={`/obras/${obraId}/atas`} className="text-xs text-ber-teal hover:underline">abrir ata completa da obra →</Link>
                 <button onClick={addTopico}
@@ -353,11 +342,14 @@ function ObraSecaoSnapshot({ obra }: { obra: ObraDaReuniao }) {
     <div className="rounded-xl border border-ber-gray/15 bg-white shadow-sm">
       <button onClick={() => setOpen(v => !v)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {open ? <ChevronDown size={16} className="shrink-0 text-ber-gray" /> : <ChevronRight size={16} className="shrink-0 text-ber-gray" />}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obra.obraNome}{obra.engenheiroNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Eng. {obra.engenheiroNome.split(' ')[0]}</span>}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obra.obraNome}{obra.coordenadorNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Coord. {obra.coordenadorNome.split(' ')[0]}</span>}</span>
         <span className="shrink-0 text-xs text-ber-gray">{obra.topicos.length} tópico(s)</span>
       </button>
       {open && (
         <div className="overflow-x-auto border-t border-ber-gray/10 px-3 pb-4 pt-3">
+          {(obra.participantes ?? []).length > 0 && (
+            <p className="mb-2 text-xs text-ber-gray"><span className="font-bold uppercase tracking-wide">Participantes:</span> {(obra.participantes ?? []).map(p => p.name).join(' · ')}</p>
+          )}
           {obra.topicos.length === 0 ? (
             <p className="py-4 text-center text-xs text-ber-gray">Nenhum tópico nesta obra na data da reunião.</p>
           ) : (
