@@ -1763,6 +1763,7 @@ export default function ObraDetailPage() {
                         <option value="encarregado">Encarregado</option>
                         <option value="tecnico">Técnico</option>
                         <option value="comprador">Comprador</option>
+                        <option value="financeiro">Financeiro</option>
                         <option value="auxiliar">Auxiliar</option>
                         <option value="estagiario">Estagiário</option>
                         <option value="membro">Membro</option>

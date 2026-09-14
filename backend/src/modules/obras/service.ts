@@ -97,6 +97,21 @@ export async function createObra(input: CreateObraInput) {
       },
     });
 
+    // Equipe default de toda obra nova (Bruno 14/09): Emerson e Lucas como
+    // compradores, Carol como financeiro — por e-mail (resiliente a reseed de ids).
+    const defaultTeam = await tx.user.findMany({
+      where: { email: { in: ['emerson.machado@ber-engenharia.com.br', 'lucas.rizzi@ber-engenharia.com.br', 'caroline.souza@ber-engenharia.com.br'] } },
+      select: { id: true, email: true },
+    });
+    for (const u of defaultTeam) {
+      const role = u.email.startsWith('caroline') ? 'financeiro' : 'comprador';
+      await tx.obraMember.upsert({
+        where: { obraId_userId: { obraId: newObra.id, userId: u.id } },
+        update: {},
+        create: { obraId: newObra.id, userId: u.id, role },
+      });
+    }
+
     // Auto-create the 4 default checklists from all templates
     const templates = await tx.checklistTemplate.findMany({
       include: { items: { orderBy: { order: 'asc' } } },
