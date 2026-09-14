@@ -204,7 +204,26 @@ export async function fechar(req: Request, res: Response) {
     ], { detached: true, stdio: 'ignore' }).unref();
   }
 
+  // WhatsApp interno via fila (Bruno 14/09 23:35: "os diários tbm, sempre enviar"):
+  // Bruno/Chris/Gritti SEMPRE que fecha; stakeholders "Recebe diário" com telefone
+  // só quando fechou COM envio (Fechar sem enviar continua poupando o cliente).
+  try {
+    const { enfileirarDiarioWhatsapp } = await import('../whatsapp-envios/service');
+    await enfileirarDiarioWhatsapp(diario.obraId, req.params.diarioId, { incluirStakeholders: enviarWhatsapp });
+  } catch (e) {
+    console.error('[diario] falha ao enfileirar WhatsApp:', (e as Error).message);
+  }
+
   sendSuccess(res, { ...updated, tokenPublico });
+}
+
+/** GET do PDF do diário (14/09) — usado pelo worker de WhatsApp e por quem quiser baixar. */
+export async function pdfDiario(req: Request, res: Response) {
+  const pdf = await montarPdfDiario(req.params.diarioId);
+  if (!pdf) throw AppError.notFound('Diário');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${pdf.nome}"`);
+  res.send(pdf.buffer);
 }
 
 export async function reabrir(req: Request, res: Response) {

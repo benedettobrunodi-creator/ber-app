@@ -2404,7 +2404,8 @@ model CrmMetaVendas {
 model WhatsappEnvio {
   id            String    @id @default(uuid()) @db.Uuid
   obraId        String    @map("obra_id") @db.Uuid
-  relatorioId   String    @map("relatorio_id") @db.Uuid
+  relatorioId   String?   @map("relatorio_id") @db.Uuid // relatório semanal OU diário (14/09)
+  diarioId      String?   @map("diario_id") @db.Uuid
   destinatario  String    @db.VarChar(150)
   telefone      String    @db.VarChar(30)
   legenda       String

@@ -58,3 +58,50 @@ export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: s
   }
   return { criados: novos.length, jaEnfileirados: jaTem.size, destinatarios: novos.map((d) => d.nome) };
 }
+
+/**
+ * Diário de obra por WhatsApp (Bruno 14/09 23:35: "Os diários tbm. Sempre enviar").
+ * Fixos (Bruno/Chris/Gritti) SEMPRE que o diário fecha; stakeholders com
+ * "Recebe diário" + telefone entram só quando o gestor fechou COM envio
+ * (o "Fechar sem enviar" continua poupando o lado do cliente).
+ */
+export async function enfileirarDiarioWhatsapp(obraId: string, diarioId: string, opts: { incluirStakeholders: boolean }) {
+  const diario = await prisma.diarioObra.findFirst({ where: { id: diarioId, obraId }, include: { obra: { select: { name: true } } } });
+  if (!diario) throw new Error('Diário não encontrado');
+
+  let registrados: { nome: string; telefone: string }[] = [];
+  if (opts.incluirStakeholders) {
+    const stakeholders = await prisma.obraStakeholder.findMany({
+      where: { obraId, recebeDiario: true, telefone: { not: null } },
+    });
+    registrados = stakeholders
+      .map((s) => ({ nome: s.nome, telefone: normalizarTelefone(s.telefone!) }))
+      .filter((s): s is { nome: string; telefone: string } => !!s.telefone);
+  }
+
+  const porTelefone = new Map<string, { nome: string; telefone: string }>();
+  for (const d of [...SEMPRE, ...registrados]) {
+    if (!porTelefone.has(d.telefone)) porTelefone.set(d.telefone, d);
+  }
+  const destinatarios = [...porTelefone.values()];
+
+  const dataFmt = new Date(diario.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  const legenda = `📍 Diário de obra ${dataFmt} — ${diario.obra.name}. Enviado automaticamente pelo BER App.`;
+  const arquivoPath = `/v1/diario/${diarioId}/pdf`;
+
+  const existentes = await prisma.whatsappEnvio.findMany({
+    where: { diarioId, telefone: { in: destinatarios.map((d) => d.telefone) }, status: { in: ['pendente', 'enviado'] } },
+    select: { telefone: true },
+  });
+  const jaTem = new Set(existentes.map((e) => e.telefone));
+  const novos = destinatarios.filter((d) => !jaTem.has(d.telefone));
+
+  if (novos.length > 0) {
+    await prisma.whatsappEnvio.createMany({
+      data: novos.map((d) => ({
+        obraId, diarioId, destinatario: d.nome, telefone: d.telefone, legenda, arquivoPath, status: 'pendente',
+      })),
+    });
+  }
+  return { criados: novos.length, jaEnfileirados: jaTem.size, destinatarios: novos.map((d) => d.nome) };
+}
