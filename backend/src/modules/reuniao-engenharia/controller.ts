@@ -44,7 +44,7 @@ async function montarPdfConsolidado(id: string): Promise<{ buffer: Buffer; reuni
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([coordenador, obras]) => ({
       coordenador,
-      obras: obras.map((o) => ({ obraNome: o.obraNome, totalTopicos: (o.topicos as unknown[]).length, obraId: o.obraId, topicos: o.topicos })),
+      obras: obras.map((o) => ({ obraNome: o.obraNome, totalTopicos: (o.topicos as unknown[]).length, obraId: o.obraId, topicos: o.topicos, engenheiroNome: o.engenheiroNome ?? null })),
     }));
 
   const capa = await renderToBuffer(
@@ -52,7 +52,7 @@ async function montarPdfConsolidado(id: string): Promise<{ buffer: Buffer; reuni
       data: estado.reuniao.data,
       status: estado.reuniao.status,
       participantes: estado.participantes,
-      grupos: grupos.map((g) => ({ coordenador: g.coordenador, obras: g.obras.map((o) => ({ obraNome: o.obraNome, totalTopicos: o.totalTopicos })) })),
+      grupos: grupos.map((g) => ({ coordenador: g.coordenador, obras: g.obras.map((o) => ({ obraNome: o.obraNome, totalTopicos: o.totalTopicos, engenheiroNome: o.engenheiroNome })) })),
     }) as never,
   );
 

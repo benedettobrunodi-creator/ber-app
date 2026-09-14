@@ -13,6 +13,7 @@ const novaObraSchema = z.object({
   client: z.string().optional(),
   address: z.string().optional(),
   coordinatorId: z.string().optional(),
+  residentEngineerId: z.string().optional(),
   startDate: z.string().optional(),
   expectedEndDate: z.string().optional(),
   arquiteturaEscritorio: z.string().optional(),
@@ -54,6 +55,7 @@ export default function NovaObraModal({ onClose, onCreated, initial, title }: No
       client: initial?.client ?? '',
       address: initial?.address ?? '',
       coordinatorId: initial?.coordinatorId ?? '',
+      residentEngineerId: (initial as { residentEngineerId?: string | null } | undefined)?.residentEngineerId ?? '',
       startDate: initial?.startDate ?? '',
       expectedEndDate: initial?.expectedEndDate ?? '',
       arquiteturaEscritorio: initial?.arquiteturaEscritorio ?? '',
@@ -73,10 +75,11 @@ export default function NovaObraModal({ onClose, onCreated, initial, title }: No
   async function onSubmit(data: NovaObraForm) {
     setError('');
     try {
-      const body: Record<string, string | number> = { name: data.name };
+      const body: Record<string, string | number | null> = { name: data.name };
       if (data.client) body.client = data.client;
       if (data.address) body.address = data.address;
       if (data.coordinatorId) body.coordinatorId = data.coordinatorId;
+      body.residentEngineerId = data.residentEngineerId || null;
       if (data.startDate) body.startDate = new Date(data.startDate).toISOString();
       if (data.expectedEndDate) body.expectedEndDate = new Date(data.expectedEndDate).toISOString();
       if (data.arquiteturaEscritorio) body.arquiteturaEscritorio = data.arquiteturaEscritorio;
@@ -149,6 +152,22 @@ export default function NovaObraModal({ onClose, onCreated, initial, title }: No
               </label>
               <select
                 {...register('coordinatorId')}
+                className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
+              >
+                <option value="">Selecionar...</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ber-carbon">
+                Engenheiro residente
+              </label>
+              <select
+                {...register('residentEngineerId')}
                 className="mt-1 block w-full rounded-md border border-ber-gray/30 px-3 py-2 text-sm focus:border-ber-teal focus:ring-1 focus:ring-ber-teal focus:outline-none"
               >
                 <option value="">Selecionar...</option>

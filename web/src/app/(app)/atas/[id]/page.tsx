@@ -29,6 +29,7 @@ interface SnapshotTopico {
 interface ObraDaReuniao {
   obraId: string; obraNome: string;
   coordenadorId: string | null; coordenadorNome: string | null;
+  engenheiroNome?: string | null;
   topicos: SnapshotTopico[];
 }
 interface Detalhe {
@@ -228,7 +229,7 @@ export default function ReuniaoDetalhePage() {
           </h2>
           <div className="space-y-2.5">
             {obras.map(o => aberta
-              ? <ObraSecaoViva key={o.obraId} obraId={o.obraId} obraNome={o.obraNome} totalTopicos={o.topicos.length} diff={det.diff} />
+              ? <ObraSecaoViva key={o.obraId} obraId={o.obraId} obraNome={o.obraNome} engenheiroNome={o.engenheiroNome} totalTopicos={o.topicos.length} diff={det.diff} />
               : <ObraSecaoSnapshot key={o.obraId} obra={o} />)}
           </div>
         </div>
@@ -239,8 +240,8 @@ export default function ReuniaoDetalhePage() {
 
 /* ─── Reunião ABERTA: ata viva da obra, editável (mesma API da página da obra) ─── */
 
-function ObraSecaoViva({ obraId, obraNome, totalTopicos, diff }: {
-  obraId: string; obraNome: string; totalTopicos: number;
+function ObraSecaoViva({ obraId, obraNome, engenheiroNome, totalTopicos, diff }: {
+  obraId: string; obraNome: string; engenheiroNome?: string | null; totalTopicos: number;
   diff?: Record<string, 'novo' | 'alterado' | 'concluido'>;
 }) {
   const [open, setOpen] = useState(false);
@@ -304,7 +305,7 @@ function ObraSecaoViva({ obraId, obraNome, totalTopicos, diff }: {
       <button onClick={() => setOpen(v => !v)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {open ? <ChevronDown size={16} className="shrink-0 text-ber-gray" /> : <ChevronRight size={16} className="shrink-0 text-ber-gray" />}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obraNome}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obraNome}{engenheiroNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Eng. {engenheiroNome.split(' ')[0]}</span>}</span>
         {badges.novo > 0 && <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{badges.novo} novo(s)</span>}
         {badges.alterado > 0 && <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">{badges.alterado} alterado(s)</span>}
         {badges.concluido > 0 && <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">{badges.concluido} concluído(s)</span>}
@@ -352,7 +353,7 @@ function ObraSecaoSnapshot({ obra }: { obra: ObraDaReuniao }) {
     <div className="rounded-xl border border-ber-gray/15 bg-white shadow-sm">
       <button onClick={() => setOpen(v => !v)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {open ? <ChevronDown size={16} className="shrink-0 text-ber-gray" /> : <ChevronRight size={16} className="shrink-0 text-ber-gray" />}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obra.obraNome}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ber-carbon">{obra.obraNome}{obra.engenheiroNome && <span className="ml-2 font-normal text-xs text-ber-gray">· Eng. {obra.engenheiroNome.split(' ')[0]}</span>}</span>
         <span className="shrink-0 text-xs text-ber-gray">{obra.topicos.length} tópico(s)</span>
       </button>
       {open && (

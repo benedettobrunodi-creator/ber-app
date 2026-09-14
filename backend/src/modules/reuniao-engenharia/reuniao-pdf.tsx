@@ -47,7 +47,7 @@ export interface CapaReuniaoProps {
   data: Date;
   status: string;
   participantes: { name: string }[];
-  grupos: { coordenador: string; obras: { obraNome: string; totalTopicos: number }[] }[];
+  grupos: { coordenador: string; obras: { obraNome: string; totalTopicos: number; engenheiroNome?: string | null }[] }[];
 }
 
 export function CapaReuniaoPDF({ data, status, participantes, grupos }: CapaReuniaoProps) {
@@ -72,7 +72,7 @@ export function CapaReuniaoPDF({ data, status, participantes, grupos }: CapaReun
           <View key={i} style={s.grupo} wrap={false}>
             <Text style={s.grupoNome}>{g.coordenador}</Text>
             {g.obras.map((o, j) => (
-              <Text key={j} style={s.obraLinha}>· {o.obraNome} — {o.totalTopicos} tópico(s)</Text>
+              <Text key={j} style={s.obraLinha}>· {o.obraNome} — {o.totalTopicos} tópico(s){o.engenheiroNome ? ` · Eng. residente: ${o.engenheiroNome}` : ''}</Text>
             ))}
           </View>
         ))}

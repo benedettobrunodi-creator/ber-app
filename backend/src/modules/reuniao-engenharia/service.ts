@@ -36,6 +36,7 @@ type SnapshotObra = {
   obraNome: string;
   coordenadorId: string | null;
   coordenadorNome: string | null;
+  engenheiroNome?: string | null;
   topicos: unknown[];
 };
 
@@ -45,6 +46,7 @@ async function coletarEstadoObras(obrasIds: string[]): Promise<SnapshotObra[]> {
     select: {
       id: true, name: true, coordinatorId: true,
       coordinator: { select: { id: true, name: true } },
+      residentEngineer: { select: { id: true, name: true } },
     },
     orderBy: { name: 'asc' },
   });
@@ -58,6 +60,7 @@ async function coletarEstadoObras(obrasIds: string[]): Promise<SnapshotObra[]> {
     obraNome: o.name,
     coordenadorId: o.coordinatorId,
     coordenadorNome: o.coordinator?.name ?? null,
+    engenheiroNome: o.residentEngineer?.name ?? null,
     topicos: topicos.filter((t) => t.obraId === o.id),
   }));
 }

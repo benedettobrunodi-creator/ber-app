@@ -24,6 +24,7 @@ model User {
 
   // Relations
   coordinatedObras         Obra[]                  @relation("ObraCoordinator")
+  obrasComoResidente Obra[] @relation("ObraResidentEngineer")
   obraMembers              ObraMember[]
   assignedTasks            ObraTask[]              @relation("TaskAssignee")
   createdTasks             ObraTask[]              @relation("TaskCreator")
@@ -151,6 +152,7 @@ model Obra {
   actualEndDate   DateTime? @map("actual_end_date") @db.Date
   progressPercent Int       @default(0) @map("progress_percent")
   coordinatorId   String?   @map("coordinator_id") @db.Uuid
+  residentEngineerId String? @map("resident_engineer_id") @db.Uuid // engenheiro residente (Bruno 14/09: reunião puxa sempre coordenador + residente)
   trelloBoardId   String?   @map("trello_board_id") @db.VarChar(30)
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
@@ -182,6 +184,7 @@ model Obra {
 
   // Relations
   coordinator        User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  residentEngineer   User?                  @relation("ObraResidentEngineer", fields: [residentEngineerId], references: [id])
   orcamento          Orcamento?             @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
   crmOportunidade    CrmOportunidade?       @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
   faseUpdatedBy      User?                  @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
