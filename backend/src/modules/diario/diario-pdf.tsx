@@ -66,7 +66,7 @@ export interface DiarioPdfProps {
   observacoesCliente?: string | null;
   atividades: { descricao: string; status: string }[];
   efetivo: { funcao?: string | null; categoria?: string | null; quantidade: number; nome?: string | null }[];
-  fotos: { fileUrl: string; legenda?: string | null; ambiente?: string | null }[];
+  fotos: { fileUrl: string | { data: Buffer; format: 'jpg' }; legenda?: string | null; ambiente?: string | null }[];
 }
 
 export function DiarioPDF(p: DiarioPdfProps) {
@@ -150,7 +150,7 @@ export function DiarioPDF(p: DiarioPdfProps) {
               {p.fotos.map((f, i) => (
                 <View key={i} style={s.fotoBox} wrap={false}>
                   {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <Image src={f.fileUrl} style={s.foto} />
+                  <Image src={f.fileUrl as never} style={s.foto} />
                   {(f.legenda || f.ambiente) && <Text style={s.fotoLegenda}>{[f.ambiente, f.legenda].filter(Boolean).join(' — ')}</Text>}
                 </View>
               ))}

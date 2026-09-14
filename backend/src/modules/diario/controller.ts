@@ -122,6 +122,13 @@ async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome
     const React = await import('react');
     const { renderToBuffer } = await import('@react-pdf/renderer');
     const { DiarioPDF } = await import('./diario-pdf');
+    const { imagemParaPdf } = await import('../../services/pdf-image');
+    // fotos de celular quebram o decoder do react-pdf — reprocessa com sharp
+    const buffers = await Promise.all(d.fotos.map((f) => imagemParaPdf(f.fileUrl)));
+    const fotosPreparadas = d.fotos
+      .map((f, i) => ({ buf: buffers[i], legenda: f.legenda, ambiente: f.ambiente?.nome ?? null }))
+      .filter((f): f is typeof f & { buf: Buffer } => f.buf != null)
+      .map((f) => ({ fileUrl: { data: f.buf, format: 'jpg' as const }, legenda: f.legenda, ambiente: f.ambiente }));
     const buffer = await renderToBuffer(
       React.createElement(DiarioPDF, {
         obraNome: d.obra.name,
@@ -132,7 +139,7 @@ async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome
         observacoesCliente: d.observacoesCliente,
         atividades: d.atividades.map((a) => ({ descricao: a.descricao, status: a.status })),
         efetivo: d.efetivos.map((e) => ({ funcao: e.funcao, categoria: e.categoria, quantidade: e.quantidade })),
-        fotos: d.fotos.map((f) => ({ fileUrl: f.fileUrl, legenda: f.legenda, ambiente: f.ambiente?.nome ?? null })),
+        fotos: fotosPreparadas,
       }) as never,
     );
     const dia = new Date(d.data).toISOString().slice(0, 10);
