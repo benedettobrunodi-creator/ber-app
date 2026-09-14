@@ -296,6 +296,7 @@ function OportunidadeDrawer({
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
+    executivoComercial: op?.executivoComercial ?? '',
     contatoId: op?.contato?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
     dataGanho: op?.dataGanho?.slice(0, 10) ?? '',
@@ -411,6 +412,7 @@ function OportunidadeDrawer({
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
+        executivoComercial: form.executivoComercial || null,
         contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
         dataGanho: form.dataGanho || null,
@@ -591,6 +593,18 @@ function OportunidadeDrawer({
               >
                 <option value="">--</option>
                 {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Executivo comercial</label>
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.executivoComercial}
+                onChange={(e) => setForm((f) => ({ ...f, executivoComercial: e.target.value }))}
+              >
+                <option value="">--</option>
+                <option value="Bruno">Bruno</option>
+                <option value="Camila">Camila</option>
               </select>
             </div>
           </div>

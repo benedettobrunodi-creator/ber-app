@@ -178,6 +178,7 @@ export interface CampanhaNutricao {
   modo: 'snapshot' | 'ao_vivo';
   status: 'rascunho' | 'ativa' | 'pausada' | 'concluida';
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;
+  executivoComercial?: 'Bruno' | 'Camila' | null;
   createdAt: string;
   _count?: { contatos: number };
 }
@@ -195,6 +196,7 @@ export interface Campanha {
   nome: string;
   descricao: string | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;
+  executivoComercial?: 'Bruno' | 'Camila' | null;
   createdAt: string;
   _count: { contatos: number };
 }
@@ -237,6 +239,7 @@ export interface Oportunidade {
   empresa: { id: string; razaoSocial: string; segmento: string | null } | null;
   contato: { id: string; nome: string; cargo: string | null } | null;
   responsavel: { id: string; name: string; avatarUrl: string | null } | null;
+  executivoComercial?: 'Bruno' | 'Camila' | null;
   atividades: Atividade[];
   orcamento?: { id: string; numero: string; status: string; valorVenda: number | null; m2: number | null; cliente: string } | null;
   obra?: { id: string; name: string; status: string; fase: string } | null;

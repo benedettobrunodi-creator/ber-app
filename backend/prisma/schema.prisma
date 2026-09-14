@@ -2302,6 +2302,7 @@ model CrmOportunidade {
   empresaId              String?   @map("empresa_id") @db.Uuid
   contatoId              String?   @map("contato_id") @db.Uuid
   responsavelId          String?   @map("responsavel_id") @db.Uuid
+  executivoComercial     String?   @map("executivo_comercial") @db.VarChar(50) // Bruno | Camila (14/09/26)
   createdById            String    @map("created_by_id") @db.Uuid
   valor                  Decimal?  @db.Decimal(14, 2)
   etapa                  String    @default("lead") @db.VarChar(50)
