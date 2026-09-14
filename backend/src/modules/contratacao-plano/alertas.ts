@@ -12,6 +12,7 @@ import { prisma } from '../../config/database';
 
 const DESTINATARIOS = [
   'emerson.machado@ber-engenharia.com.br',
+  'lucas.rizzi@ber-engenharia.com.br', // incluído a pedido do Bruno (14/09/26)
   'francisco.gritti@ber-engenharia.com.br',
   'bruno@ber-engenharia.com.br',
   'christian.palermo@ber-engenharia.com.br',

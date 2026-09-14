@@ -6,7 +6,7 @@
 export const RESPONSAVEL_AREA_EMAILS: Record<string, string[]> = {
   PMO: ['francisco.gritti@ber-engenharia.com.br', 'leandro.colman@ber-engenharia.com.br'],
   Engenharia: ['christian.palermo@ber-engenharia.com.br'],
-  Compras: ['emerson.machado@ber-engenharia.com.br'],
+  Compras: ['emerson.machado@ber-engenharia.com.br', 'lucas.rizzi@ber-engenharia.com.br'], // Lucas incluído a pedido do Bruno (14/09/26)
   Financeiro: ['caroline.souza@ber-engenharia.com.br'],
   Comercial: ['camila.santos@ber-engenharia.com.br'],
 };
