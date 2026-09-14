@@ -29,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
+    "pdf-lib": "^1.17.1",
     "pdf-to-png-converter": "^4.0.0",
     "pptxgenjs": "^4.0.1",
     "puppeteer-core": "^25.1.0",

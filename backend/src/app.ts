@@ -132,6 +132,9 @@ app.use('/v1/chat', chatRoutes);                                                
 
 // — Módulo: obras —
 app.use('/v1/obras', ...perm('obras'), obraRoutes);
+// Reuniões de Engenharia semanais — menu Atas do painel de obras (14/09/26)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+app.use('/v1/reunioes-engenharia', ...perm('obras'), require('./modules/reuniao-engenharia/routes').default);
 // Relatório de Recebimento do Imóvel (02/09/26)
 app.use('/v1/obras', ...perm('obras'), obraRecebimentoRouter);
 app.use('/v1/recebimento', ...perm('obras'), recebimentoRouter);

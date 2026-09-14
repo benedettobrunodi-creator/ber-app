@@ -92,6 +92,7 @@ const TOP_VIEWS: { label: string; href: string; perm?: string }[] = [
 
 const ROUTE_PERMS: Array<{ prefix: string; perm: string }> = [
   { prefix: '/obras', perm: 'obras' },
+  { prefix: '/atas', perm: 'obras' }, // Reuniões de Engenharia (14/09/26)
   { prefix: '/checklists', perm: 'checklists' },
   { prefix: '/diario', perm: 'diario' },
   { prefix: '/alocacao', perm: 'configuracoes' },

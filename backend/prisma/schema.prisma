@@ -2771,6 +2771,25 @@ model ObraTemperatura {
 // ─── ObraAta — "Ata Corrida" (formato planilha por obra) ────────────────
 // Estrutura: tópicos perenes (linhas) × reuniões (colunas). Notas vivem
 // na junção topico×reuniao.
+// ─── Reunião de Engenharia semanal (14/09/26): menu Atas do painel geral ────
+// A reunião agrupa as obras em andamento e aponta pra ATA VIVA de cada uma
+// (ObraAtaTopico). Histórico = snapshot imutável gravado no encerramento.
+model ReuniaoEngenharia {
+  id               String    @id @default(uuid()) @db.Uuid
+  data             DateTime  @default(now())
+  status           String    @default("aberta") @db.VarChar(12) // aberta | encerrada
+  participantesIds String[]  @default([]) @map("participantes_ids") @db.Uuid
+  obrasIds         String[]  @default([]) @map("obras_ids") @db.Uuid
+  snapshot         Json?     // [{obraId, obraNome, coordenador, topicos: [...]}] no encerramento
+  encerradaEm      DateTime? @map("encerrada_em")
+  enviadaEm        DateTime? @map("enviada_em")
+  criadaPor        String?   @map("criada_por") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("reunioes_engenharia")
+}
+
 model ObraAtaTopico {
   id                       String    @id @default(uuid()) @db.Uuid
   obraId                   String    @map("obra_id") @db.Uuid

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, X, AlertTriangle, Search, ArrowUpDown } from 'lucide-react';
+import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, X, AlertTriangle, Search, ArrowUpDown, ClipboardList } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 
 type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida' | 'cancelada';
@@ -280,6 +280,13 @@ export default function ObrasPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl md:text-2xl font-black text-ber-carbon">Obras</h1>
         <div className="flex items-center gap-2">
+          <Link
+            href="/atas"
+            className="flex items-center gap-2 rounded-md border border-ber-carbon px-4 py-2 text-sm font-semibold text-ber-carbon transition-colors hover:bg-ber-carbon hover:text-white"
+          >
+            <ClipboardList size={16} />
+            Atas
+          </Link>
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 rounded-md bg-ber-carbon px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ber-black"
