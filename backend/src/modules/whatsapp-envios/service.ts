@@ -1,9 +1,13 @@
 import { prisma } from '../../config/database';
 
-// Régua de destinatários do relatório semanal por WhatsApp (Bruno 14/09/26):
-// stakeholders da obra com "Recebe relatório" marcado E telefone válido + SEMPRE o Bruno.
-// (Substitui o círculo fixo do piloto de 10/09 — Chris/Gritti agora só se forem stakeholders.)
-const SEMPRE = [{ nome: 'Bruno Di Benedetto', telefone: '5511999478989' }];
+// Régua de destinatários do relatório semanal por WhatsApp (Bruno 14/09/26, 23:29):
+// stakeholders da obra com "Recebe relatório" marcado E telefone válido
+// + SEMPRE Bruno, Chris e Gritti ("Chris e Gritti sempre recebem tb").
+const SEMPRE = [
+  { nome: 'Bruno Di Benedetto', telefone: '5511999478989' },
+  { nome: 'Christian Palermo', telefone: '5511937744490' },
+  { nome: 'Francisco Gritti', telefone: '5511981328771' },
+];
 
 export function normalizarTelefone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
