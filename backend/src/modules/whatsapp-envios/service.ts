@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { nomeObraLimpo } from '../../services/doc-nome';
 
 // Régua de destinatários do relatório semanal por WhatsApp (Bruno 14/09/26, 23:29):
 // stakeholders da obra com "Recebe relatório" marcado E telefone válido
@@ -18,11 +19,6 @@ export function normalizarTelefone(raw: string): string | null {
   return null;
 }
 
-
-/** Nome de exibição do PDF no WhatsApp: sem uuid, sem "BER — Obra |", sem chars proibidos. */
-function nomeObraLimpo(name: string): string {
-  return name.replace(/^BER\s*[—–-]\s*Obra\s*\|?\s*/i, '').replace(/[\/\\:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim();
-}
 
 /** Enfileira o PDF do relatório pros destinatários; o worker do Mac mini dispara em até 2 min. */
 export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: string) {

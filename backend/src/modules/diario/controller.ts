@@ -142,9 +142,8 @@ async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome
         fotos: fotosPreparadas,
       }) as never,
     );
-    const dia = new Date(d.data).toISOString().slice(0, 10);
-    const slug = d.obra.name.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 40);
-    return { buffer: Buffer.from(buffer), nome: `diario-${slug}-${dia}.pdf` };
+    const { nomeDocumento, dataArquivo } = await import('../../services/doc-nome');
+    return { buffer: Buffer.from(buffer), nome: nomeDocumento('Diário de Obra', dataArquivo(d.data), d.obra.name) };
   } catch (e) {
     console.error('[diario] falha ao montar PDF:', e);
     return null;

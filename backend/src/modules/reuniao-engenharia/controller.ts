@@ -94,7 +94,7 @@ export async function pdf(req: Request, res: Response) {
   const { buffer, reuniao } = await montarPdfConsolidado(req.params.id);
   const dia = new Date(reuniao.reuniao.data).toISOString().slice(0, 10);
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="reuniao-engenharia-${dia}.pdf"`);
+  res.setHeader('Content-Disposition', `inline; filename="Ata de Reunião de Engenharia ${dia}.pdf"`);
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.send(buffer);
 }
@@ -179,7 +179,7 @@ export async function enviar(req: Request, res: Response) {
           <p style="color:#8B8D82;font-size:11px;margin:16px 0 0;text-align:center">BÈR Engenharia · enviada automaticamente pelo BER App</p>
         </div>
       </div>`,
-      attachments: [{ filename: `reuniao-engenharia-${diaIso}.pdf`, content: pdf.toString('base64') }],
+      attachments: [{ filename: `Ata de Reunião de Engenharia ${diaIso.split('-').reverse().join('-')} — ${(eng?.name ?? 'Engenheiro').replace(/[/\\:*?"<>|]/g, ' ')}.pdf`, content: pdf.toString('base64') }],
     });
     enviados.push({ engenheiro: eng?.name ?? '?', obras: obras.length, destinatarios: Array.from(destinos.values()) });
   }

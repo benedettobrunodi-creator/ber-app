@@ -613,11 +613,10 @@ export async function buildRelatorioPdf(obraId: string, relatorioId: string): Pr
         margin: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
       });
 
-      const rtNum = String(relatorio.numero).padStart(3, '0');
-      const d1 = fmtShort(relatorio.periodoInicio);
-      const d2 = fmtShort(relatorio.periodoFim);
-      const obraNome = obra.name.replace(/[/\\:*?"<>|]/g, '-');
-      const filename = `BER_${obraNome}_RT-${rtNum}_${d1}-${d2}.pdf`;
+      // nomenclatura padrão (Bruno 14/09): sem uuid/underscores — mesmo nome no e-mail e WhatsApp
+      const { nomeDocumento } = await import('../../services/doc-nome');
+      const rtNum = String(relatorio.numero).padStart(2, '0');
+      const filename = nomeDocumento('Relatório Semanal', rtNum, obra.name);
 
       return { buffer: Buffer.from(pdfBuffer), filename };
     } finally {
