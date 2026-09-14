@@ -87,12 +87,13 @@ export async function criar(userId: string | null) {
   const abertas = await prisma.reuniaoEngenharia.findMany({ where: { status: 'aberta' }, select: { id: true } });
   for (const a of abertas) await encerrar(a.id).catch(() => {});
 
+  // em andamento + pós-obra (Bruno 14/09: pós-obra também se discute na reunião)
   const obras = await prisma.obra.findMany({
-    where: { status: 'em_andamento' },
+    where: { status: { in: ['em_andamento', 'pos_obra'] } },
     select: { id: true },
     orderBy: { name: 'asc' },
   });
-  if (obras.length === 0) throw AppError.badRequest('Nenhuma obra em andamento pra montar a reunião');
+  if (obras.length === 0) throw AppError.badRequest('Nenhuma obra em andamento/pós-obra pra montar a reunião');
 
   // participantes default: os da reunião anterior (o time semanal muda pouco)
   const anterior = await prisma.reuniaoEngenharia.findFirst({ orderBy: { data: 'desc' }, select: { participantesIds: true } });
