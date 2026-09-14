@@ -226,6 +226,13 @@ export default function DiarioObraPage() {
   const [obra, setObra] = useState<Obra | null>(null);
   const [diarios, setDiarios] = useState<DiarioSummary[]>([]);
   const [selected, setSelected] = useState<DiarioDetalhe | null>(null);
+  // Esc fecha o pop-up do diário (14/09)
+  useEffect(() => {
+    if (!selected) return;
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelected(null); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [selected]);
   const [etapas, setEtapas] = useState<ObraEtapa[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -1023,7 +1030,14 @@ export default function DiarioObraPage() {
       )}
 
       {selected && !loadingDetail && (
-        <div className="space-y-4">
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-black/40 p-2 md:p-6"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
+          <div className="relative mx-auto my-2 w-full max-w-4xl rounded-xl bg-ber-bg p-3 shadow-2xl md:my-4 md:p-5">
+            <button onClick={() => setSelected(null)} title="Fechar (Esc)"
+              className="absolute -top-2 -right-2 z-10 rounded-full border border-ber-border bg-white p-2 text-ber-gray shadow-md hover:text-ber-carbon">
+              <X size={16} />
+            </button>
+            <div className="space-y-4">
           {/* Header card */}
           <div className="rounded-xl border border-ber-border bg-white p-4">
             <div className="flex items-center justify-between mb-4">
@@ -1377,6 +1391,8 @@ export default function DiarioObraPage() {
             count={selected.equipamentos.length} open={openSections.equipamentos} onToggle={() => toggleSection('equipamentos')}>
             <EquipamentosSection />
           </Section>
+            </div>
+          </div>
         </div>
       )}
     </div>
