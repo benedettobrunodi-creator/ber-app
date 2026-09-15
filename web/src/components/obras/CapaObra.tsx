@@ -139,6 +139,11 @@ const daysBetween = (a: Date | null, b: Date | null): number | null => {
 export default function CapaObra({ obraId, embedded = false }: { obraId: string; embedded?: boolean }) {
   const backHref = useBackToObra();
   type LiberacaoLinhaLite = { planoId: string; pacote: string; fornecedor?: string | null; status: 'liberado' | 'bloqueado' | 'aguardando_execucao' | 'liberado_excecao' | 'bloqueado_manual'; motivos: string[] };
+  type QualidadeLite = {
+    vistorias: { id: string; data: string; notaFinal: number | string | null; vistoriador?: { name: string } | null }[];
+    pendencias: { id: string }[];
+    fichas: { id: string; status: string; prazo?: string | null }[];
+  };
 
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
@@ -149,13 +154,14 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const [fases, setFases] = useState<FaseLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [liberacao, setLiberacao] = useState<LiberacaoLinhaLite[]>([]);
+  const [qualidade, setQualidade] = useState<QualidadeLite | null>(null);
   const [tempModalOpen, setTempModalOpen] = useState(false);
   const [tempEditing, setTempEditing] = useState<TemperaturaRow | null>(null);
 
   async function load() {
     setLoading(true);
     const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-    const [o, c, pl, curva, temps, rels, fvs, lib] = await Promise.all([
+    const [o, c, pl, curva, temps, rels, fvs, lib, qual] = await Promise.all([
       safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
       safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
       safe(api.get<{ data: PlanoLite[] }>(`/obras/${obraId}/contratacao-plano`).then(r => r.data.data)),
@@ -164,6 +170,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       safe(api.get<{ data: RelatorioLite[] }>(`/obras/${obraId}/relatorios`).then(r => r.data.data)),
       safe(api.get<{ data: FaseLite[] }>(`/obras/${obraId}/fvs`).then(r => r.data.data)),
       safe(api.get<{ data: { linhas: LiberacaoLinhaLite[] } }>(`/obras/${obraId}/liberacao-medicao`).then(r => r.data.data)),
+      safe(api.get<{ data: QualidadeLite }>(`/obras/${obraId}/qualidade`).then(r => r.data.data)),
     ]);
     setObra(o);
     setContratos(c);
@@ -172,6 +179,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     setTemperaturas(temps ?? []);
     setFases(fvs ?? []);
     setLiberacao(lib?.linhas ?? []);
+    setQualidade(qual ?? null);
     // O backend já devolve ordenado por numero desc — o último emitido é o primeiro.
     // Reordena defensivamente caso a ordenação do endpoint mude.
     const ordenados = [...(rels ?? [])].sort((a, b) => b.numero - a.numero);
@@ -963,6 +971,62 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                 className="print:hidden mt-3 block rounded-md border border-ber-gray/25 px-3 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
               >
                 Abrir Liberação de Medição
+              </Link>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── QUALIDADE — última vistoria, pendências e FVS (Bruno 15/09) ── */}
+      {qualidade && (() => {
+        const vs = qualidade.vistorias;
+        const ultima = vs[0] ?? null;
+        const nota = ultima?.notaFinal != null ? Number(ultima.notaFinal) : null;
+        const anterior = vs[1]?.notaFinal != null ? Number(vs[1].notaFinal) : null;
+        const delta = nota != null && anterior != null ? nota - anterior : null;
+        const tom = nota == null ? 'bg-ber-gray/25 text-ber-carbon' : nota < 2.5 ? 'bg-red-600 text-white' : nota < 4 ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white';
+        const rotulo = nota == null ? 'SEM VISTORIA' : nota < 2.5 ? 'CRÍTICO' : nota < 4 ? 'ATENÇÃO' : 'BOM';
+        const fvsPend = qualidade.fichas.filter(f => f.status === 'pendente');
+        const hoje = new Date();
+        const fvsVenc = fvsPend.filter(f => f.prazo && new Date(f.prazo) < hoje);
+        return (
+          <div className="border border-ber-gray/30 mt-3">
+            <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
+              <span>QUALIDADE</span>
+              {ultima && <span className="text-[10px] font-medium text-white/80">última vistoria {new Date(ultima.data).toLocaleDateString('pt-BR')}{ultima.vistoriador?.name ? ` · ${ultima.vistoriador.name}` : ''}</span>}
+            </div>
+            <div className="bg-white p-4">
+              <div className={`rounded-lg px-4 py-3 ${tom}`}>
+                <p className="text-2xl font-black leading-none">
+                  {nota != null ? `${nota.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} / 5 · ${rotulo}` : 'SEM VISTORIA'}
+                </p>
+                <p className="mt-1 text-[12px] font-medium opacity-90">
+                  {nota == null
+                    ? 'Nenhuma vistoria de qualidade registrada nesta obra'
+                    : delta != null
+                      ? `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} vs vistoria anterior`
+                      : 'Primeira vistoria da obra'}
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-md border border-ber-gray/20 py-2">
+                  <p className={`text-lg font-black ${qualidade.pendencias.length > 0 ? 'text-red-600' : 'text-ber-carbon'}`}>{qualidade.pendencias.length}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Pendências abertas</p>
+                </div>
+                <div className="rounded-md border border-ber-gray/20 py-2">
+                  <p className={`text-lg font-black ${fvsPend.length > 0 ? 'text-amber-600' : 'text-ber-carbon'}`}>{fvsPend.length}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">FVS a preencher</p>
+                </div>
+                <div className="rounded-md border border-ber-gray/20 py-2">
+                  <p className={`text-lg font-black ${fvsVenc.length > 0 ? 'text-red-600' : 'text-ber-carbon'}`}>{fvsVenc.length}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">FVS vencidas</p>
+                </div>
+              </div>
+              <Link
+                href={`/obras/${obraId}/qualidade`}
+                className="print:hidden mt-3 block rounded-md border border-ber-gray/25 px-3 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
+              >
+                Abrir Qualidade
               </Link>
             </div>
           </div>
