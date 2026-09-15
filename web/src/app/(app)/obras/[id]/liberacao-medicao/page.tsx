@@ -19,7 +19,7 @@ type Linha = {
   pacote: string;
   fornecedor: string | null;
   responsavel: string | null;
-  status: 'liberado' | 'bloqueado' | 'liberado_excecao' | 'bloqueado_manual';
+  status: 'liberado' | 'bloqueado' | 'aguardando_execucao' | 'liberado_excecao' | 'bloqueado_manual';
   motivos: string[];
   fichas: { id: string; titulo: string; trecho: string | null; status: string; prazo: string | null }[];
   override: { liberado: boolean; justificativa: string; por: string | null; em: string } | null;
@@ -28,6 +28,7 @@ type FichaSolta = { id: string; titulo: string; trecho: string | null; status: s
 
 const BADGE: Record<Linha['status'], { rotulo: string; cls: string }> = {
   liberado: { rotulo: '🟢 Liberado para medir', cls: 'bg-green-50 text-green-800 border-green-300' },
+  aguardando_execucao: { rotulo: '⏳ Aguardando execução', cls: 'bg-amber-50 text-amber-800 border-amber-300' },
   liberado_excecao: { rotulo: '🟢 Liberado — exceção', cls: 'bg-green-50 text-green-800 border-green-300' },
   bloqueado: { rotulo: '🔴 Bloqueado', cls: 'bg-red-50 text-red-700 border-red-300' },
   bloqueado_manual: { rotulo: '🔴 Bloqueado — manual', cls: 'bg-red-50 text-red-700 border-red-300' },
@@ -58,7 +59,8 @@ export default function LiberacaoMedicaoPage() {
 
   const resumo = useMemo(() => {
     const lib = linhas.filter(l => l.status.startsWith('liberado')).length;
-    return { lib, blo: linhas.length - lib };
+    const agu = linhas.filter(l => l.status === 'aguardando_execucao').length;
+    return { lib, agu, blo: linhas.length - lib - agu };
   }, [linhas]);
 
   async function salvarOverride() {
@@ -102,7 +104,7 @@ export default function LiberacaoMedicaoPage() {
           {obraNome && <span className="rounded-md bg-ber-carbon px-2 py-0.5 text-sm font-bold text-white">{obraNome}</span>}
         </h1>
         {linhas.length > 0 && (
-          <p className="text-sm text-ber-gray"><b className="text-green-700">{resumo.lib} liberado(s)</b> · <b className="text-red-700">{resumo.blo} bloqueado(s)</b></p>
+          <p className="text-sm text-ber-gray"><b className="text-green-700">{resumo.lib} liberado(s)</b> · <b className="text-amber-700">{resumo.agu} aguardando execução</b> · <b className="text-red-700">{resumo.blo} bloqueado(s)</b></p>
         )}
       </div>
       <p className="mb-5 text-xs text-ber-gray max-w-2xl">

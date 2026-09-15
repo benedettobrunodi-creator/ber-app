@@ -138,7 +138,7 @@ const daysBetween = (a: Date | null, b: Date | null): number | null => {
 
 export default function CapaObra({ obraId, embedded = false }: { obraId: string; embedded?: boolean }) {
   const backHref = useBackToObra();
-  type LiberacaoLinhaLite = { planoId: string; pacote: string; fornecedor?: string | null; status: 'liberado' | 'bloqueado' | 'liberado_excecao' | 'bloqueado_manual'; motivos: string[] };
+  type LiberacaoLinhaLite = { planoId: string; pacote: string; fornecedor?: string | null; status: 'liberado' | 'bloqueado' | 'aguardando_execucao' | 'liberado_excecao' | 'bloqueado_manual'; motivos: string[] };
 
   const [obra, setObra] = useState<ObraInfo | null>(null);
   const [contratos, setContratos] = useState<ContratacoesResp | null>(null);
@@ -912,11 +912,12 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       {(() => {
         const bloqueados = liberacao.filter(l => l.status === 'bloqueado' || l.status === 'bloqueado_manual');
         const liberados = liberacao.filter(l => l.status === 'liberado' || l.status === 'liberado_excecao');
+        const aguardando = liberacao.filter(l => l.status === 'aguardando_execucao');
         return (
           <div className="border border-ber-gray/30 mt-3">
             <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
               <span>LIBERAÇÃO DE MEDIÇÃO</span>
-              <span className="text-[10px] font-medium text-white/80">{liberados.length} liberado(s) · {bloqueados.length} bloqueado(s)</span>
+              <span className="text-[10px] font-medium text-white/80">{liberados.length} liberado(s) · {aguardando.length} aguardando execução · {bloqueados.length} bloqueado(s)</span>
             </div>
             <div className="bg-white p-4">
               {liberacao.length === 0 ? (
@@ -925,10 +926,17 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                   Contratações tiver fornecedor com status <span className="font-semibold">contratado</span>.
                 </p>
               ) : bloqueados.length === 0 ? (
-                <div className="rounded-lg bg-emerald-600 px-4 py-3">
-                  <p className="text-2xl font-black leading-none text-white">TUDO LIBERADO</p>
-                  <p className="mt-1 text-[12px] font-medium text-emerald-50">Nenhum fornecedor bloqueado pra medição</p>
-                </div>
+                liberados.length > 0 ? (
+                  <div className="rounded-lg bg-emerald-600 px-4 py-3">
+                    <p className="text-2xl font-black leading-none text-white">SEM BLOQUEIOS</p>
+                    <p className="mt-1 text-[12px] font-medium text-emerald-50">{liberados.length} liberado(s) pra medir{aguardando.length > 0 ? ` · ${aguardando.length} aguardando execução` : ''}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-amber-500 px-4 py-3">
+                    <p className="text-2xl font-black leading-none text-white">AGUARDANDO EXECUÇÃO</p>
+                    <p className="mt-1 text-[12px] font-medium text-amber-50">Nenhum pacote com execução verificada (FVS preenchida) — nada a medir ainda</p>
+                  </div>
+                )
               ) : (
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-red-600">🔴 Bloqueados pra medir</p>
@@ -944,6 +952,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                   ))}
                   {liberados.length > 0 && (
                     <p className="pt-1 text-[11px] text-ber-gray">🟢 Liberados: {liberados.map(l => l.pacote).join(' · ')}</p>
+                  )}
+                  {aguardando.length > 0 && (
+                    <p className="pt-1 text-[11px] text-ber-gray">⏳ Aguardando execução: {aguardando.map(l => l.pacote).join(' · ')}</p>
                   )}
                 </div>
               )}

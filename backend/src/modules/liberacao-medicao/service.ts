@@ -15,7 +15,7 @@ import { AppError } from '../../utils/errors';
 
 const OVERRIDE_DIAS = 31;
 
-export type StatusLiberacao = 'liberado' | 'bloqueado' | 'liberado_excecao' | 'bloqueado_manual';
+export type StatusLiberacao = 'liberado' | 'bloqueado' | 'aguardando_execucao' | 'liberado_excecao' | 'bloqueado_manual';
 
 export async function getPainel(obraId: string) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true, name: true } });
@@ -64,11 +64,21 @@ export async function getPainel(obraId: string) {
     }
 
     const override = overrides.find((o) => o.planoId === p.id) ?? null;
+    // Executado = existe FVS do pacote PREENCHIDA (verificação de qualidade feita em
+    // campo). Sem isso, não há o que medir — "liberado" era enganoso (Bruno 15/09:
+    // liberar deve considerar se o serviço foi executado, não só ausência de restrição).
+    const temExecucaoVerificada = preenchidas.length > 0;
+    const override2 = override;
     let status: StatusLiberacao;
-    if (override) {
-      status = override.liberado ? 'liberado_excecao' : 'bloqueado_manual';
+    if (override2) {
+      status = override2.liberado ? 'liberado_excecao' : 'bloqueado_manual';
+    } else if (motivos.length > 0) {
+      status = 'bloqueado';
+    } else if (!temExecucaoVerificada) {
+      status = 'aguardando_execucao';
+      motivos.push('Sem execução verificada — nenhuma FVS do pacote preenchida ainda; nada a medir');
     } else {
-      status = motivos.length > 0 ? 'bloqueado' : 'liberado';
+      status = 'liberado';
     }
 
     return {
