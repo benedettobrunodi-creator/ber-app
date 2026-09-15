@@ -221,7 +221,9 @@ export async function pdfDiario(req: Request, res: Response) {
   const pdf = await montarPdfDiario(req.params.diarioId);
   if (!pdf) throw AppError.notFound('Diário');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${pdf.nome}"`);
+  // header só aceita ASCII — nome com acento vai via filename* (RFC 5987)
+  const ascii = pdf.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '-');
+  res.setHeader('Content-Disposition', `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(pdf.nome)}`);
   res.send(pdf.buffer);
 }
 
