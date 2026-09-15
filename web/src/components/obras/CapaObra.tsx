@@ -909,7 +909,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       </div>
 
       {/* ─── LIBERAÇÃO DE MEDIÇÃO — semáforo por fornecedor (Bruno 15/09: seção no cockpit) ── */}
-      {liberacao.length > 0 && (() => {
+      {(() => {
         const bloqueados = liberacao.filter(l => l.status === 'bloqueado' || l.status === 'bloqueado_manual');
         const liberados = liberacao.filter(l => l.status === 'liberado' || l.status === 'liberado_excecao');
         return (
@@ -919,7 +919,12 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
               <span className="text-[10px] font-medium text-white/80">{liberados.length} liberado(s) · {bloqueados.length} bloqueado(s)</span>
             </div>
             <div className="bg-white p-4">
-              {bloqueados.length === 0 ? (
+              {liberacao.length === 0 ? (
+                <p className="text-[12px] text-ber-gray">
+                  Nenhum pacote contratado ainda nesta obra — o semáforo acende quando o Cronograma de
+                  Contratações tiver fornecedor com status <span className="font-semibold">contratado</span>.
+                </p>
+              ) : bloqueados.length === 0 ? (
                 <div className="rounded-lg bg-emerald-600 px-4 py-3">
                   <p className="text-2xl font-black leading-none text-white">TUDO LIBERADO</p>
                   <p className="mt-1 text-[12px] font-medium text-emerald-50">Nenhum fornecedor bloqueado pra medição</p>
