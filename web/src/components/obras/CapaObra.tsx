@@ -787,8 +787,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
         </div>
       </div>
 
-      {/* ─── CURVA S + CONTROLE DE COORDENAÇÃO ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+      {/* ─── CURVA S (largura total) ────────────────────────────────────── */}
 
       {/* Mesma curva do PDF do relatório (módulo Relatórios → aba Curva S). */}
       <div className="border border-ber-gray/30">
@@ -862,40 +861,37 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
         </div>
       </div>
 
-      {/* Controle de coordenação — o processo acompanhou o avanço? */}
-      <div className="border border-ber-gray/30 flex flex-col">
+      {/* Controle de coordenação — faixa horizontal compacta (Bruno 15/09: card estreito ficava com buraco) */}
+      <div className="border border-ber-gray/30 mt-3">
         <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider">
           CONTROLE DE COORDENAÇÃO
         </div>
-        <div className="flex flex-1 flex-col bg-white p-4">
-          {/* Semáforo: cor forte e palavra pronta, sem legenda pra decorar */}
-          <div className={`rounded-lg ${COORD_TOM.bg} px-4 py-3`}>
+        <div className="bg-white p-4 flex flex-col md:flex-row md:items-center gap-4">
+          {/* Semáforo compacto */}
+          <div className={`rounded-lg ${COORD_TOM.bg} px-5 py-3 md:w-64 shrink-0`}>
             <p className={`text-2xl font-black leading-none ${COORD_TOM.texto}`}>{coordStatus.titulo}</p>
             <p className={`mt-1 text-[12px] font-medium ${COORD_TOM.sub}`}>{coordStatus.frase}</p>
           </div>
 
-          {/* Detalhe por fase — só o que merece atenção */}
-          <div className="mt-3 flex-1 space-y-1.5">
+          {/* Detalhe por fase — em linha */}
+          <div className="flex-1 min-w-0 space-y-1.5">
             {fasesAtrasadas.length > 0 && (
-              <>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Ficaram para trás</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Ficaram para trás</span>
                 {fasesAtrasadas.map(f => (
-                  <div key={f.id} className="flex items-start justify-between gap-2 text-[12px]">
-                    <span className="min-w-0 truncate text-ber-carbon">{f.template?.name}</span>
-                    <span className="shrink-0 font-bold tabular-nums text-red-600">{abertosDe(f)}</span>
-                  </div>
+                  <span key={f.id} className="text-[12px] text-ber-carbon">
+                    {f.template?.name} <b className="tabular-nums text-red-600">{abertosDe(f)}</b>
+                  </span>
                 ))}
-              </>
+              </div>
             )}
             {faseCorrente && (
-              <div className={fasesAtrasadas.length > 0 ? 'border-t border-ber-gray/10 pt-2 mt-2' : ''}>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Fase atual</p>
-                <div className="flex items-start justify-between gap-2 text-[12px]">
-                  <span className="min-w-0 truncate text-ber-carbon">{faseCorrente.template?.name}</span>
-                  <span className={`shrink-0 font-bold tabular-nums ${itensFaseAtual > 0 ? 'text-amber-600' : 'text-green-700'}`}>
-                    {itensFaseAtual > 0 ? itensFaseAtual : '✓'}
-                  </span>
-                </div>
+              <div className="flex flex-wrap items-center gap-x-2 text-[12px]">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Fase atual</span>
+                <span className="text-ber-carbon">{faseCorrente.template?.name}</span>
+                <b className={`tabular-nums ${itensFaseAtual > 0 ? 'text-amber-600' : 'text-green-700'}`}>
+                  {itensFaseAtual > 0 ? `${itensFaseAtual} a preencher` : '✓ em dia'}
+                </b>
               </div>
             )}
             {semDados && (
@@ -907,13 +903,11 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
 
           <Link
             href={`/obras/${obraId}?tab=fvs`}
-            className="print:hidden mt-3 block rounded-md border border-ber-gray/25 px-3 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
+            className="print:hidden shrink-0 rounded-md border border-ber-gray/25 px-4 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
           >
             Abrir Passo a Passo
           </Link>
         </div>
-      </div>
-
       </div>
 
       {/* ─── LIBERAÇÃO DE MEDIÇÃO — semáforo por fornecedor (Bruno 15/09: seção no cockpit) ── */}
