@@ -116,6 +116,8 @@ async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome
         atividades: { orderBy: { createdAt: 'asc' } },
         efetivos: { orderBy: { createdAt: 'asc' } },
         fotos: { include: { ambiente: { select: { nome: true } } }, orderBy: { ordem: 'asc' } },
+        ocorrencias: { orderBy: { createdAt: 'asc' } },
+        criadoPor: { select: { name: true } },
       },
     });
     if (!d) return null;
@@ -140,6 +142,9 @@ async function montarPdfDiario(diarioId: string): Promise<{ buffer: Buffer; nome
         atividades: d.atividades.map((a) => ({ descricao: a.descricao, status: a.status })),
         efetivo: d.efetivos.map((e) => ({ funcao: e.funcao, categoria: e.categoria, quantidade: e.quantidade })),
         fotos: fotosPreparadas,
+        // ocorrências SEMPRE no PDF, mesmo vazias, + quem preencheu (Bruno 15/09)
+        ocorrencias: d.ocorrencias.filter((o) => o.visivelCliente).map((o) => ({ descricao: o.descricao, tipo: o.tipo })),
+        preenchidoPor: d.criadoPor?.name ?? null,
       }) as never,
     );
     const { nomeDocumento, dataArquivo } = await import('../../services/doc-nome');

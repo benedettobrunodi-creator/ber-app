@@ -53,7 +53,7 @@ const s = StyleSheet.create({
   rodapeCentro: { fontSize: 6.5, color: GRAY_LIGHT, letterSpacing: 1, textTransform: 'uppercase' },
 });
 
-const CLIMA_LABEL: Record<string, string> = { sol: 'Sol', nublado: 'Nublado', chuva: 'Chuva', chuva_forte: 'Chuva forte' };
+const CLIMA_LABEL: Record<string, string> = { sol: 'Sol', nublado: 'Nublado', parcialmente_nublado: 'Parcialmente nublado', chuva: 'Chuva', chuva_forte: 'Chuva forte' };
 const COND_LABEL: Record<string, string> = { praticavel: 'Praticável', impraticavel: 'Impraticável', parcial: 'Parcial', normal: 'Normal' };
 const ATIV_STATUS: Record<string, string> = { concluida: 'Concluída', em_andamento: 'Em andamento', paralisada: 'Paralisada' };
 
@@ -67,6 +67,8 @@ export interface DiarioPdfProps {
   atividades: { descricao: string; status: string }[];
   efetivo: { funcao?: string | null; categoria?: string | null; quantidade: number; nome?: string | null }[];
   fotos: { fileUrl: string | { data: Buffer; format: 'jpg' }; legenda?: string | null; ambiente?: string | null }[];
+  ocorrencias: { descricao: string; tipo?: string | null }[];
+  preenchidoPor?: string | null;
 }
 
 export function DiarioPDF(p: DiarioPdfProps) {
@@ -83,7 +85,7 @@ export function DiarioPDF(p: DiarioPdfProps) {
         <View style={s.regua} />
         <Text style={s.eyebrow}>BÈR Engenharia · Diário de Obra</Text>
         <Text style={s.h1}>{p.obraNome}</Text>
-        <Text style={s.sub}>{dataFmt}</Text>
+        <Text style={s.sub}>{dataFmt}{p.preenchidoPor ? ` · Preenchido por ${p.preenchidoPor}` : ''}</Text>
 
         <View style={s.cards}>
           {p.avancoDia != null && (
@@ -95,7 +97,7 @@ export function DiarioPDF(p: DiarioPdfProps) {
           {p.clima && (
             <View style={s.card}>
               <Text style={s.cardLabel}>Clima</Text>
-              <Text style={s.cardValor}>{CLIMA_LABEL[p.clima] ?? (p.clima.charAt(0).toUpperCase() + p.clima.slice(1))}</Text>
+              <Text style={s.cardValor}>{CLIMA_LABEL[p.clima] ?? (p.clima.charAt(0).toUpperCase() + p.clima.slice(1)).replace(/_/g, ' ')}</Text>
             </View>
           )}
           {p.condicaoTrabalho && (
@@ -130,6 +132,20 @@ export function DiarioPDF(p: DiarioPdfProps) {
             ))}
           </View>
         )}
+
+        <View>
+          <Text style={s.secTitulo}>Ocorrências{p.ocorrencias.length > 0 ? ` (${p.ocorrencias.length})` : ''}</Text>
+          {p.ocorrencias.length === 0 ? (
+            <Text style={s.p}>Não houve ocorrências no dia.</Text>
+          ) : (
+            p.ocorrencias.map((o, i) => (
+              <View key={i} style={s.linha} wrap={false}>
+                <Text style={s.atividadeTxt}>{o.descricao}</Text>
+                {o.tipo ? <Text style={s.statusTag}>{(o.tipo.charAt(0).toUpperCase() + o.tipo.slice(1)).replace(/_/g, ' ')}</Text> : null}
+              </View>
+            ))
+          )}
+        </View>
 
         {efetivoPorFuncao.size > 0 && (
           <View>
