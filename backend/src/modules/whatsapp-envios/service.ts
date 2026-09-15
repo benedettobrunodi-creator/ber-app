@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database';
-import { nomeObraLimpo } from '../../services/doc-nome';
+import { nomeObraLimpo, dataArquivo } from '../../services/doc-nome';
 
 // Régua de destinatários do relatório semanal por WhatsApp (Bruno 14/09/26, 23:29):
 // stakeholders da obra com "Recebe relatório" marcado E telefone válido
@@ -42,7 +42,7 @@ export async function enfileirarRelatorioWhatsapp(obraId: string, relatorioId: s
 
   const legenda = `📋 Relatório Semanal nº ${relatorio.numero} — ${obra.name}. Enviado automaticamente pelo BER App.`;
   const arquivoPath = `/v1/obras/${obraId}/relatorios/${relatorioId}/pdf`;
-  const arquivoNome = `Relatório Semanal ${String(relatorio.numero).padStart(2, '0')} — ${nomeObraLimpo(obra.name)}.pdf`;
+  const arquivoNome = `Relatório Semanal ${String(relatorio.numero).padStart(2, '0')} — ${dataArquivo(relatorio.periodoFim)} — ${nomeObraLimpo(obra.name)}.pdf`;
 
   // idempotência: não re-enfileira pro mesmo telefone se já há envio pendente/enviado deste relatório
   const existentes = await prisma.whatsappEnvio.findMany({

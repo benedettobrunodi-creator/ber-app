@@ -614,9 +614,9 @@ export async function buildRelatorioPdf(obraId: string, relatorioId: string): Pr
       });
 
       // nomenclatura padrão (Bruno 14/09): sem uuid/underscores — mesmo nome no e-mail e WhatsApp
-      const { nomeDocumento } = await import('../../services/doc-nome');
+      const { nomeDocumento, dataArquivo } = await import('../../services/doc-nome');
       const rtNum = String(relatorio.numero).padStart(2, '0');
-      const filename = nomeDocumento('Relatório Semanal', rtNum, obra.name);
+      const filename = nomeDocumento('Relatório Semanal', `${rtNum} — ${dataArquivo(relatorio.periodoFim)}`, obra.name);
 
       return { buffer: Buffer.from(pdfBuffer), filename };
     } finally {
