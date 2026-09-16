@@ -53,14 +53,19 @@ const FILTERS: { label: string; value: string }[] = [
   { label: 'Concluídas',              value: 'concluida' },
 ];
 
-type SortKey = 'recentes' | 'nome' | 'prazo' | 'progresso' | 'atualizacao';
+type SortKey = 'recentes' | 'nome' | 'status' | 'fase' | 'coordenador' | 'prazo' | 'progresso' | 'atualizacao';
 const SORTS: { label: string; value: SortKey }[] = [
   { label: 'Recentes',            value: 'recentes' },
   { label: 'Nome A–Z',            value: 'nome' },
+  { label: 'Status',              value: 'status' },
+  { label: 'Fase',                value: 'fase' },
+  { label: 'Coordenador',         value: 'coordenador' },
   { label: 'Prazo mais próximo',  value: 'prazo' },
   { label: 'Menor progresso',     value: 'progresso' },
   { label: 'Atualização antiga',  value: 'atualizacao' },
 ];
+// ordem lógica do funil pra ordenar por status (Bruno 16/09)
+const STATUS_ORDEM: Record<string, number> = { nao_iniciada: 0, planejamento: 1, em_andamento: 2, pos_obra: 3, pausada: 4, concluida: 5, cancelada: 6 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -147,6 +152,11 @@ export default function ObrasPage() {
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recentes');
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  function toggleSort(k: SortKey) {
+    if (sortKey === k) setSortDir(d => (d === 1 ? -1 : 1));
+    else { setSortKey(k); setSortDir(1); }
+  }
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmObra, setConfirmObra] = useState<Obra | null>(null);
   const [deleteObra, setDeleteObra] = useState<Obra | null>(null);
@@ -207,14 +217,17 @@ export default function ObrasPage() {
         const tb = b.ultimoRelatorioEm ? new Date(b.ultimoRelatorioEm).getTime() : 0;
         return ta - tb; // mais antiga primeiro — quem está parado sobe
       },
+      status: (a, b) => (STATUS_ORDEM[a.status] ?? 9) - (STATUS_ORDEM[b.status] ?? 9),
+      fase: (a, b) => (faseSequenciamento(a) ?? 'PP9').localeCompare(faseSequenciamento(b) ?? 'PP9'),
+      coordenador: (a, b) => (a.coordinator?.name ?? '\uffff').localeCompare(b.coordinator?.name ?? '\uffff', 'pt-BR'),
     };
-    if (sortKey !== 'recentes') list.sort(cmp[sortKey]);
+    if (sortKey !== 'recentes') list.sort((a, b) => cmp[sortKey](a, b) * sortDir);
     // Arquivadas sempre por último, independente da ordenação
     return [
       ...list.filter(o => o.status !== 'cancelada'),
       ...list.filter(o => o.status === 'cancelada'),
     ];
-  }, [obras, search, sortKey]);
+  }, [obras, search, sortKey, sortDir]);
 
   async function handleArchive(obra: Obra) {
     try {
@@ -417,13 +430,25 @@ export default function ObrasPage() {
           <div className="min-w-[960px]">
             {/* List header */}
             <div className="grid grid-cols-[1fr_auto_56px_150px_120px_120px_100px_64px] items-center gap-4 border-b border-ber-gray/10 bg-ber-offwhite px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ber-gray">
-              <span>Obra</span>
-              <span className="w-40 text-left">Status</span>
-              <span title="Fase do Sequenciamento">Fase</span>
-              <span>Coordenador</span>
-              <span>Prazo</span>
-              <span title="Fim do período do último relatório semanal">Atualização</span>
-              <span className="text-right">Progresso</span>
+              {([
+                ['Obra', 'nome', ''],
+                ['Status', 'status', 'w-40 text-left'],
+                ['Fase', 'fase', ''],
+                ['Coordenador', 'coordenador', ''],
+                ['Prazo', 'prazo', ''],
+                ['Atualização', 'atualizacao', ''],
+                ['Progresso', 'progresso', 'text-right justify-end'],
+              ] as [string, SortKey, string][]).map(([rotulo, k, cls]) => (
+                <button
+                  key={k}
+                  onClick={() => toggleSort(k)}
+                  title={`Ordenar por ${rotulo.toLowerCase()}`}
+                  className={`flex items-center gap-1 uppercase tracking-wide font-semibold text-left hover:text-ber-carbon ${sortKey === k ? 'text-ber-carbon' : ''} ${cls}`}
+                >
+                  {rotulo}
+                  {sortKey === k && <span className="text-[9px]">{sortDir === 1 ? '▲' : '▼'}</span>}
+                </button>
+              ))}
               <span />
             </div>
 

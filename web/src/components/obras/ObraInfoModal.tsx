@@ -43,6 +43,7 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
         if (cancelled) return;
         const o = r.data.data as Partial<ObraInfoPayload>;
         setForm({
+          name: (o as { name?: string }).name ?? '',
           client: o.client ?? '',
           clienteEmail: (o as { clienteEmail?: string | null }).clienteEmail ?? '',
           address: o.address ?? '',
@@ -74,6 +75,8 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
     setError('');
     try {
       const body: Record<string, unknown> = {
+        // nome editável (Bruno 16/09: "editar o nome das obras para ajustar")
+        ...(form.name?.trim().length >= 2 ? { name: form.name.trim() } : {}),
         client: form.client || null,
         clienteEmail: form.clienteEmail?.trim() || null,
         address: form.address || null,
@@ -116,6 +119,9 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
             {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Nome da obra">
+                <input value={form.name ?? ''} onChange={e => update('name', e.target.value)} className={inputCls} />
+              </Field>
               <Field label="Cliente">
                 <input value={form.client} onChange={e => update('client', e.target.value)} className={inputCls} />
               </Field>
