@@ -164,7 +164,10 @@ export async function fechar(req: Request, res: Response) {
   if (diario.status === 'fechado') throw AppError.badRequest('Diário já está fechado');
 
   const tokenPublico = randomUUID();
-  const enviarWhatsapp = req.body?.enviarWhatsapp !== false;
+  // 16/09 (Bruno): fechar = envia SEMPRE a todos os cadastrados nos stakeholders
+  // (e-mail e WhatsApp). O antigo "fechar sem enviar" deixava diário atrasado
+  // invisível — flags enviarWhatsapp/enviarEmail do body ficam depreciadas.
+  const enviarWhatsapp = true;
 
   const updated = await prisma.diarioObra.update({
     where: { id: req.params.diarioId },
@@ -172,8 +175,8 @@ export async function fechar(req: Request, res: Response) {
     include: diarioInclude,
   });
 
-  // Enviar e-mail ao cliente se a obra tiver e-mail cadastrado (27/08/26)
-  if (req.body?.enviarEmail !== false) {
+  // E-mail aos cadastrados — sempre (16/09)
+  {
     try {
       const { sendEmailObra, diarioClienteHtml } = await import('../../services/email-obras');
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://ber-app.vercel.app';
@@ -208,12 +211,11 @@ export async function fechar(req: Request, res: Response) {
     ], { detached: true, stdio: 'ignore' }).unref();
   }
 
-  // WhatsApp interno via fila (Bruno 14/09 23:35: "os diários tbm, sempre enviar"):
-  // Bruno/Chris/Gritti SEMPRE que fecha; stakeholders "Recebe diário" com telefone
-  // só quando fechou COM envio (Fechar sem enviar continua poupando o cliente).
+  // WhatsApp via fila: fixos + TODOS os stakeholders "Recebe diário" com telefone,
+  // sempre que fecha (Bruno 16/09)
   try {
     const { enfileirarDiarioWhatsapp } = await import('../whatsapp-envios/service');
-    await enfileirarDiarioWhatsapp(diario.obraId, req.params.diarioId, { incluirStakeholders: enviarWhatsapp });
+    await enfileirarDiarioWhatsapp(diario.obraId, req.params.diarioId, { incluirStakeholders: true });
   } catch (e) {
     console.error('[diario] falha ao enfileirar WhatsApp:', (e as Error).message);
   }

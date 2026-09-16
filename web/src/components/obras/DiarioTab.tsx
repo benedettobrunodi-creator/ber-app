@@ -173,12 +173,11 @@ function PreviewFecharModal({ diario, obraNome, onConfirm, onCancel, saving }: {
           <button onClick={() => onConfirm(true)} disabled={saving}
             className="w-full rounded-lg bg-ber-olive px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-2">
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Fechar e enviar para cliente
+            Fechar e enviar aos cadastrados
           </button>
-          <button onClick={() => onConfirm(false)} disabled={saving}
-            className="w-full rounded-lg border border-ber-border px-4 py-2 text-sm text-ber-gray hover:bg-gray-50 disabled:opacity-60">
-            Fechar sem enviar
-          </button>
+          <p className="text-center text-[11px] text-ber-gray">
+            Vai por e-mail e WhatsApp pra todos com &quot;Recebe diário&quot; nos Stakeholders (Bruno, Chris e Gritti sempre).
+          </p>
           <button onClick={onCancel} className="w-full text-xs text-ber-gray hover:text-ber-carbon py-1">Cancelar</button>
         </div>
       </div>
