@@ -149,7 +149,16 @@ export default function ObrasPage() {
   const [obras, setObras] = useState<Obra[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
+  // multi-seleção de status (Bruno 16/09: "poder selecionar mais de um, pré obra + pós obra")
+  const [filtros, setFiltros] = useState<Set<string>>(new Set());
+  function toggleFiltro(v: string) {
+    if (v === '') { setFiltros(new Set()); return; }
+    setFiltros(prev => {
+      const nx = new Set(prev);
+      if (nx.has(v)) nx.delete(v); else nx.add(v);
+      return nx;
+    });
+  }
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recentes');
   const [sortDir, setSortDir] = useState<1 | -1>(1);
@@ -173,7 +182,6 @@ export default function ObrasPage() {
     setLoading(true);
     try {
       const params: Record<string, string | number> = { limit: 100 };
-      if (filter) params.status = filter;
       const res = await api.get('/obras', { params });
       setObras(res.data.data as Obra[]);
     } catch {
@@ -192,11 +200,12 @@ export default function ObrasPage() {
     }
   }
 
-  useEffect(() => { fetchObras(); }, [filter]);
+  useEffect(() => { fetchObras(); }, []);
   useEffect(() => { fetchKpis(); }, []);
 
   const visiveis = useMemo(() => {
     let list = [...obras];
+    if (filtros.size > 0) list = list.filter(o => filtros.has(o.status));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(o =>
@@ -227,7 +236,7 @@ export default function ObrasPage() {
       ...list.filter(o => o.status !== 'cancelada'),
       ...list.filter(o => o.status === 'cancelada'),
     ];
-  }, [obras, search, sortKey, sortDir]);
+  }, [obras, search, sortKey, sortDir, filtros]);
 
   async function handleArchive(obra: Obra) {
     try {
@@ -340,19 +349,23 @@ export default function ObrasPage() {
 
       {/* Filtros + busca + ordenação */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              filter === f.value
-                ? 'bg-ber-carbon text-white'
-                : 'bg-white text-ber-carbon hover:bg-ber-gray/10'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        {FILTERS.map((f) => {
+          const ativo = f.value === '' ? filtros.size === 0 : filtros.has(f.value);
+          return (
+            <button
+              key={f.value}
+              onClick={() => toggleFiltro(f.value)}
+              title={f.value === '' ? 'Limpar filtros' : 'Clique pra somar/tirar do filtro'}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                ativo
+                  ? 'bg-ber-carbon text-white'
+                  : 'bg-white text-ber-carbon hover:bg-ber-gray/10'
+              }`}
+            >
+              {f.label}
+            </button>
+          );
+        })}
 
         <div className="ml-auto flex items-center gap-2">
           <div className="relative">
