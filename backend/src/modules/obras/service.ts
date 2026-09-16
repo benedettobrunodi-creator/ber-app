@@ -32,9 +32,12 @@ export async function listObras(page: number, limit: number, status?: string, us
   // obra.progressPercent é escrito por fontes desencontradas (ClickUp, IA de
   // cronograma, diário de obra) e não reflete o que aparece no Cockpit.
   const obraIds = obras.map(o => o.id);
+  // avancoPct > 0: relatório recém-criado (em elaboração) fica com avanço 0 e
+  // zeraria o painel — o avanço real é o do último relatório PREENCHIDO
+  // (caso Diogo e Nathalia 16/09: #13 criado às 15h33 engoliu os 52% do #12)
   const ultimosRelatorios = obraIds.length
     ? await prisma.relatorioSemanal.findMany({
-        where: { obraId: { in: obraIds } },
+        where: { obraId: { in: obraIds }, avancoPct: { gt: 0 } },
         orderBy: [{ obraId: 'asc' }, { numero: 'desc' }],
         distinct: ['obraId'],
         select: { obraId: true, avancoPct: true, periodoFim: true },

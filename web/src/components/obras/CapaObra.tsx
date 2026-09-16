@@ -183,7 +183,9 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     // O backend já devolve ordenado por numero desc — o último emitido é o primeiro.
     // Reordena defensivamente caso a ordenação do endpoint mude.
     const ordenados = [...(rels ?? [])].sort((a, b) => b.numero - a.numero);
-    setUltimoRelatorio(ordenados[0] ?? null);
+    // relatório recém-criado (avanço 0 = em elaboração) não zera o painel:
+    // o percentual vem do último relatório PREENCHIDO (Bruno 16/09)
+    setUltimoRelatorio(ordenados.find(r => Number(r.avancoPct) > 0) ?? ordenados[0] ?? null);
     setLoading(false);
   }
 
