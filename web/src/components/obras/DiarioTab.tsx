@@ -249,19 +249,22 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
 
   useEffect(() => { loadList(); }, [loadList]);
 
-  async function criarDiarioHoje() {
+  // aceita data retroativa (Chris 15/09: "quero fazer um diário retrógrado, ex. de ontem")
+  async function criarDiario(dataISO: string) {
     setSaving(true);
     try {
-      const res = await api.post(`/obras/${obraId}/diario`, { data: todayISO() });
+      const res = await api.post(`/obras/${obraId}/diario`, { data: dataISO });
       const novo: DiarioDetalhe = res.data?.data;
-      setDiarios(prev => [{ ...novo, _count: { efetivos: 0, atividades: 0, fotos: 0 }, criadoPor: novo.criadoPor }, ...prev]);
+      setDiarios(prev => [{ ...novo, _count: { efetivos: 0, atividades: 0, fotos: 0 }, criadoPor: novo.criadoPor }, ...prev].sort((a, b) => b.data.localeCompare(a.data)));
       setSelected(novo);
+      setDataRetro(null);
     } catch (e: any) {
       alert(e?.response?.data?.message ?? 'Erro ao criar diário');
     } finally {
       setSaving(false);
     }
   }
+  const [dataRetro, setDataRetro] = useState<string | null>(null);
 
   async function fecharDiario(enviarWhatsapp: boolean) {
     if (!selected) return;
@@ -877,16 +880,49 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
       {/* Top bar: title + new diário button */}
       <div className="mb-6 flex items-center justify-between">
         <p className="text-xs font-bold uppercase tracking-widest text-ber-gray">Diário de Obra</p>
-        {!temDiarioHoje && (
-          <button
-            onClick={criarDiarioHoje}
-            disabled={saving}
-            className="flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
-          >
-            {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-            Novo diário — hoje
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {dataRetro === null ? (
+            <>
+              {!temDiarioHoje && (
+                <button
+                  onClick={() => criarDiario(todayISO())}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                  Novo diário — hoje
+                </button>
+              )}
+              <button
+                onClick={() => setDataRetro(todayISO())}
+                disabled={saving}
+                className="rounded-lg border border-ber-gray/30 px-3 py-2 text-xs font-semibold text-ber-gray hover:text-ber-carbon hover:bg-ber-bg/40 disabled:opacity-60"
+                title="Criar diário de um dia anterior"
+              >
+                Outro dia…
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                type="date"
+                value={dataRetro}
+                max={todayISO()}
+                onChange={e => setDataRetro(e.target.value)}
+                className="rounded-lg border border-ber-gray/30 px-2 py-1.5 text-xs"
+              />
+              <button
+                onClick={() => dataRetro && criarDiario(dataRetro)}
+                disabled={saving || !dataRetro}
+                className="flex items-center gap-1.5 rounded-lg bg-ber-olive px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                Criar
+              </button>
+              <button onClick={() => setDataRetro(null)} className="text-xs text-ber-gray hover:text-ber-carbon px-1">Cancelar</button>
+            </>
+          )}
+        </div>
       </div>
 
       {loadingList ? (
