@@ -154,7 +154,7 @@ function PreviewFecharModal({ diario, obraNome, onConfirm, onCancel, saving }: {
   const primeiraAtividade = diario.atividades.find(a => a.status === 'em_andamento' || a.status === 'concluida');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
         <div className="px-5 pt-5 pb-3 border-b border-ber-border">
           <p className="text-sm font-bold text-ber-carbon">Preview — o que o cliente vai receber</p>
@@ -247,6 +247,14 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
   }, [obraId]);
 
   useEffect(() => { loadList(); }, [loadList]);
+
+  // Modal do diário (18/09/26, pedido Bruno): Esc fecha
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelected(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected]);
 
   // aceita data retroativa (Chris 15/09: "quero fazer um diário retrógrado, ex. de ontem")
   async function criarDiario(dataISO: string) {
@@ -967,14 +975,37 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
         </div>
       )}
 
-      {loadingDetail && (
-        <div className="flex h-24 items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-ber-olive" />
-        </div>
-      )}
+      {/* Detalhe em POP-UP (18/09/26, pedido Bruno): antes abria embaixo da
+          lista — com muitos diários ficava ruim de achar. Fecha no X, Esc ou
+          clique fora; edições continuam salvando na hora (patch imediato). */}
+      {(loadingDetail || selected) && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-3 sm:p-6"
+          onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
+        >
+          <div className="mx-auto my-2 w-full max-w-2xl rounded-2xl bg-gray-50 shadow-2xl sm:my-6">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-ber-border bg-white px-4 py-2.5">
+              <p className="text-xs font-bold uppercase tracking-widest text-ber-gray">
+                {selected ? `Diário — ${fmtDate(selected.data)}` : 'Carregando…'}
+              </p>
+              <button
+                onClick={() => setSelected(null)}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-ber-gray hover:bg-gray-100 hover:text-ber-carbon"
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-      {selected && !loadingDetail && (
-        <div className="space-y-4">
+            <div className="p-3 sm:p-4">
+              {loadingDetail && (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 size={20} className="animate-spin text-ber-olive" />
+                </div>
+              )}
+
+              {selected && !loadingDetail && (
+                <div className="space-y-4">
           {/* Header card */}
           <div className="rounded-xl border border-ber-border bg-white p-4">
             <div className="flex items-center justify-between mb-4">
@@ -1160,6 +1191,10 @@ export default function DiarioTab({ obraId, obraNome }: { obraId: string; obraNo
             count={selected.equipamentos.length} open={openSections.equipamentos} onToggle={() => toggleSection('equipamentos')}>
             <EquipamentosSection />
           </Section>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
