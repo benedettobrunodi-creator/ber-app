@@ -308,6 +308,7 @@ export async function getPainelGeral() {
     id: l.id,
     obraId: l.obraId,
     obraNome: l.obra.name,
+    comprasMetaId: l.comprasMetaId,
     categoria: l.comprasMeta.categoria,
     descritivo: l.comprasMeta.descritivo,
     fornecedor: l.comprasMeta.fornecedor,
