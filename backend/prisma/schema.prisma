@@ -23,108 +23,113 @@ model User {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Relations
-  coordinatedObras         Obra[]                  @relation("ObraCoordinator")
-  obrasComoResidente Obra[] @relation("ObraResidentEngineer")
-  obraMembers              ObraMember[]
-  assignedTasks            ObraTask[]              @relation("TaskAssignee")
-  createdTasks             ObraTask[]              @relation("TaskCreator")
-  proposals                Proposal[]
-  meetingsCreated          Meeting[]
-  announcements            Announcement[]
-  announcementReads        AnnouncementRead[]
-  chatRoomMembers          ChatRoomMember[]
-  chatMessages             ChatMessage[]
-  photos                   Photo[]
-  photoComments            PhotoComment[]
-  notifications            Notification[]
-  timeEntries              TimeEntry[]
-  createdChecklists        Checklist[]             @relation("ChecklistCreator")
-  responsibleItems         ChecklistItem[]         @relation("ChecklistItemResponsible")
-  answeredItems            ChecklistItem[]         @relation("ChecklistItemAnswerer")
-  canteiroCreated          CanteiroChecklist[]     @relation("CanteiroCreator")
-  canteiroApproved         CanteiroChecklist[]     @relation("CanteiroApprover")
-  canteiroAnswered         CanteiroChecklistItem[] @relation("CanteiroItemAnswerer")
-  aprsCreated              APR[]                   @relation("APRCreator")
-  aprsApproved             APR[]                   @relation("APRApprover")
-  epiControls              EPIControl[]            @relation("EPIUser")
-  incidentsReported        Incident[]              @relation("IncidentReporter")
-  incidentsInjured         Incident[]              @relation("IncidentInjured")
-  trainings                Training[]              @relation("TrainingUser")
-  sequenciamentosCreated   ObraSequenciamento[]    @relation("SeqCreator")
-  etapasSubmitted          ObraEtapa[]             @relation("EtapaSubmitter")
-  etapasApproved           ObraEtapa[]             @relation("EtapaApprover")
-  etapasRejected           ObraEtapa[]             @relation("EtapaRejecter")
-  instrucoesCreated        InstrucaoTecnica[]      @relation("ITCreator")
-  instrucoesUpdated        InstrucaoTecnica[]      @relation("ITUpdater")
-  recebimentosRegistrados  RecebimentoMaterial[]   @relation("RecebimentoRegistrador")
-  faseHistoryChanged       ObraFaseHistory[]       @relation("FaseHistoryChanger")
-  obraFaseUpdated          Obra[]                  @relation("ObraFaseUpdater")
-  conductedTouchpoints     ClientTouchpoint[]      @relation("TouchpointConductor")
-  touchpointNextActions    ClientTouchpoint[]      @relation("TouchpointNextOwner")
-  createdTouchpoints       ClientTouchpoint[]      @relation("TouchpointCreator")
-  createdPunchLists        PunchList[]             @relation("PunchListCreator")
-  pendenciasResponsavel    ObraPendencia[]         @relation("PendenciaResponsavel")
-  folhasFechadas           FolhaFechamento[]       @relation("FolhaFechadoPor")
-  folhasReabertas          FolhaFechamento[]       @relation("FolhaReabertoPor")
-  folhaLinhas              FolhaFechamentoLinha[]  @relation("FolhaLinhaUser")
-  faltaDescontos           FaltaDesconto[]         @relation("FaltaDescontoUser")
-  colaboradorNfs           ColaboradorNF[]         @relation("ColaboradorNFUser")
-  nfsValidadas             ColaboradorNF[]         @relation("ColaboradorNFValidadora")
-  pendenciasCriadas        ObraPendencia[]         @relation("PendenciaCriador")
-  amostrasCriadas          AmostraAprovacao[]      @relation("AmostraCriador")
-  projetoDocumentosCriados ProjetoDocumento[]      @relation("ProjetoDocumentoCriador")
-  projetoDocRevisoesCriadas ProjetoDocumentoRevisao[] @relation("ProjetoDocumentoRevisaoCriador")
-  punchListItems           PunchListItem[]         @relation("PunchListResponsible")
-  etapaEditRequests        EtapaEditRequest[]      @relation("EtapaEditRequester")
-  etapaEditResolved        EtapaEditRequest[]      @relation("EtapaEditResolver")
-  filledFvs                ObraFvs[]               @relation("FvsFiller")
-  gestorFvs                ObraFvs[]               @relation("FvsGestorApprover")
-  coordFvs                 ObraFvs[]               @relation("FvsCoordApprover")
-  rejectedFvs              ObraFvs[]               @relation("FvsRejector")
-  aditivosDecididos        ObraAditivo[]           @relation("AditivoDecididoPor")
-  qualidadeVistorias       QualidadeVistoria[]     @relation("QualidadeVistoriador")
-  qualidadePendenciasResolvidas QualidadeVistoriaItem[] @relation("QualidadePendenciaResolvedor")
-  atividadeFvsPreenchidas  AtividadeFvs[]          @relation("AtividadeFvsPreenchedor")
-  documentosAprovados      ObraDocumento[]         @relation("DocumentoAprovadoPor")
-  filledFvsItems           ObraFvsItem[]           @relation("FvsItemFiller")
-  filledBerChecklists      ObraBerChecklist[]      @relation("BerChecklistFiller")
-  fotosEnviadas            ObraFoto[]              @relation("FotoAutor")
-  filledBerItems           ObraBerChecklistItem[]  @relation("BerChecklistItemFiller")
-  dreUpdates               DreValue[]              @relation("DreUpdater")
-  alocacoes                Alocacao[]              @relation("AlocacaoUser")
-  recursosExternosCriados  RecursoExterno[]        @relation("RecursoExternoCreator")
-  customRole               CustomRole?             @relation(fields: [customRoleId], references: [id])
-  customRoleId             String?                 @map("custom_role_id") @db.Uuid
-  orcamentosResponsavel    Orcamento[]             @relation("OrcResp")
-  orcamentosCriados        Orcamento[]             @relation("OrcCriador")
-  quantitativosCriados     Quantitativo[]          @relation("QuantCriador")
-  quantitativoItensRevs    QuantitativoItem[]      @relation("QuantItemRevisor")
-  apiKeys                  ApiKey[]                @relation("ApiKeyCreator")
-  diariosCriados           DiarioObra[]            @relation("DiarioCriadoPor")
-  diariosFechados          DiarioObra[]            @relation("DiarioFechadoPor")
-  diarioFotos              DiarioFoto[]            @relation("DiarioFotoUploader")
-  diarioEfetivos           DiarioEfetivo[]         @relation("DiarioEfetivoUser")
-  crmOportunidadesResp     CrmOportunidade[]       @relation("CrmOportResponsavel")
-  crmOportunidadesCriadas  CrmOportunidade[]       @relation("CrmOportCreator")
-  crmAtividades            CrmAtividade[]          @relation("CrmAtividadeUsuario")
-  crmCampanhas             CrmCampanha[]           @relation("CrmCampanhaResponsavel")
-  relatorios               RelatorioSemanal[]      @relation("RelatorioResponsavel")
-  resetTokens              PasswordResetToken[]
-  orgChartUpdates          OrgChart[]
-  temperaturasPreenchidas  ObraTemperatura[]       @relation("TemperaturaCreator")
-  medicaoTransicoes        MedicaoTransicao[]      @relation("MedicaoTransicaoUser")
-  ataTopicosResponsavel    ObraAtaTopico[]         @relation("AtaTopicoResponsavel")
-  bancoHorasLotes          BancoHorasLote[]        @relation("BancoHorasLoteUser")
-  bancoHorasConsumosFeitos BancoHorasConsumo[]     @relation("BancoHorasConsumoRegistrador")
-  horaExtraRegistros       HoraExtraRegistro[]     @relation("HoraExtraUser")
-  ajustesPontoRecebidos    AjustePonto[]           @relation("AjustePontoUser")
-  ajustesPontoFeitos       AjustePonto[]           @relation("AjustePontoAjustador")
+  coordinatedObras              Obra[]                    @relation("ObraCoordinator")
+  obrasComoResidente            Obra[]                    @relation("ObraResidentEngineer")
+  obraMembers                   ObraMember[]
+  assignedTasks                 ObraTask[]                @relation("TaskAssignee")
+  liberacoesForSolicitadas      LiberacaoFornecedor[]     @relation("LibForSolicitante")
+  liberacoesForAprovFin         LiberacaoFornecedor[]     @relation("LibForAprovFin")
+  liberacoesForAprovDir         LiberacaoFornecedor[]     @relation("LibForAprovDir")
+  liberacoesForRecusadas        LiberacaoFornecedor[]     @relation("LibForRecusa")
+  createdTasks                  ObraTask[]                @relation("TaskCreator")
+  proposals                     Proposal[]
+  meetingsCreated               Meeting[]
+  announcements                 Announcement[]
+  announcementReads             AnnouncementRead[]
+  chatRoomMembers               ChatRoomMember[]
+  chatMessages                  ChatMessage[]
+  photos                        Photo[]
+  photoComments                 PhotoComment[]
+  notifications                 Notification[]
+  timeEntries                   TimeEntry[]
+  createdChecklists             Checklist[]               @relation("ChecklistCreator")
+  responsibleItems              ChecklistItem[]           @relation("ChecklistItemResponsible")
+  answeredItems                 ChecklistItem[]           @relation("ChecklistItemAnswerer")
+  canteiroCreated               CanteiroChecklist[]       @relation("CanteiroCreator")
+  canteiroApproved              CanteiroChecklist[]       @relation("CanteiroApprover")
+  canteiroAnswered              CanteiroChecklistItem[]   @relation("CanteiroItemAnswerer")
+  aprsCreated                   APR[]                     @relation("APRCreator")
+  aprsApproved                  APR[]                     @relation("APRApprover")
+  epiControls                   EPIControl[]              @relation("EPIUser")
+  incidentsReported             Incident[]                @relation("IncidentReporter")
+  incidentsInjured              Incident[]                @relation("IncidentInjured")
+  trainings                     Training[]                @relation("TrainingUser")
+  sequenciamentosCreated        ObraSequenciamento[]      @relation("SeqCreator")
+  etapasSubmitted               ObraEtapa[]               @relation("EtapaSubmitter")
+  etapasApproved                ObraEtapa[]               @relation("EtapaApprover")
+  etapasRejected                ObraEtapa[]               @relation("EtapaRejecter")
+  instrucoesCreated             InstrucaoTecnica[]        @relation("ITCreator")
+  instrucoesUpdated             InstrucaoTecnica[]        @relation("ITUpdater")
+  recebimentosRegistrados       RecebimentoMaterial[]     @relation("RecebimentoRegistrador")
+  faseHistoryChanged            ObraFaseHistory[]         @relation("FaseHistoryChanger")
+  obraFaseUpdated               Obra[]                    @relation("ObraFaseUpdater")
+  conductedTouchpoints          ClientTouchpoint[]        @relation("TouchpointConductor")
+  touchpointNextActions         ClientTouchpoint[]        @relation("TouchpointNextOwner")
+  createdTouchpoints            ClientTouchpoint[]        @relation("TouchpointCreator")
+  createdPunchLists             PunchList[]               @relation("PunchListCreator")
+  pendenciasResponsavel         ObraPendencia[]           @relation("PendenciaResponsavel")
+  folhasFechadas                FolhaFechamento[]         @relation("FolhaFechadoPor")
+  folhasReabertas               FolhaFechamento[]         @relation("FolhaReabertoPor")
+  folhaLinhas                   FolhaFechamentoLinha[]    @relation("FolhaLinhaUser")
+  faltaDescontos                FaltaDesconto[]           @relation("FaltaDescontoUser")
+  colaboradorNfs                ColaboradorNF[]           @relation("ColaboradorNFUser")
+  nfsValidadas                  ColaboradorNF[]           @relation("ColaboradorNFValidadora")
+  pendenciasCriadas             ObraPendencia[]           @relation("PendenciaCriador")
+  amostrasCriadas               AmostraAprovacao[]        @relation("AmostraCriador")
+  projetoDocumentosCriados      ProjetoDocumento[]        @relation("ProjetoDocumentoCriador")
+  projetoDocRevisoesCriadas     ProjetoDocumentoRevisao[] @relation("ProjetoDocumentoRevisaoCriador")
+  punchListItems                PunchListItem[]           @relation("PunchListResponsible")
+  etapaEditRequests             EtapaEditRequest[]        @relation("EtapaEditRequester")
+  etapaEditResolved             EtapaEditRequest[]        @relation("EtapaEditResolver")
+  filledFvs                     ObraFvs[]                 @relation("FvsFiller")
+  gestorFvs                     ObraFvs[]                 @relation("FvsGestorApprover")
+  coordFvs                      ObraFvs[]                 @relation("FvsCoordApprover")
+  rejectedFvs                   ObraFvs[]                 @relation("FvsRejector")
+  aditivosDecididos             ObraAditivo[]             @relation("AditivoDecididoPor")
+  qualidadeVistorias            QualidadeVistoria[]       @relation("QualidadeVistoriador")
+  qualidadePendenciasResolvidas QualidadeVistoriaItem[]   @relation("QualidadePendenciaResolvedor")
+  atividadeFvsPreenchidas       AtividadeFvs[]            @relation("AtividadeFvsPreenchedor")
+  documentosAprovados           ObraDocumento[]           @relation("DocumentoAprovadoPor")
+  filledFvsItems                ObraFvsItem[]             @relation("FvsItemFiller")
+  filledBerChecklists           ObraBerChecklist[]        @relation("BerChecklistFiller")
+  fotosEnviadas                 ObraFoto[]                @relation("FotoAutor")
+  filledBerItems                ObraBerChecklistItem[]    @relation("BerChecklistItemFiller")
+  dreUpdates                    DreValue[]                @relation("DreUpdater")
+  alocacoes                     Alocacao[]                @relation("AlocacaoUser")
+  recursosExternosCriados       RecursoExterno[]          @relation("RecursoExternoCreator")
+  customRole                    CustomRole?               @relation(fields: [customRoleId], references: [id])
+  customRoleId                  String?                   @map("custom_role_id") @db.Uuid
+  orcamentosResponsavel         Orcamento[]               @relation("OrcResp")
+  orcamentosCriados             Orcamento[]               @relation("OrcCriador")
+  quantitativosCriados          Quantitativo[]            @relation("QuantCriador")
+  quantitativoItensRevs         QuantitativoItem[]        @relation("QuantItemRevisor")
+  apiKeys                       ApiKey[]                  @relation("ApiKeyCreator")
+  diariosCriados                DiarioObra[]              @relation("DiarioCriadoPor")
+  diariosFechados               DiarioObra[]              @relation("DiarioFechadoPor")
+  diarioFotos                   DiarioFoto[]              @relation("DiarioFotoUploader")
+  diarioEfetivos                DiarioEfetivo[]           @relation("DiarioEfetivoUser")
+  crmOportunidadesResp          CrmOportunidade[]         @relation("CrmOportResponsavel")
+  crmOportunidadesCriadas       CrmOportunidade[]         @relation("CrmOportCreator")
+  crmAtividades                 CrmAtividade[]            @relation("CrmAtividadeUsuario")
+  crmCampanhas                  CrmCampanha[]             @relation("CrmCampanhaResponsavel")
+  relatorios                    RelatorioSemanal[]        @relation("RelatorioResponsavel")
+  resetTokens                   PasswordResetToken[]
+  orgChartUpdates               OrgChart[]
+  temperaturasPreenchidas       ObraTemperatura[]         @relation("TemperaturaCreator")
+  medicaoTransicoes             MedicaoTransicao[]        @relation("MedicaoTransicaoUser")
+  ataTopicosResponsavel         ObraAtaTopico[]           @relation("AtaTopicoResponsavel")
+  bancoHorasLotes               BancoHorasLote[]          @relation("BancoHorasLoteUser")
+  bancoHorasConsumosFeitos      BancoHorasConsumo[]       @relation("BancoHorasConsumoRegistrador")
+  horaExtraRegistros            HoraExtraRegistro[]       @relation("HoraExtraUser")
+  ajustesPontoRecebidos         AjustePonto[]             @relation("AjustePontoUser")
+  ajustesPontoFeitos            AjustePonto[]             @relation("AjustePontoAjustador")
 
-  recebimentosResponsavel RecebimentoRelatorio[] @relation("RecebimentoResponsavel")
+  recebimentosResponsavel        RecebimentoRelatorio[]     @relation("RecebimentoResponsavel")
+  liberacaoMedicaoAutor          LiberacaoMedicaoOverride[] @relation("LiberacaoMedicaoAutor")
+  qualidadePendenciasResponsavel QualidadeVistoriaItem[]    @relation("QualidadePendenciaResponsavel")
+  pushSubscriptions              PushSubscription[]
+
   @@map("users")
-  liberacaoMedicaoAutor LiberacaoMedicaoOverride[] @relation("LiberacaoMedicaoAutor")
-  qualidadePendenciasResponsavel QualidadeVistoriaItem[] @relation("QualidadePendenciaResponsavel")
-  pushSubscriptions PushSubscription[]
 }
 
 model CustomRole {
@@ -141,21 +146,21 @@ model CustomRole {
 }
 
 model Obra {
-  id              String    @id @default(uuid()) @db.Uuid
-  name            String    @db.VarChar(255)
-  client          String?   @db.VarChar(255)
-  address         String?
-  status          String    @default("em_andamento") @db.VarChar(50)
-  clienteEmail    String?   @map("cliente_email") // múltiplos, separados por vírgula
-  startDate       DateTime? @map("start_date") @db.Date
-  expectedEndDate DateTime? @map("expected_end_date") @db.Date
-  actualEndDate   DateTime? @map("actual_end_date") @db.Date
-  progressPercent Int       @default(0) @map("progress_percent")
-  coordinatorId   String?   @map("coordinator_id") @db.Uuid
-  residentEngineerId String? @map("resident_engineer_id") @db.Uuid // engenheiro residente (Bruno 14/09: reunião puxa sempre coordenador + residente)
-  trelloBoardId   String?   @map("trello_board_id") @db.VarChar(30)
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                 String    @id @default(uuid()) @db.Uuid
+  name               String    @db.VarChar(255)
+  client             String?   @db.VarChar(255)
+  address            String?
+  status             String    @default("em_andamento") @db.VarChar(50)
+  clienteEmail       String?   @map("cliente_email") // múltiplos, separados por vírgula
+  startDate          DateTime? @map("start_date") @db.Date
+  expectedEndDate    DateTime? @map("expected_end_date") @db.Date
+  actualEndDate      DateTime? @map("actual_end_date") @db.Date
+  progressPercent    Int       @default(0) @map("progress_percent")
+  coordinatorId      String?   @map("coordinator_id") @db.Uuid
+  residentEngineerId String?   @map("resident_engineer_id") @db.Uuid // engenheiro residente (Bruno 14/09: reunião puxa sempre coordenador + residente)
+  trelloBoardId      String?   @map("trello_board_id") @db.VarChar(30)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
   fase            String    @default("kickoff_interno") @db.VarChar(50)
   faseUpdatedAt   DateTime? @map("fase_updated_at")
@@ -183,74 +188,75 @@ model Obra {
   retencaoPercentual Decimal @default(0) @map("retencao_percentual") @db.Decimal(5, 2)
 
   // Relations
-  coordinator        User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
-  residentEngineer   User?                  @relation("ObraResidentEngineer", fields: [residentEngineerId], references: [id])
-  orcamento          Orcamento?             @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
-  crmOportunidade    CrmOportunidade?       @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
-  faseUpdatedBy      User?                  @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
-  members            ObraMember[]
-  tasks              ObraTask[]
-  chatRooms          ChatRoom[]
-  photos             Photo[]
-  timeEntries        TimeEntry[]
-  checklists         Checklist[]
-  canteiroChecklists CanteiroChecklist[]
-  aprs               APR[]
-  epiControls        EPIControl[]
-  incidents          Incident[]
-  trainings          Training[]
-  sequenciamentos    ObraSequenciamento[]
-  etapas             ObraEtapa[]
-  recebimentos       RecebimentoMaterial[]
-  faseHistory        ObraFaseHistory[]
-  touchpoints        ClientTouchpoint[]
-  announcements      Announcement[]
-  punchLists         PunchList[]
-  pendencias         ObraPendencia[]
-  amostrasAprovacao  AmostraAprovacao[]
-  projetoDocumentos  ProjetoDocumento[]
-  closeOutItens      ObraCloseOutItem[]
-  folhaLinhas        FolhaFechamentoLinha[]
-  ajustesPonto       AjustePonto[]
-  horasExtras        HoraExtraRegistro[]
-  obraFvs            ObraFvs[]
-  temperaturas       ObraTemperatura[]
-  berChecklists      ObraBerChecklist[]     @relation("ObraBerChecklists")
-  plantas            ObraPlanta[]           @relation("ObraPlantas")
-  ambientes          ObraAmbiente[]         @relation("ObraAmbientes")
-  fotosObra          ObraFoto[]             @relation("ObraFotos")
-  medicoes           Medicao[]
-  medicaoEtapas      Etapa[]
-  fornecedores       Fornecedor[]
-  changeOrders       ChangeOrder[]
-  clientesAcesso     ClienteAcesso[]
-  comprasMetas       ComprasMeta[]
-  comprasConfig      ComprasConfig?
-  alocacoes          Alocacao[]             @relation("AlocacaoObra")
-  ambientesDiario    Ambiente[]
-  diarios            DiarioObra[]
-  cronogramas        Cronograma[]
-  recebimentoRelatorio RecebimentoRelatorio?
-  qualidadeVistorias QualidadeVistoria[]
-  atividadeFvs       AtividadeFvs[]
-  manualProprietario ManualProprietario?
-  relatorios         RelatorioSemanal[]
-  curvaS             RelatorioCurvaS[]
-  aditivos           ObraAditivo[]
-  contratacoes       ObraContratacao[]
-  ordensCompra       ObraOrdemCompra[]
-  ataTopicos         ObraAtaTopico[]
-  documentos         ObraDocumento[]
-  stakeholders       ObraStakeholder[]
-  kickoff            ObraKickoff?
-  kickoffItens       ObraKickoffItem[]
-  kickoffExterno     ObraKickoffExterno?
-  raciItens          ObraRaci[]
-  contratacaoPlanos  ObraContratacaoPlano[]
-  histograma         ObraHistograma[]
+  coordinator               User?                      @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  residentEngineer          User?                      @relation("ObraResidentEngineer", fields: [residentEngineerId], references: [id])
+  orcamento                 Orcamento?                 @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  crmOportunidade           CrmOportunidade?           @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
+  faseUpdatedBy             User?                      @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
+  members                   ObraMember[]
+  tasks                     ObraTask[]
+  chatRooms                 ChatRoom[]
+  photos                    Photo[]
+  timeEntries               TimeEntry[]
+  checklists                Checklist[]
+  canteiroChecklists        CanteiroChecklist[]
+  aprs                      APR[]
+  epiControls               EPIControl[]
+  incidents                 Incident[]
+  trainings                 Training[]
+  sequenciamentos           ObraSequenciamento[]
+  etapas                    ObraEtapa[]
+  recebimentos              RecebimentoMaterial[]
+  faseHistory               ObraFaseHistory[]
+  touchpoints               ClientTouchpoint[]
+  announcements             Announcement[]
+  punchLists                PunchList[]
+  pendencias                ObraPendencia[]
+  amostrasAprovacao         AmostraAprovacao[]
+  projetoDocumentos         ProjetoDocumento[]
+  closeOutItens             ObraCloseOutItem[]
+  folhaLinhas               FolhaFechamentoLinha[]
+  ajustesPonto              AjustePonto[]
+  horasExtras               HoraExtraRegistro[]
+  obraFvs                   ObraFvs[]
+  temperaturas              ObraTemperatura[]
+  berChecklists             ObraBerChecklist[]         @relation("ObraBerChecklists")
+  plantas                   ObraPlanta[]               @relation("ObraPlantas")
+  ambientes                 ObraAmbiente[]             @relation("ObraAmbientes")
+  fotosObra                 ObraFoto[]                 @relation("ObraFotos")
+  medicoes                  Medicao[]
+  medicaoEtapas             Etapa[]
+  fornecedores              Fornecedor[]
+  changeOrders              ChangeOrder[]
+  clientesAcesso            ClienteAcesso[]
+  comprasMetas              ComprasMeta[]
+  comprasConfig             ComprasConfig?
+  alocacoes                 Alocacao[]                 @relation("AlocacaoObra")
+  ambientesDiario           Ambiente[]
+  diarios                   DiarioObra[]
+  cronogramas               Cronograma[]
+  recebimentoRelatorio      RecebimentoRelatorio?
+  qualidadeVistorias        QualidadeVistoria[]
+  atividadeFvs              AtividadeFvs[]
+  manualProprietario        ManualProprietario?
+  relatorios                RelatorioSemanal[]
+  curvaS                    RelatorioCurvaS[]
+  aditivos                  ObraAditivo[]
+  contratacoes              ObraContratacao[]
+  ordensCompra              ObraOrdemCompra[]
+  ataTopicos                ObraAtaTopico[]
+  documentos                ObraDocumento[]
+  stakeholders              ObraStakeholder[]
+  kickoff                   ObraKickoff?
+  kickoffItens              ObraKickoffItem[]
+  kickoffExterno            ObraKickoffExterno?
+  raciItens                 ObraRaci[]
+  contratacaoPlanos         ObraContratacaoPlano[]
+  histograma                ObraHistograma[]
+  liberacaoMedicaoOverrides LiberacaoMedicaoOverride[]
+  liberacoesFornecedor      LiberacaoFornecedor[]
 
   @@map("obras")
-  liberacaoMedicaoOverrides LiberacaoMedicaoOverride[]
 }
 
 model ComprasMeta {
@@ -270,8 +276,9 @@ model ComprasMeta {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra   Obra           @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  splits ComprasSplit[]
+  obra       Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  splits     ComprasSplit[]
+  liberacoes LiberacaoFornecedor[]
 
   @@index([obraId])
   @@map("compras_metas")
@@ -990,27 +997,27 @@ model PunchListItem {
 // tipo pendencia × solicitacao (nova solicitação do cliente = só classificação),
 // criticidade 3 níveis, mobile+web (engenheiro residente aponta em campo).
 model ObraPendencia {
-  id             String    @id @default(uuid()) @db.Uuid
-  obraId         String    @map("obra_id") @db.Uuid
-  ambiente       String    @db.VarChar(120)
-  atividade      String
-  disciplina     String?   @db.VarChar(60)
-  fornecedor     String?   @db.VarChar(120)
-  apontadoPor    String    @default("ber") @map("apontado_por") @db.VarChar(10) // ber | cliente
-  responsavelId  String?   @map("responsavel_id") @db.Uuid
-  tipo           String    @default("pendencia") @db.VarChar(15) // pendencia | solicitacao
-  criticidade    String    @default("media") @db.VarChar(10) // baixa | media | alta
-  status         String    @default("aberta") @db.VarChar(15) // aberta | em_andamento | concluida | bloqueada
-  motivoBloqueio String?   @map("motivo_bloqueio")
-  dataInicio     DateTime? @map("data_inicio") @db.Date
-  dataTermino    DateTime? @map("data_termino") @db.Date
-  fotoAberturaUrl  String? @map("foto_abertura_url")
-  fotoConclusaoUrl String? @map("foto_conclusao_url")
-  observacoes    String?
-  concluidaEm    DateTime? @map("concluida_em")
-  createdBy      String?   @map("created_by") @db.Uuid
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  id               String    @id @default(uuid()) @db.Uuid
+  obraId           String    @map("obra_id") @db.Uuid
+  ambiente         String    @db.VarChar(120)
+  atividade        String
+  disciplina       String?   @db.VarChar(60)
+  fornecedor       String?   @db.VarChar(120)
+  apontadoPor      String    @default("ber") @map("apontado_por") @db.VarChar(10) // ber | cliente
+  responsavelId    String?   @map("responsavel_id") @db.Uuid
+  tipo             String    @default("pendencia") @db.VarChar(15) // pendencia | solicitacao
+  criticidade      String    @default("media") @db.VarChar(10) // baixa | media | alta
+  status           String    @default("aberta") @db.VarChar(15) // aberta | em_andamento | concluida | bloqueada
+  motivoBloqueio   String?   @map("motivo_bloqueio")
+  dataInicio       DateTime? @map("data_inicio") @db.Date
+  dataTermino      DateTime? @map("data_termino") @db.Date
+  fotoAberturaUrl  String?   @map("foto_abertura_url")
+  fotoConclusaoUrl String?   @map("foto_conclusao_url")
+  observacoes      String?
+  concluidaEm      DateTime? @map("concluida_em")
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra        Obra  @relation(fields: [obraId], references: [id], onDelete: Cascade)
   responsavel User? @relation("PendenciaResponsavel", fields: [responsavelId], references: [id])
@@ -1056,43 +1063,43 @@ model AmostraAprovacao {
 // Revisão é histórico normalizado — 1 linha por revisão, ilimitado, cada uma
 // com o arquivo daquela versão; "última revisão" é sempre calculada.
 model ProjetoDocumento {
-  id          String   @id @default(uuid()) @db.Uuid
-  obraId      String   @map("obra_id") @db.Uuid
-  codigo      String   @db.VarChar(150)
-  titulo      String?  @db.VarChar(255)
-  disciplina  String   @db.VarChar(80)
-  projetista  String?  @db.VarChar(150)
-  etapa       String?  @db.VarChar(40)
-  comentario  String?  @db.VarChar(1000) // comentário livre no card (Bruno 10/09/26)
+  id            String    @id @default(uuid()) @db.Uuid
+  obraId        String    @map("obra_id") @db.Uuid
+  codigo        String    @db.VarChar(150)
+  titulo        String?   @db.VarChar(255)
+  disciplina    String    @db.VarChar(80)
+  projetista    String?   @db.VarChar(150)
+  etapa         String?   @db.VarChar(40)
+  comentario    String?   @db.VarChar(1000) // comentário livre no card (Bruno 10/09/26)
   // Seguro (Bruno 10/09/26): apólice exige vigência; 7 dias antes do fim dispara
   // e-mail diário até alguém registrar a decisão (extensao | sem_extensao).
   // Nova vigência gravada → decisão reseta (novo ciclo de alerta pro novo prazo).
   vigenciaFim   DateTime? @map("vigencia_fim") @db.Date
   seguroDecisao String?   @map("seguro_decisao") @db.VarChar(20)
-  obsoleto    Boolean  @default(false) // desenho saiu de uso — some da lista ativa, restaurável (02/09/26)
-  createdById String?  @map("created_by") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  obsoleto      Boolean   @default(false) // desenho saiu de uso — some da lista ativa, restaurável (02/09/26)
+  createdById   String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra      Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  createdBy User?                      @relation("ProjetoDocumentoCriador", fields: [createdById], references: [id])
+  obra      Obra                      @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  createdBy User?                     @relation("ProjetoDocumentoCriador", fields: [createdById], references: [id])
   revisoes  ProjetoDocumentoRevisao[]
 
-  @@index([obraId])
   @@unique([obraId, codigo])
+  @@index([obraId])
   @@map("projeto_documentos")
 }
 
 model ProjetoDocumentoRevisao {
-  id            String   @id @default(uuid()) @db.Uuid
-  documentoId   String   @map("documento_id") @db.Uuid
-  revisao       String   @db.VarChar(20)
-  data          DateTime @db.Date
-  arquivoUrl    String?  @map("arquivo_url")
-  arquivoNome   String?  @map("arquivo_nome") @db.VarChar(255)
-  observacao    String?
-  createdById   String?  @map("created_by") @db.Uuid
-  createdAt     DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  documentoId String   @map("documento_id") @db.Uuid
+  revisao     String   @db.VarChar(20)
+  data        DateTime @db.Date
+  arquivoUrl  String?  @map("arquivo_url")
+  arquivoNome String?  @map("arquivo_nome") @db.VarChar(255)
+  observacao  String?
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
 
   documento ProjetoDocumento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
   createdBy User?            @relation("ProjetoDocumentoRevisaoCriador", fields: [createdById], references: [id])
@@ -1110,7 +1117,7 @@ model DocumentoExclusaoLog {
   obraId     String   @map("obra_id") @db.Uuid
   tipo       String   @db.VarChar(10) // documento | revisao
   codigo     String   @db.VarChar(150)
-  detalhe    String?  // revisão/arquivo (tipo=revisao) ou título (tipo=documento)
+  detalhe    String? // revisão/arquivo (tipo=revisao) ou título (tipo=documento)
   assinatura String   @db.VarChar(150)
   userId     String?  @map("user_id") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at")
@@ -1131,9 +1138,9 @@ model QualidadeVistoria {
   data          DateTime @default(now())
   notaFinal     Decimal  @map("nota_final") @db.Decimal(4, 2)
   classificacao String   @db.VarChar(20) // excelente | boa | regular | critico | inaceitavel
-  resumo        Json     // por categoria: {key, nome, peso, sim, nao, na, conformidade, nota}
+  resumo        Json // por categoria: {key, nome, peso, sim, nao, na, conformidade, nota}
   atividades    Json     @default("[]") // atividades em execução: [{itCode?, titulo}]
-  observacoes   String?  // feedback livre de quem vistoriou
+  observacoes   String? // feedback livre de quem vistoriou
   cienciaNome   String?  @map("ciencia_nome") @db.VarChar(150) // quem acompanhou a visita (ciência)
   createdAt     DateTime @default(now()) @map("created_at")
 
@@ -1150,7 +1157,7 @@ model QualidadeVistoriaItem {
   vistoriaId     String    @map("vistoria_id") @db.Uuid
   categoriaKey   String    @map("categoria_key") @db.VarChar(30)
   itemKey        String    @map("item_key") @db.VarChar(30)
-  texto          String    // snapshot do texto do item no momento da vistoria
+  texto          String // snapshot do texto do item no momento da vistoria
   resposta       String    @db.VarChar(3) // sim | nao | na
   observacao     String?
   fotoUrl        String?   @map("foto_url") // evidência fotográfica (R2)
@@ -1232,7 +1239,7 @@ model AtividadeFvsItem {
   id         String  @id @default(uuid()) @db.Uuid
   fvsId      String  @map("fvs_id") @db.Uuid
   ordem      Int     @default(0)
-  texto      String  // critério da IT (snapshot)
+  texto      String // critério da IT (snapshot)
   resposta   String? @db.VarChar(15) // conforme | nao_conforme | na
   observacao String?
   fotoUrl    String? @map("foto_url")
@@ -1246,19 +1253,19 @@ model AtividadeFvsItem {
 // ─── Pós-Obra · Close Out (etapa 3, 27/08/26) ───
 // Checklist de documentos da obra que compila o Manual do Proprietário.
 model ObraCloseOutItem {
-  id            String    @id @default(uuid()) @db.Uuid
-  obraId        String    @map("obra_id") @db.Uuid
-  categoria     String    @db.VarChar(30) // asbuilt | art_licencas | manuais | garantias | acabamentos | contatos | fotos_finais | laudos | outros
-  titulo        String    @db.VarChar(200)
-  descricao     String?
-  fornecedor    String?   @db.VarChar(120)
-  status        String    @default("pendente") @db.VarChar(15) // pendente | recebido
-  arquivoUrl    String?   @map("arquivo_url")
-  arquivoNome   String?   @map("arquivo_nome") @db.VarChar(255)
-  validade      DateTime? @db.Date // garantias: até quando vale
-  recebidoEm    DateTime? @map("recebido_em")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  obraId      String    @map("obra_id") @db.Uuid
+  categoria   String    @db.VarChar(30) // asbuilt | art_licencas | manuais | garantias | acabamentos | contatos | fotos_finais | laudos | outros
+  titulo      String    @db.VarChar(200)
+  descricao   String?
+  fornecedor  String?   @db.VarChar(120)
+  status      String    @default("pendente") @db.VarChar(15) // pendente | recebido
+  arquivoUrl  String?   @map("arquivo_url")
+  arquivoNome String?   @map("arquivo_nome") @db.VarChar(255)
+  validade    DateTime? @db.Date // garantias: até quando vale
+  recebidoEm  DateTime? @map("recebido_em")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
@@ -2143,21 +2150,21 @@ model DiarioEquipamento {
 }
 
 model Cronograma {
-  id          String    @id @default(uuid()) @db.Uuid
-  obraId      String    @map("obra_id") @db.Uuid
-  fileUrl     String    @map("file_url")
-  fileName    String    @map("file_name") @db.VarChar(255)
-  parsedAt    DateTime? @map("parsed_at")
-  parsedData  Json?     @map("parsed_data")
-  overrides   Json?     @map("overrides")
-  progressPct Int?      @map("progress_pct")
+  id             String    @id @default(uuid()) @db.Uuid
+  obraId         String    @map("obra_id") @db.Uuid
+  fileUrl        String    @map("file_url")
+  fileName       String    @map("file_name") @db.VarChar(255)
+  parsedAt       DateTime? @map("parsed_at")
+  parsedData     Json?     @map("parsed_data")
+  overrides      Json?     @map("overrides")
+  progressPct    Int?      @map("progress_pct")
   // Leitura focada do % geral (fase do Sequenciamento, 02/09/26) —
   // independente do parse completo acima
   pctFocado      Int?      @map("pct_focado")
   pctFocadoEm    DateTime? @map("pct_focado_em")
   pctFocadoFonte String?   @map("pct_focado_fonte") @db.VarChar(120)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
   obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
 
@@ -2402,21 +2409,21 @@ model CrmMetaVendas {
 // dispara é um worker no Mac mini (launchd com.bruno.whatsapp-envios) via
 // gateway OpenClaw/número da Clara — a nuvem não alcança o gateway local.
 model WhatsappEnvio {
-  id            String    @id @default(uuid()) @db.Uuid
-  obraId        String    @map("obra_id") @db.Uuid
-  relatorioId   String?   @map("relatorio_id") @db.Uuid // relatório semanal OU diário (14/09)
-  diarioId      String?   @map("diario_id") @db.Uuid
-  destinatario  String    @db.VarChar(150)
-  telefone      String    @db.VarChar(30)
-  legenda       String
-  arquivoPath   String    @map("arquivo_path") // rota relativa do PDF no ber-app (worker baixa com o próprio JWT)
-  arquivoNome   String?   @map("arquivo_nome") @db.VarChar(200) // nome de exibição do PDF no WhatsApp (14/09)
-  status        String    @default("pendente") @db.VarChar(20) // pendente | enviado | falha
-  tentativas    Int       @default(0)
-  erro          String?
-  enviadoEm     DateTime? @map("enviado_em")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  id           String    @id @default(uuid()) @db.Uuid
+  obraId       String    @map("obra_id") @db.Uuid
+  relatorioId  String?   @map("relatorio_id") @db.Uuid // relatório semanal OU diário (14/09)
+  diarioId     String?   @map("diario_id") @db.Uuid
+  destinatario String    @db.VarChar(150)
+  telefone     String    @db.VarChar(30)
+  legenda      String
+  arquivoPath  String    @map("arquivo_path") // rota relativa do PDF no ber-app (worker baixa com o próprio JWT)
+  arquivoNome  String?   @map("arquivo_nome") @db.VarChar(200) // nome de exibição do PDF no WhatsApp (14/09)
+  status       String    @default("pendente") @db.VarChar(20) // pendente | enviado | falha
+  tentativas   Int       @default(0)
+  erro         String?
+  enviadoEm    DateTime? @map("enviado_em")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@index([status])
   @@map("whatsapp_envios")
@@ -2592,13 +2599,13 @@ model ObraContratacaoPlano {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra        Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  contratacao ObraContratacao? @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+  obra               Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratacao        ObraContratacao?           @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+  liberacaoOverrides LiberacaoMedicaoOverride[]
 
   @@index([obraId])
   @@index([status])
   @@map("obra_contratacao_planos")
-  liberacaoOverrides LiberacaoMedicaoOverride[]
 }
 
 // ─── ObraHistograma (mão de obra plan × real por mês) ────────────────────
@@ -2648,20 +2655,20 @@ model ObraDocumento {
 
 // ─── ObraStakeholder (contatos do projeto) ───────────────────────────────
 model ObraStakeholder {
-  id        String   @id @default(uuid()) @db.Uuid
-  obraId    String   @map("obra_id") @db.Uuid
-  empresa   String   @db.VarChar(255)
-  nome      String   @db.VarChar(255)
-  cargo     String?  @db.VarChar(150)
-  email     String?  @db.VarChar(255)
-  telefone  String?  @db.VarChar(50)
-  funcao    String?  @db.VarChar(150)
-  ordem     Int      @default(0)
-  recebeEmails Boolean @default(false) @map("recebe_emails") // legado (27/08) — substituído pelos dois abaixo
-  recebeDiario    Boolean @default(false) @map("recebe_diario")
-  recebeRelatorio Boolean @default(false) @map("recebe_relatorio")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  obraId          String   @map("obra_id") @db.Uuid
+  empresa         String   @db.VarChar(255)
+  nome            String   @db.VarChar(255)
+  cargo           String?  @db.VarChar(150)
+  email           String?  @db.VarChar(255)
+  telefone        String?  @db.VarChar(50)
+  funcao          String?  @db.VarChar(150)
+  ordem           Int      @default(0)
+  recebeEmails    Boolean  @default(false) @map("recebe_emails") // legado (27/08) — substituído pelos dois abaixo
+  recebeDiario    Boolean  @default(false) @map("recebe_diario")
+  recebeRelatorio Boolean  @default(false) @map("recebe_relatorio")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
   obra                  Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
   ataTopicosResponsavel ObraAtaTopico[]    @relation("AtaTopicoResponsavelStakeholder")
@@ -2781,18 +2788,18 @@ model ObraTemperatura {
 // A reunião agrupa as obras em andamento e aponta pra ATA VIVA de cada uma
 // (ObraAtaTopico). Histórico = snapshot imutável gravado no encerramento.
 model ReuniaoEngenharia {
-  id               String    @id @default(uuid()) @db.Uuid
-  data             DateTime  @default(now())
-  status           String    @default("aberta") @db.VarChar(12) // aberta | encerrada
-  participantesIds String[]  @default([]) @map("participantes_ids") @db.Uuid
-  obrasIds         String[]  @default([]) @map("obras_ids") @db.Uuid
-  snapshot         Json?     // [{obraId, obraNome, coordenador, topicos: [...]}] no encerramento
-  participantesPorObra Json? @map("participantes_por_obra") // {obraId: userId[]} — quem participou da discussão de cada obra (Bruno 14/09)
-  encerradaEm      DateTime? @map("encerrada_em")
-  enviadaEm        DateTime? @map("enviada_em")
-  criadaPor        String?   @map("criada_por") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  id                   String    @id @default(uuid()) @db.Uuid
+  data                 DateTime  @default(now())
+  status               String    @default("aberta") @db.VarChar(12) // aberta | encerrada
+  participantesIds     String[]  @default([]) @map("participantes_ids") @db.Uuid
+  obrasIds             String[]  @default([]) @map("obras_ids") @db.Uuid
+  snapshot             Json? // [{obraId, obraNome, coordenador, topicos: [...]}] no encerramento
+  participantesPorObra Json?     @map("participantes_por_obra") // {obraId: userId[]} — quem participou da discussão de cada obra (Bruno 14/09)
+  encerradaEm          DateTime? @map("encerrada_em")
+  enviadaEm            DateTime? @map("enviada_em")
+  criadaPor            String?   @map("criada_por") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("reunioes_engenharia")
 }
@@ -3005,16 +3012,16 @@ model FinValor {
 // Lista própria de colaboradores (registro dedicado, independente de User/login)
 // com saldo manual de férias; períodos consomem o saldo (dias corridos).
 model Colaborador {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String?  @unique @map("user_id") @db.Uuid // vínculo com usuário do app (null = manual/terceirizado)
-  nome             String   @db.VarChar(150)
-  cargo            String?  @db.VarChar(120)
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String?   @unique @map("user_id") @db.Uuid // vínculo com usuário do app (null = manual/terceirizado)
+  nome             String    @db.VarChar(150)
+  cargo            String?   @db.VarChar(120)
   dataAdmissao     DateTime? @map("data_admissao") @db.Date // início na BÈR — base do período aquisitivo de férias
-  feriasATirarDias Int      @default(30) @map("ferias_a_tirar_dias") // saldo total a gozar (manual)
-  ativo            Boolean  @default(true)
-  ordem            Int      @default(0)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  feriasATirarDias Int       @default(30) @map("ferias_a_tirar_dias") // saldo total a gozar (manual)
+  ativo            Boolean   @default(true)
+  ordem            Int       @default(0)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
   ferias FeriasPeriodo[]
 
@@ -3097,18 +3104,18 @@ model BancoHorasConsumo {
 // ou excedente além do teto de saldo acumulado do banco de horas.
 // ─── Fechamento mensal de folha por centro de custo (27/08/26) ───
 model FolhaFechamento {
-  id          String    @id @default(uuid()) @db.Uuid
-  competencia DateTime  @unique @db.Date // primeiro dia do mês
-  status      String    @default("fechado") @db.VarChar(15) // fechado | reaberto
-  fechadoPorId String?  @map("fechado_por_id") @db.Uuid
-  fechadoEm   DateTime  @default(now()) @map("fechado_em")
-  reabertoPorId String? @map("reaberto_por_id") @db.Uuid
-  reabertoEm  DateTime? @map("reaberto_em")
-  observacoes String?
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(uuid()) @db.Uuid
+  competencia   DateTime  @unique @db.Date // primeiro dia do mês
+  status        String    @default("fechado") @db.VarChar(15) // fechado | reaberto
+  fechadoPorId  String?   @map("fechado_por_id") @db.Uuid
+  fechadoEm     DateTime  @default(now()) @map("fechado_em")
+  reabertoPorId String?   @map("reaberto_por_id") @db.Uuid
+  reabertoEm    DateTime? @map("reaberto_em")
+  observacoes   String?
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  fechadoPor  User? @relation("FolhaFechadoPor", fields: [fechadoPorId], references: [id])
-  reabertoPor User? @relation("FolhaReabertoPor", fields: [reabertoPorId], references: [id])
+  fechadoPor  User?                  @relation("FolhaFechadoPor", fields: [fechadoPorId], references: [id])
+  reabertoPor User?                  @relation("FolhaReabertoPor", fields: [reabertoPorId], references: [id])
   linhas      FolhaFechamentoLinha[]
 
   @@map("folha_fechamentos")
@@ -3119,7 +3126,7 @@ model FolhaFechamentoLinha {
   fechamentoId  String  @map("fechamento_id") @db.Uuid
   userId        String  @map("user_id") @db.Uuid
   obraId        String? @map("obra_id") @db.Uuid // null = sem obra / interno
-  minutos       Int     // horas normais rateadas na obra
+  minutos       Int // horas normais rateadas na obra
   minutosExtras Int     @default(0) @map("minutos_extras") // extras remuneradas do mês (linha por usuário, obra null)
   detalhe       String? // ex: "inclui ajustes manuais rateados"
 
@@ -3181,7 +3188,7 @@ model FaltaDesconto {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   data      DateTime @db.Date
-  minutos   Int      // minutos a descontar em folha
+  minutos   Int // minutos a descontar em folha
   detalhe   String?
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -3301,6 +3308,43 @@ model LiberacaoMedicaoOverride {
 
   @@index([obraId, planoId, createdAt])
   @@map("liberacao_medicao_overrides")
+}
+
+// ─── Liberação de fornecedor p/ faturamento (21/09/26, pedido Bruno) ────────
+// Engenharia solicita % sobre o valor "comprado" de um item de Metas de
+// Compra → financeiro aprova (define data de pagamento) → diretoria aprova →
+// e-mail automático autoriza o fornecedor a emitir a NF. Ceiling = o próprio
+// `comprado` do ComprasMeta (valor real negociado com o fornecedor).
+model LiberacaoFornecedor {
+  id                   String    @id @default(uuid()) @db.Uuid
+  obraId               String    @map("obra_id") @db.Uuid
+  comprasMetaId        String    @map("compras_meta_id") @db.Uuid
+  percentual           Decimal   @db.Decimal(5, 2)
+  valorAutorizado      Decimal   @map("valor_autorizado") @db.Decimal(14, 2)
+  // solicitada | aprovada_financeiro | autorizada | recusada
+  status               String    @default("solicitada") @db.VarChar(24)
+  dataPagamento        DateTime? @map("data_pagamento") @db.Date
+  observacoes          String?   @db.VarChar(500)
+  solicitadoPorId      String?   @map("solicitado_por") @db.Uuid
+  aprovadoFinanceiroId String?   @map("aprovado_financeiro_por") @db.Uuid
+  aprovadoDiretoriaId  String?   @map("aprovado_diretoria_por") @db.Uuid
+  recusadoPorId        String?   @map("recusado_por") @db.Uuid
+  motivoRecusa         String?   @map("motivo_recusa") @db.VarChar(500)
+  emailEnviadoEm       DateTime? @map("email_enviado_em")
+  emailDestinatario    String?   @map("email_destinatario")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  obra               Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  comprasMeta        ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)
+  solicitadoPor      User?       @relation("LibForSolicitante", fields: [solicitadoPorId], references: [id])
+  aprovadoFinanceiro User?       @relation("LibForAprovFin", fields: [aprovadoFinanceiroId], references: [id])
+  aprovadoDiretoria  User?       @relation("LibForAprovDir", fields: [aprovadoDiretoriaId], references: [id])
+  recusadoPor        User?       @relation("LibForRecusa", fields: [recusadoPorId], references: [id])
+
+  @@index([obraId, status])
+  @@index([comprasMetaId])
+  @@map("liberacoes_fornecedor")
 }
 
 // ─── Web Push (PWA, 11/09/26) — alertas no celular da equipe ───

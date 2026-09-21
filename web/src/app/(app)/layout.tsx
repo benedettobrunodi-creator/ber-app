@@ -15,7 +15,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, DollarSign, Palmtree, Timer, Wallet, Scale,
+  ShoppingCart, DollarSign, Palmtree, Timer, Wallet, Scale, Send,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
       { label: 'Liberação de Medição', href: '/liberacao-medicao', icon: Scale, badge: true, perm: 'obras' },
+      { label: 'Liberação de Fornecedor', href: '/liberacao-fornecedor', icon: Send, perm: 'obras' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
