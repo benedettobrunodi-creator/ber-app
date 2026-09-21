@@ -62,6 +62,7 @@ import capitalGiroRoutes from './modules/capital-giro/routes';
 import { obraRecebimentoRouter, recebimentoRouter } from './modules/recebimento/routes';
 import qualidadeRouter from './modules/qualidade/routes';
 import liberacaoMedicaoRouter from './modules/liberacao-medicao/routes';
+import liberacaoMedicaoGeralRouter from './modules/liberacao-medicao/routes-geral';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 import { requirePermission } from './middleware/permission';
@@ -141,6 +142,8 @@ app.use('/v1/recebimento', ...perm('obras'), recebimentoRouter);
 // Qualidade — vistoria com scorecard (03/09/26)
 app.use('/v1/obras/:id/qualidade', ...perm('obras'), qualidadeRouter);
 app.use('/v1/obras/:id/liberacao-medicao', ...perm('obras'), liberacaoMedicaoRouter);
+// Painel geral (21/09/26) — mesma permissão da tela por obra, agregado.
+app.use('/v1/liberacao-medicao', ...perm('obras'), liberacaoMedicaoGeralRouter);
 // Ranking de qualidade entre obras (10/09) — consumido pelo dashboard
 import { Router as QRankRouter } from 'express';
 import { ranking as qualidadeRanking } from './modules/qualidade/controller';

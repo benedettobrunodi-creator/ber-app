@@ -15,7 +15,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, DollarSign, Palmtree, Timer, Wallet,
+  ShoppingCart, DollarSign, Palmtree, Timer, Wallet, Scale,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
       { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
+      { label: 'Liberação de Medição', href: '/liberacao-medicao', icon: Scale, badge: true, perm: 'obras' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },
@@ -169,8 +170,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const r = await api.get('/obras/counts');
         const { total = 0, ativas = 0, atrasadas = 0 } = r.data?.data ?? {};
-        setCounts({ '/obras': ativas });
+        setCounts((prev) => ({ ...prev, '/obras': ativas }));
         setKpi({ ativas, total, atrasadas });
+      } catch { /* silent */ }
+      // Bloqueios do semáforo de qualidade (21/09/26) — badge próprio, não
+      // trava o fetch acima se a permissão do usuário não incluir 'obras'.
+      try {
+        const r = await api.get('/liberacao-medicao');
+        const bloqueados = r.data?.data?.totais?.bloqueados ?? 0;
+        setCounts((prev) => ({ ...prev, '/liberacao-medicao': bloqueados }));
       } catch { /* silent */ }
     };
     fetchCounts();

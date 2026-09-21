@@ -106,6 +106,41 @@ export async function getPainel(obraId: string) {
   return { obra: { id: obra.id, nome: obra.name }, linhas, fichasSemVinculo: semVinculo };
 }
 
+/**
+ * Painel GERAL (Bruno 21/09/26) — todas as obras juntas, pra virar item de
+ * menu lateral em vez de precisar entrar obra por obra. Reusa getPainel() por
+ * obra (mesma lógica de semáforo, sem duplicar); obra sem pacote contratado
+ * nem aparece (nada pra liberar). Ordena com mais bloqueios primeiro.
+ */
+export async function getPainelGeral() {
+  const obras = await prisma.obra.findMany({
+    where: { status: { not: 'arquivada' } },
+    select: { id: true },
+    orderBy: { name: 'asc' },
+  });
+
+  const paineis = await Promise.all(obras.map((o) => getPainel(o.id)));
+
+  const comContagem = paineis
+    .filter((p) => p.linhas.length > 0)
+    .map((p) => {
+      const bloqueados = p.linhas.filter((l) => l.status === 'bloqueado' || l.status === 'bloqueado_manual').length;
+      const aguardando = p.linhas.filter((l) => l.status === 'aguardando_execucao').length;
+      const liberados = p.linhas.length - bloqueados - aguardando;
+      return { ...p, resumo: { bloqueados, aguardando, liberados, total: p.linhas.length } };
+    })
+    .sort((a, b) => b.resumo.bloqueados - a.resumo.bloqueados);
+
+  const totalBloqueados = comContagem.reduce((s, p) => s + p.resumo.bloqueados, 0);
+  const totalAguardando = comContagem.reduce((s, p) => s + p.resumo.aguardando, 0);
+  const totalLiberados = comContagem.reduce((s, p) => s + p.resumo.liberados, 0);
+
+  return {
+    obras: comContagem,
+    totais: { bloqueados: totalBloqueados, aguardando: totalAguardando, liberados: totalLiberados },
+  };
+}
+
 export async function criarOverride(
   obraId: string,
   planoId: string,
