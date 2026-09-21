@@ -124,9 +124,8 @@ model User {
   ajustesPontoRecebidos         AjustePonto[]             @relation("AjustePontoUser")
   ajustesPontoFeitos            AjustePonto[]             @relation("AjustePontoAjustador")
 
-  recebimentosResponsavel        RecebimentoRelatorio[]     @relation("RecebimentoResponsavel")
-  liberacaoMedicaoAutor          LiberacaoMedicaoOverride[] @relation("LiberacaoMedicaoAutor")
-  qualidadePendenciasResponsavel QualidadeVistoriaItem[]    @relation("QualidadePendenciaResponsavel")
+  recebimentosResponsavel        RecebimentoRelatorio[]  @relation("RecebimentoResponsavel")
+  qualidadePendenciasResponsavel QualidadeVistoriaItem[] @relation("QualidadePendenciaResponsavel")
   pushSubscriptions              PushSubscription[]
 
   @@map("users")
@@ -188,73 +187,72 @@ model Obra {
   retencaoPercentual Decimal @default(0) @map("retencao_percentual") @db.Decimal(5, 2)
 
   // Relations
-  coordinator               User?                      @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
-  residentEngineer          User?                      @relation("ObraResidentEngineer", fields: [residentEngineerId], references: [id])
-  orcamento                 Orcamento?                 @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
-  crmOportunidade           CrmOportunidade?           @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
-  faseUpdatedBy             User?                      @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
-  members                   ObraMember[]
-  tasks                     ObraTask[]
-  chatRooms                 ChatRoom[]
-  photos                    Photo[]
-  timeEntries               TimeEntry[]
-  checklists                Checklist[]
-  canteiroChecklists        CanteiroChecklist[]
-  aprs                      APR[]
-  epiControls               EPIControl[]
-  incidents                 Incident[]
-  trainings                 Training[]
-  sequenciamentos           ObraSequenciamento[]
-  etapas                    ObraEtapa[]
-  recebimentos              RecebimentoMaterial[]
-  faseHistory               ObraFaseHistory[]
-  touchpoints               ClientTouchpoint[]
-  announcements             Announcement[]
-  punchLists                PunchList[]
-  pendencias                ObraPendencia[]
-  amostrasAprovacao         AmostraAprovacao[]
-  projetoDocumentos         ProjetoDocumento[]
-  closeOutItens             ObraCloseOutItem[]
-  folhaLinhas               FolhaFechamentoLinha[]
-  ajustesPonto              AjustePonto[]
-  horasExtras               HoraExtraRegistro[]
-  obraFvs                   ObraFvs[]
-  temperaturas              ObraTemperatura[]
-  berChecklists             ObraBerChecklist[]         @relation("ObraBerChecklists")
-  plantas                   ObraPlanta[]               @relation("ObraPlantas")
-  ambientes                 ObraAmbiente[]             @relation("ObraAmbientes")
-  fotosObra                 ObraFoto[]                 @relation("ObraFotos")
-  medicoes                  Medicao[]
-  medicaoEtapas             Etapa[]
-  fornecedores              Fornecedor[]
-  changeOrders              ChangeOrder[]
-  clientesAcesso            ClienteAcesso[]
-  comprasMetas              ComprasMeta[]
-  comprasConfig             ComprasConfig?
-  alocacoes                 Alocacao[]                 @relation("AlocacaoObra")
-  ambientesDiario           Ambiente[]
-  diarios                   DiarioObra[]
-  cronogramas               Cronograma[]
-  recebimentoRelatorio      RecebimentoRelatorio?
-  qualidadeVistorias        QualidadeVistoria[]
-  atividadeFvs              AtividadeFvs[]
-  manualProprietario        ManualProprietario?
-  relatorios                RelatorioSemanal[]
-  curvaS                    RelatorioCurvaS[]
-  aditivos                  ObraAditivo[]
-  contratacoes              ObraContratacao[]
-  ordensCompra              ObraOrdemCompra[]
-  ataTopicos                ObraAtaTopico[]
-  documentos                ObraDocumento[]
-  stakeholders              ObraStakeholder[]
-  kickoff                   ObraKickoff?
-  kickoffItens              ObraKickoffItem[]
-  kickoffExterno            ObraKickoffExterno?
-  raciItens                 ObraRaci[]
-  contratacaoPlanos         ObraContratacaoPlano[]
-  histograma                ObraHistograma[]
-  liberacaoMedicaoOverrides LiberacaoMedicaoOverride[]
-  liberacoesFornecedor      LiberacaoFornecedor[]
+  coordinator          User?                  @relation("ObraCoordinator", fields: [coordinatorId], references: [id])
+  residentEngineer     User?                  @relation("ObraResidentEngineer", fields: [residentEngineerId], references: [id])
+  orcamento            Orcamento?             @relation("ObraOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  crmOportunidade      CrmOportunidade?       @relation("ObraCrmOportunidade", fields: [crmOportunidadeId], references: [id], onDelete: SetNull)
+  faseUpdatedBy        User?                  @relation("ObraFaseUpdater", fields: [faseUpdatedById], references: [id])
+  members              ObraMember[]
+  tasks                ObraTask[]
+  chatRooms            ChatRoom[]
+  photos               Photo[]
+  timeEntries          TimeEntry[]
+  checklists           Checklist[]
+  canteiroChecklists   CanteiroChecklist[]
+  aprs                 APR[]
+  epiControls          EPIControl[]
+  incidents            Incident[]
+  trainings            Training[]
+  sequenciamentos      ObraSequenciamento[]
+  etapas               ObraEtapa[]
+  recebimentos         RecebimentoMaterial[]
+  faseHistory          ObraFaseHistory[]
+  touchpoints          ClientTouchpoint[]
+  announcements        Announcement[]
+  punchLists           PunchList[]
+  pendencias           ObraPendencia[]
+  amostrasAprovacao    AmostraAprovacao[]
+  projetoDocumentos    ProjetoDocumento[]
+  closeOutItens        ObraCloseOutItem[]
+  folhaLinhas          FolhaFechamentoLinha[]
+  ajustesPonto         AjustePonto[]
+  horasExtras          HoraExtraRegistro[]
+  obraFvs              ObraFvs[]
+  temperaturas         ObraTemperatura[]
+  berChecklists        ObraBerChecklist[]     @relation("ObraBerChecklists")
+  plantas              ObraPlanta[]           @relation("ObraPlantas")
+  ambientes            ObraAmbiente[]         @relation("ObraAmbientes")
+  fotosObra            ObraFoto[]             @relation("ObraFotos")
+  medicoes             Medicao[]
+  medicaoEtapas        Etapa[]
+  fornecedores         Fornecedor[]
+  changeOrders         ChangeOrder[]
+  clientesAcesso       ClienteAcesso[]
+  comprasMetas         ComprasMeta[]
+  comprasConfig        ComprasConfig?
+  alocacoes            Alocacao[]             @relation("AlocacaoObra")
+  ambientesDiario      Ambiente[]
+  diarios              DiarioObra[]
+  cronogramas          Cronograma[]
+  recebimentoRelatorio RecebimentoRelatorio?
+  qualidadeVistorias   QualidadeVistoria[]
+  atividadeFvs         AtividadeFvs[]
+  manualProprietario   ManualProprietario?
+  relatorios           RelatorioSemanal[]
+  curvaS               RelatorioCurvaS[]
+  aditivos             ObraAditivo[]
+  contratacoes         ObraContratacao[]
+  ordensCompra         ObraOrdemCompra[]
+  ataTopicos           ObraAtaTopico[]
+  documentos           ObraDocumento[]
+  stakeholders         ObraStakeholder[]
+  kickoff              ObraKickoff?
+  kickoffItens         ObraKickoffItem[]
+  kickoffExterno       ObraKickoffExterno?
+  raciItens            ObraRaci[]
+  contratacaoPlanos    ObraContratacaoPlano[]
+  histograma           ObraHistograma[]
+  liberacoesFornecedor LiberacaoFornecedor[]
 
   @@map("obras")
 }
@@ -2599,9 +2597,8 @@ model ObraContratacaoPlano {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra               Obra                       @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  contratacao        ObraContratacao?           @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
-  liberacaoOverrides LiberacaoMedicaoOverride[]
+  obra        Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratacao ObraContratacao? @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
 
   @@index([obraId])
   @@index([status])
@@ -3288,27 +3285,12 @@ model RecebimentoFoto {
   @@map("recebimento_fotos")
 }
 
-// ─── Liberação de Medição (Bruno 10/09/26) ───
-// A medição em si acontece no app de medição; aqui fica o SEMÁFORO: pode medir
-// ou não, por fornecedor (pacote do Cronograma de Contratações), com base na
-// qualidade (FVS pendente/NC bloqueia). Override de exceção só diretoria/PMO,
-// com justificativa — vale 31 dias (um ciclo de medição).
-model LiberacaoMedicaoOverride {
-  id            String   @id @default(uuid()) @db.Uuid
-  obraId        String   @map("obra_id") @db.Uuid
-  planoId       String   @map("plano_id") @db.Uuid // ObraContratacaoPlano
-  liberado      Boolean // true = liberação excepcional; false = bloqueio manual
-  justificativa String
-  criadoPorId   String?  @map("criado_por") @db.Uuid
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  obra      Obra                 @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  plano     ObraContratacaoPlano @relation(fields: [planoId], references: [id], onDelete: Cascade)
-  criadoPor User?                @relation("LiberacaoMedicaoAutor", fields: [criadoPorId], references: [id])
-
-  @@index([obraId, planoId, createdAt])
-  @@map("liberacao_medicao_overrides")
-}
+// Liberação de Medição (semáforo de qualidade, 10/09/26) REMOVIDA em 21/09/26
+// a pedido do Bruno — redundante com Liberação de Fornecedor (abaixo). Zero
+// registros existiam em liberacao_medicao_overrides na hora da remoção
+// (nenhuma exceção/bloqueio manual tinha sido criado). Ele pretende, no
+// futuro, LIGAR o conceito de qualidade a este fluxo — não recriar como
+// módulo separado.
 
 // ─── Liberação de fornecedor p/ faturamento (21/09/26, pedido Bruno) ────────
 // Engenharia solicita % sobre o valor "comprado" de um item de Metas de

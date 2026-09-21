@@ -138,7 +138,6 @@ const daysBetween = (a: Date | null, b: Date | null): number | null => {
 
 export default function CapaObra({ obraId, embedded = false }: { obraId: string; embedded?: boolean }) {
   const backHref = useBackToObra();
-  type LiberacaoLinhaLite = { planoId: string; pacote: string; fornecedor?: string | null; status: 'liberado' | 'bloqueado' | 'aguardando_execucao' | 'liberado_excecao' | 'bloqueado_manual'; motivos: string[] };
   type QualidadeLite = {
     vistorias: { id: string; data: string; notaFinal: number | string | null; vistoriador?: { name: string } | null }[];
     pendencias: { id: string }[];
@@ -153,7 +152,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   const [ultimoRelatorio, setUltimoRelatorio] = useState<RelatorioLite | null>(null);
   const [fases, setFases] = useState<FaseLite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [liberacao, setLiberacao] = useState<LiberacaoLinhaLite[]>([]);
   const [qualidade, setQualidade] = useState<QualidadeLite | null>(null);
   const [tempModalOpen, setTempModalOpen] = useState(false);
   const [tempEditing, setTempEditing] = useState<TemperaturaRow | null>(null);
@@ -161,7 +159,7 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
   async function load() {
     setLoading(true);
     const safe = <T,>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
-    const [o, c, pl, curva, temps, rels, fvs, lib, qual] = await Promise.all([
+    const [o, c, pl, curva, temps, rels, fvs, qual] = await Promise.all([
       safe(api.get<{ data: ObraInfo }>(`/obras/${obraId}`).then(r => r.data.data)),
       safe(api.get<{ data: ContratacoesResp }>(`/obras/${obraId}/contratacoes`).then(r => r.data.data)),
       safe(api.get<{ data: PlanoLite[] }>(`/obras/${obraId}/contratacao-plano`).then(r => r.data.data)),
@@ -169,7 +167,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       safe(api.get<{ data: TemperaturaRow[] }>(`/obras/${obraId}/temperatura`).then(r => r.data.data)),
       safe(api.get<{ data: RelatorioLite[] }>(`/obras/${obraId}/relatorios`).then(r => r.data.data)),
       safe(api.get<{ data: FaseLite[] }>(`/obras/${obraId}/fvs`).then(r => r.data.data)),
-      safe(api.get<{ data: { linhas: LiberacaoLinhaLite[] } }>(`/obras/${obraId}/liberacao-medicao`).then(r => r.data.data)),
       safe(api.get<{ data: QualidadeLite }>(`/obras/${obraId}/qualidade`).then(r => r.data.data)),
     ]);
     setObra(o);
@@ -178,7 +175,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
     setCurvaS(curva ?? []);
     setTemperaturas(temps ?? []);
     setFases(fvs ?? []);
-    setLiberacao(lib?.linhas ?? []);
     setQualidade(qual ?? null);
     // O backend já devolve ordenado por numero desc — o último emitido é o primeiro.
     // Reordena defensivamente caso a ordenação do endpoint mude.
@@ -911,67 +907,6 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
           </Link>
         </div>
       </div>
-
-      {/* ─── LIBERAÇÃO DE MEDIÇÃO — semáforo por fornecedor (Bruno 15/09: seção no cockpit) ── */}
-      {(() => {
-        const bloqueados = liberacao.filter(l => l.status === 'bloqueado' || l.status === 'bloqueado_manual');
-        const liberados = liberacao.filter(l => l.status === 'liberado' || l.status === 'liberado_excecao');
-        const aguardando = liberacao.filter(l => l.status === 'aguardando_execucao');
-        return (
-          <div className="border border-ber-gray/30 mt-3">
-            <div className="bg-[#1F4E78] text-white px-4 py-1.5 text-xs font-bold tracking-wider flex items-center justify-between">
-              <span>LIBERAÇÃO DE MEDIÇÃO</span>
-              <span className="text-[10px] font-medium text-white/80">{liberados.length} liberado(s) · {aguardando.length} aguardando execução · {bloqueados.length} bloqueado(s)</span>
-            </div>
-            <div className="bg-white p-4">
-              {liberacao.length === 0 ? (
-                <p className="text-[12px] text-ber-gray">
-                  Nenhum pacote contratado ainda nesta obra — o semáforo acende quando o Cronograma de
-                  Contratações tiver fornecedor com status <span className="font-semibold">contratado</span>.
-                </p>
-              ) : bloqueados.length === 0 ? (
-                liberados.length > 0 ? (
-                  <div className="rounded-lg bg-emerald-600 px-4 py-3">
-                    <p className="text-2xl font-black leading-none text-white">SEM BLOQUEIOS</p>
-                    <p className="mt-1 text-[12px] font-medium text-emerald-50">{liberados.length} liberado(s) pra medir{aguardando.length > 0 ? ` · ${aguardando.length} aguardando execução` : ''}</p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg bg-amber-500 px-4 py-3">
-                    <p className="text-2xl font-black leading-none text-white">AGUARDANDO EXECUÇÃO</p>
-                    <p className="mt-1 text-[12px] font-medium text-amber-50">Nenhum pacote com execução verificada (FVS preenchida) — nada a medir ainda</p>
-                  </div>
-                )
-              ) : (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-red-600">🔴 Bloqueados pra medir</p>
-                  {bloqueados.map(l => (
-                    <div key={l.planoId} className="flex items-start justify-between gap-3 border-b border-ber-gray/10 pb-1.5 text-[12px]">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ber-carbon truncate">{l.pacote}{l.fornecedor ? ` — ${l.fornecedor}` : ''}</p>
-                        {l.motivos.slice(0, 2).map((m, i) => <p key={i} className="text-[11px] text-ber-gray truncate">{m}</p>)}
-                        {l.status === 'bloqueado_manual' && <p className="text-[11px] text-ber-gray">Bloqueio manual (PMO)</p>}
-                      </div>
-                      <span className="shrink-0 rounded bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">BLOQUEADO</span>
-                    </div>
-                  ))}
-                  {liberados.length > 0 && (
-                    <p className="pt-1 text-[11px] text-ber-gray">🟢 Liberados: {liberados.map(l => l.pacote).join(' · ')}</p>
-                  )}
-                  {aguardando.length > 0 && (
-                    <p className="pt-1 text-[11px] text-ber-gray">⏳ Aguardando execução: {aguardando.map(l => l.pacote).join(' · ')}</p>
-                  )}
-                </div>
-              )}
-              <Link
-                href={`/obras/${obraId}/liberacao-medicao`}
-                className="print:hidden mt-3 block rounded-md border border-ber-gray/25 px-3 py-2 text-center text-[12px] font-semibold text-ber-carbon hover:bg-ber-bg/40"
-              >
-                Abrir Liberação de Medição
-              </Link>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ─── QUALIDADE — última vistoria, pendências e FVS (Bruno 15/09) ── */}
       {qualidade && (() => {

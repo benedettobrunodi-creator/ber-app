@@ -769,7 +769,6 @@ export default function ObraDetailPage() {
       { type: 'link', href: 'aditivos', label: 'Change Orders' },
       { type: 'link', href: 'amostras', label: 'Amostras' },
       { type: 'link', href: 'qualidade', label: 'Qualidade' },
-      { type: 'link', href: 'liberacao-medicao', label: 'Liberação de Medição' },
       { type: 'tab', key: 'relatorios', label: 'Relatórios' },
     ] },
     { grupo: 'Pós-Obra', tabs: [
