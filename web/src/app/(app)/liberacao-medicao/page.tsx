@@ -45,23 +45,27 @@ const BADGE: Record<StatusLiberacao, { rotulo: string; cls: string }> = {
 export default function LiberacaoMedicaoGeralPage() {
   const [dados, setDados] = useState<Resposta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(false);
   const [obrasAbertas, setObrasAbertas] = useState<Set<string>>(new Set());
   const [soComBloqueio, setSoComBloqueio] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await api.get<{ data: Resposta }>('/liberacao-medicao');
-        setDados(r.data.data);
-        // abre por padrão as obras que têm bloqueio
-        setObrasAbertas(new Set(r.data.data.obras.filter((o) => o.resumo.bloqueados > 0).map((o) => o.obra.id)));
-      } catch {
-        toast('Não consegui carregar o painel — sem conexão?', 'erro');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  async function carregar() {
+    setLoading(true);
+    setErro(false);
+    try {
+      const r = await api.get<{ data: Resposta }>('/liberacao-medicao');
+      setDados(r.data.data);
+      // abre por padrão as obras que têm bloqueio
+      setObrasAbertas(new Set(r.data.data.obras.filter((o) => o.resumo.bloqueados > 0).map((o) => o.obra.id)));
+    } catch {
+      setErro(true);
+      toast('Não consegui carregar o painel — sem conexão?', 'erro');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { carregar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(obraId: string) {
     setObrasAbertas((prev) => {
@@ -102,6 +106,11 @@ export default function LiberacaoMedicaoGeralPage() {
 
       {loading ? (
         <p className="text-sm text-ber-gray">Carregando…</p>
+      ) : erro ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+          Não consegui carregar o painel.{' '}
+          <button onClick={carregar} className="font-semibold underline hover:no-underline">Tentar de novo</button>
+        </div>
       ) : obrasFiltradas.length === 0 ? (
         <div className="rounded-xl border border-ber-border bg-white p-6 text-sm text-ber-gray">
           {soComBloqueio ? 'Nenhuma obra com bloqueio no momento. 🎉' : 'Nenhum pacote contratado com semáforo ainda.'}
