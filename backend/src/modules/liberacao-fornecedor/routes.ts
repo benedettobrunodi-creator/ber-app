@@ -14,6 +14,10 @@ geralRouter.get('/', w(async (_req, res) => {
   sendSuccess(res, await service.getPainelGeral());
 }));
 
+geralRouter.get('/obras-resumo', w(async (_req, res) => {
+  sendSuccess(res, await service.getResumoObras());
+}));
+
 geralRouter.patch('/:id/aprovar-financeiro', w(async (req, res) => {
   sendSuccess(res, await service.aprovarFinanceiro(req.params.id, req.body.dataPagamento, req.user! as { userId: string; role: string }));
 }));

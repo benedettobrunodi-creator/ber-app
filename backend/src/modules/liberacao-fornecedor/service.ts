@@ -253,6 +253,47 @@ export async function recusar(id: string, motivo: string, user: { userId: string
   return { ok: true };
 }
 
+/** Resumo por obra — usado na tela pra listar obras sem N+1 chamadas.
+ *  Só entram obras com pelo menos 1 item de Metas de Compra com comprado>0. */
+export async function getResumoObras() {
+  const itens = await prisma.comprasMeta.findMany({
+    where: { comprado: { gt: 0 } },
+    select: { obraId: true, comprado: true, fornecedor: true },
+  });
+  if (itens.length === 0) return [];
+
+  const obraIds = Array.from(new Set(itens.map((i) => i.obraId)));
+  const obras = await prisma.obra.findMany({
+    where: { id: { in: obraIds } },
+    select: { id: true, name: true },
+  });
+  const nomeMap = new Map(obras.map((o) => [o.id, o.name]));
+
+  type Agg = { qtdItens: number; totalComprado: number; fornecedores: Set<string> };
+  const agg = new Map<string, Agg>();
+  for (const it of itens) {
+    const cur = agg.get(it.obraId) ?? { qtdItens: 0, totalComprado: 0, fornecedores: new Set<string>() };
+    cur.qtdItens += 1;
+    cur.totalComprado += it.comprado;
+    if (it.fornecedor?.trim()) cur.fornecedores.add(it.fornecedor.trim());
+    agg.set(it.obraId, cur);
+  }
+
+  return obraIds
+    .filter((id) => nomeMap.has(id))
+    .map((id) => {
+      const a = agg.get(id)!;
+      return {
+        obraId: id,
+        obraNome: nomeMap.get(id)!,
+        qtdItens: a.qtdItens,
+        qtdFornecedores: a.fornecedores.size,
+        totalComprado: a.totalComprado,
+      };
+    })
+    .sort((a, b) => a.obraNome.localeCompare(b.obraNome, 'pt-BR'));
+}
+
 /** Painel geral — fila por status, todas as obras juntas. */
 export async function getPainelGeral() {
   const itens = await prisma.liberacaoFornecedor.findMany({

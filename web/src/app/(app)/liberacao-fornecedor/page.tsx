@@ -5,11 +5,15 @@
  * Engenharia solicita % sobre o valor comprado (Metas de Compra) → financeiro
  * aprova c/ data de pagamento → diretoria aprova → e-mail automático autoriza
  * o fornecedor. Recebido por e-mail com link (?id=) que abre direto no item.
+ *
+ * Estrutura (Bruno 21/09, "2.- sim"): lista de obras → clicar abre uma JANELA
+ * (modal) com todos os fornecedores contratados dessa obra e seus valores →
+ * seleciona um pra fazer a solicitação. Substitui os dois dropdowns.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send } from 'lucide-react';
+import { Send, X, Building2, ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -45,7 +49,13 @@ interface Opcao {
   saldo: number;
 }
 
-interface Obra { id: string; name: string }
+interface ObraResumo {
+  obraId: string;
+  obraNome: string;
+  qtdItens: number;
+  qtdFornecedores: number;
+  totalComprado: number;
+}
 
 const BRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtData = (iso: string | null) =>
@@ -75,55 +85,84 @@ export default function LiberacaoFornecedorPage() {
   const searchParams = useSearchParams();
   const destaqueId = searchParams.get('id');
 
+  // ── fila de aprovação (itens já solicitados)
   const [itens, setItens] = useState<Item[]>([]);
-  const [obras, setObras] = useState<Obra[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState(false);
+  const [loadingItens, setLoadingItens] = useState(true);
 
-  const carregar = useCallback(async () => {
+  const carregarItens = useCallback(async () => {
     try {
       const r = await api.get<{ data: Item[] }>('/liberacao-fornecedor');
       setItens(r.data.data);
     } catch {
       toast('Não consegui carregar as liberações', 'erro');
     } finally {
-      setLoading(false);
+      setLoadingItens(false);
     }
   }, []);
 
-  useEffect(() => {
-    carregar();
-    api.get<{ data: Obra[] }>('/obras', { params: { limit: 200 } }).then((r) => setObras(r.data.data)).catch(() => {});
-  }, [carregar]);
+  useEffect(() => { carregarItens(); }, [carregarItens]);
 
-  // ── nova solicitação
-  const [obraSel, setObraSel] = useState('');
+  // ── lista de obras (com resumo de fornecedores/valores)
+  const [obras, setObras] = useState<ObraResumo[]>([]);
+  const [loadingObras, setLoadingObras] = useState(true);
+  const [erroObras, setErroObras] = useState(false);
+
+  const carregarObras = useCallback(async () => {
+    setLoadingObras(true);
+    setErroObras(false);
+    try {
+      const r = await api.get<{ data: ObraResumo[] }>('/liberacao-fornecedor/obras-resumo');
+      setObras(r.data.data);
+    } catch {
+      setErroObras(true);
+    } finally {
+      setLoadingObras(false);
+    }
+  }, []);
+
+  useEffect(() => { carregarObras(); }, [carregarObras]);
+
+  // ── modal: obra selecionada → todos os fornecedores contratados com valores
+  const [obraAberta, setObraAberta] = useState<ObraResumo | null>(null);
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
-  const [itemSel, setItemSel] = useState('');
+  const [loadingOpcoes, setLoadingOpcoes] = useState(false);
+  const [itemSel, setItemSel] = useState<Opcao | null>(null);
   const [pct, setPct] = useState('');
   const [obs, setObs] = useState('');
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    if (!obraSel) { setOpcoes([]); setItemSel(''); return; }
-    api.get<{ data: Opcao[] }>(`/obras/${obraSel}/liberacao-fornecedor/opcoes`)
+  function abrirObra(o: ObraResumo) {
+    setObraAberta(o);
+    setItemSel(null);
+    setPct('');
+    setObs('');
+    setLoadingOpcoes(true);
+    api.get<{ data: Opcao[] }>(`/obras/${o.obraId}/liberacao-fornecedor/opcoes`)
       .then((r) => setOpcoes(r.data.data))
-      .catch(() => toast('Não consegui carregar os itens de Metas de Compra dessa obra', 'erro'));
-  }, [obraSel]);
+      .catch(() => toast('Não consegui carregar os fornecedores contratados dessa obra', 'erro'))
+      .finally(() => setLoadingOpcoes(false));
+  }
 
-  const itemAtual = opcoes.find((o) => o.comprasMetaId === itemSel);
-  const valorPreview = itemAtual && pct ? (Number(pct.replace(',', '.')) / 100) * itemAtual.comprado : 0;
+  function fecharModal() {
+    setObraAberta(null);
+    setOpcoes([]);
+    setItemSel(null);
+  }
+
+  const valorPreview = itemSel && pct ? (Number(pct.replace(',', '.')) / 100) * itemSel.comprado : 0;
 
   async function solicitar() {
+    if (!obraAberta || !itemSel) return;
     setPending(true);
     try {
-      await api.post(`/obras/${obraSel}/liberacao-fornecedor`, {
-        comprasMetaId: itemSel,
+      await api.post(`/obras/${obraAberta.obraId}/liberacao-fornecedor`, {
+        comprasMetaId: itemSel.comprasMetaId,
         percentual: Number(pct.replace(',', '.')),
         observacoes: obs,
       });
       toast('Solicitação enviada — o financeiro foi avisado por e-mail.');
-      setPct(''); setObs(''); setItemSel('');
-      carregar();
+      fecharModal();
+      carregarItens();
     } catch (e) {
       toast(errMsg(e, 'Erro ao solicitar'), 'erro');
     } finally {
@@ -131,6 +170,7 @@ export default function LiberacaoFornecedorPage() {
     }
   }
 
+  // ── ações na fila (aprovar/recusar)
   const [dataPgto, setDataPgto] = useState<Record<string, string>>({});
   const [emailForn, setEmailForn] = useState<Record<string, string>>({});
   const [recusando, setRecusando] = useState<string | null>(null);
@@ -141,7 +181,7 @@ export default function LiberacaoFornecedorPage() {
     try {
       await api.patch(`/liberacao-fornecedor/${id}/aprovar-financeiro`, { dataPagamento: dataPgto[id] });
       toast('Aprovado — a diretoria foi avisada por e-mail.');
-      carregar();
+      carregarItens();
     } catch (e) {
       toast(errMsg(e, 'Erro ao aprovar'), 'erro');
     } finally { setPending(false); }
@@ -152,7 +192,7 @@ export default function LiberacaoFornecedorPage() {
     try {
       await api.patch(`/liberacao-fornecedor/${id}/aprovar-diretoria`, { email: emailForn[id] });
       toast('Aprovado — e-mail de autorização enviado ao fornecedor.');
-      carregar();
+      carregarItens();
     } catch (e) {
       toast(errMsg(e, 'Erro ao aprovar'), 'erro');
     } finally { setPending(false); }
@@ -164,7 +204,7 @@ export default function LiberacaoFornecedorPage() {
       await api.patch(`/liberacao-fornecedor/${id}/recusar`, { motivo });
       toast('Recusada.');
       setRecusando(null); setMotivo('');
-      carregar();
+      carregarItens();
     } catch (e) {
       toast(errMsg(e, 'Erro ao recusar'), 'erro');
     } finally { setPending(false); }
@@ -190,36 +230,44 @@ export default function LiberacaoFornecedorPage() {
         diretoria aprova → e-mail automático autoriza o fornecedor a emitir a NF.
       </p>
 
-      <section className="bg-white border border-ber-border rounded-xl p-4 mb-6">
-        <h2 className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mb-3">Nova solicitação</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <select value={obraSel} onChange={(e) => setObraSel(e.target.value)} className="text-sm px-2 py-2 border border-ber-border rounded-lg bg-white">
-            <option value="">Obra…</option>
-            {obras.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
-          <select value={itemSel} onChange={(e) => setItemSel(e.target.value)} disabled={!obraSel} className="text-sm px-2 py-2 border border-ber-border rounded-lg bg-white disabled:opacity-50">
-            <option value="">Item de Metas de Compra…</option>
-            {opcoes.map((o) => (
-              <option key={o.comprasMetaId} value={o.comprasMetaId} disabled={o.saldo <= 0.01}>
-                {o.categoria}{o.fornecedor ? ` — ${o.fornecedor}` : ''} · saldo {BRL(o.saldo)}
-              </option>
+      {/* ─── OBRAS — clique abre os fornecedores contratados com valores ── */}
+      <section className="mb-8">
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mb-3">Obras</h2>
+        {loadingObras ? (
+          <p className="text-sm text-ber-gray">Carregando obras…</p>
+        ) : erroObras ? (
+          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+            Não consegui carregar as obras.{' '}
+            <button onClick={carregarObras} className="underline font-medium">Tentar de novo</button>
+          </div>
+        ) : obras.length === 0 ? (
+          <p className="text-sm text-ber-gray">Nenhuma obra com item de Metas de Compra comprado ainda.</p>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {obras.map((o) => (
+              <button
+                key={o.obraId}
+                onClick={() => abrirObra(o)}
+                className="flex items-center justify-between gap-3 bg-white border border-ber-border rounded-xl p-3.5 text-left hover:border-ber-teal hover:shadow-sm transition"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Building2 size={18} className="text-ber-gray shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ber-carbon truncate">{o.obraNome}</p>
+                    <p className="text-xs text-ber-gray tabular-nums">
+                      {o.qtdFornecedores} fornecedor{o.qtdFornecedores === 1 ? '' : 'es'} · {BRL(o.totalComprado)}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-ber-gray/50 shrink-0" />
+              </button>
             ))}
-          </select>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <input type="text" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="% desta liberação"
-            className="w-40 text-sm px-2 py-2 border border-ber-border rounded-lg tabular-nums" />
-          <input type="text" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações (opcional)"
-            className="flex-1 min-w-48 text-sm px-2 py-2 border border-ber-border rounded-lg" />
-          {valorPreview > 0 && <span className="text-sm text-ber-gray tabular-nums">= {BRL(valorPreview)}</span>}
-          <button disabled={pending || !itemSel || !pct} onClick={solicitar}
-            className="rounded-lg bg-ber-carbon px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-            {pending ? '…' : 'Solicitar'}
-          </button>
-        </div>
+          </div>
+        )}
       </section>
 
-      {loading ? (
+      {/* ─── FILA — status das solicitações já feitas ── */}
+      {loadingItens ? (
         <p className="text-sm text-ber-gray">Carregando…</p>
       ) : itens.length === 0 ? (
         <p className="text-sm text-ber-gray text-center py-8">Nenhuma liberação ainda.</p>
@@ -297,6 +345,88 @@ export default function LiberacaoFornecedorPage() {
               </section>
             );
           })}
+        </div>
+      )}
+
+      {/* ─── MODAL — fornecedores contratados da obra selecionada ── */}
+      {obraAberta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={fecharModal}>
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-ber-border px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ber-gray">Fornecedores contratados</p>
+                <p className="text-base font-bold text-ber-carbon truncate">{obraAberta.obraNome}</p>
+              </div>
+              <button onClick={fecharModal} className="shrink-0 rounded-lg p-1.5 text-ber-gray hover:bg-ber-bg/60">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {loadingOpcoes ? (
+                <p className="text-sm text-ber-gray py-4">Carregando…</p>
+              ) : opcoes.length === 0 ? (
+                <p className="text-sm text-ber-gray py-4">Nenhum item de Metas de Compra com valor comprado nesta obra.</p>
+              ) : !itemSel ? (
+                <div className="space-y-1.5 py-1">
+                  {opcoes.map((o) => (
+                    <button
+                      key={o.comprasMetaId}
+                      disabled={o.saldo <= 0.01}
+                      onClick={() => setItemSel(o)}
+                      className="w-full flex items-center justify-between gap-3 rounded-lg border border-ber-border px-3 py-2.5 text-left hover:border-ber-teal disabled:opacity-40 disabled:hover:border-ber-border"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ber-carbon truncate">
+                          {o.categoria}{o.fornecedor ? ` — ${o.fornecedor}` : ''}
+                        </p>
+                        <p className="text-xs text-ber-gray tabular-nums">
+                          comprado {BRL(o.comprado)}
+                          {o.jaAutorizado > 0 && <> · já liberado {BRL(o.jaAutorizado)}</>}
+                          {' · '}saldo <span className={o.saldo <= 0.01 ? 'text-red-600 font-medium' : 'font-medium text-ber-carbon'}>{BRL(o.saldo)}</span>
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-ber-gray/50 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-1">
+                  <button onClick={() => setItemSel(null)} className="text-xs text-ber-teal font-medium mb-3">← voltar aos fornecedores</button>
+                  <div className="rounded-lg bg-ber-bg/50 p-3 mb-3">
+                    <p className="text-sm font-semibold text-ber-carbon">
+                      {itemSel.categoria}{itemSel.fornecedor ? ` — ${itemSel.fornecedor}` : ''}
+                    </p>
+                    <p className="text-xs text-ber-gray tabular-nums mt-0.5">
+                      comprado {BRL(itemSel.comprado)} · saldo disponível {BRL(itemSel.saldo)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-ber-gray">% desta liberação</label>
+                    <input type="text" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="ex.: 30"
+                      className="w-full text-sm px-3 py-2 border border-ber-border rounded-lg tabular-nums" autoFocus />
+                    {valorPreview > 0 && <p className="text-sm text-ber-gray tabular-nums">= {BRL(valorPreview)}</p>}
+                    <label className="block text-xs font-medium text-ber-gray mt-2">Observações (opcional)</label>
+                    <input type="text" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações"
+                      className="w-full text-sm px-3 py-2 border border-ber-border rounded-lg" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {itemSel && (
+              <div className="border-t border-ber-border px-5 py-3.5 flex justify-end gap-2">
+                <button onClick={fecharModal} className="rounded-lg px-4 py-2 text-sm text-ber-gray">Cancelar</button>
+                <button disabled={pending || !pct} onClick={solicitar}
+                  className="rounded-lg bg-ber-carbon px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+                  {pending ? '…' : 'Solicitar liberação'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
