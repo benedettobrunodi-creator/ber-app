@@ -6,20 +6,15 @@
  * aprova c/ data de pagamento → diretoria aprova → e-mail automático autoriza
  * o fornecedor. Recebido por e-mail com link (?id=) que abre direto no item.
  *
- * Estrutura (Bruno 21/09, "2.- sim"): lista de obras → clicar abre uma JANELA
- * (modal) com todos os fornecedores contratados dessa obra e seus valores →
- * seleciona um pra fazer a solicitação. Substitui os dois dropdowns.
- *
- * Rodada de ajustes (21/09, Bruno pediu "TODOS"): busca em obras e
- * fornecedores, badge de pendentes + barra de progresso no card da obra,
- * aviso de solicitação já em andamento, scroll+destaque pro item recém
- * criado, layout em 2 colunas full-width, botão de ação em cor de marca,
- * chips de % rápido, tag de saldo esgotado mais visível.
+ * Estrutura: lista de obras aqui → clicar leva pra página própria da obra
+ * (/liberacao-fornecedor/[obraId]) com todos os fornecedores contratados e
+ * seus valores. Era um modal (janela) até o Bruno achar pequeno demais pra
+ * obras com 40+ fornecedores — virou página cheia (21/09, opção "3").
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Send, X, Building2, ChevronRight, Search } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Send, Building2, ChevronRight, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,17 +38,6 @@ interface Item {
   emailEnviadoEm: string | null;
   emailDestinatario: string | null;
   createdAt: string;
-}
-
-interface Opcao {
-  comprasMetaId: string;
-  pacote: number | null;
-  categoria: string;
-  descritivo: string | null;
-  fornecedor: string | null;
-  comprado: number;
-  jaAutorizado: number;
-  saldo: number;
 }
 
 interface ObraResumo {
@@ -84,9 +68,9 @@ const STATUS_COR: Record<Status, string> = {
   recusada: 'bg-red-50 text-red-700 border-red-300',
 };
 const PENDENTES: Status[] = ['solicitada', 'aprovada_financeiro'];
-const PCT_RAPIDOS = [25, 50, 75, 100];
 
 export default function LiberacaoFornecedorPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const role = user?.role;
   const podeFinanceiro = role === 'financeiro' || role === 'diretoria' || role === 'socio';
@@ -98,8 +82,8 @@ export default function LiberacaoFornecedorPage() {
   // ── fila de aprovação (itens já solicitados)
   const [itens, setItens] = useState<Item[]>([]);
   const [loadingItens, setLoadingItens] = useState(true);
-  const [recemCriadoId, setRecemCriadoId] = useState<string | null>(null);
   const filaRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const jaRolouParaDestaque = useRef(false);
 
   const carregarItens = useCallback(async () => {
     try {
@@ -114,30 +98,29 @@ export default function LiberacaoFornecedorPage() {
 
   useEffect(() => { carregarItens(); }, [carregarItens]);
 
-  // scroll + destaque temporário pro item recém-criado, depois de a fila recarregar
+  // scroll + destaque temporário pro item vindo por ?id= (recém-criado na página da obra)
   useEffect(() => {
-    if (!recemCriadoId) return;
-    const el = filaRefs.current[recemCriadoId];
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const t = setTimeout(() => setRecemCriadoId(null), 3000);
-    return () => clearTimeout(t);
-  }, [recemCriadoId, itens]);
+    if (!destaqueId || jaRolouParaDestaque.current || itens.length === 0) return;
+    const el = filaRefs.current[destaqueId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      jaRolouParaDestaque.current = true;
+    }
+  }, [destaqueId, itens]);
 
   // pendentes (solicitada + aprovada_financeiro) e total já comprometido por obra — pro badge/barra dos cards
-  const { pendentesPorObra, comprometidoPorObra, comprasMetaComPendencia } = useMemo(() => {
+  const { pendentesPorObra, comprometidoPorObra } = useMemo(() => {
     const pend = new Map<string, number>();
     const comp = new Map<string, number>();
-    const idsPendentes = new Set<string>();
     for (const it of itens) {
       if (it.status !== 'recusada') {
         comp.set(it.obraId, (comp.get(it.obraId) ?? 0) + it.valorAutorizado);
       }
       if (PENDENTES.includes(it.status)) {
         pend.set(it.obraId, (pend.get(it.obraId) ?? 0) + 1);
-        idsPendentes.add(it.comprasMetaId);
       }
     }
-    return { pendentesPorObra: pend, comprometidoPorObra: comp, comprasMetaComPendencia: idsPendentes };
+    return { pendentesPorObra: pend, comprometidoPorObra: comp };
   }, [itens]);
 
   // ── lista de obras (com resumo de fornecedores/valores) + busca
@@ -167,68 +150,12 @@ export default function LiberacaoFornecedorPage() {
     return obras.filter((o) => norm(o.obraNome).includes(q));
   }, [obras, buscaObra]);
 
-  // ── modal: obra selecionada → todos os fornecedores contratados com valores
-  const [obraAberta, setObraAberta] = useState<ObraResumo | null>(null);
-  const [opcoes, setOpcoes] = useState<Opcao[]>([]);
-  const [loadingOpcoes, setLoadingOpcoes] = useState(false);
-  const [buscaForn, setBuscaForn] = useState('');
-  const [itemSel, setItemSel] = useState<Opcao | null>(null);
-  const [pct, setPct] = useState('');
-  const [obs, setObs] = useState('');
-  const [pending, setPending] = useState(false);
-
-  function abrirObra(o: ObraResumo) {
-    setObraAberta(o);
-    setItemSel(null);
-    setPct('');
-    setObs('');
-    setBuscaForn('');
-    setLoadingOpcoes(true);
-    api.get<{ data: Opcao[] }>(`/obras/${o.obraId}/liberacao-fornecedor/opcoes`)
-      .then((r) => setOpcoes(r.data.data))
-      .catch(() => toast('Não consegui carregar os fornecedores contratados dessa obra', 'erro'))
-      .finally(() => setLoadingOpcoes(false));
-  }
-
-  function fecharModal() {
-    setObraAberta(null);
-    setOpcoes([]);
-    setItemSel(null);
-  }
-
-  const opcoesFiltradas = useMemo(() => {
-    const q = norm(buscaForn.trim());
-    if (!q) return opcoes;
-    return opcoes.filter((o) => norm(`${o.fornecedor ?? ''} ${o.categoria} ${o.descritivo ?? ''}`).includes(q));
-  }, [opcoes, buscaForn]);
-
-  const valorPreview = itemSel && pct ? (Number(pct.replace(',', '.')) / 100) * itemSel.comprado : 0;
-
-  async function solicitar() {
-    if (!obraAberta || !itemSel) return;
-    setPending(true);
-    try {
-      const r = await api.post<{ data: { id: string } }>(`/obras/${obraAberta.obraId}/liberacao-fornecedor`, {
-        comprasMetaId: itemSel.comprasMetaId,
-        percentual: Number(pct.replace(',', '.')),
-        observacoes: obs,
-      });
-      toast('Solicitação enviada — o financeiro foi avisado por e-mail.');
-      fecharModal();
-      setRecemCriadoId(r.data.data.id);
-      carregarItens();
-    } catch (e) {
-      toast(errMsg(e, 'Erro ao solicitar'), 'erro');
-    } finally {
-      setPending(false);
-    }
-  }
-
   // ── ações na fila (aprovar/recusar)
   const [dataPgto, setDataPgto] = useState<Record<string, string>>({});
   const [emailForn, setEmailForn] = useState<Record<string, string>>({});
   const [recusando, setRecusando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [pending, setPending] = useState(false);
 
   async function aprovarFinanceiro(id: string) {
     setPending(true);
@@ -285,7 +212,7 @@ export default function LiberacaoFornecedorPage() {
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start">
-        {/* ─── OBRAS — clique abre os fornecedores contratados com valores ── */}
+        {/* ─── OBRAS — clique leva pra página com todos os fornecedores contratados ── */}
         <section>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-ber-gray">Obras</h2>
@@ -318,7 +245,7 @@ export default function LiberacaoFornecedorPage() {
                 return (
                   <button
                     key={o.obraId}
-                    onClick={() => abrirObra(o)}
+                    onClick={() => router.push(`/liberacao-fornecedor/${o.obraId}`)}
                     className="relative flex flex-col gap-2 bg-white border border-ber-border rounded-xl p-3.5 text-left hover:border-ber-teal hover:shadow-sm transition"
                   >
                     {pendentes > 0 && (
@@ -369,7 +296,7 @@ export default function LiberacaoFornecedorPage() {
                           key={it.id}
                           ref={(el) => { filaRefs.current[it.id] = el; }}
                           className={`bg-white border rounded-xl p-4 transition-shadow ${
-                            (destaqueId === it.id || recemCriadoId === it.id) ? 'border-ber-teal ring-2 ring-ber-teal/30' : 'border-ber-border'
+                            destaqueId === it.id ? 'border-ber-teal ring-2 ring-ber-teal/30' : 'border-ber-border'
                           }`}
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -439,141 +366,6 @@ export default function LiberacaoFornecedorPage() {
           )}
         </section>
       </div>
-
-      {/* ─── MODAL — fornecedores contratados da obra selecionada ── */}
-      {obraAberta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={fecharModal}>
-          <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-ber-border px-5 py-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-ber-gray">Fornecedores contratados</p>
-                <p className="text-base font-bold text-ber-carbon truncate" title={obraAberta.obraNome}>{obraAberta.obraNome}</p>
-              </div>
-              <button onClick={fecharModal} className="shrink-0 rounded-lg p-1.5 text-ber-gray hover:bg-ber-bg/60">
-                <X size={18} />
-              </button>
-            </div>
-
-            {!itemSel && !loadingOpcoes && opcoes.length > 0 && (
-              <div className="px-5 pt-3">
-                <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/60" />
-                  <input
-                    type="text" value={buscaForn} onChange={(e) => setBuscaForn(e.target.value)}
-                    placeholder="Buscar fornecedor ou item…" autoFocus
-                    className="w-full text-sm pl-8 pr-3 py-2 border border-ber-border rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto px-5 py-3">
-              {loadingOpcoes ? (
-                <p className="text-sm text-ber-gray py-4">Carregando…</p>
-              ) : opcoes.length === 0 ? (
-                <p className="text-sm text-ber-gray py-4">Nenhum item de Metas de Compra com valor comprado nesta obra.</p>
-              ) : !itemSel ? (
-                opcoesFiltradas.length === 0 ? (
-                  <p className="text-sm text-ber-gray py-4">Nenhum fornecedor encontrado pra &quot;{buscaForn}&quot;.</p>
-                ) : (
-                  <div className="space-y-1.5 py-1">
-                    {opcoesFiltradas.map((o) => {
-                      const semSaldo = o.saldo <= 0.01;
-                      const emAndamento = comprasMetaComPendencia.has(o.comprasMetaId);
-                      return (
-                        <button
-                          key={o.comprasMetaId}
-                          disabled={semSaldo}
-                          onClick={() => setItemSel(o)}
-                          className="w-full flex items-center justify-between gap-3 rounded-lg border border-ber-border px-3 py-2.5 text-left hover:border-ber-teal disabled:opacity-50 disabled:hover:border-ber-border"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-ber-carbon truncate" title={o.fornecedor ?? o.categoria}>
-                              {o.fornecedor ?? o.categoria}
-                            </p>
-                            <p className="text-xs text-ber-gray truncate" title={o.categoria}>{o.categoria}</p>
-                            <p className="text-xs mt-0.5">
-                              <span className="text-ber-gray">comprado </span>
-                              <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.comprado)}</span>
-                              {o.jaAutorizado > 0 && <span className="text-ber-gray"> · já liberado {BRL(o.jaAutorizado)}</span>}
-                              <span className="text-ber-gray"> · saldo </span>
-                              <span className={`font-semibold tabular-nums ${semSaldo ? 'text-red-600' : 'text-ber-olive'}`}>{BRL(o.saldo)}</span>
-                            </p>
-                            <div className="flex gap-1.5 mt-1">
-                              {semSaldo && (
-                                <span className="inline-block rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase px-2 py-0.5">Sem saldo</span>
-                              )}
-                              {emAndamento && !semSaldo && (
-                                <span className="inline-block rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase px-2 py-0.5">Já tem solicitação em andamento</span>
-                              )}
-                            </div>
-                          </div>
-                          <ChevronRight size={16} className="text-ber-gray/50 shrink-0" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )
-              ) : (
-                <div className="py-1">
-                  <button onClick={() => setItemSel(null)} className="text-xs text-ber-teal font-medium mb-3">← voltar aos fornecedores</button>
-                  <div className="rounded-lg bg-ber-bg/50 p-3 mb-3">
-                    <p className="text-sm font-semibold text-ber-carbon truncate" title={itemSel.fornecedor ?? itemSel.categoria}>
-                      {itemSel.fornecedor ?? itemSel.categoria}
-                    </p>
-                    <p className="text-xs text-ber-gray truncate" title={itemSel.categoria}>{itemSel.categoria}</p>
-                    <p className="text-sm tabular-nums mt-1">
-                      <span className="text-ber-gray">comprado </span><span className="font-medium text-ber-carbon">{BRL(itemSel.comprado)}</span>
-                      <span className="text-ber-gray"> · saldo disponível </span><span className="font-bold text-ber-olive">{BRL(itemSel.saldo)}</span>
-                    </p>
-                    {comprasMetaComPendencia.has(itemSel.comprasMetaId) && (
-                      <p className="text-xs text-amber-800 mt-1.5">⚠️ Já existe uma solicitação em andamento pra este item.</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-ber-gray">% desta liberação</label>
-                    <div className="flex items-center gap-2">
-                      <input type="text" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="ex.: 30"
-                        className="w-28 text-sm px-3 py-2 border border-ber-border rounded-lg tabular-nums" autoFocus />
-                      <div className="flex gap-1">
-                        {PCT_RAPIDOS.map((p) => (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setPct(String(p))}
-                            className={`text-xs px-2 py-1 rounded-md border ${
-                              pct === String(p) ? 'border-ber-olive bg-ber-olive/15 text-ber-carbon font-semibold' : 'border-ber-border text-ber-gray hover:border-ber-teal'
-                            }`}
-                          >
-                            {p}%
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {valorPreview > 0 && <p className="text-base font-bold text-ber-olive tabular-nums">= {BRL(valorPreview)}</p>}
-                    <label className="block text-xs font-medium text-ber-gray mt-2">Observações (opcional)</label>
-                    <input type="text" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observações"
-                      className="w-full text-sm px-3 py-2 border border-ber-border rounded-lg" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {itemSel && (
-              <div className="border-t border-ber-border px-5 py-3.5 flex justify-end gap-2">
-                <button onClick={fecharModal} className="rounded-lg px-4 py-2 text-sm text-ber-gray">Cancelar</button>
-                <button disabled={pending || !pct} onClick={solicitar}
-                  className="rounded-lg bg-ber-olive px-4 py-2 text-sm font-semibold text-ber-carbon disabled:opacity-50">
-                  {pending ? '…' : 'Solicitar liberação'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
