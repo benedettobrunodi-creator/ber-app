@@ -38,6 +38,10 @@ obraRouter.get('/opcoes', w(async (req, res) => {
   sendSuccess(res, await service.listarOpcoes(req.params.id));
 }));
 
+obraRouter.get('/historico', w(async (req, res) => {
+  sendSuccess(res, await service.getHistoricoObra(req.params.id));
+}));
+
 obraRouter.post('/', w(async (req, res) => {
   sendCreated(res, await service.solicitar(req.params.id, req.body, (req.user! as { userId: string }).userId));
 }));

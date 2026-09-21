@@ -323,3 +323,41 @@ export async function getPainelGeral() {
     createdAt: l.createdAt.toISOString(),
   }));
 }
+
+/** Histórico completo de liberações de UMA obra (qualquer status) — "quanto o
+ *  fornecedor já mediu", com quem solicitou/aprovou em cada etapa e quando. */
+export async function getHistoricoObra(obraId: string) {
+  const itens = await prisma.liberacaoFornecedor.findMany({
+    where: { obraId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      comprasMeta: { select: { categoria: true, descritivo: true, fornecedor: true, comprado: true } },
+      solicitadoPor: { select: { name: true } },
+      aprovadoFinanceiro: { select: { name: true } },
+      aprovadoDiretoria: { select: { name: true } },
+      recusadoPor: { select: { name: true } },
+    },
+  });
+  return itens.map((l) => ({
+    id: l.id,
+    comprasMetaId: l.comprasMetaId,
+    categoria: l.comprasMeta.categoria,
+    descritivo: l.comprasMeta.descritivo,
+    fornecedor: l.comprasMeta.fornecedor,
+    comprado: l.comprasMeta.comprado,
+    percentual: Number(l.percentual),
+    valorAutorizado: Number(l.valorAutorizado),
+    status: l.status,
+    dataPagamento: l.dataPagamento ? l.dataPagamento.toISOString().slice(0, 10) : null,
+    observacoes: l.observacoes,
+    motivoRecusa: l.motivoRecusa,
+    emailEnviadoEm: l.emailEnviadoEm ? l.emailEnviadoEm.toISOString() : null,
+    emailDestinatario: l.emailDestinatario,
+    solicitadoPorNome: l.solicitadoPor?.name ?? null,
+    aprovadoFinanceiroNome: l.aprovadoFinanceiro?.name ?? null,
+    aprovadoDiretoriaNome: l.aprovadoDiretoria?.name ?? null,
+    recusadoPorNome: l.recusadoPor?.name ?? null,
+    createdAt: l.createdAt.toISOString(),
+    updatedAt: l.updatedAt.toISOString(),
+  }));
+}
