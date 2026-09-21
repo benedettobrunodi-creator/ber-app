@@ -348,6 +348,25 @@ export default function LiberacaoFornecedorObraPage() {
                   )}
                 </div>
 
+                {(() => {
+                  const histItem = historico.filter((h) => h.comprasMetaId === itemSel.comprasMetaId);
+                  if (histItem.length === 0) return null;
+                  return (
+                    <div className="mb-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-ber-gray mb-1.5">Já medido/liberado</p>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                        {histItem.map((h) => (
+                          <div key={h.id} className="flex items-center justify-between gap-2 text-xs border border-ber-border/60 rounded-lg px-2.5 py-1.5">
+                            <span className="text-ber-gray shrink-0">{new Date(h.createdAt).toLocaleDateString('pt-BR')}</span>
+                            <span className="font-medium text-ber-carbon tabular-nums truncate">{h.percentual.toFixed(1)}% = {BRL(h.valorAutorizado)}</span>
+                            <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase ${STATUS_COR[h.status]}`}>{STATUS_LABEL[h.status]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <label className="block text-xs font-medium text-ber-gray">% desta liberação</label>
                 <div className="flex items-center gap-2 mt-1">
                   <input type="text" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} placeholder="ex.: 30"
