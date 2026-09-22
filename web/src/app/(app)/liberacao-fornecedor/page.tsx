@@ -37,6 +37,8 @@ interface Item {
   motivoRecusa: string | null;
   emailEnviadoEm: string | null;
   emailDestinatario: string | null;
+  emailFornecedorAuto: string | null;
+  emailSolicitante: string | null;
   createdAt: string;
 }
 
@@ -186,6 +188,7 @@ export default function LiberacaoFornecedorPage() {
   // ── ações na fila (aprovar/recusar)
   const [dataPgto, setDataPgto] = useState<Record<string, string>>({});
   const [emailForn, setEmailForn] = useState<Record<string, string>>({});
+  const [manualOverride, setManualOverride] = useState<Set<string>>(new Set());
   const [recusando, setRecusando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [pending, setPending] = useState(false);
@@ -204,7 +207,10 @@ export default function LiberacaoFornecedorPage() {
   async function aprovarDiretoria(id: string) {
     setPending(true);
     try {
-      await api.patch(`/liberacao-fornecedor/${id}/aprovar-diretoria`, { email: emailForn[id] });
+      const it = itens.find((i) => i.id === id);
+      const usaAuto = it?.emailFornecedorAuto && !manualOverride.has(id);
+      const email = usaAuto ? undefined : (emailForn[id] ?? it?.emailSolicitante ?? undefined);
+      await api.patch(`/liberacao-fornecedor/${id}/aprovar-diretoria`, { email });
       toast('Aprovado — e-mail de autorização enviado ao fornecedor.');
       carregarItens();
     } catch (e) {
@@ -402,9 +408,25 @@ export default function LiberacaoFornecedorPage() {
 
                           {it.status === 'aprovada_financeiro' && podeDiretoria && (
                             <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-ber-border/60">
-                              <input type="email" value={emailForn[it.id] ?? ''} onChange={(e) => setEmailForn((p) => ({ ...p, [it.id]: e.target.value }))}
-                                placeholder="e-mail do fornecedor (se não achar automático)"
-                                className="text-sm px-2 py-1.5 border border-amber-300 rounded-lg min-w-56" />
+                              {it.emailFornecedorAuto && !manualOverride.has(it.id) ? (
+                                <span className="flex items-center gap-2 text-sm">
+                                  <span className="text-ber-gray">Enviar pra</span>
+                                  <span className="font-semibold text-ber-olive">{it.emailFornecedorAuto}</span>
+                                  <span className="text-[10px] text-ber-gray">(achado no Cronograma)</span>
+                                  <button type="button" onClick={() => setManualOverride((p) => new Set(p).add(it.id))} className="text-xs text-ber-teal underline">trocar</button>
+                                </span>
+                              ) : (
+                                <div className="flex flex-col gap-0.5">
+                                  <input type="email"
+                                    value={emailForn[it.id] ?? it.emailSolicitante ?? ''}
+                                    onChange={(e) => setEmailForn((p) => ({ ...p, [it.id]: e.target.value }))}
+                                    placeholder="e-mail do fornecedor"
+                                    className="text-sm px-2 py-1.5 border border-amber-300 rounded-lg min-w-56" />
+                                  {!it.emailFornecedorAuto && (emailForn[it.id] ?? it.emailSolicitante) === it.emailSolicitante && it.emailSolicitante && (
+                                    <span className="text-[10px] text-amber-700">Não achei no Cronograma — preenchi com o e-mail de quem solicitou, confira antes de aprovar.</span>
+                                  )}
+                                </div>
+                              )}
                               <button disabled={pending} onClick={() => aprovarDiretoria(it.id)}
                                 className="rounded-lg bg-ber-olive px-3 py-1.5 text-sm font-semibold text-ber-carbon disabled:opacity-50">Aprovar e enviar autorização</button>
                               {recusando === it.id ? (

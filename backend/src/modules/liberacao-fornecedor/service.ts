@@ -302,7 +302,10 @@ export async function getResumoObras() {
     .sort((a, b) => a.obraNome.localeCompare(b.obraNome, 'pt-BR'));
 }
 
-/** Painel geral — fila por status, todas as obras juntas. */
+/** Painel geral — fila por status, todas as obras juntas.
+ *  Pra itens aguardando diretoria, já resolve o e-mail sugerido do
+ *  fornecedor (Cronograma de Contratações) ou, na falta dele, o e-mail de
+ *  quem solicitou — evita a tela abrir com o campo em branco (Bruno 22/09). */
 export async function getPainelGeral() {
   const itens = await prisma.liberacaoFornecedor.findMany({
     orderBy: { createdAt: 'desc' },
@@ -310,9 +313,19 @@ export async function getPainelGeral() {
     include: {
       obra: { select: { name: true } },
       comprasMeta: { select: { categoria: true, descritivo: true, fornecedor: true, comprado: true } },
+      solicitadoPor: { select: { email: true } },
     },
   });
-  return itens.map((l) => ({
+
+  const sugestoes = await Promise.all(
+    itens.map((l) =>
+      l.status === 'aprovada_financeiro'
+        ? tentarAcharEmailFornecedor(l.obraId, l.comprasMeta.fornecedor)
+        : Promise.resolve(null),
+    ),
+  );
+
+  return itens.map((l, i) => ({
     id: l.id,
     obraId: l.obraId,
     obraNome: l.obra.name,
@@ -328,6 +341,8 @@ export async function getPainelGeral() {
     motivoRecusa: l.motivoRecusa,
     emailEnviadoEm: l.emailEnviadoEm ? l.emailEnviadoEm.toISOString() : null,
     emailDestinatario: l.emailDestinatario,
+    emailFornecedorAuto: sugestoes[i],
+    emailSolicitante: l.solicitadoPor?.email ?? null,
     createdAt: l.createdAt.toISOString(),
   }));
 }
