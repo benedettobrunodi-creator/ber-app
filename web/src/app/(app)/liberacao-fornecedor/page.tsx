@@ -87,8 +87,9 @@ export default function LiberacaoFornecedorPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const role = user?.role;
-  const podeFinanceiro = role === 'financeiro' || role === 'diretoria' || role === 'socio';
-  const podeDiretoria = role === 'diretoria' || role === 'socio';
+  // Restrito a financeiro + sócio (Bruno, 22/09) — "diretoria" fora de propósito, ver service.ts do backend.
+  const podeFinanceiro = role === 'financeiro' || role === 'socio';
+  const podeDiretoria = role === 'socio';
 
   const searchParams = useSearchParams();
   const destaqueId = searchParams.get('id');

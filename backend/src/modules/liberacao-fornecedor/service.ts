@@ -15,8 +15,13 @@ import { AppError } from '../../utils/errors';
  * digita o e-mail na hora — nunca trava).
  */
 
-const APROVA_FINANCEIRO_ROLES = ['financeiro', 'diretoria', 'socio'];
-const APROVA_DIRETORIA_ROLES = ['diretoria', 'socio'];
+// Restrito a financeiro + sócio (Bruno, 22/09) — "diretoria" foi tirado de
+// propósito: hoje esse role é usado por gente fora do financeiro (ex.:
+// Talita, comercial), e aqui é dinheiro saindo de verdade. Se algum dia
+// precisar de mais um aprovador de diretoria, adicionar o e-mail dele aqui,
+// não o role genérico.
+const APROVA_FINANCEIRO_ROLES = ['financeiro', 'socio'];
+const APROVA_DIRETORIA_ROLES = ['socio'];
 
 const FINANCEIRO_EMAIL = 'caroline.souza@ber-engenharia.com.br';
 const DIRETORIA_EMAIL = 'bruno@ber-engenharia.com.br';
