@@ -210,6 +210,7 @@ export async function aprovarDiretoria(id: string, user: { userId: string; role:
       Valor autorizado: <strong>${BRL(Number(lib.valorAutorizado))}</strong><br/>
       Data prevista de pagamento: <strong>${fmtData(lib.dataPagamento)}</strong></p>
       <p><strong>O faturamento deve estar rigorosamente de acordo com os dados da Ordem de Compra</strong> (tomador, CNPJ e demais condições) — em alguns contratos a nota é emitida diretamente contra o cliente, conforme indicado na OC.</p>
+      <p><strong>É obrigatório que o número da Ordem de Compra (OC) correspondente conste na nota fiscal.</strong> Notas sem esse número não serão aceitas para pagamento.</p>
       <p>A nota fiscal deve ser enviada em resposta a este e-mail. O pagamento fica condicionado ao recebimento e conferência da nota.</p>
       <p>Em caso de dúvida, respondam este e-mail.</p>
       <p>Atenciosamente,<br/>BÈR Engenharia</p>`,
