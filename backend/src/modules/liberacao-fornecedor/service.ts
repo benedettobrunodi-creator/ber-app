@@ -265,9 +265,10 @@ export async function getResumoObras() {
   const obraIds = Array.from(new Set(itens.map((i) => i.obraId)));
   const obras = await prisma.obra.findMany({
     where: { id: { in: obraIds } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, status: true },
   });
   const nomeMap = new Map(obras.map((o) => [o.id, o.name]));
+  const statusMap = new Map(obras.map((o) => [o.id, o.status]));
 
   type Agg = { qtdItens: number; totalComprado: number; fornecedores: Set<string> };
   const agg = new Map<string, Agg>();
@@ -286,6 +287,7 @@ export async function getResumoObras() {
       return {
         obraId: id,
         obraNome: nomeMap.get(id)!,
+        obraStatus: statusMap.get(id)!,
         qtdItens: a.qtdItens,
         qtdFornecedores: a.fornecedores.size,
         totalComprado: a.totalComprado,

@@ -127,6 +127,20 @@ export default function LiberacaoFornecedorObraPage() {
     return opcoes.filter((o) => norm(`${o.fornecedor ?? ''} ${o.categoria} ${o.descritivo ?? ''}`).includes(q));
   }, [opcoes, busca]);
 
+  // Agrupa por fornecedor (mesmo fornecedor pode ter várias linhas/itens — Bruno
+  // 22/09: agrupar visualmente mas manter cada linha selecionável/medível à parte).
+  const gruposFornecedor = useMemo(() => {
+    const grupos = new Map<string, { label: string; itens: Opcao[] }>();
+    for (const o of opcoesFiltradas) {
+      const label = o.fornecedor?.trim() || 'Sem fornecedor definido';
+      const key = norm(label);
+      const g = grupos.get(key) ?? { label, itens: [] };
+      g.itens.push(o);
+      grupos.set(key, g);
+    }
+    return Array.from(grupos.values());
+  }, [opcoesFiltradas]);
+
   const historicoFiltrado = useMemo(() => {
     const q = norm(buscaHistorico.trim());
     if (!q) return historico;
@@ -285,42 +299,60 @@ export default function LiberacaoFornecedorObraPage() {
               ) : opcoesFiltradas.length === 0 ? (
                 <p className="text-sm text-ber-gray p-4">Nenhum fornecedor encontrado pra &quot;{busca}&quot;.</p>
               ) : (
-                opcoesFiltradas.map((o) => {
-                  const semSaldo = o.saldo <= 0.01;
-                  const emAndamento = comprasMetaComPendencia.has(o.comprasMetaId);
-                  const selecionado = itemSel?.comprasMetaId === o.comprasMetaId;
+                gruposFornecedor.map((g) => {
+                  const totalComprado = g.itens.reduce((s, i) => s + i.comprado, 0);
+                  const totalLiberado = g.itens.reduce((s, i) => s + i.jaAutorizado, 0);
                   return (
-                    <button
-                      key={o.comprasMetaId}
-                      disabled={semSaldo}
-                      onClick={() => selecionar(o)}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left disabled:opacity-50 ${
-                        selecionado ? 'bg-ber-olive/10' : 'hover:bg-ber-bg/60'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ber-carbon truncate" title={o.fornecedor ?? o.categoria}>
-                          {o.fornecedor ?? o.categoria}
+                    <div key={g.label}>
+                      <div className="flex items-center justify-between gap-2 bg-ber-bg/70 px-4 py-1.5 sticky top-0">
+                        <p className="text-[11px] font-bold text-ber-carbon truncate" title={g.label}>{g.label}</p>
+                        <p className="text-[10px] text-ber-gray shrink-0 tabular-nums">
+                          {g.itens.length} item{g.itens.length === 1 ? '' : 's'} · {BRL(totalComprado)}
+                          {totalLiberado > 0 && <> · <span className="text-ber-olive font-semibold">{BRL(totalLiberado)} liberado</span></>}
                         </p>
-                        <p className="text-xs text-ber-gray truncate" title={o.categoria}>{o.categoria}</p>
-                        <p className="text-xs mt-0.5">
-                          <span className="text-ber-gray">comprado </span>
-                          <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.comprado)}</span>
-                          {o.jaAutorizado > 0 && <span className="text-ber-gray"> · já liberado {BRL(o.jaAutorizado)}</span>}
-                          <span className="text-ber-gray"> · saldo </span>
-                          <span className={`font-semibold tabular-nums ${semSaldo ? 'text-red-600' : 'text-ber-olive'}`}>{BRL(o.saldo)}</span>
-                        </p>
-                        <div className="flex gap-1.5 mt-1">
-                          {semSaldo && (
-                            <span className="inline-block rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase px-2 py-0.5">Sem saldo</span>
-                          )}
-                          {emAndamento && !semSaldo && (
-                            <span className="inline-block rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase px-2 py-0.5">Já tem solicitação em andamento</span>
-                          )}
-                        </div>
                       </div>
-                      <ChevronRight size={16} className="text-ber-gray/50 shrink-0" />
-                    </button>
+                      {g.itens.map((o) => {
+                        const semSaldo = o.saldo <= 0.01;
+                        const emAndamento = comprasMetaComPendencia.has(o.comprasMetaId);
+                        const selecionado = itemSel?.comprasMetaId === o.comprasMetaId;
+                        const medido = o.jaAutorizado > 0;
+                        return (
+                          <button
+                            key={o.comprasMetaId}
+                            disabled={semSaldo}
+                            onClick={() => selecionar(o)}
+                            className={`w-full flex items-center justify-between gap-3 pl-6 pr-4 py-3 text-left border-l-2 border-transparent disabled:opacity-50 ${
+                              selecionado ? 'bg-ber-olive/10 border-l-ber-olive' : 'hover:bg-ber-bg/60'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs text-ber-gray truncate" title={o.categoria}>{o.categoria}</p>
+                              <p className="text-xs mt-0.5">
+                                <span className="text-ber-gray">comprado </span>
+                                <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.comprado)}</span>
+                                {o.jaAutorizado > 0 && <span className="text-ber-gray"> · já liberado {BRL(o.jaAutorizado)}</span>}
+                                <span className="text-ber-gray"> · saldo </span>
+                                <span className={`font-semibold tabular-nums ${semSaldo ? 'text-red-600' : 'text-ber-olive'}`}>{BRL(o.saldo)}</span>
+                              </p>
+                              <div className="flex gap-1.5 mt-1">
+                                <span className={`inline-block rounded-full text-[10px] font-bold uppercase px-2 py-0.5 ${
+                                  medido ? 'bg-ber-olive/15 text-ber-olive' : 'bg-ber-gray/10 text-ber-gray'
+                                }`}>
+                                  {medido ? 'Medido' : 'Não medido'}
+                                </span>
+                                {semSaldo && (
+                                  <span className="inline-block rounded-full bg-red-100 text-red-700 text-[10px] font-bold uppercase px-2 py-0.5">Sem saldo</span>
+                                )}
+                                {emAndamento && !semSaldo && (
+                                  <span className="inline-block rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase px-2 py-0.5">Já tem solicitação em andamento</span>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight size={16} className="text-ber-gray/50 shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   );
                 })
               )}

@@ -40,13 +40,27 @@ interface Item {
   createdAt: string;
 }
 
+type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida' | 'cancelada';
+
 interface ObraResumo {
   obraId: string;
   obraNome: string;
+  obraStatus: ObraStatus;
   qtdItens: number;
   qtdFornecedores: number;
   totalComprado: number;
 }
+
+// Mesmo mapeamento de /obras (Bruno espera os mesmos rótulos/cores em todo o app)
+const STATUS_OBRA_CONFIG: Record<ObraStatus, { label: string; className: string }> = {
+  nao_iniciada:  { label: 'Não iniciada',            className: 'bg-ber-gray/10 text-ber-gray/70' },
+  planejamento:  { label: 'Pré Obra - Planejamento', className: 'bg-ber-gray/15 text-ber-gray' },
+  em_andamento:  { label: 'Em andamento',            className: 'bg-ber-teal/15 text-ber-teal' },
+  pos_obra:      { label: 'Pós Obra',                className: 'bg-ber-olive/10 text-ber-olive/80' },
+  pausada:       { label: 'Pausada',                 className: 'bg-amber-100 text-amber-700' },
+  concluida:     { label: 'Concluída',               className: 'bg-ber-olive/15 text-ber-olive' },
+  cancelada:     { label: 'Arquivada',               className: 'bg-red-50 text-red-500' },
+};
 
 const BRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtData = (iso: string | null) =>
@@ -128,6 +142,14 @@ export default function LiberacaoFornecedorPage() {
   const [loadingObras, setLoadingObras] = useState(true);
   const [erroObras, setErroObras] = useState(false);
   const [buscaObra, setBuscaObra] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState<Set<ObraStatus>>(new Set());
+  function toggleStatus(s: ObraStatus) {
+    setStatusFiltro((prev) => {
+      const next = new Set(prev);
+      next.has(s) ? next.delete(s) : next.add(s);
+      return next;
+    });
+  }
 
   const carregarObras = useCallback(async () => {
     setLoadingObras(true);
@@ -144,11 +166,21 @@ export default function LiberacaoFornecedorPage() {
 
   useEffect(() => { carregarObras(); }, [carregarObras]);
 
+  const statusPresentes = useMemo(
+    () => Array.from(new Set(obras.map((o) => o.obraStatus))).sort(
+      (a, b) => Object.keys(STATUS_OBRA_CONFIG).indexOf(a) - Object.keys(STATUS_OBRA_CONFIG).indexOf(b),
+    ),
+    [obras],
+  );
+
   const obrasFiltradas = useMemo(() => {
     const q = norm(buscaObra.trim());
-    if (!q) return obras;
-    return obras.filter((o) => norm(o.obraNome).includes(q));
-  }, [obras, buscaObra]);
+    return obras.filter((o) => {
+      if (q && !norm(o.obraNome).includes(q)) return false;
+      if (statusFiltro.size > 0 && !statusFiltro.has(o.obraStatus)) return false;
+      return true;
+    });
+  }, [obras, buscaObra, statusFiltro]);
 
   // ── ações na fila (aprovar/recusar)
   const [dataPgto, setDataPgto] = useState<Record<string, string>>({});
@@ -214,7 +246,7 @@ export default function LiberacaoFornecedorPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start">
         {/* ─── OBRAS — clique leva pra página com todos os fornecedores contratados ── */}
         <section>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-ber-gray">Obras</h2>
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/60" />
@@ -225,6 +257,29 @@ export default function LiberacaoFornecedorPage() {
               />
             </div>
           </div>
+          {statusPresentes.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <button
+                onClick={() => setStatusFiltro(new Set())}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium border ${
+                  statusFiltro.size === 0 ? 'border-ber-carbon bg-ber-carbon text-white' : 'border-ber-border text-ber-gray hover:border-ber-teal'
+                }`}
+              >
+                Todas
+              </button>
+              {statusPresentes.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => toggleStatus(s)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium border ${
+                    statusFiltro.has(s) ? 'border-ber-carbon ' + STATUS_OBRA_CONFIG[s].className : 'border-ber-border text-ber-gray hover:border-ber-teal'
+                  }`}
+                >
+                  {STATUS_OBRA_CONFIG[s].label}
+                </button>
+              ))}
+            </div>
+          )}
           {loadingObras ? (
             <p className="text-sm text-ber-gray">Carregando obras…</p>
           ) : erroObras ? (
@@ -234,40 +289,42 @@ export default function LiberacaoFornecedorPage() {
             </div>
           ) : obrasFiltradas.length === 0 ? (
             <p className="text-sm text-ber-gray">
-              {buscaObra ? 'Nenhuma obra encontrada.' : 'Nenhuma obra com item de Metas de Compra comprado ainda.'}
+              {buscaObra || statusFiltro.size > 0 ? 'Nenhuma obra encontrada.' : 'Nenhuma obra com item de Metas de Compra comprado ainda.'}
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="bg-white border border-ber-border rounded-xl divide-y divide-ber-border/60 overflow-hidden">
               {obrasFiltradas.map((o) => {
                 const pendentes = pendentesPorObra.get(o.obraId) ?? 0;
                 const comprometido = comprometidoPorObra.get(o.obraId) ?? 0;
                 const pctBarra = o.totalComprado > 0 ? Math.min(100, (comprometido / o.totalComprado) * 100) : 0;
+                const stCfg = STATUS_OBRA_CONFIG[o.obraStatus];
                 return (
                   <button
                     key={o.obraId}
                     onClick={() => router.push(`/liberacao-fornecedor/${o.obraId}`)}
-                    className="relative flex flex-col gap-2 bg-white border border-ber-border rounded-xl p-3.5 text-left hover:border-ber-teal hover:shadow-sm transition"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-ber-bg/60 transition"
                   >
-                    {pendentes > 0 && (
-                      <span className="absolute -top-2 -right-2 rounded-full bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[20px] text-center shadow">
-                        {pendentes}
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Building2 size={18} className="text-ber-gray shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-ber-carbon truncate" title={o.obraNome}>{o.obraNome}</p>
-                          <p className="text-xs text-ber-gray">
-                            {o.qtdFornecedores} fornecedor{o.qtdFornecedores === 1 ? '' : 'es'} · <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.totalComprado)}</span>
-                          </p>
+                    <Building2 size={16} className="text-ber-gray shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-ber-carbon truncate" title={o.obraNome}>{o.obraNome}</p>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${stCfg.className}`}>{stCfg.label}</span>
+                        {pendentes > 0 && (
+                          <span className="shrink-0 rounded-full bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center">
+                            {pendentes}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-ber-gray shrink-0">
+                          {o.qtdFornecedores} fornecedor{o.qtdFornecedores === 1 ? '' : 'es'} · <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.totalComprado)}</span>
+                        </p>
+                        <div className="h-1.5 flex-1 max-w-40 rounded-full bg-ber-border/60 overflow-hidden">
+                          <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${pctBarra}%` }} />
                         </div>
                       </div>
-                      <ChevronRight size={18} className="text-ber-gray/50 shrink-0" />
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-ber-border/60 overflow-hidden">
-                      <div className="h-full rounded-full bg-ber-olive transition-all" style={{ width: `${pctBarra}%` }} />
-                    </div>
+                    <ChevronRight size={18} className="text-ber-gray/50 shrink-0" />
                   </button>
                 );
               })}
