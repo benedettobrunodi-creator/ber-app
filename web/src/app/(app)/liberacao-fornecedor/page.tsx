@@ -361,7 +361,6 @@ export default function LiberacaoFornecedorPage() {
                               <p className="text-sm font-medium text-ber-carbon">{it.obraNome} <span className="text-ber-gray">·</span> {it.categoria}</p>
                               <p className="text-sm text-ber-gray">
                                 {it.fornecedor ?? '—'} — {it.percentual.toFixed(1)}% = <span className="font-semibold tabular-nums text-ber-carbon">{BRL(it.valorAutorizado)}</span>
-                                {it.dataPagamento && <> · pagamento {fmtData(it.dataPagamento)}</>}
                               </p>
                               {it.observacoes && <p className="text-xs text-ber-gray/70 italic mt-0.5">{it.observacoes}</p>}
                               {it.motivoRecusa && <p className="text-xs text-red-600 mt-0.5">Recusa: {it.motivoRecusa}</p>}
@@ -369,7 +368,14 @@ export default function LiberacaoFornecedorPage() {
                                 <p className="text-xs text-green-700 mt-0.5">✉️ enviado a {it.emailDestinatario} em {new Date(it.emailEnviadoEm).toLocaleString('pt-BR')}</p>
                               )}
                             </div>
-                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COR[it.status]}`}>{STATUS_LABEL[it.status]}</span>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COR[it.status]}`}>{STATUS_LABEL[it.status]}</span>
+                              {it.dataPagamento && (
+                                <span className="flex items-center gap-1 rounded-md bg-ber-olive/15 px-2 py-1 text-xs font-bold text-ber-olive tabular-nums">
+                                  📅 Pagamento {fmtData(it.dataPagamento)}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {it.status === 'solicitada' && podeFinanceiro && (
