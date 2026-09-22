@@ -290,8 +290,8 @@ export default function LiberacaoFornecedorObraPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)] items-start">
           {/* ─── LISTA — fornecedores contratados ── */}
           <section className="bg-white border border-ber-border rounded-xl overflow-hidden">
-            <div className="border-b border-ber-border p-3">
-              <div className="relative">
+            <div className="border-b border-ber-border p-3 flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/60" />
                 <input
                   type="text" value={busca} onChange={(e) => setBusca(e.target.value)}
@@ -299,6 +299,17 @@ export default function LiberacaoFornecedorObraPage() {
                   className="w-full text-sm pl-8 pr-3 py-2 border border-ber-border rounded-lg"
                 />
               </div>
+              {gruposFornecedor.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setColapsados(colapsados.size > 0 ? new Set() : new Set(gruposFornecedor.map((g) => g.label)))}
+                  className="shrink-0 flex items-center gap-1 text-xs text-ber-gray hover:text-ber-carbon border border-ber-border rounded-lg px-2.5 py-2"
+                  title={colapsados.size > 0 ? 'Expandir todos os fornecedores' : 'Recolher todos os fornecedores'}
+                >
+                  {colapsados.size > 0 ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  {colapsados.size > 0 ? 'Expandir todos' : 'Recolher todos'}
+                </button>
+              )}
             </div>
             <div className="max-h-[70vh] overflow-y-auto divide-y divide-ber-border/60">
               {loading ? (
