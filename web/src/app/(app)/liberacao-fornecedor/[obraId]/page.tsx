@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Search, ChevronRight, Send } from 'lucide-react';
+import { ArrowLeft, Search, ChevronRight, ChevronDown, Send } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 
@@ -140,6 +140,15 @@ export default function LiberacaoFornecedorObraPage() {
     }
     return Array.from(grupos.values());
   }, [opcoesFiltradas]);
+
+  const [colapsados, setColapsados] = useState<Set<string>>(new Set());
+  function toggleGrupo(label: string) {
+    setColapsados((prev) => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  }
 
   const historicoFiltrado = useMemo(() => {
     const q = norm(buscaHistorico.trim());
@@ -302,16 +311,22 @@ export default function LiberacaoFornecedorObraPage() {
                 gruposFornecedor.map((g) => {
                   const totalComprado = g.itens.reduce((s, i) => s + i.comprado, 0);
                   const totalLiberado = g.itens.reduce((s, i) => s + i.jaAutorizado, 0);
+                  const colapsado = colapsados.has(g.label);
                   return (
                     <div key={g.label}>
-                      <div className="flex items-center justify-between gap-2 bg-ber-bg/70 px-4 py-1.5 sticky top-0">
-                        <p className="text-[11px] font-bold text-ber-carbon truncate" title={g.label}>{g.label}</p>
+                      <button
+                        type="button"
+                        onClick={() => toggleGrupo(g.label)}
+                        className="w-full flex items-center gap-2 bg-ber-bg/70 px-4 py-1.5 sticky top-0 text-left hover:bg-ber-bg"
+                      >
+                        {colapsado ? <ChevronRight size={14} className="text-ber-gray shrink-0" /> : <ChevronDown size={14} className="text-ber-gray shrink-0" />}
+                        <p className="text-[11px] font-bold text-ber-carbon truncate flex-1" title={g.label}>{g.label}</p>
                         <p className="text-[10px] text-ber-gray shrink-0 tabular-nums">
                           {g.itens.length} item{g.itens.length === 1 ? '' : 's'} · {BRL(totalComprado)}
                           {totalLiberado > 0 && <> · <span className="text-ber-olive font-semibold">{BRL(totalLiberado)} liberado</span></>}
                         </p>
-                      </div>
-                      {g.itens.map((o) => {
+                      </button>
+                      {!colapsado && g.itens.map((o) => {
                         const semSaldo = o.saldo <= 0.01;
                         const emAndamento = comprasMetaComPendencia.has(o.comprasMetaId);
                         const selecionado = itemSel?.comprasMetaId === o.comprasMetaId;
