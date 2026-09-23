@@ -14,9 +14,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Send, Building2, ChevronRight, Search } from 'lucide-react';
+import { Send, Building2, ChevronRight, Search, Archive } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
+import { confirmar } from '@/lib/confirmar';
 import { useAuthStore } from '@/stores/authStore';
 
 type Status = 'solicitada' | 'aprovada_financeiro' | 'autorizada' | 'recusada';
@@ -145,7 +146,10 @@ export default function LiberacaoFornecedorPage() {
   const [loadingObras, setLoadingObras] = useState(true);
   const [erroObras, setErroObras] = useState(false);
   const [buscaObra, setBuscaObra] = useState('');
-  const [statusFiltro, setStatusFiltro] = useState<Set<ObraStatus>>(new Set());
+  // Default = fases ativas (Bruno 22/09): Pré Obra - Planejamento + Em andamento.
+  const [statusFiltro, setStatusFiltro] = useState<Set<ObraStatus>>(new Set(['planejamento', 'em_andamento']));
+  type OrdemObra = 'nome' | 'valor' | 'fornecedores' | 'pendentes';
+  const [ordem, setOrdem] = useState<OrdemObra>('nome');
   function toggleStatus(s: ObraStatus) {
     setStatusFiltro((prev) => {
       const next = new Set(prev);
@@ -178,12 +182,34 @@ export default function LiberacaoFornecedorPage() {
 
   const obrasFiltradas = useMemo(() => {
     const q = norm(buscaObra.trim());
-    return obras.filter((o) => {
+    const lista = obras.filter((o) => {
       if (q && !norm(o.obraNome).includes(q)) return false;
       if (statusFiltro.size > 0 && !statusFiltro.has(o.obraStatus)) return false;
       return true;
     });
-  }, [obras, buscaObra, statusFiltro]);
+    const pend = (o: ObraResumo) => pendentesPorObra.get(o.obraId) ?? 0;
+    return lista.sort((a, b) => {
+      switch (ordem) {
+        case 'valor': return b.totalComprado - a.totalComprado;
+        case 'fornecedores': return b.qtdFornecedores - a.qtdFornecedores;
+        case 'pendentes': return pend(b) - pend(a) || a.obraNome.localeCompare(b.obraNome, 'pt-BR');
+        default: return a.obraNome.localeCompare(b.obraNome, 'pt-BR');
+      }
+    });
+  }, [obras, buscaObra, statusFiltro, ordem, pendentesPorObra]);
+
+  // Arquivar direto da lista (Bruno 22/09) — backend já valida role (coordenacao+).
+  const podeArquivar = role === 'coordenacao' || role === 'diretoria' || role === 'socio';
+  async function arquivarObra(o: ObraResumo) {
+    if (!(await confirmar(`Arquivar a obra "${o.obraNome}"? Ela sai das listas ativas (dá pra achar no filtro "Arquivada").`, { confirmarLabel: 'Arquivar' }))) return;
+    try {
+      await api.delete(`/obras/${o.obraId}`);
+      toast('Obra arquivada.');
+      carregarObras();
+    } catch (e) {
+      toast(errMsg(e, 'Erro ao arquivar'), 'erro');
+    }
+  }
 
   // ── ações na fila (aprovar/recusar)
   const [dataPgto, setDataPgto] = useState<Record<string, string>>({});
@@ -255,13 +281,25 @@ export default function LiberacaoFornecedorPage() {
         <section>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-ber-gray">Obras</h2>
-            <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/60" />
-              <input
-                type="text" value={buscaObra} onChange={(e) => setBuscaObra(e.target.value)}
-                placeholder="Buscar obra…"
-                className="text-sm pl-8 pr-3 py-1.5 border border-ber-border rounded-lg w-48"
-              />
+            <div className="flex items-center gap-2">
+              <select
+                value={ordem} onChange={(e) => setOrdem(e.target.value as OrdemObra)}
+                className="text-xs px-2 py-1.5 border border-ber-border rounded-lg bg-white text-ber-gray"
+                title="Ordenar obras"
+              >
+                <option value="nome">Ordenar: nome</option>
+                <option value="valor">Ordenar: maior valor</option>
+                <option value="fornecedores">Ordenar: mais fornecedores</option>
+                <option value="pendentes">Ordenar: mais pendentes</option>
+              </select>
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ber-gray/60" />
+                <input
+                  type="text" value={buscaObra} onChange={(e) => setBuscaObra(e.target.value)}
+                  placeholder="Buscar obra…"
+                  className="text-sm pl-8 pr-3 py-1.5 border border-ber-border rounded-lg w-48"
+                />
+              </div>
             </div>
           </div>
           {statusPresentes.length > 1 && (
@@ -306,10 +344,13 @@ export default function LiberacaoFornecedorPage() {
                 const pctBarra = o.totalComprado > 0 ? Math.min(100, (comprometido / o.totalComprado) * 100) : 0;
                 const stCfg = STATUS_OBRA_CONFIG[o.obraStatus];
                 return (
-                  <button
+                  <div
                     key={o.obraId}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => router.push(`/liberacao-fornecedor/${o.obraId}`)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-ber-bg/60 transition"
+                    onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/liberacao-fornecedor/${o.obraId}`); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-ber-bg/60 transition cursor-pointer"
                   >
                     <Building2 size={16} className="text-ber-gray shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -331,8 +372,18 @@ export default function LiberacaoFornecedorPage() {
                         </div>
                       </div>
                     </div>
+                    {podeArquivar && o.obraStatus !== 'cancelada' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); arquivarObra(o); }}
+                        className="shrink-0 rounded-lg p-1.5 text-ber-gray/60 hover:text-ber-carbon hover:bg-ber-border/40"
+                        title="Arquivar obra"
+                      >
+                        <Archive size={15} />
+                      </button>
+                    )}
                     <ChevronRight size={18} className="text-ber-gray/50 shrink-0" />
-                  </button>
+                  </div>
                 );
               })}
             </div>
