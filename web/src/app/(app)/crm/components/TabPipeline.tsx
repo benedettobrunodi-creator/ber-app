@@ -47,12 +47,18 @@ function countTrue(bools: boolean[]): number {
 type ClassifKey = 'quente' | 'qualificado' | 'oportunidade' | 'frio';
 
 function classificarOportunidade(op: Oportunidade): { key: ClassifKey; label: string; cls: string } | null {
-  const icp = countTrue([op.icpEstrategico, op.icpLocalizacao, op.icpTicket, op.icpCiclo]);
-  const bant = countTrue([op.bantBudget, op.bantAuthority, op.bantNeed, op.bantTimeline]);
+  // Pesos revisados (Bruno 23/09/26, simulação validada na base de 44 leads):
+  // itens que MATAM/FAZEM o deal pesam 3 (Budget, Authority · Ticket, Estratégico);
+  // itens negociáveis pesam 2 (Need, Timeline · Prazo, Localização).
+  // Corte 8 = exige os DOIS itens fortes do lado + 1 — antes (contagem >=3)
+  // metade do funil saía QUENTE (22/44); agora QUENTE significa verba+decisor
+  // confirmados E ticket+perfil. Referência: memory Linux 2026-09-23.
+  const icp = (op.icpTicket ? 3 : 0) + (op.icpEstrategico ? 3 : 0) + (op.icpCiclo ? 2 : 0) + (op.icpLocalizacao ? 2 : 0);
+  const bant = (op.bantBudget ? 3 : 0) + (op.bantAuthority ? 3 : 0) + (op.bantNeed ? 2 : 0) + (op.bantTimeline ? 2 : 0);
   // Só classifica quando pelo menos um dos dois foi tocado — evita "FRIO" pra lead ainda não avaliado
   if (icp === 0 && bant === 0) return null;
-  const icpAlto = icp >= 3;
-  const bantAlto = bant >= 3;
+  const icpAlto = icp >= 8;
+  const bantAlto = bant >= 8;
   if (icpAlto && bantAlto)   return { key: 'quente',       label: 'QUENTE',       cls: 'bg-red-100 text-red-700 ring-red-200' };
   if (icpAlto && !bantAlto)  return { key: 'qualificado',  label: 'QUALIFICADO',  cls: 'bg-blue-100 text-blue-700 ring-blue-200' };
   if (!icpAlto && bantAlto)  return { key: 'oportunidade', label: 'OPORTUNIDADE', cls: 'bg-amber-100 text-amber-700 ring-amber-200' };
