@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown, Plus, FilePlus } from 'lucide-react';
 import api from '@/lib/api';
+import FornecedorInput from '@/components/FornecedorInput';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 
 interface ComprasSplit {
@@ -28,6 +29,7 @@ interface CompraItem {
   pctMeta: number;
   comprado: number;
   fornecedor: string | null;
+  fornecedorId: string | null;
   faturamento: string | null;
   pacote: number | null;
   compradoOk: boolean;
@@ -725,10 +727,10 @@ export default function ComprasPage() {
                           )}
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="text"
+                          <FornecedorInput
                             value={item.fornecedor || ''}
-                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                            onTexto={v => saveItem(item.id, { fornecedor: v, fornecedorId: null })}
+                            onSave={(nome, fid) => saveItem(item.id, { fornecedor: nome, fornecedorId: fid })}
                             placeholder="Fornecedor..."
                             className="w-full rounded border border-ber-gray/30 bg-white px-1 py-0.5 text-xs font-bold focus:border-ber-teal focus:outline-none"
                           />
@@ -847,8 +849,9 @@ export default function ComprasPage() {
                             className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-right text-xs tabular-nums focus:border-amber-500 focus:outline-none" />
                         </td>
                         <td className="px-3 py-2">
-                          <input type="text" value={item.fornecedor || ''}
-                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                          <FornecedorInput value={item.fornecedor || ''}
+                            onTexto={v => saveItem(item.id, { fornecedor: v, fornecedorId: null })}
+                            onSave={(nome, fid) => saveItem(item.id, { fornecedor: nome, fornecedorId: fid })}
                             placeholder="Fornecedor..."
                             className="w-full rounded border border-amber-300 bg-white px-1 py-0.5 text-xs focus:border-amber-500 focus:outline-none" />
                         </td>
@@ -1077,10 +1080,10 @@ export default function ComprasPage() {
                       </td>
                       <td className="px-3 py-2">
                         {!hasSplits && (
-                          <input
-                            type="text"
+                          <FornecedorInput
                             value={item.fornecedor || ''}
-                            onChange={e => saveItem(item.id, { fornecedor: e.target.value })}
+                            onTexto={v => saveItem(item.id, { fornecedor: v, fornecedorId: null })}
+                            onSave={(nome, fid) => saveItem(item.id, { fornecedor: nome, fornecedorId: fid })}
                             placeholder="Fornecedor..."
                             className="w-full rounded border border-ber-gray/30 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
                           />

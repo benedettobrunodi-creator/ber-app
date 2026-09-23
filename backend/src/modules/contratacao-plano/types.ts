@@ -11,6 +11,7 @@ export const createPlanoSchema = z.object({
   email:      z.string().optional().nullable(),
   responsavel:       z.string().optional().nullable(),
   empresaContratada: z.string().optional().nullable(),
+  fornecedorId:      z.string().uuid().optional().nullable(), // cadastro único (22/09/26)
   tempoEntrega:      z.string().optional().nullable(),
   dataEmissaoPedido: z.string().optional().nullable(),
   inicioMobilizacao: z.string().optional().nullable(),

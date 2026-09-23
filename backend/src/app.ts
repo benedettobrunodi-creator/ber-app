@@ -62,6 +62,7 @@ import capitalGiroRoutes from './modules/capital-giro/routes';
 import { obraRecebimentoRouter, recebimentoRouter } from './modules/recebimento/routes';
 import qualidadeRouter from './modules/qualidade/routes';
 import { geralRouter as liberacaoFornecedorGeralRouter, obraRouter as liberacaoFornecedorObraRouter } from './modules/liberacao-fornecedor/routes';
+import fornecedorCadastroRouter from './modules/fornecedores/routes';
 import multer from 'multer';
 import { authenticate } from './middleware/auth';
 import { requirePermission } from './middleware/permission';
@@ -143,6 +144,8 @@ app.use('/v1/obras/:id/qualidade', ...perm('obras'), qualidadeRouter);
 // Liberação de fornecedor p/ faturamento (21/09/26) — mesma perm.
 app.use('/v1/liberacao-fornecedor', ...perm('obras'), liberacaoFornecedorGeralRouter);
 app.use('/v1/obras/:id/liberacao-fornecedor', ...perm('obras'), liberacaoFornecedorObraRouter);
+// Cadastro único de fornecedores (22/09/26) — Metas de Compra e Cronograma selecionam daqui.
+app.use('/v1/fornecedores', ...perm('obras'), fornecedorCadastroRouter);
 // Ranking de qualidade entre obras (10/09) — consumido pelo dashboard
 import { Router as QRankRouter } from 'express';
 import { ranking as qualidadeRanking } from './modules/qualidade/controller';

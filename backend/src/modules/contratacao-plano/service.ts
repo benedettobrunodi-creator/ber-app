@@ -48,6 +48,7 @@ export async function create(obraId: string, input: CreatePlanoInput) {
       email:      input.email ?? null,
       responsavel:       input.responsavel ?? null,
       empresaContratada: input.empresaContratada ?? null,
+      fornecedorId:      input.fornecedorId ?? null,
       tempoEntrega:      parseDate(input.tempoEntrega),
       dataEmissaoPedido: parseDate(input.dataEmissaoPedido),
       inicioMobilizacao: parseDate(input.inicioMobilizacao),
@@ -83,6 +84,8 @@ export async function update(id: string, input: UpdatePlanoInput) {
       email:         'email'    in input ? (input.email    ?? null) : undefined,
       responsavel:       'responsavel'       in input ? (input.responsavel       ?? null) : undefined,
       empresaContratada: 'empresaContratada' in input ? (input.empresaContratada ?? null) : undefined,
+      // Cadastro único de fornecedores (22/09/26)
+      fornecedorId:      'fornecedorId'      in input ? (input.fornecedorId      ?? null) : undefined,
       tempoEntrega:      'tempoEntrega'      in input ? parseDate(input.tempoEntrega)      : undefined,
       dataEmissaoPedido: 'dataEmissaoPedido' in input ? parseDate(input.dataEmissaoPedido) : undefined,
       inicioMobilizacao: 'inicioMobilizacao' in input ? parseDate(input.inicioMobilizacao) : undefined,

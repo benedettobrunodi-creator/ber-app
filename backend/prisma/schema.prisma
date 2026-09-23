@@ -28,6 +28,7 @@ model User {
   obraMembers                   ObraMember[]
   assignedTasks                 ObraTask[]                @relation("TaskAssignee")
   liberacoesForSolicitadas      LiberacaoFornecedor[]     @relation("LibForSolicitante")
+  fornecedoresCadastrados       FornecedorCadastro[]      @relation("FornecedorCadastroCriador")
   liberacoesForAprovFin         LiberacaoFornecedor[]     @relation("LibForAprovFin")
   liberacoesForAprovDir         LiberacaoFornecedor[]     @relation("LibForAprovDir")
   liberacoesForRecusadas        LiberacaoFornecedor[]     @relation("LibForRecusa")
@@ -257,26 +258,55 @@ model Obra {
   @@map("obras")
 }
 
-model ComprasMeta {
+// ─── FornecedorCadastro — cadastro ÚNICO e global de fornecedores (22/09/26,
+// Bruno). Compartilhado entre Metas de Compra e Cronograma de Contratações:
+// as duas telas selecionam daqui em vez de digitar nome livre (fim do
+// "Sinqo" × "Sinqo Tecnologia"). nomeNorm = nome sem acento/minúsculo,
+// único — é a chave anti-duplicata; ao digitar similar, o front pergunta
+// "é o mesmo?" antes de criar. NÃO confundir com o model Fornecedor
+// (legado, por obra, subsistema de medição).
+model FornecedorCadastro {
   id          String   @id @default(uuid()) @db.Uuid
-  obraId      String   @map("obra_id") @db.Uuid
-  n           String?  @db.VarChar(20)
-  tipo        String   @default("item") @db.VarChar(20)
-  categoria   String   @db.VarChar(200)
-  descritivo  String?  @db.VarChar(500)
-  venda       Float    @default(0)
-  pctMeta     Float    @default(0.2) @map("pct_meta")
-  comprado    Float    @default(0)
-  fornecedor  String?  @db.VarChar(500)
-  faturamento String?  @db.VarChar(50)
-  pacote      Int?
-  compradoOk  Boolean  @default(false) @map("comprado_ok")
+  nome        String   @db.VarChar(255)
+  nomeNorm    String   @unique @map("nome_norm") @db.VarChar(255)
+  cnpj        String?  @db.VarChar(20)
+  contato     String?  @db.VarChar(150)
+  telefone    String?  @db.VarChar(40)
+  email       String?  @db.VarChar(150)
+  observacoes String?  @db.VarChar(500)
+  criadoPorId String?  @map("criado_por") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  obra       Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  splits     ComprasSplit[]
-  liberacoes LiberacaoFornecedor[]
+  criadoPor    User?                  @relation("FornecedorCadastroCriador", fields: [criadoPorId], references: [id])
+  comprasMetas ComprasMeta[]
+  planos       ObraContratacaoPlano[]
+
+  @@map("fornecedores_cadastro")
+}
+
+model ComprasMeta {
+  id           String   @id @default(uuid()) @db.Uuid
+  obraId       String   @map("obra_id") @db.Uuid
+  n            String?  @db.VarChar(20)
+  tipo         String   @default("item") @db.VarChar(20)
+  categoria    String   @db.VarChar(200)
+  descritivo   String?  @db.VarChar(500)
+  venda        Float    @default(0)
+  pctMeta      Float    @default(0.2) @map("pct_meta")
+  comprado     Float    @default(0)
+  fornecedor   String?  @db.VarChar(500)
+  fornecedorId String?  @map("fornecedor_cadastro_id") @db.Uuid
+  faturamento  String?  @db.VarChar(50)
+  pacote       Int?
+  compradoOk   Boolean  @default(false) @map("comprado_ok")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra               Obra                  @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  fornecedorCadastro FornecedorCadastro?   @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  splits             ComprasSplit[]
+  liberacoes         LiberacaoFornecedor[]
 
   @@index([obraId])
   @@map("compras_metas")
@@ -2590,6 +2620,7 @@ model ObraContratacaoPlano {
   email             String?   @db.VarChar(150)
   responsavel       String?   @db.VarChar(150) // responsável pela contratação (BÈR)
   empresaContratada String?   @map("empresa_contratada") @db.VarChar(150)
+  fornecedorId      String?   @map("fornecedor_cadastro_id") @db.Uuid
   tempoEntrega      DateTime? @map("tempo_entrega") @db.Date // tempo de entrega e/ou mobilização
   dataEmissaoPedido DateTime? @map("data_emissao_pedido") @db.Date
   inicioMobilizacao DateTime? @map("inicio_mobilizacao") @db.Date
@@ -2597,8 +2628,9 @@ model ObraContratacaoPlano {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  obra        Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
-  contratacao ObraContratacao? @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+  obra               Obra                @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratacao        ObraContratacao?    @relation("PlanoContratacao", fields: [contratacaoId], references: [id], onDelete: SetNull)
+  fornecedorCadastro FornecedorCadastro? @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
 
   @@index([obraId])
   @@index([status])

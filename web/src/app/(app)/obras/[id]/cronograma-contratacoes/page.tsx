@@ -6,6 +6,7 @@ import { useBackToObra } from '@/hooks/useBackToObra';
 import Link from 'next/link';
 import { ArrowLeft, Plus, CalendarClock, Trash2, X, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
 import api from '@/lib/api';
+import FornecedorInput from '@/components/FornecedorInput';
 import { confirmar } from '@/lib/confirmar';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -28,6 +29,7 @@ interface Plano {
   email: string | null;
   responsavel: string | null;
   empresaContratada: string | null;
+  fornecedorId: string | null;
   tempoEntrega: string | null;
   dataEmissaoPedido: string | null;
   inicioMobilizacao: string | null;
@@ -192,7 +194,9 @@ export default function CronogramaContratacoesPage() {
                       <InlineDate value={p.dataEmissaoPedido} onSave={v => saveField(p.id, { dataEmissaoPedido: v })} />
                     </td>
                     <td className="px-2 py-1.5">
-                      <InlineText value={p.empresaContratada} placeholder="Empresa…" onSave={v => saveField(p.id, { empresaContratada: v })} />
+                      <FornecedorInput value={p.empresaContratada || ''} placeholder="Empresa…"
+                        onSave={(nome, fid) => saveField(p.id, { empresaContratada: nome || null, fornecedorId: fid })}
+                        className="w-full rounded border border-transparent hover:border-ber-gray/30 focus:border-ber-teal bg-transparent px-1 py-0.5 text-xs focus:outline-none" />
                     </td>
                     <td className="px-2 py-1.5">
                       <InlineText value={p.contato} placeholder="Nome…" onSave={v => saveField(p.id, { contato: v })} />
@@ -236,6 +240,7 @@ function PlanoForm({ obraId, edit, comprasPeople, onClose, onSaved }: { obraId: 
     dataLimite: edit?.dataLimite ? edit.dataLimite.slice(0, 10) : '',
     dataEmissaoPedido: edit?.dataEmissaoPedido ? edit.dataEmissaoPedido.slice(0, 10) : '',
     empresaContratada: edit?.empresaContratada || '',
+    fornecedorId: (edit?.fornecedorId ?? null) as string | null,
     inicioMobilizacao: edit?.inicioMobilizacao ? edit.inicioMobilizacao.slice(0, 10) : '',
     contato: edit?.contato || '',
     telefone: edit?.telefone || '',
@@ -258,6 +263,7 @@ function PlanoForm({ obraId, edit, comprasPeople, onClose, onSaved }: { obraId: 
         dataLimite: f.dataLimite || null,
         dataEmissaoPedido: f.dataEmissaoPedido || null,
         empresaContratada: f.empresaContratada.trim() || null,
+        fornecedorId: f.fornecedorId,
         inicioMobilizacao: f.inicioMobilizacao || null,
         contato: f.contato.trim() || null,
         telefone: f.telefone.trim() || null,
@@ -297,7 +303,9 @@ function PlanoForm({ obraId, edit, comprasPeople, onClose, onSaved }: { obraId: 
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Data emissão do pedido"><input type="date" value={f.dataEmissaoPedido} onChange={e => setF(p => ({ ...p, dataEmissaoPedido: e.target.value }))} className={inputCls} /></Field>
-            <Field label="Empresa contratada"><input value={f.empresaContratada} onChange={e => setF(p => ({ ...p, empresaContratada: e.target.value }))} placeholder="Ex: LM Empreiteira" className={inputCls} /></Field>
+            <Field label="Empresa contratada"><FornecedorInput value={f.empresaContratada} placeholder="Ex: LM Empreiteira" className={inputCls}
+              onTexto={v => setF(p => ({ ...p, empresaContratada: v, fornecedorId: null }))}
+              onSave={(nome, fid) => setF(p => ({ ...p, empresaContratada: nome, fornecedorId: fid }))} /></Field>
           </div>
           <Field label="Contato (fornecedor)"><input value={f.contato} onChange={e => setF(p => ({ ...p, contato: e.target.value }))} placeholder="Nome do contato" className={inputCls} /></Field>
           <div className="grid grid-cols-2 gap-4">
