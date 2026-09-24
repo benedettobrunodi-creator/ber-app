@@ -46,7 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
       { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
-      { label: 'Liberação de Fornecedor', href: '/liberacao-fornecedor', icon: Send, perm: 'obras' },
+      { label: 'Medição de Fornecedores', href: '/liberacao-fornecedor', icon: Send, perm: 'obras' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
     ],
   },

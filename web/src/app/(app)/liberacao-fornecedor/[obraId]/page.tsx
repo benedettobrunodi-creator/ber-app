@@ -19,6 +19,7 @@ interface Opcao {
   categoria: string;
   descritivo: string | null;
   fornecedor: string | null;
+  numeroOc: string | null;
   comprado: number;
   jaAutorizado: number;
   saldo: number;
@@ -39,6 +40,7 @@ interface HistoricoItem {
   categoria: string;
   descritivo: string | null;
   fornecedor: string | null;
+  numeroOc: string | null;
   comprado: number;
   percentual: number;
   valorAutorizado: number;
@@ -257,7 +259,7 @@ export default function LiberacaoFornecedorObraPage() {
                       <p className="text-sm font-semibold text-ber-carbon" title={h.fornecedor ?? h.categoria}>
                         {h.fornecedor ?? h.categoria}
                       </p>
-                      <p className="text-xs text-ber-gray">{h.categoria}</p>
+                      <p className="text-xs text-ber-gray">{h.categoria}{h.numeroOc ? ` · OC ${h.numeroOc}` : ''}</p>
                     </div>
                     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COR[h.status]}`}>{STATUS_LABEL[h.status]}</span>
                   </div>
@@ -352,7 +354,7 @@ export default function LiberacaoFornecedorObraPage() {
                             }`}
                           >
                             <div className="min-w-0">
-                              <p className="text-xs text-ber-gray truncate" title={o.categoria}>{o.categoria}</p>
+                              <p className="text-xs text-ber-gray truncate" title={o.categoria}>{o.categoria}{o.numeroOc ? ` · OC ${o.numeroOc}` : ''}</p>
                               <p className="text-xs mt-0.5">
                                 <span className="text-ber-gray">comprado </span>
                                 <span className="font-medium text-ber-carbon tabular-nums">{BRL(o.comprado)}</span>
@@ -395,7 +397,7 @@ export default function LiberacaoFornecedorObraPage() {
                 <p className="text-base font-bold text-ber-carbon" title={itemSel.fornecedor ?? itemSel.categoria}>
                   {itemSel.fornecedor ?? itemSel.categoria}
                 </p>
-                <p className="text-xs text-ber-gray mb-3">{itemSel.categoria}</p>
+                <p className="text-xs text-ber-gray mb-3">{itemSel.categoria}{itemSel.numeroOc ? ` · OC ${itemSel.numeroOc}` : ''}</p>
                 <div className="rounded-lg bg-ber-bg/50 p-3 mb-4">
                   <p className="text-sm tabular-nums">
                     <span className="text-ber-gray">comprado </span><span className="font-medium text-ber-carbon">{BRL(itemSel.comprado)}</span>

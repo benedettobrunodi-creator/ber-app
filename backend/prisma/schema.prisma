@@ -297,6 +297,7 @@ model ComprasMeta {
   comprado     Float    @default(0)
   fornecedor   String?  @db.VarChar(500)
   fornecedorId String?  @map("fornecedor_cadastro_id") @db.Uuid
+  numeroOc     String?  @map("numero_oc") @db.VarChar(30) // nº da Ordem de Compra (Bruno 24/09: compras preenche aqui; aparece no Cronograma e no e-mail de autorização da Medição de Fornecedores)
   faturamento  String?  @db.VarChar(50)
   pacote       Int?
   compradoOk   Boolean  @default(false) @map("comprado_ok")

@@ -30,6 +30,7 @@ interface Item {
   categoria: string;
   descritivo: string | null;
   fornecedor: string | null;
+  numeroOc: string | null;
   percentual: number;
   valorAutorizado: number;
   status: Status;
@@ -269,7 +270,7 @@ export default function LiberacaoFornecedorPage() {
   return (
     <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
       <h1 className="flex items-center gap-2 text-xl font-bold text-ber-carbon mb-1">
-        <Send size={20} className="text-ber-teal" /> Liberação de Fornecedor
+        <Send size={20} className="text-ber-teal" /> Medição de Fornecedores
       </h1>
       <p className="mb-6 text-xs text-ber-gray max-w-2xl">
         Engenharia solicita % sobre o valor comprado (Metas de Compra) → financeiro aprova e define a data de pagamento →
@@ -419,6 +420,7 @@ export default function LiberacaoFornecedorPage() {
                               <p className="text-sm font-medium text-ber-carbon">{it.obraNome} <span className="text-ber-gray">·</span> {it.categoria}</p>
                               <p className="text-sm text-ber-gray">
                                 {it.fornecedor ?? '—'} — {it.percentual.toFixed(1)}% = <span className="font-semibold tabular-nums text-ber-carbon">{BRL(it.valorAutorizado)}</span>
+                                {it.numeroOc && <span className="text-ber-gray"> · OC {it.numeroOc}</span>}
                               </p>
                               {it.observacoes && <p className="text-xs text-ber-gray/70 italic mt-0.5">{it.observacoes}</p>}
                               {it.motivoRecusa && <p className="text-xs text-red-600 mt-0.5">Recusa: {it.motivoRecusa}</p>}

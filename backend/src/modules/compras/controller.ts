@@ -57,6 +57,7 @@ function mapItem(row: any, splits: any[] = []) {
     pctMeta: Number(row.pct_meta),
     comprado: Number(row.comprado),
     fornecedor: row.fornecedor,
+    numeroOc: row.numero_oc ?? null,
     faturamento: row.faturamento,
     pacote: row.pacote !== null ? Number(row.pacote) : null,
     compradoOk: row.comprado_ok,
@@ -202,7 +203,7 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { itemId } = req.params;
-    const { pctMeta, comprado, fornecedor, fornecedorId, faturamento, pacote, compradoOk, categoria, venda } = req.body;
+    const { pctMeta, comprado, fornecedor, fornecedorId, numeroOc, faturamento, pacote, compradoOk, categoria, venda } = req.body;
 
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
@@ -215,6 +216,8 @@ export async function update(req: Request, res: Response, next: NextFunction) {
         ...(fornecedor !== undefined && { fornecedor: String(fornecedor) || null }),
         // Cadastro único (22/09/26): id do FornecedorCadastro; null desvincula.
         ...(fornecedorId !== undefined && { fornecedorId: fornecedorId || null }),
+        // Nº da Ordem de Compra (24/09/26) — aparece no Cronograma e no e-mail de autorização.
+        ...(numeroOc !== undefined && { numeroOc: String(numeroOc).trim() || null }),
         ...(faturamento !== undefined && { faturamento: String(faturamento) || null }),
         ...(pacote !== undefined && { pacote: pacote === null ? null : Number(pacote) }),
         ...(compradoOk !== undefined && { compradoOk: Boolean(compradoOk) }),

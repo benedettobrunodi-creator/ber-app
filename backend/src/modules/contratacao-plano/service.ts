@@ -29,7 +29,26 @@ export async function listByObra(obraId: string) {
     include: { contratacao: { select: { id: true, fornecedor: true, valor: true, status: true } } },
     orderBy: [{ dataIdeal: 'asc' }, { dataLimite: 'asc' }, { ordem: 'asc' }, { pacote: 'asc' }],
   });
-  return rows.map(r => ({ ...r, statusEfetivo: effectiveStatus(r) }));
+
+  // Nº das OCs (24/09/26, Bruno): compras preenche numeroOc no item de Metas;
+  // aqui mostramos SÓ os números (nunca valor — regra: Cronograma não exibe
+  // dinheiro). Ligação: mesmo fornecedor do cadastro único, na mesma obra.
+  const metasComOc = await prisma.comprasMeta.findMany({
+    where: { obraId, numeroOc: { not: null }, fornecedorId: { not: null } },
+    select: { fornecedorId: true, numeroOc: true },
+  });
+  const ocsPorFornecedor = new Map<string, string[]>();
+  for (const m of metasComOc) {
+    const lista = ocsPorFornecedor.get(m.fornecedorId!) ?? [];
+    if (m.numeroOc && !lista.includes(m.numeroOc)) lista.push(m.numeroOc);
+    ocsPorFornecedor.set(m.fornecedorId!, lista);
+  }
+
+  return rows.map(r => ({
+    ...r,
+    statusEfetivo: effectiveStatus(r),
+    numerosOc: r.fornecedorId ? (ocsPorFornecedor.get(r.fornecedorId) ?? []) : [],
+  }));
 }
 
 export async function create(obraId: string, input: CreatePlanoInput) {

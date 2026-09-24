@@ -35,6 +35,7 @@ interface Plano {
   inicioMobilizacao: string | null;
   observacoes: string | null;
   contratacao: { id: string; fornecedor: string; valor: string | number; status: string } | null;
+  numerosOc: string[];
 }
 
 interface Contratacao { id: string; fornecedor: string; disciplina: string | null }
@@ -197,6 +198,11 @@ export default function CronogramaContratacoesPage() {
                       <FornecedorInput value={p.empresaContratada || ''} placeholder="Empresa…"
                         onSave={(nome, fid) => saveField(p.id, { empresaContratada: nome || null, fornecedorId: fid })}
                         className="w-full rounded border border-transparent hover:border-ber-gray/30 focus:border-ber-teal bg-transparent px-1 py-0.5 text-xs focus:outline-none" />
+                      {(p.numerosOc?.length ?? 0) > 0 && (
+                        <p className="px-1 text-[10px] text-ber-gray" title="Nº das Ordens de Compra deste fornecedor (preenchido em Metas de Compra)">
+                          OC {p.numerosOc.join(' · ')}
+                        </p>
+                      )}
                     </td>
                     <td className="px-2 py-1.5">
                       <InlineText value={p.contato} placeholder="Nome…" onSave={v => saveField(p.id, { contato: v })} />
