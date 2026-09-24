@@ -41,7 +41,7 @@ export async function listar(q?: string) {
   return prisma.fornecedorCadastro.findMany({
     where,
     orderBy: { nome: 'asc' },
-    take: 50,
+    take: q?.trim() ? 50 : 500, // sem busca = listagem completa (tela de gestão do hub)
     select: { id: true, nome: true, cnpj: true, contato: true, telefone: true, email: true },
   });
 }

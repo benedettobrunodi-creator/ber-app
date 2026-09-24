@@ -10,6 +10,12 @@ const w = (fn: (req: Request, res: Response) => Promise<unknown>) =>
 export const obraPlanoRouter = Router({ mergeParams: true });
 export const planoRouter = Router();
 
+// Visão global do hub de Compras (24/09/26) — todas as obras, mesma fonte.
+planoRouter.get('/', w(async (_req, res) => {
+  const data = await service.listGlobal();
+  res.json({ data });
+}));
+
 obraPlanoRouter.get('/', w(async (req, res) => {
   const data = await service.listByObra(req.params.obraId);
   res.json({ data });

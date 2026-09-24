@@ -30,31 +30,27 @@ interface NavItem {
 }
 interface NavGroup { section: string; items: NavItem[] }
 
+// Blocos por DEPARTAMENTO (Bruno 24/09/26): espelham a estrutura real da
+// BÈR — operação, compras, comercial, financeiro, pessoas. Evita o menu virar
+// balaio ("GESTÃO" antiga tinha RH + compras + operação misturados).
 const NAV_GROUPS: NavGroup[] = [
   {
     section: 'OBRAS',
     items: [
       { label: 'Obras', href: '/obras', icon: HardHat, badge: true, perm: 'obras' },
-    ],
-  },
-  {
-    section: 'GESTÃO',
-    items: [
       { label: 'Checklists', href: '/checklists', icon: ClipboardCheck, badge: true, perm: 'checklists' },
       { label: 'Diário de Obra', href: '/diario', icon: NotebookPen, perm: 'diario' },
-      { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
-      { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
-      { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
-      { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
-      { label: 'Medição de Fornecedores', href: '/liberacao-fornecedor', icon: Send, perm: 'obras' },
       { label: 'Segurança', href: '/seguranca', icon: ShieldCheck, perm: 'seguranca' },
+      { label: 'Alocação', href: '/alocacao', icon: CalendarRange, perm: 'configuracoes' },
     ],
   },
   {
-    section: 'REFERÊNCIA',
+    section: 'COMPRAS',
     items: [
-      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
-      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
+      { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
+      { label: 'Cronograma de Contratações', href: '/compras/cronograma', icon: CalendarRange, perm: 'comprasDashboard' },
+      { label: 'Fornecedores', href: '/compras/fornecedores', icon: Package, perm: 'comprasDashboard' },
+      { label: 'Medição de Fornecedores', href: '/liberacao-fornecedor', icon: Send, perm: 'obras' },
     ],
   },
   {
@@ -69,13 +65,27 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'DRE', href: '/financeiro/dre', icon: DollarSign, perm: 'financeiro' },
       { label: 'Capital de Giro', href: '/financeiro/capital-giro', icon: Wallet, perm: 'capitalGiro' },
+    ],
+  },
+  {
+    section: 'PESSOAS',
+    items: [
       { label: 'Apontamento de Horas', href: '/ponto', icon: Clock, perm: 'ponto' },
+      { label: 'Férias', href: '/ferias', icon: Palmtree, perm: 'ferias' },
+      { label: 'Gestão de Folha', href: '/banco-horas', icon: Timer, perm: 'bancoHoras' },
+      { label: 'Organograma', href: '/organograma', icon: Network, perm: 'organograma' },
+    ],
+  },
+  {
+    section: 'REFERÊNCIA',
+    items: [
+      { label: 'Normas Técnicas', href: '/normas', icon: BookOpen, perm: 'normas' },
+      { label: 'Instruções Técnicas', href: '/instrucoes', icon: FileText, perm: 'instrucoes' },
     ],
   },
   {
     section: 'ADMIN',
     items: [
-      { label: 'Organograma', href: '/organograma', icon: Network, perm: 'organograma' },
       { label: 'Configurações', href: '/configuracoes', icon: Settings, perm: 'admin' },
     ],
   },

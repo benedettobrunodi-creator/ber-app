@@ -51,6 +51,40 @@ export async function listByObra(obraId: string) {
   }));
 }
 
+/** Visão GLOBAL do Cronograma de Contratações (hub de Compras, 24/09/26):
+ *  todas as obras numa tabela só, sem entrar obra por obra. Mesma fonte de
+ *  dados das telas por obra — editar aqui É editar lá. Sem valores (regra:
+ *  Cronograma nunca mostra dinheiro). */
+export async function listGlobal() {
+  const rows = await prisma.obraContratacaoPlano.findMany({
+    include: {
+      obra: { select: { id: true, name: true, status: true } },
+      contratacao: { select: { id: true, fornecedor: true, valor: true, status: true } },
+    },
+    orderBy: [{ dataIdeal: 'asc' }, { dataLimite: 'asc' }, { ordem: 'asc' }, { pacote: 'asc' }],
+  });
+
+  const metasComOc = await prisma.comprasMeta.findMany({
+    where: { numeroOc: { not: null }, fornecedorId: { not: null } },
+    select: { obraId: true, fornecedorId: true, numeroOc: true },
+  });
+  const ocsPorChave = new Map<string, string[]>();
+  for (const m of metasComOc) {
+    const chave = `${m.obraId}:${m.fornecedorId}`;
+    const lista = ocsPorChave.get(chave) ?? [];
+    if (m.numeroOc && !lista.includes(m.numeroOc)) lista.push(m.numeroOc);
+    ocsPorChave.set(chave, lista);
+  }
+
+  return rows.map(r => ({
+    ...r,
+    obraNome: r.obra.name,
+    obraStatus: r.obra.status,
+    statusEfetivo: effectiveStatus(r),
+    numerosOc: r.fornecedorId ? (ocsPorChave.get(`${r.obraId}:${r.fornecedorId}`) ?? []) : [],
+  }));
+}
+
 export async function create(obraId: string, input: CreatePlanoInput) {
   const obra = await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } });
   if (!obra) throw AppError.notFound('Obra');
