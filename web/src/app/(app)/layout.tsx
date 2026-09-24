@@ -15,7 +15,7 @@ import {
   ClipboardCheck, ShieldCheck, BookOpen,
   FileText, Package,
   Menu, X, CalendarRange, BarChart2, NotebookPen, Home, Target, Network,
-  ShoppingCart, DollarSign, Palmtree, Timer, Wallet, Send,
+  ShoppingCart, DollarSign, Palmtree, Timer, Wallet, Send, LayoutDashboard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     section: 'COMPRAS',
     items: [
+      { label: 'Painel de Gestão', href: '/compras/painel', icon: LayoutDashboard, perm: 'comprasDashboard' },
       { label: 'Metas de Compra', href: '/compras', icon: ShoppingCart, perm: 'comprasDashboard' },
       { label: 'Cronograma de Contratações', href: '/compras/cronograma', icon: CalendarRange, perm: 'comprasDashboard' },
       { label: 'Fornecedores', href: '/compras/fornecedores', icon: Package, perm: 'comprasDashboard' },
