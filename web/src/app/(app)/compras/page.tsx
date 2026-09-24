@@ -101,8 +101,16 @@ const fmtBRL = (v: number) =>
 
 const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 
+interface GestaoData {
+  contratacoes: { contratados: number; emCotacao: number; aContratar: number; atrasados: number;
+    atrasadosPorObra: { obraId: string; obraNome: string; qtd: number }[] };
+  medicao: { filaValor: number; filaQtd: number; autorizadoMes: number; autorizadoMesQtd: number; leadTimeMedioDias: number | null };
+  fornecedores: { top: { nome: string; valor: number; pct: number }[]; total: number; semEmail: number };
+}
+
 export default function ComprasGlobalPage() {
   const [data, setData] = useState<SummaryResponse['data'] | null>(null);
+  const [gestao, setGestao] = useState<GestaoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
   const [sortBy, setSortBy] = useState<SortKey>('savingPct');
@@ -122,6 +130,13 @@ export default function ComprasGlobalPage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [status]);
+
+  // Painel de gestão (CFO/CEO, 24/09/26): processo — contratações, medição, fornecedores.
+  useEffect(() => {
+    api.get<{ data: GestaoData }>('/compras-dashboard/gestao')
+      .then(r => setGestao(r.data.data))
+      .catch(() => {/* painel de gestão é aditivo — falha não derruba a página */});
+  }, []);
 
   const sortedObras = useMemo(() => {
     if (!data) return [];
@@ -228,6 +243,56 @@ export default function ComprasGlobalPage() {
             <p className="mt-1 text-xs text-ber-gray">saving final estimado · soma das obras com ≥10% comprado</p>
           </div>
         </div>
+
+        {/* Painel de gestão — processo (Bruno 24/09: indicadores CFO/CEO) */}
+        {gestao && (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className={`rounded-xl p-4 shadow-sm border ${gestao.contratacoes.atrasados > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-ber-gray/15'}`}>
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Contratações (obras ativas)</p>
+              <p className={`mt-1 text-2xl font-black ${gestao.contratacoes.atrasados > 0 ? 'text-red-600' : 'text-ber-carbon'}`}>
+                {gestao.contratacoes.atrasados} atrasada{gestao.contratacoes.atrasados === 1 ? '' : 's'}
+              </p>
+              <p className="text-xs text-ber-gray mt-1">
+                {gestao.contratacoes.contratados} contratadas · {gestao.contratacoes.emCotacao} em cotação · {gestao.contratacoes.aContratar} a contratar
+              </p>
+              {gestao.contratacoes.atrasadosPorObra.slice(0, 2).map(o => (
+                <p key={o.obraId} className="text-[11px] text-red-700 truncate" title={o.obraNome}>⚠ {o.obraNome}: {o.qtd}</p>
+              ))}
+            </div>
+
+            <div className={`rounded-xl p-4 shadow-sm border ${gestao.medicao.filaQtd > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-ber-gray/15'}`}>
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Fila de aprovação (Medição)</p>
+              <p className={`mt-1 text-2xl font-black ${gestao.medicao.filaQtd > 0 ? 'text-amber-700' : 'text-ber-carbon'}`}>{fmtBRL(gestao.medicao.filaValor)}</p>
+              <p className="text-xs text-ber-gray mt-1">{gestao.medicao.filaQtd} solicitaç{gestao.medicao.filaQtd === 1 ? 'ão' : 'ões'} aguardando</p>
+            </div>
+
+            <div className="rounded-xl p-4 shadow-sm border bg-white border-ber-gray/15">
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Autorizado no mês</p>
+              <p className="mt-1 text-2xl font-black text-ber-carbon">{fmtBRL(gestao.medicao.autorizadoMes)}</p>
+              <p className="text-xs text-ber-gray mt-1">
+                {gestao.medicao.autorizadoMesQtd} autorizaç{gestao.medicao.autorizadoMesQtd === 1 ? 'ão' : 'ões'}
+                {gestao.medicao.leadTimeMedioDias !== null && <> · lead time {gestao.medicao.leadTimeMedioDias < 1 ? '<1' : Math.round(gestao.medicao.leadTimeMedioDias)} dia{gestao.medicao.leadTimeMedioDias >= 1.5 ? 's' : ''}</>}
+              </p>
+            </div>
+
+            <div className="rounded-xl p-4 shadow-sm border bg-white border-ber-gray/15">
+              <p className="text-[10px] font-medium text-ber-gray uppercase tracking-wide">Concentração de fornecedores</p>
+              {gestao.fornecedores.top.slice(0, 3).map(f => (
+                <div key={f.nome} className="mt-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="truncate text-ber-carbon font-medium" title={f.nome}>{f.nome}</span>
+                    <span className="text-ber-gray tabular-nums shrink-0 ml-2">{(f.pct * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-ber-border/60"><div className="h-full rounded-full bg-ber-olive" style={{ width: `${Math.min(100, f.pct * 100)}%` }} /></div>
+                </div>
+              ))}
+              <p className="text-[10px] text-ber-gray mt-2">
+                {gestao.fornecedores.total} no cadastro
+                {gestao.fornecedores.semEmail > 0 && <span className="text-amber-700"> · {gestao.fornecedores.semEmail} sem e-mail</span>}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Linha de referência */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
