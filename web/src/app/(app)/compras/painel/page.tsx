@@ -40,7 +40,7 @@ interface GestaoData {
     totalEstouros: number;
     valorTotalEstouros: number;
     exposicoes: { obraId: string; obraNome: string; categoria: string; meta: number }[];
-    disciplinas: { nome: string; meta: number; comprado: number; itens: number; saving: number; savingPct: number }[];
+    disciplinas: { nome: string; venda: number; meta: number; comprado: number; itens: number; saving: number; savingPct: number }[];
   };
 }
 
@@ -249,11 +249,12 @@ export default function PainelComprasPage() {
       <div className="mt-6 mb-2">
         <p className="text-xs font-semibold text-ber-carbon mb-2">Margens de negociação por disciplina — saving realizado (todas as obras ativas)</p>
         <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
-          <table className="w-full text-sm min-w-[560px]">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-ber-gray border-b border-ber-border/60">
                 <th className="text-left px-4 py-2 font-medium">Disciplina</th>
                 <th className="text-right px-3 py-2 font-medium">Itens</th>
+                <th className="text-right px-3 py-2 font-medium">Venda</th>
                 <th className="text-right px-3 py-2 font-medium">Meta</th>
                 <th className="text-right px-3 py-2 font-medium">Comprado</th>
                 <th className="text-right px-4 py-2 font-medium">Saving</th>
@@ -264,6 +265,7 @@ export default function PainelComprasPage() {
                 <tr key={d.nome}>
                   <td className="px-4 py-2 font-medium text-ber-carbon">{d.nome}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{d.itens}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.venda)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.meta)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.comprado)}</td>
                   <td className={`px-4 py-2 text-right tabular-nums font-bold ${d.saving >= 0 ? 'text-green-700' : 'text-red-600'}`}>
@@ -272,7 +274,7 @@ export default function PainelComprasPage() {
                 </tr>
               ))}
               {gestao.analise.disciplinas.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-3 text-ber-gray">Ainda sem compras suficientes para ranquear disciplinas.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-3 text-ber-gray">Ainda sem compras suficientes para ranquear disciplinas.</td></tr>
               )}
             </tbody>
           </table>

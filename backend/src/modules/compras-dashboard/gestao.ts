@@ -112,7 +112,7 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
     type Exposicao = { obraId: string; obraNome: string; categoria: string; meta: number };
     const estouros: Estouro[] = [];
     const exposicoes: Exposicao[] = [];
-    const porDisciplina = new Map<string, { meta: number; comprado: number; itens: number }>();
+    const porDisciplina = new Map<string, { venda: number; meta: number; comprado: number; itens: number }>();
 
     for (const [obraId, itens] of itemsByObra.entries()) {
       const pctComissao = pctComissaoDe(itens, comissaoByObra.get(obraId) ?? 0);
@@ -135,8 +135,8 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
         // Disciplinas: só itens já comprados (saving REALIZADO), excluindo taxa/imposto
         if (it.comprado > 0 && isElegivelComissao(it)) {
           const d = disciplinaDe(it.categoria);
-          const cur = porDisciplina.get(d) ?? { meta: 0, comprado: 0, itens: 0 };
-          cur.meta += meta; cur.comprado += it.comprado; cur.itens += 1;
+          const cur = porDisciplina.get(d) ?? { venda: 0, meta: 0, comprado: 0, itens: 0 };
+          cur.venda += base; cur.meta += meta; cur.comprado += it.comprado; cur.itens += 1;
           porDisciplina.set(d, cur);
         }
       }
@@ -147,7 +147,7 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
     const disciplinas = Array.from(porDisciplina.entries())
       .filter(([, v]) => v.itens >= 2 && v.meta > 1000) // amostra mínima pra não ranquear ruído
       .map(([nome, v]) => ({
-        nome, meta: v.meta, comprado: v.comprado, itens: v.itens,
+        nome, venda: v.venda, meta: v.meta, comprado: v.comprado, itens: v.itens,
         saving: v.meta - v.comprado,
         savingPct: v.meta > 0 ? ((v.meta - v.comprado) / v.meta) * 100 : 0,
       }))
