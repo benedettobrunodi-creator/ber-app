@@ -109,9 +109,7 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
 
     type Estouro = { obraId: string; obraNome: string; categoria: string; descritivo: string | null;
       meta: number; venda: number; comprado: number; estouro: number; acimaVenda: boolean };
-    type Exposicao = { obraId: string; obraNome: string; categoria: string; meta: number };
     const estouros: Estouro[] = [];
-    const exposicoes: Exposicao[] = [];
     const porDisciplina = new Map<string, { venda: number; meta: number; comprado: number; itens: number }>();
 
     for (const [obraId, itens] of itemsByObra.entries()) {
@@ -128,10 +126,6 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
             estouro: it.comprado - meta, acimaVenda: it.comprado > base + 0.01,
           });
         }
-        // Exposições: itens relevantes ainda sem compra
-        if (!it.compradoOk && it.comprado === 0 && meta > 0) {
-          exposicoes.push({ obraId, obraNome: nomeObra.get(obraId) ?? '—', categoria: it.categoria, meta });
-        }
         // Disciplinas: só itens já comprados (saving REALIZADO), excluindo taxa/imposto
         if (it.comprado > 0 && isElegivelComissao(it)) {
           const d = disciplinaDe(it.categoria);
@@ -143,13 +137,14 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
     }
 
     estouros.sort((a, b) => b.estouro - a.estouro);
-    exposicoes.sort((a, b) => b.meta - a.meta);
     const disciplinas = Array.from(porDisciplina.entries())
       .filter(([, v]) => v.itens >= 2 && v.meta > 1000) // amostra mínima pra não ranquear ruído
       .map(([nome, v]) => ({
         nome, venda: v.venda, meta: v.meta, comprado: v.comprado, itens: v.itens,
         saving: v.meta - v.comprado,
         savingPct: v.meta > 0 ? ((v.meta - v.comprado) / v.meta) * 100 : 0,
+        savingVenda: v.venda - v.comprado,
+        savingVendaPct: v.venda > 0 ? ((v.venda - v.comprado) / v.venda) * 100 : 0,
       }))
       .sort((a, b) => b.savingPct - a.savingPct);
 
@@ -178,7 +173,6 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
           estouros: estouros.slice(0, 10),
           totalEstouros: estouros.length,
           valorTotalEstouros: estouros.reduce((s, e) => s + e.estouro, 0),
-          exposicoes: exposicoes.slice(0, 10),
           disciplinas,
         },
       },

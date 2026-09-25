@@ -39,8 +39,7 @@ interface GestaoData {
     estouros: { obraId: string; obraNome: string; categoria: string; descritivo: string | null; meta: number; venda: number; comprado: number; estouro: number; acimaVenda: boolean }[];
     totalEstouros: number;
     valorTotalEstouros: number;
-    exposicoes: { obraId: string; obraNome: string; categoria: string; meta: number }[];
-    disciplinas: { nome: string; venda: number; meta: number; comprado: number; itens: number; saving: number; savingPct: number }[];
+    disciplinas: { nome: string; venda: number; meta: number; comprado: number; itens: number; saving: number; savingPct: number; savingVenda: number; savingVendaPct: number }[];
   };
 }
 
@@ -200,87 +199,82 @@ export default function PainelComprasPage() {
 
       {/* ── ANÁLISE (Bruno 25/09/26: estouros + margens por disciplina + exposições) ── */}
       <p className="text-[11px] font-bold uppercase tracking-wider text-ber-gray mt-8 mb-2">Análise</p>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6">
         {/* Principais estouros */}
         <div>
           <p className="text-xs font-semibold text-ber-carbon mb-2">
-            Principais estouros — comprado acima da meta do item
-            {gestao.analise.totalEstouros > 0 && <span className="text-ber-gray font-normal"> · {gestao.analise.totalEstouros} it{gestao.analise.totalEstouros === 1 ? 'em' : 'ens'} · {BRL(gestao.analise.valorTotalEstouros)} no total</span>}
+            Principais estouros
+            {gestao.analise.totalEstouros > 0 && <span className="text-red-600 font-bold"> — {BRL(gestao.analise.valorTotalEstouros)}</span>}
+            {gestao.analise.totalEstouros > 0 && <span className="text-ber-gray font-normal"> acima da meta em {gestao.analise.totalEstouros} itens</span>}
           </p>
           <div className="bg-white border border-ber-border rounded-xl divide-y divide-ber-border/60">
             {gestao.analise.estouros.map(e => (
-              <Link key={`${e.obraId}-${e.categoria}-${e.descritivo ?? ''}`} href={`/obras/${e.obraId}/compras`} className="block px-4 py-2.5 hover:bg-ber-bg/40">
-                <div className="flex justify-between gap-2">
-                  <p className="text-sm font-medium text-ber-carbon truncate" title={`${e.categoria}${e.descritivo ? ` — ${e.descritivo}` : ''}`}>
-                    {e.categoria}{e.descritivo ? <span className="text-ber-gray font-normal"> — {e.descritivo}</span> : null}
+              <Link key={`${e.obraId}-${e.categoria}-${e.descritivo ?? ''}`} href={`/obras/${e.obraId}/compras`} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-ber-bg/40">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ber-carbon truncate" title={`${e.categoria}${e.descritivo ? ` — ${e.descritivo}` : ''} · meta ${BRL(e.meta)} → comprado ${BRL(e.comprado)}${e.acimaVenda ? ` · acima até da venda (${BRL(e.venda)})` : ''}`}>
+                    {e.categoria}
                   </p>
-                  <p className="text-sm font-bold tabular-nums shrink-0 text-red-600">+{BRL(e.estouro)}</p>
+                  <p className="text-[11px] text-ber-gray truncate">{e.obraNome} · {BRL(e.meta)} → {BRL(e.comprado)}</p>
                 </div>
-                <p className="text-[11px] text-ber-gray mt-0.5 tabular-nums">
-                  {e.obraNome} · meta {BRL(e.meta)} → comprado {BRL(e.comprado)}
-                  {e.acimaVenda && <span className="text-red-700 font-semibold"> · ⚠ acima da venda ({BRL(e.venda)}) — comeu margem do contrato</span>}
-                </p>
+                <p className="text-sm font-bold tabular-nums shrink-0 text-red-600">+{BRL(e.estouro)}{e.acimaVenda ? ' ●' : ''}</p>
               </Link>
             ))}
             {gestao.analise.estouros.length === 0 && <p className="px-4 py-3 text-sm text-ber-gray">Nenhum item comprado acima da meta. 👏</p>}
           </div>
-        </div>
-
-        {/* Maiores exposições individuais */}
-        <div>
-          <p className="text-xs font-semibold text-ber-carbon mb-2">Maiores exposições — itens relevantes ainda não comprados</p>
-          <div className="bg-white border border-ber-border rounded-xl divide-y divide-ber-border/60">
-            {gestao.analise.exposicoes.map(e => (
-              <Link key={`${e.obraId}-${e.categoria}`} href={`/obras/${e.obraId}/compras`} className="flex justify-between gap-2 px-4 py-2.5 hover:bg-ber-bg/40">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ber-carbon truncate" title={e.categoria}>{e.categoria}</p>
-                  <p className="text-[11px] text-ber-gray truncate">{e.obraNome}</p>
-                </div>
-                <p className="text-sm font-bold tabular-nums shrink-0 text-ber-carbon self-center">{BRL(e.meta)}</p>
-              </Link>
-            ))}
-            {gestao.analise.exposicoes.length === 0 && <p className="px-4 py-3 text-sm text-ber-gray">Tudo comprado — sem exposição pendente.</p>}
-          </div>
-          <p className="text-[11px] text-ber-gray mt-1.5">Onde a negociação tem mais impacto daqui pra frente.</p>
+          {gestao.analise.estouros.some(e => e.acimaVenda) && (
+            <p className="text-[11px] text-ber-gray mt-1.5"><span className="text-red-600">●</span> passou até o valor de venda — consome margem do contrato</p>
+          )}
         </div>
       </div>
 
-      {/* Margens por disciplina */}
-      <div className="mt-6 mb-2">
-        <p className="text-xs font-semibold text-ber-carbon mb-2">Margens de negociação por disciplina — saving realizado (todas as obras ativas)</p>
-        <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-wide text-ber-gray border-b border-ber-border/60">
-                <th className="text-left px-4 py-2 font-medium">Disciplina</th>
-                <th className="text-right px-3 py-2 font-medium">Itens</th>
-                <th className="text-right px-3 py-2 font-medium">Venda</th>
-                <th className="text-right px-3 py-2 font-medium">Meta</th>
-                <th className="text-right px-3 py-2 font-medium">Comprado</th>
-                <th className="text-right px-4 py-2 font-medium">Saving</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ber-border/40">
-              {gestao.analise.disciplinas.map(d => (
-                <tr key={d.nome}>
-                  <td className="px-4 py-2 font-medium text-ber-carbon">{d.nome}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{d.itens}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.venda)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.meta)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.comprado)}</td>
-                  <td className={`px-4 py-2 text-right tabular-nums font-bold ${d.saving >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                    {BRL(d.saving)} <span className="font-medium text-xs">({d.savingPct >= 0 ? '' : '−'}{Math.abs(d.savingPct).toFixed(1)}%)</span>
-                  </td>
-                </tr>
-              ))}
-              {gestao.analise.disciplinas.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-3 text-ber-gray">Ainda sem compras suficientes para ranquear disciplinas.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-[11px] text-ber-gray mt-1.5">Disciplinas no topo negociam melhor que a meta; no fim da lista, retorno pro orçamento revisar os percentuais.</p>
+      {/* Margens por disciplina — duas visões (Bruno 25/09: "dois painéis") */}
+      <div className="mt-6 mb-2 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {[
+          { titulo: 'Saving sobre a VENDA', sub: 'quanto a negociação economizou do valor vendido', ref: 'venda' as const },
+          { titulo: 'Saving sobre a META', sub: 'disciplina comprando melhor ou pior que a meta', ref: 'meta' as const },
+        ].map(painel => {
+          const rows = [...gestao.analise.disciplinas].sort((a, b) =>
+            painel.ref === 'venda' ? b.savingVendaPct - a.savingVendaPct : b.savingPct - a.savingPct);
+          return (
+            <div key={painel.ref}>
+              <p className="text-xs font-semibold text-ber-carbon">{painel.titulo}</p>
+              <p className="text-[11px] text-ber-gray mb-2">{painel.sub}</p>
+              <div className="bg-white border border-ber-border rounded-xl overflow-x-auto">
+                <table className="w-full text-sm min-w-[420px]">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wide text-ber-gray border-b border-ber-border/60">
+                      <th className="text-left px-4 py-2 font-medium">Disciplina</th>
+                      <th className="text-right px-3 py-2 font-medium">{painel.ref === 'venda' ? 'Venda' : 'Meta'}</th>
+                      <th className="text-right px-3 py-2 font-medium">Comprado</th>
+                      <th className="text-right px-4 py-2 font-medium">Saving</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ber-border/40">
+                    {rows.map(d => {
+                      const sav = painel.ref === 'venda' ? d.savingVenda : d.saving;
+                      const pct = painel.ref === 'venda' ? d.savingVendaPct : d.savingPct;
+                      return (
+                        <tr key={d.nome}>
+                          <td className="px-4 py-2 font-medium text-ber-carbon truncate max-w-[180px]" title={`${d.nome} · ${d.itens} itens`}>{d.nome}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(painel.ref === 'venda' ? d.venda : d.meta)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-ber-gray">{BRL(d.comprado)}</td>
+                          <td className={`px-4 py-2 text-right tabular-nums font-bold ${sav >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                            {BRL(sav)} <span className="font-medium text-xs">({pct >= 0 ? '' : '−'}{Math.abs(pct).toFixed(0)}%)</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {rows.length === 0 && (
+                      <tr><td colSpan={4} className="px-4 py-3 text-ber-gray">Ainda sem compras suficientes.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
       </div>
+      <p className="text-[11px] text-ber-gray mb-2">Valores líquidos de comissão, mesmas regras da tela de Metas. Disciplina no vermelho vs meta = retorno pro orçamento revisar o percentual.</p>
     </div>
   );
 }
