@@ -84,6 +84,33 @@ function MotivoTooltip({
   );
 }
 
+// Tooltip do gráfico "Valor de entrada por mês, por origem" — ordenado por
+// valor decrescente (Bruno 25/09/26: "primeiro os mais altos, e dps diminuindo").
+function OrigemMesTooltip({
+  active, payload, label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string; color?: string }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const ordenado = payload
+    .filter((item) => item.name !== '_total')
+    .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0));
+  return (
+    <div className="bg-white border border-ber-border rounded-lg p-3 shadow-lg">
+      <p className="text-xs font-bold text-ber-carbon mb-1.5">{label}</p>
+      <div className="space-y-1">
+        {ordenado.map((item) => (
+          <p key={item.name} className="text-xs" style={{ color: item.color }}>
+            {item.name} : {fmt(Number(item.value ?? 0))}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="bg-white border border-ber-border rounded-xl p-5">
@@ -307,7 +334,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
                 <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <Tooltip content={<OrigemMesTooltip />} />
                 {allOrigens.map((o) => (
                   <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
                 ))}
