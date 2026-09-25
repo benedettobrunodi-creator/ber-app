@@ -611,6 +611,7 @@ function OportunidadeDrawer({
                 <option value="">--</option>
                 <option value="Bruno">Bruno</option>
                 <option value="Camila">Camila</option>
+                <option value="Talita">Talita</option>
               </select>
             </div>
           </div>
