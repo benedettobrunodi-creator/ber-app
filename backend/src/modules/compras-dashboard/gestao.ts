@@ -8,8 +8,17 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/database';
+import { montarItensPorObra } from './controller';
+import { pctComissaoDe, financeiroDoItem, isElegivelComissao } from './calc';
 
 const OBRA_ATIVA = ['nao_iniciada', 'planejamento', 'em_andamento', 'pos_obra', 'pausada'];
+
+/** Disciplina = prefixo da categoria antes do "|" (padrão do orçamento BÈR:
+ *  "Ar Condicionado | Equipamento Split…"). Sem "|", a categoria inteira. */
+function disciplinaDe(categoria: string): string {
+  const i = categoria.indexOf('|');
+  return (i > 0 ? categoria.slice(0, i) : categoria).trim();
+}
 
 export async function getGestao(_req: Request, res: Response, next: NextFunction) {
   try {
@@ -94,14 +103,84 @@ export async function getGestao(_req: Request, res: Response, next: NextFunction
 
     const semEmail = fornecedores.filter(f => !f.email).length;
 
+    // ── ANÁLISE por item/disciplina (25/09/26, Bruno) — MESMAS regras da tela
+    // de Metas (montarItensPorObra + helpers do calc: splits, CO, comissão).
+    const { itemsByObra, comissaoByObra } = await montarItensPorObra(obraIds);
+
+    type Estouro = { obraId: string; obraNome: string; categoria: string; descritivo: string | null;
+      meta: number; venda: number; comprado: number; estouro: number; acimaVenda: boolean };
+    type Exposicao = { obraId: string; obraNome: string; categoria: string; meta: number };
+    const estouros: Estouro[] = [];
+    const exposicoes: Exposicao[] = [];
+    const porDisciplina = new Map<string, { meta: number; comprado: number; itens: number }>();
+
+    for (const [obraId, itens] of itemsByObra.entries()) {
+      const pctComissao = pctComissaoDe(itens, comissaoByObra.get(obraId) ?? 0);
+      for (const it of itens) {
+        if (it.tipo === 'etapa') continue;
+        const { base, meta } = financeiroDoItem(it, pctComissao);
+        // Estouros: comprado acima da meta do item (pior ainda: acima da venda)
+        if (it.comprado > 0 && it.comprado > meta + 0.01) {
+          estouros.push({
+            obraId, obraNome: nomeObra.get(obraId) ?? '—',
+            categoria: it.categoria, descritivo: it.descritivo,
+            meta, venda: base, comprado: it.comprado,
+            estouro: it.comprado - meta, acimaVenda: it.comprado > base + 0.01,
+          });
+        }
+        // Exposições: itens relevantes ainda sem compra
+        if (!it.compradoOk && it.comprado === 0 && meta > 0) {
+          exposicoes.push({ obraId, obraNome: nomeObra.get(obraId) ?? '—', categoria: it.categoria, meta });
+        }
+        // Disciplinas: só itens já comprados (saving REALIZADO), excluindo taxa/imposto
+        if (it.comprado > 0 && isElegivelComissao(it)) {
+          const d = disciplinaDe(it.categoria);
+          const cur = porDisciplina.get(d) ?? { meta: 0, comprado: 0, itens: 0 };
+          cur.meta += meta; cur.comprado += it.comprado; cur.itens += 1;
+          porDisciplina.set(d, cur);
+        }
+      }
+    }
+
+    estouros.sort((a, b) => b.estouro - a.estouro);
+    exposicoes.sort((a, b) => b.meta - a.meta);
+    const disciplinas = Array.from(porDisciplina.entries())
+      .filter(([, v]) => v.itens >= 2 && v.meta > 1000) // amostra mínima pra não ranquear ruído
+      .map(([nome, v]) => ({
+        nome, meta: v.meta, comprado: v.comprado, itens: v.itens,
+        saving: v.meta - v.comprado,
+        savingPct: v.meta > 0 ? ((v.meta - v.comprado) / v.meta) * 100 : 0,
+      }))
+      .sort((a, b) => b.savingPct - a.savingPct);
+
+    // Aging da fila: dias do pedido mais antigo ainda parado
+    let agingDias: number | null = null;
+    for (const l of liberacoes) {
+      if (l.status === 'solicitada' || l.status === 'aprovada_financeiro') {
+        const dias = (Date.now() - l.createdAt.getTime()) / 86400000;
+        if (agingDias === null || dias > agingDias) agingDias = dias;
+      }
+    }
+
+    // % do comprado sem fornecedor do cadastro
+    const compradoSemCadastro = metasComForn.filter(m => !m.fornecedorId).reduce((s, m) => s + m.comprado, 0);
+    const pctForaCadastro = totalComprado > 0 ? compradoSemCadastro / totalComprado : 0;
+
     res.json({
       data: {
         contratacoes: { contratados, emCotacao, aContratar, atrasados,
           atrasadosPorObra: Array.from(atrasadosPorObra.entries())
             .map(([obraId, qtd]) => ({ obraId, obraNome: nomeObra.get(obraId) ?? '—', qtd }))
             .sort((a, b) => b.qtd - a.qtd) },
-        medicao: { filaValor, filaQtd, autorizadoMes, autorizadoMesQtd, leadTimeMedioDias },
-        fornecedores: { top: topFornecedores, total: fornecedores.length, semEmail },
+        medicao: { filaValor, filaQtd, autorizadoMes, autorizadoMesQtd, leadTimeMedioDias, agingDias },
+        fornecedores: { top: topFornecedores, total: fornecedores.length, semEmail, pctForaCadastro },
+        analise: {
+          estouros: estouros.slice(0, 10),
+          totalEstouros: estouros.length,
+          valorTotalEstouros: estouros.reduce((s, e) => s + e.estouro, 0),
+          exposicoes: exposicoes.slice(0, 10),
+          disciplinas,
+        },
       },
     });
   } catch (err) { next(err); }

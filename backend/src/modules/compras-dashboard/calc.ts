@@ -38,17 +38,28 @@ export interface ObraIndicadores {
   pctComissao: number;
 }
 
-function isElegivelComissao(item: RawItem): boolean {
+export function isElegivelComissao(item: RawItem): boolean {
   const cat = item.categoria.toLowerCase();
   return item.tipo === 'item' && !cat.includes('taxa') && !cat.includes('imposto');
 }
 
-export function calcObra(items: RawItem[], comissao: number): ObraIndicadores {
+/** % de comissão sobre a venda elegível — mesma regra do calcObra (exportado
+ *  pro painel de gestão derivar meta POR ITEM sem divergir da tela de Metas). */
+export function pctComissaoDe(items: RawItem[], comissao: number): number {
   const totalVendaElegivel = items.filter(isElegivelComissao).reduce((s, i) => s + i.venda, 0);
-  const pctComissao = totalVendaElegivel > 0 ? comissao / totalVendaElegivel : 0;
-  const baseItem = (item: RawItem) =>
-    isElegivelComissao(item) ? item.venda * (1 - pctComissao) : item.venda;
-  const metaItem = (item: RawItem) => baseItem(item) * (1 - item.pctMeta);
+  return totalVendaElegivel > 0 ? comissao / totalVendaElegivel : 0;
+}
+
+/** Base (venda líquida de comissão) e meta de UM item — fonte única. */
+export function financeiroDoItem(item: RawItem, pctComissao: number): { base: number; meta: number } {
+  const base = isElegivelComissao(item) ? item.venda * (1 - pctComissao) : item.venda;
+  return { base, meta: base * (1 - item.pctMeta) };
+}
+
+export function calcObra(items: RawItem[], comissao: number): ObraIndicadores {
+  const pctComissao = pctComissaoDe(items, comissao);
+  const baseItem = (item: RawItem) => financeiroDoItem(item, pctComissao).base;
+  const metaItem = (item: RawItem) => financeiroDoItem(item, pctComissao).meta;
 
   const onlyItems = items.filter(i => i.tipo !== 'etapa');
   const itemsOk = onlyItems.filter(i => i.compradoOk);

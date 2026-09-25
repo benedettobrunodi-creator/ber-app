@@ -34,38 +34,26 @@ interface TotaisConsolidados {
   totalNetCO: number;
 }
 
-// GET /v1/compras-dashboard/summary?status=em_andamento,planejamento&obraId=<uuid>
-export async function getSummary(req: Request, res: Response, next: NextFunction) {
-  try {
-    const statusParam = typeof req.query.status === 'string' ? req.query.status : '';
-    const statusFilter = statusParam
-      ? statusParam.split(',').map(s => s.trim()).filter(Boolean)
-      : null;
-    const obraIdParam = typeof req.query.obraId === 'string' && req.query.obraId.trim() ? req.query.obraId.trim() : null;
 
-    // Soma de splits por compras_meta_id — usado pra sobrescrever item.comprado
-    // quando o item tem splits (mesma regra do front: split.valor[] domina).
-    const obras = await prisma.obra.findMany({
-      where: {
-        ...(statusFilter ? { status: { in: statusFilter } } : {}),
-        ...(obraIdParam ? { id: obraIdParam } : {}),
-      },
-      select: { id: true, name: true, status: true },
-      orderBy: { name: 'asc' },
-    });
+/** Item montado com as MESMAS regras do summary (splits legado dominam o
+ *  comprado; CO usa netCO; etc.) + campos extras pro painel de gestão. */
+export type ItemMontado = RawItem & { descritivo: string | null; fornecedorId: string | null };
 
-    if (obras.length === 0) {
-      return res.json({ data: { obras: [], totais: emptyTotais(), filtros: { status: statusFilter } } });
-    }
-
-    const obraIds = obras.map(o => o.id);
+/** Montagem única dos itens por obra — usada pelo getSummary e pelo painel
+ *  de gestão (24-25/09/26): garante que estouro/meta por item no painel bate
+ *  1:1 com a tela de Metas. */
+export async function montarItensPorObra(obraIds: string[]): Promise<{
+  itemsByObra: Map<string, ItemMontado[]>;
+  comissaoByObra: Map<string, number>;
+  netCoByObra: Map<string, number>;
+}> {
 
     const [metas, splitsAgg, coSplitsAgg, coCompradoAgg, configs] = await Promise.all([
       prisma.comprasMeta.findMany({
         where: { obraId: { in: obraIds } },
         select: {
-          id: true, obraId: true, tipo: true, categoria: true,
-          venda: true, pctMeta: true, comprado: true, compradoOk: true,
+          id: true, obraId: true, tipo: true, categoria: true, descritivo: true,
+          venda: true, pctMeta: true, comprado: true, compradoOk: true, fornecedorId: true,
         },
       }),
       // Splits legado (sem coTipo) — soma o valor (=comprado real do item pai)
@@ -145,7 +133,7 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
         const splitSum = splitsLegadoByMeta.get(m.id);
         compradoEfetivo = splitSum !== undefined ? splitSum : Number(m.comprado);
       }
-      const item: RawItem = {
+      const item: ItemMontado = {
         id: m.id,
         tipo: m.tipo ?? 'item',
         categoria: m.categoria,
@@ -153,11 +141,43 @@ export async function getSummary(req: Request, res: Response, next: NextFunction
         pctMeta: Number(m.pctMeta),
         comprado: compradoEfetivo,
         compradoOk: m.compradoOk,
+        descritivo: m.descritivo ?? null,
+        fornecedorId: m.fornecedorId ?? null,
       };
       const list = itemsByObra.get(m.obraId) ?? [];
       list.push(item);
       itemsByObra.set(m.obraId, list);
     }
+
+    return { itemsByObra: itemsByObra as Map<string, ItemMontado[]>, comissaoByObra, netCoByObra };
+}
+
+// GET /v1/compras-dashboard/summary?status=em_andamento,planejamento&obraId=<uuid>
+export async function getSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    const statusParam = typeof req.query.status === 'string' ? req.query.status : '';
+    const statusFilter = statusParam
+      ? statusParam.split(',').map(s => s.trim()).filter(Boolean)
+      : null;
+    const obraIdParam = typeof req.query.obraId === 'string' && req.query.obraId.trim() ? req.query.obraId.trim() : null;
+
+    // Soma de splits por compras_meta_id — usado pra sobrescrever item.comprado
+    // quando o item tem splits (mesma regra do front: split.valor[] domina).
+    const obras = await prisma.obra.findMany({
+      where: {
+        ...(statusFilter ? { status: { in: statusFilter } } : {}),
+        ...(obraIdParam ? { id: obraIdParam } : {}),
+      },
+      select: { id: true, name: true, status: true },
+      orderBy: { name: 'asc' },
+    });
+
+    if (obras.length === 0) {
+      return res.json({ data: { obras: [], totais: emptyTotais(), filtros: { status: statusFilter } } });
+    }
+
+    const obraIds = obras.map(o => o.id);
+    const { itemsByObra, comissaoByObra, netCoByObra } = await montarItensPorObra(obraIds);
 
     const obrasResumo: ObraSummary[] = obras.map(o => ({
       obraId: o.id,
