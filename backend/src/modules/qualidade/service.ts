@@ -158,6 +158,12 @@ export async function createVistoria(obraId: string, input: CreateVistoriaInput,
     console.error('[Qualidade] criação automática de FVS falhou:', (err as Error).message);
   }
 
+  // Relatório novo → aviso à equipe interna da obra (Bruno 25/09/26) —
+  // fire-and-forget, nunca trava o submit
+  void import('./notificacao-relatorio')
+    .then(n => n.notificarRelatorioQualidade(obraId, vistoria))
+    .catch(err => console.error('[Qualidade] aviso de relatório falhou:', (err as Error).message));
+
   // Alerta imediato pra nota crítica — fire-and-forget, nunca trava o submit
   if (notaFinal < NOTA_ALERTA_CRITICO) {
     void import('./alerts')

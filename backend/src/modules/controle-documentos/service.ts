@@ -129,6 +129,15 @@ export async function addRevisao(
       createdById,
     },
   });
+  // Arquivo novo → aviso à equipe interna da obra (Bruno 25/09/26)
+  if (arquivo) {
+    void import('./notificacao-upload')
+      .then(n => n.notificarUploadDocumentos(documento.obraId, [{
+        codigo: documento.codigo, revisao: data.revisao,
+        disciplina: documento.disciplina, titulo: documento.titulo, arquivoNome: arquivo.nome,
+      }], createdById))
+      .catch(err => console.error('[ControleDocumentos] aviso de upload falhou:', (err as Error).message));
+  }
   return prisma.projetoDocumento.findUnique({ where: { id: documentoId }, include });
 }
 
@@ -197,6 +206,7 @@ export async function bulkUpload(
 
   const criados: string[] = [];
   const atualizados: string[] = [];
+  const entradas: import('./notificacao-upload').DocNotificado[] = [];
   const hoje = new Date();
   const metaPorNome = new Map((meta ?? []).map(m => [m.nome, m]));
 
@@ -233,6 +243,7 @@ export async function bulkUpload(
         },
       });
       atualizados.push(codigo);
+      entradas.push({ codigo, revisao, disciplina: existing.disciplina, titulo: existing.titulo, arquivoNome: file.originalname });
     } else {
       await prisma.projetoDocumento.create({
         data: {
@@ -249,8 +260,14 @@ export async function bulkUpload(
         },
       });
       criados.push(codigo);
+      entradas.push({ codigo, revisao, disciplina: m?.disciplina ?? 'Outra', titulo: m?.titulo ?? null, arquivoNome: file.originalname });
     }
   }
+
+  // Aviso à equipe interna da obra (Bruno 25/09/26) — nunca trava o upload
+  void import('./notificacao-upload')
+    .then(n => n.notificarUploadDocumentos(obraId, entradas, createdById))
+    .catch(err => console.error('[ControleDocumentos] aviso de upload falhou:', (err as Error).message));
 
   return { criados, atualizados, documentos: await listByObra(obraId) };
 }
