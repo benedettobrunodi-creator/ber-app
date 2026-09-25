@@ -578,7 +578,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 <p className="text-[11px] font-bold text-ber-gray uppercase tracking-wide mb-1 text-center">Ganhos por Volume (R$)</p>
                 <ResponsiveContainer width="100%" height={190}>
                   <PieChart>
-                    <Pie data={segmentoGanhos} dataKey="valorGanho" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
+                    <Pie data={segmentoGanhos} dataKey="valorGanho" nameKey="segmento" cx="50%" cy="50%" outerRadius={82} innerRadius={46}>
                       {segmentoGanhos.map((_, i) => <Cell key={i} fill={SEGMENTO_COLORS[i % SEGMENTO_COLORS.length]} />)}
                     </Pie>
                     <Tooltip formatter={(v) => fmt(Number(v))} />
@@ -655,7 +655,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
           <div className="flex flex-col md:flex-row gap-6 items-center">
             <ResponsiveContainer width={200} height={200}>
               <PieChart>
-                <Pie data={motivosPerda} dataKey="count" cx="50%" cy="50%" outerRadius={85} innerRadius={45}>
+                <Pie data={motivosPerda} dataKey="count" nameKey="motivo" cx="50%" cy="50%" outerRadius={85} innerRadius={45}>
                   {motivosPerda.map((_, i) => <Cell key={i} fill={MOTIVO_COLORS[i % MOTIVO_COLORS.length]} />)}
                 </Pie>
                 <Tooltip content={<MotivoTooltip opsAno={opsAno} />} />
