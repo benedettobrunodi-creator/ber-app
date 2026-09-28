@@ -23,6 +23,10 @@ interface OrgNode {
   /** Quando true, este grupo aparece como filho de TODOS os gestores (clone visual).
    *  Só faz sentido em nós com isGroup=true. */
   shared?: boolean;
+  /** Vaga em aberto (pedido do Bruno 28/09) — a posição existe na estrutura mas
+   *  ainda não tem alguém contratado. Conta no headcount, mas o salário (se
+   *  houver, ex: faixa orçada) NÃO entra na soma de folha/custo direto/indireto. */
+  vagaAberta?: boolean;
   children: OrgNode[];
 }
 
@@ -157,6 +161,14 @@ function collectSharedGroups(root: OrgNode): OrgNode[] {
 
 const CUSTO_DIRETO_KEYS: ColorKey[] = ['gestor', 'campo'];
 
+interface PessoaCusto {
+  id: string;
+  nome: string;
+  cargo: string;
+  salario: number;
+  vagaAberta: boolean;
+}
+
 interface TreeStats {
   totalPessoas: number;
   folhaTotal: number;
@@ -164,19 +176,32 @@ interface TreeStats {
   diretoFolha: number;
   indiretoPessoas: number;
   indiretoFolha: number;
+  diretoLista: PessoaCusto[];
+  indiretoLista: PessoaCusto[];
 }
 
-function computeStats(node: OrgNode, stats: TreeStats = { totalPessoas: 0, folhaTotal: 0, diretoPessoas: 0, diretoFolha: 0, indiretoPessoas: 0, indiretoFolha: 0 }): TreeStats {
+function novoStats(): TreeStats {
+  return { totalPessoas: 0, folhaTotal: 0, diretoPessoas: 0, diretoFolha: 0, indiretoPessoas: 0, indiretoFolha: 0, diretoLista: [], indiretoLista: [] };
+}
+
+// Vaga em aberto (pedido do Bruno 28/09): conta no headcount (a posição existe
+// na estrutura), mas o salário dela nunca soma na folha nem no custo
+// direto/indireto — é uma posição orçada, não um custo real ainda.
+function computeStats(node: OrgNode, stats: TreeStats = novoStats()): TreeStats {
   if (!node.isGroup) {
     stats.totalPessoas++;
     const sal = node.salario ?? 0;
-    stats.folhaTotal += sal;
+    const salComputavel = node.vagaAberta ? 0 : sal;
+    stats.folhaTotal += salComputavel;
+    const pessoa: PessoaCusto = { id: node.id, nome: node.nome, cargo: node.cargo, salario: sal, vagaAberta: !!node.vagaAberta };
     if (CUSTO_DIRETO_KEYS.includes(node.colorKey)) {
       stats.diretoPessoas++;
-      stats.diretoFolha += sal;
+      stats.diretoFolha += salComputavel;
+      stats.diretoLista.push(pessoa);
     } else {
       stats.indiretoPessoas++;
-      stats.indiretoFolha += sal;
+      stats.indiretoFolha += salComputavel;
+      stats.indiretoLista.push(pessoa);
     }
   }
   node.children.forEach(c => computeStats(c, stats));
@@ -262,16 +287,21 @@ function NodeCard({
       )}
 
       <div
-        className="rounded-lg px-3 py-2.5 pl-6"
-        style={{ backgroundColor: color.bg, color: color.text }}
+        className={`rounded-lg px-3 py-2.5 pl-6 ${node.vagaAberta ? 'border-2 border-dashed border-white/70' : ''}`}
+        style={{ backgroundColor: node.vagaAberta ? `${color.bg}99` : color.bg, color: color.text }}
       >
+        {node.vagaAberta && (
+          <p className="text-[8px] font-black uppercase tracking-wider text-center opacity-90 mb-0.5">Vaga em aberto</p>
+        )}
         <p className="text-xs font-bold leading-tight text-center">{node.nome}</p>
         {node.cargo && (
           <p className="mt-0.5 text-[10px] font-medium opacity-80 leading-tight text-center">{node.cargo}</p>
         )}
         {showSalarios && !node.isGroup && (
           <p className="mt-1 text-[10px] font-semibold text-center opacity-90 border-t border-white/20 pt-1">
-            {node.salario ? fmtBRL(node.salario) : '—'}
+            {node.vagaAberta
+              ? (node.salario ? `${fmtBRL(node.salario)} (orçado)` : 'a definir')
+              : (node.salario ? fmtBRL(node.salario) : '—')}
           </p>
         )}
       </div>
@@ -540,6 +570,7 @@ function EditModal({
   const [colorKey, setColorKey] = useState<ColorKey>(node.colorKey);
   const [salario, setSalario] = useState(node.salario != null ? String(node.salario) : '');
   const [shared, setShared] = useState(!!node.shared);
+  const [vagaAberta, setVagaAberta] = useState(!!node.vagaAberta);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -550,7 +581,7 @@ function EditModal({
       cargo,
       colorKey,
       salario: salNum ? Number(salNum) : undefined,
-      ...(node.isGroup ? { shared } : {}),
+      ...(node.isGroup ? { shared } : { vagaAberta }),
     });
   }
 
@@ -591,7 +622,24 @@ function EditModal({
                 inputMode="numeric"
                 className="w-full rounded-md border border-ber-border px-3 py-2 text-sm text-ber-carbon focus:border-ber-teal focus:outline-none"
               />
+              {vagaAberta && (
+                <p className="mt-1 text-[10px] text-ber-gray">Vaga em aberto: esse valor fica só como referência orçada, não soma na folha.</p>
+              )}
             </div>
+          )}
+          {!node.isGroup && (
+            <label className="flex items-center gap-2 rounded-md border border-ber-border bg-ber-bg/30 px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={vagaAberta}
+                onChange={e => setVagaAberta(e.target.checked)}
+                className="h-4 w-4 rounded accent-ber-teal"
+              />
+              <div>
+                <p className="text-xs font-semibold text-ber-carbon">Vaga em aberto</p>
+                <p className="text-[10px] text-ber-gray">Posição existe na estrutura, mas ainda não tem ninguém contratado — não soma na folha nem no custo direto/indireto</p>
+              </div>
+            </label>
           )}
           {node.isGroup && (
             <label className="flex items-center gap-2 rounded-md border border-ber-border bg-ber-bg/30 px-3 py-2 cursor-pointer">
@@ -662,6 +710,9 @@ export default function OrganogramaPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dropSide, setDropSide] = useState<DropSide | null>(null);
+  // drilldown de custo (pedido do Bruno 28/09): clicar em Custo Direto/Indireto
+  // mostra a relação de pessoas consideradas naquele cálculo.
+  const [listaCusto, setListaCusto] = useState<'direto' | 'indireto' | null>(null);
 
   function computeDropSide(event: DragMoveEvent | DragEndEvent): DropSide | null {
     const activeRect = event.active.rect.current.translated;
@@ -899,23 +950,33 @@ export default function OrganogramaPage() {
             <p className="text-[10px] text-ber-gray/70">soma de salários</p>
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setListaCusto('direto')}
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left hover:bg-amber-100 transition-colors"
+            title="Ver as pessoas consideradas neste cálculo"
+          >
             <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Custo direto</p>
             <p className="mt-1 text-2xl font-black text-amber-800">{stats.diretoPessoas} <span className="text-sm font-semibold">pessoas</span></p>
             <p className="text-[10px] font-semibold text-amber-700">
               {showSalarios ? fmtBRL(stats.diretoFolha) : '••••••'}
             </p>
-            <p className="text-[9px] text-amber-600/60">gestores + campo · variável</p>
-          </div>
+            <p className="text-[9px] text-amber-600/60">gestores + campo · variável · clique pra ver quem</p>
+          </button>
 
-          <div className="rounded-xl border border-ber-teal/20 bg-ber-teal/5 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setListaCusto('indireto')}
+            className="rounded-xl border border-ber-teal/20 bg-ber-teal/5 px-4 py-3 text-left hover:bg-ber-teal/10 transition-colors"
+            title="Ver as pessoas consideradas neste cálculo"
+          >
             <p className="text-[10px] font-bold uppercase tracking-wide text-ber-teal">Custo indireto</p>
             <p className="mt-1 text-2xl font-black text-ber-teal">{stats.indiretoPessoas} <span className="text-sm font-semibold">pessoas</span></p>
             <p className="text-[10px] font-semibold text-ber-teal">
               {showSalarios ? fmtBRL(stats.indiretoFolha) : '••••••'}
             </p>
-            <p className="text-[9px] text-ber-teal/50">core da empresa · fixo</p>
-          </div>
+            <p className="text-[9px] text-ber-teal/50">core da empresa · fixo · clique pra ver quem</p>
+          </button>
         </div>
       )}
 
@@ -969,6 +1030,75 @@ export default function OrganogramaPage() {
       {editNode && (
         <EditModal node={editNode} onSave={handleEditSave} onCancel={() => setEditNode(null)} />
       )}
+
+      {listaCusto && stats && (
+        <ListaCustoModal
+          tipo={listaCusto}
+          pessoas={listaCusto === 'direto' ? stats.diretoLista : stats.indiretoLista}
+          showSalarios={showSalarios}
+          onClose={() => setListaCusto(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Drilldown de custo direto/indireto ─── */
+
+function ListaCustoModal({
+  tipo,
+  pessoas,
+  showSalarios,
+  onClose,
+}: {
+  tipo: 'direto' | 'indireto';
+  pessoas: PessoaCusto[];
+  showSalarios: boolean;
+  onClose: () => void;
+}) {
+  const titulo = tipo === 'direto' ? 'Custo direto' : 'Custo indireto';
+  const subtitulo = tipo === 'direto' ? 'Gestores + campo · variável' : 'Core da empresa · fixo';
+  const totalFolha = pessoas.reduce((s, p) => s + (p.vagaAberta ? 0 : p.salario), 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[85dvh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-bold text-ber-carbon">{titulo}</h2>
+          <button onClick={onClose} className="text-ber-gray hover:text-ber-carbon">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-xs text-ber-gray mb-4">{subtitulo} · {pessoas.length} pessoa{pessoas.length === 1 ? '' : 's'}</p>
+
+        <div className="space-y-2">
+          {pessoas.map(p => (
+            <div key={p.id} className="flex items-center justify-between gap-3 rounded-md border border-ber-border px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ber-carbon truncate">{p.nome}</p>
+                <p className="text-[11px] text-ber-gray truncate">{p.cargo || '—'}</p>
+              </div>
+              <div className="text-right shrink-0">
+                {p.vagaAberta ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-ber-gray">Vaga em aberto</span>
+                ) : (
+                  <span className="text-sm font-semibold text-ber-carbon">
+                    {showSalarios ? (p.salario ? fmtBRL(p.salario) : '—') : '••••••'}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+          {pessoas.length === 0 && (
+            <p className="text-sm text-ber-gray text-center py-4">Ninguém classificado aqui ainda.</p>
+          )}
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-ber-border flex items-center justify-between">
+          <span className="text-xs font-semibold text-ber-gray">Total somado à folha</span>
+          <span className="text-sm font-bold text-ber-carbon">{showSalarios ? fmtBRL(totalFolha) : '••••••'}</span>
+        </div>
+      </div>
     </div>
   );
 }
