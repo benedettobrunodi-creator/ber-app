@@ -295,6 +295,7 @@ model ComprasMeta {
   venda        Float    @default(0)
   pctMeta      Float    @default(0.2) @map("pct_meta")
   comprado     Float    @default(0)
+  compradoEm   DateTime? @map("comprado_em") @db.Date // data em que a compra foi de fato feita (Bruno 28/09: pra monitorar savings gerado no mês, não a data de criação/edição da linha)
   fornecedor   String?  @db.VarChar(500)
   fornecedorId String?  @map("fornecedor_cadastro_id") @db.Uuid
   numeroOc     String?  @map("numero_oc") @db.VarChar(30) // nº da Ordem de Compra (Bruno 24/09: compras preenche aqui; aparece no Cronograma e no e-mail de autorização da Medição de Fornecedores)
@@ -335,6 +336,7 @@ model ComprasSplit {
   pctMeta       Float    @default(0.2) @map("pct_meta")
   comprado      Float    @default(0)
   compradoOk    Boolean  @default(false) @map("comprado_ok")
+  compradoEm    DateTime? @map("comprado_em") @db.Date // idem ComprasMeta.compradoEm — savings mensal por data real de compra
   createdAt     DateTime @default(now()) @map("created_at")
 
   comprasMeta ComprasMeta @relation(fields: [comprasMetaId], references: [id], onDelete: Cascade)

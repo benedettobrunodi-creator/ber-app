@@ -16,6 +16,7 @@ interface ComprasSplit {
   coTipo: 'credito' | 'debito' | null;
   pctMeta: number;
   comprado: number;
+  compradoEm: string | null;
   compradoOk: boolean;
 }
 
@@ -34,6 +35,7 @@ interface CompraItem {
   faturamento: string | null;
   pacote: number | null;
   compradoOk: boolean;
+  compradoEm: string | null;
   splits: ComprasSplit[];
 }
 
@@ -50,6 +52,14 @@ const PACOTE_COLORS: Record<number, { bg: string; text: string; label: string }>
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
+
+// Data real da compra (Bruno 28/09: monitorar savings gerado no mês). O backend
+// carimba sozinho quando `comprado` muda; aqui só formata pra exibir de volta.
+function tituloCompradoEm(compradoEm: string | null): string {
+  if (!compradoEm) return 'Marca como comprado (data fica registrada automaticamente)';
+  const d = new Date(compradoEm);
+  return `Comprado em ${d.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
+}
 
 function parseComprado(raw: string): number {
   // Aceita formato BR (1.500,50) ou US (1500.50)
@@ -789,6 +799,7 @@ export default function ComprasPage() {
                         <td className="px-3 py-2 text-center">
                           <input type="checkbox" checked={item.compradoOk}
                             onChange={e => saveItem(item.id, { compradoOk: e.target.checked })}
+                            title={tituloCompradoEm(item.compradoEm)}
                             className="w-4 h-4 accent-amber-500 cursor-pointer" />
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -922,6 +933,7 @@ export default function ComprasPage() {
                           <td className="px-3 py-1.5 text-center">
                             <input type="checkbox" checked={spCompradoOk}
                               onChange={e => saveSplit(item.id, sp.id, { compradoOk: e.target.checked })}
+                              title={tituloCompradoEm(sp.compradoEm)}
                               className={`w-4 h-4 cursor-pointer ${sp.coTipo === 'credito' ? 'accent-green-500' : 'accent-red-500'}`} />
                           </td>
                           <td className="px-3 py-1.5 text-center">
@@ -1037,6 +1049,7 @@ export default function ComprasPage() {
                           type="checkbox"
                           checked={item.compradoOk}
                           onChange={e => saveItem(item.id, { compradoOk: e.target.checked })}
+                          title={tituloCompradoEm(item.compradoEm)}
                           className="w-4 h-4 accent-ber-teal cursor-pointer"
                         />
                       </td>

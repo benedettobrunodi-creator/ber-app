@@ -56,6 +56,7 @@ function mapItem(row: any, splits: any[] = []) {
     venda: Number(row.venda),
     pctMeta: Number(row.pct_meta),
     comprado: Number(row.comprado),
+    compradoEm: row.comprado_em ?? null,
     fornecedor: row.fornecedor,
     numeroOc: row.numero_oc ?? null,
     faturamento: row.faturamento,
@@ -70,6 +71,7 @@ function mapItem(row: any, splits: any[] = []) {
       coTipo: s.co_tipo ?? null,
       pctMeta: s.pct_meta !== undefined && s.pct_meta !== null ? Number(s.pct_meta) : 0.2,
       comprado: s.comprado !== undefined && s.comprado !== null ? Number(s.comprado) : 0,
+      compradoEm: s.comprado_em ?? null,
       compradoOk: !!s.comprado_ok,
     })),
     createdAt: row.created_at,
@@ -203,16 +205,25 @@ export async function importXlsx(req: Request, res: Response, next: NextFunction
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { itemId } = req.params;
-    const { pctMeta, comprado, fornecedor, fornecedorId, numeroOc, faturamento, pacote, compradoOk, categoria, venda } = req.body;
+    const { pctMeta, comprado, compradoEm, fornecedor, fornecedorId, numeroOc, faturamento, pacote, compradoOk, categoria, venda } = req.body;
 
     const item = await prisma.comprasMeta.findUnique({ where: { id: itemId } });
     if (!item) throw AppError.notFound('Item não encontrado');
+
+    // Data real da compra (Bruno 28/09: monitorar savings gerado no mês, não
+    // a data de edição da linha). Se o front mandar compradoEm explícito, usa
+    // ele (permite corrigir/retroagir); senão, ao mudar `comprado` sem data
+    // informada, carimba hoje como default.
+    const dataDeCompra = compradoEm !== undefined
+      ? (compradoEm ? new Date(compradoEm) : null)
+      : (comprado !== undefined ? new Date() : undefined);
 
     const updated = await prisma.comprasMeta.update({
       where: { id: itemId },
       data: {
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
+        ...(dataDeCompra !== undefined && { compradoEm: dataDeCompra }),
         ...(fornecedor !== undefined && { fornecedor: String(fornecedor) || null }),
         // Cadastro único (22/09/26): id do FornecedorCadastro; null desvincula.
         ...(fornecedorId !== undefined && { fornecedorId: fornecedorId || null }),
@@ -258,7 +269,12 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
 export async function updateSplit(req: Request, res: Response, next: NextFunction) {
   try {
     const { splitId } = req.params;
-    const { descricao, fornecedor, faturamento, valor, coTipo, pctMeta, comprado, compradoOk } = req.body;
+    const { descricao, fornecedor, faturamento, valor, coTipo, pctMeta, comprado, compradoEm, compradoOk } = req.body;
+    // mesma regra do item pai: data explícita do front prevalece; senão, ao
+    // mudar `comprado` sem data informada, carimba hoje como default.
+    const dataDeCompra = compradoEm !== undefined
+      ? (compradoEm ? new Date(compradoEm) : null)
+      : (comprado !== undefined ? new Date() : undefined);
     const split = await prisma.comprasSplit.update({
       where: { id: splitId },
       data: {
@@ -269,6 +285,7 @@ export async function updateSplit(req: Request, res: Response, next: NextFunctio
         ...(coTipo !== undefined && { coTipo: coTipo || null }),
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
+        ...(dataDeCompra !== undefined && { compradoEm: dataDeCompra }),
         ...(compradoOk !== undefined && { compradoOk: !!compradoOk }),
       },
     });
@@ -281,6 +298,7 @@ export async function updateSplit(req: Request, res: Response, next: NextFunctio
       coTipo: split.coTipo ?? null,
       pctMeta: Number(split.pctMeta),
       comprado: Number(split.comprado),
+      compradoEm: split.compradoEm,
       compradoOk: split.compradoOk,
     }});
   } catch (err) { next(err); }
