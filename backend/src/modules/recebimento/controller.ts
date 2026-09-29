@@ -75,6 +75,7 @@ export async function downloadPdf(req: Request, res: Response) {
       responsavel: rel.responsavel?.name ?? null,
       dataVistoria: rel.dataVistoria,
       objetivo: rel.objetivo,
+      observacoes: rel.observacoes,
       ambientes,
     }) as never,
   );

@@ -92,6 +92,7 @@ export interface RecebimentoPdfProps {
   responsavel: string | null;
   dataVistoria: Date | null;
   objetivo: string | null;
+  observacoes: string | null;
   ambientes: { nome: string; fotos: { url: string; legenda: string | null; patologia: boolean }[] }[];
 }
 
@@ -103,7 +104,7 @@ function pares<T>(arr: T[]): T[][] {
   return out;
 }
 
-export const RecebimentoPDF = ({ obraNome, obraTipo, endereco, cliente, responsavel, dataVistoria, objetivo, ambientes }: RecebimentoPdfProps) => (
+export const RecebimentoPDF = ({ obraNome, obraTipo, endereco, cliente, responsavel, dataVistoria, objetivo, observacoes, ambientes }: RecebimentoPdfProps) => (
   <Document title={`Relatório de Vistoria Fotográfica — ${obraNome}`} author="BÈR Engenharia">
     <Page size="A4" style={s.page}>
       {/* Faixa de marca nas páginas 2+ (fixa; oculta na capa, que tem o cabeçalho completo) */}
@@ -190,6 +191,14 @@ export const RecebimentoPDF = ({ obraNome, obraTipo, endereco, cliente, responsa
           ))}
         </View>
       ))}
+
+      {/* Comentários e observações finais */}
+      {observacoes ? (
+        <View wrap={false}>
+          <Text style={s.sectionTitle}>Comentários e Observações</Text>
+          <Text style={s.objetivo}>{observacoes}</Text>
+        </View>
+      ) : null}
 
       {/* Assinatura */}
       <View style={s.assinatura} wrap={false}>

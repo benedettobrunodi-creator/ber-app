@@ -25,6 +25,7 @@ interface Relatorio {
   status: 'rascunho' | 'concluido';
   dataVistoria: string | null;
   objetivo: string | null;
+  observacoes: string | null;
   responsavel: { id: string; name: string } | null;
   ambientes: Ambiente[];
   fotos: Foto[]; // todas (inclui sem ambiente)
@@ -341,6 +342,19 @@ export default function RecebimentoTab({ obraId }: { obraId: string }) {
           <p className="text-sm text-ber-gray/60">Nenhuma foto ainda. Tire as fotos da vistoria e suba todas de uma vez.</p>
         </div>
       )}
+
+      {/* Comentários e observações finais */}
+      <div className="mb-4 rounded-xl border border-ber-border bg-white p-4">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ber-gray">Comentários e observações</p>
+        <textarea
+          defaultValue={rel.observacoes ?? ''}
+          disabled={bloqueado}
+          placeholder="Observações finais do relatório (opcional)…"
+          rows={4}
+          onBlur={e => { if (e.target.value !== (rel.observacoes ?? '')) patchRel({ observacoes: e.target.value.trim() || null }); }}
+          className="w-full rounded-lg border border-ber-gray/30 px-3 py-2 text-sm text-ber-carbon placeholder:text-ber-gray/50 focus:border-ber-teal focus:outline-none disabled:opacity-60"
+        />
+      </div>
 
       {/* Modo revisão — foto a foto */}
       {fotoRevisao && (

@@ -37,10 +37,11 @@ export async function getOrCreate(obraId: string, userId: string) {
   return rel;
 }
 
-export async function updateRelatorio(id: string, input: { dataVistoria?: string | null; objetivo?: string; status?: string; responsavelId?: string }) {
+export async function updateRelatorio(id: string, input: { dataVistoria?: string | null; objetivo?: string; observacoes?: string | null; status?: string; responsavelId?: string }) {
   const data: Record<string, unknown> = {};
   if (input.dataVistoria !== undefined) data.dataVistoria = input.dataVistoria ? new Date(input.dataVistoria) : null;
   if (input.objetivo !== undefined) data.objetivo = input.objetivo;
+  if (input.observacoes !== undefined) data.observacoes = input.observacoes;
   if (input.responsavelId !== undefined) data.responsavelId = input.responsavelId;
   if (input.status !== undefined) {
     if (!['rascunho', 'concluido'].includes(input.status)) throw AppError.badRequest('status inválido (rascunho | concluido)');

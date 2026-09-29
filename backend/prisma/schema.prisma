@@ -3277,6 +3277,7 @@ model RecebimentoRelatorio {
   dataVistoria  DateTime? @map("data_vistoria") @db.Date
   responsavelId String?   @map("responsavel_id") @db.Uuid
   objetivo      String? // texto do bloco "objetivo" — default gerado, editável
+  observacoes   String? // comentários/observações finais — pedido do Bruno 29/09, aparece no fim do relatório e do PDF
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
