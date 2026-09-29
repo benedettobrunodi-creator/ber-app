@@ -335,6 +335,7 @@ model ComprasSplit {
   coTipo        String?  @map("co_tipo") @db.VarChar(10)
   pctMeta       Float    @default(0.2) @map("pct_meta")
   comprado      Float    @default(0)
+  numeroOc      String?  @map("numero_oc") @db.VarChar(30) // idem ComprasMeta.numeroOc — cada split pode ter sua própria OC (Bruno 29/09)
   compradoOk    Boolean  @default(false) @map("comprado_ok")
   compradoEm    DateTime? @map("comprado_em") @db.Date // idem ComprasMeta.compradoEm — savings mensal por data real de compra
   createdAt     DateTime @default(now()) @map("created_at")

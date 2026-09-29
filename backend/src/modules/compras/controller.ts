@@ -71,6 +71,7 @@ function mapItem(row: any, splits: any[] = []) {
       coTipo: s.co_tipo ?? null,
       pctMeta: s.pct_meta !== undefined && s.pct_meta !== null ? Number(s.pct_meta) : 0.2,
       comprado: s.comprado !== undefined && s.comprado !== null ? Number(s.comprado) : 0,
+      numeroOc: s.numero_oc ?? null,
       compradoEm: s.comprado_em ?? null,
       compradoOk: !!s.comprado_ok,
     })),
@@ -260,6 +261,7 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
       coTipo,
       pctMeta: Number(split.pctMeta),
       comprado: Number(split.comprado),
+      numeroOc: null,
       compradoOk: split.compradoOk,
     }});
   } catch (err) { next(err); }
@@ -269,7 +271,7 @@ export async function addSplit(req: Request, res: Response, next: NextFunction) 
 export async function updateSplit(req: Request, res: Response, next: NextFunction) {
   try {
     const { splitId } = req.params;
-    const { descricao, fornecedor, faturamento, valor, coTipo, pctMeta, comprado, compradoEm, compradoOk } = req.body;
+    const { descricao, fornecedor, faturamento, valor, coTipo, pctMeta, comprado, numeroOc, compradoEm, compradoOk } = req.body;
     // mesma regra do item pai: data explícita do front prevalece; senão, ao
     // mudar `comprado` sem data informada, carimba hoje como default.
     const dataDeCompra = compradoEm !== undefined
@@ -285,6 +287,8 @@ export async function updateSplit(req: Request, res: Response, next: NextFunctio
         ...(coTipo !== undefined && { coTipo: coTipo || null }),
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
+        // Nº da Ordem de Compra do split (29/09/26) — mesma ideia do item pai.
+        ...(numeroOc !== undefined && { numeroOc: String(numeroOc).trim() || null }),
         ...(dataDeCompra !== undefined && { compradoEm: dataDeCompra }),
         ...(compradoOk !== undefined && { compradoOk: !!compradoOk }),
       },
@@ -298,6 +302,7 @@ export async function updateSplit(req: Request, res: Response, next: NextFunctio
       coTipo: split.coTipo ?? null,
       pctMeta: Number(split.pctMeta),
       comprado: Number(split.comprado),
+      numeroOc: split.numeroOc ?? null,
       compradoEm: split.compradoEm,
       compradoOk: split.compradoOk,
     }});

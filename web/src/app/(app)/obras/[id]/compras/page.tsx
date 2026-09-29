@@ -16,6 +16,7 @@ interface ComprasSplit {
   coTipo: 'credito' | 'debito' | null;
   pctMeta: number;
   comprado: number;
+  numeroOc: string | null;
   compradoEm: string | null;
   compradoOk: boolean;
 }
@@ -1173,6 +1174,14 @@ export default function ComprasPage() {
                             placeholder="Fornecedor..."
                             onChange={e => saveSplit(item.id, sp.id, { fornecedor: e.target.value })}
                             className="w-full rounded border border-ber-teal/40 bg-ber-teal/5 px-1 py-0.5 text-xs focus:border-ber-teal focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={sp.numeroOc || ''}
+                            onChange={e => saveSplit(item.id, sp.id, { numeroOc: e.target.value || null })}
+                            placeholder="Nº OC"
+                            title="Número da Ordem de Compra deste split — aparece no Cronograma e no e-mail de autorização de faturamento"
+                            className="mt-0.5 w-full rounded border border-ber-teal/20 bg-white px-1 py-0.5 text-[10px] text-ber-gray focus:border-ber-teal focus:outline-none"
                           />
                         </td>
                         <td className="px-3 py-1.5">
