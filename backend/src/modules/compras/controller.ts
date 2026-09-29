@@ -225,12 +225,14 @@ export async function update(req: Request, res: Response, next: NextFunction) {
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
         ...(dataDeCompra !== undefined && { compradoEm: dataDeCompra }),
-        ...(fornecedor !== undefined && { fornecedor: String(fornecedor) || null }),
+        // Bug corrigido 29/09: String(null) === "null" (string!) — o `|| null`
+        // nunca disparava e limpar o campo gravava o texto literal "null".
+        ...(fornecedor !== undefined && { fornecedor: fornecedor?.toString().trim() || null }),
         // Cadastro único (22/09/26): id do FornecedorCadastro; null desvincula.
         ...(fornecedorId !== undefined && { fornecedorId: fornecedorId || null }),
         // Nº da Ordem de Compra (24/09/26) — aparece no Cronograma e no e-mail de autorização.
-        ...(numeroOc !== undefined && { numeroOc: String(numeroOc).trim() || null }),
-        ...(faturamento !== undefined && { faturamento: String(faturamento) || null }),
+        ...(numeroOc !== undefined && { numeroOc: numeroOc?.toString().trim() || null }),
+        ...(faturamento !== undefined && { faturamento: faturamento?.toString().trim() || null }),
         ...(pacote !== undefined && { pacote: pacote === null ? null : Number(pacote) }),
         ...(compradoOk !== undefined && { compradoOk: Boolean(compradoOk) }),
         ...(categoria !== undefined && { categoria: String(categoria) }),
@@ -288,7 +290,8 @@ export async function updateSplit(req: Request, res: Response, next: NextFunctio
         ...(pctMeta !== undefined && { pctMeta: Number(pctMeta) }),
         ...(comprado !== undefined && { comprado: Number(comprado) }),
         // Nº da Ordem de Compra do split (29/09/26) — mesma ideia do item pai.
-        ...(numeroOc !== undefined && { numeroOc: String(numeroOc).trim() || null }),
+        // (String(null) === "null" vira truthy — usar optional chaining, não String().)
+        ...(numeroOc !== undefined && { numeroOc: numeroOc?.toString().trim() || null }),
         ...(dataDeCompra !== undefined && { compradoEm: dataDeCompra }),
         ...(compradoOk !== undefined && { compradoOk: !!compradoOk }),
       },
