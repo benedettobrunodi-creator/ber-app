@@ -6,6 +6,7 @@ import { syncAllTasksFromClickUp } from './clickup-tasks-sync';
 // import { syncObraFromTrello, syncProgressoFromTrello } from './trello'; // legado Trello
 import { notifyUsers } from '../modules/notifications/service';
 import { checkCrmAlerts } from '../modules/crm/alerts';
+import { rolarFechamentoPrevistoVencido } from '../modules/crm/service';
 import { checkFvsItensVencidos, checkFasesAtrasadas } from '../modules/fvs/alerts';
 import { checkContratacoesAtrasadas } from '../modules/contratacao-plano/alertas';
 import { checkSegurosVencendo } from '../modules/controle-documentos/alertas-seguro';
@@ -55,6 +56,18 @@ export function startScheduler() {
       await checkCrmAlerts();
     } catch (err) {
       console.error('[Scheduler] CRM alerts falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  // CRM — rollover de fechamento previsto vencido — diariamente às 08h35 (BRT)
+  // (pedido do Bruno 02/10/26: mês previsto passou sem decisão → joga pro
+  // último dia do mês seguinte)
+  cron.schedule('35 8 * * *', async () => {
+    try {
+      const r = await rolarFechamentoPrevistoVencido();
+      console.log(`[Scheduler] CRM rollover fechamento previsto — ${r.atualizadas}/${r.verificadas} oportunidade(s) atualizada(s)`);
+    } catch (err) {
+      console.error('[Scheduler] CRM rollover fechamento previsto falhou:', (err as Error).message);
     }
   }, { timezone: 'America/Sao_Paulo' });
 
@@ -162,7 +175,7 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
-  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Contratações atrasadas (07h30), Seguros vencendo (07h45), Checklist notifications (08h), CRM alerts (08h30 seg-sex), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex), Qualidade resumo semanal (seg 08h)');
+  console.log('[Scheduler] Jobs registrados — Agendor (*/30min), ClickUp (06h), Contratações atrasadas (07h30), Seguros vencendo (07h45), Checklist notifications (08h), CRM alerts (08h30 seg-sex), CRM rollover fechamento previsto (08h35), FVS itens vencidos (08h15), FVS fases atrasadas (08h20), Temperatura quinzenal (09h seg-sex), Qualidade resumo semanal (seg 08h)');
 }
 
 async function checkTemperaturaQuinzenal() {

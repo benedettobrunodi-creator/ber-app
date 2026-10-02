@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, Component, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import api from '@/lib/api';
-import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat, Star, GripVertical } from 'lucide-react';
+import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as UserIcon, ChevronUp, ChevronDown, ChevronsUpDown, Search, SlidersHorizontal, Check, HardHat, Star, GripVertical, ArrowDownWideNarrow } from 'lucide-react';
 import { DndContext, DragEndEvent, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -235,7 +235,10 @@ function CardOportunidade({
         </div>
       )}
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
+        {/* Lead ainda não tem valor definido — não exibe (Bruno 02/10) */}
+        {op.etapa !== 'lead' && (
+          <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
+        )}
         {op.origem && (
           <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
             {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
@@ -403,7 +406,8 @@ function OportunidadeDrawer({
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
     if (!form.responsavelId) { setErr('Selecione o responsável'); return; }
-    if (!form.valor || Number(form.valor) <= 0) { setErr('Informe o valor'); return; }
+    // Lead ainda não tem valor definido — só fica obrigatório a partir da etapa seguinte (Bruno 02/10).
+    if (form.etapa !== 'lead' && (!form.valor || Number(form.valor) <= 0)) { setErr('Informe o valor'); return; }
     setSaving(true);
     try {
       const valorNum = form.valor ? Number(form.valor) : null;
@@ -489,7 +493,7 @@ function OportunidadeDrawer({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Valor *</label>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Valor{form.etapa !== 'lead' ? ' *' : ''}</label>
               <input
                 type="number"
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
@@ -1077,6 +1081,26 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
     }
   };
 
+  // Ordena os cards de uma coluna por probabilidade (alta → baixa) e persiste
+  // a nova ordem (mesmo endpoint do drag-and-drop) — pedido do Bruno 02/10.
+  const handleSortByProbabilidade = async (etapaValue: string) => {
+    const idsNaColuna = localOps.filter(o => o.etapa === etapaValue).map(o => o.id);
+    const ordenados = [...idsNaColuna].sort((a, b) => {
+      const opA = localOps.find(o => o.id === a)!;
+      const opB = localOps.find(o => o.id === b)!;
+      return (PROB_ORDER[opB.probabilidade ?? ''] ?? 0) - (PROB_ORDER[opA.probabilidade ?? ''] ?? 0);
+    });
+    const opsForaDaColuna = localOps.filter(o => o.etapa !== etapaValue);
+    const opsNaColuna = ordenados.map(id => localOps.find(o => o.id === id)!);
+    setLocalOps([...opsForaDaColuna, ...opsNaColuna]);
+    try {
+      await api.patch('/crm/oportunidades/reorder', { ids: ordenados });
+    } catch (err) {
+      console.error('Erro ao ordenar por probabilidade', err);
+      onRefresh();
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0">
       <div className="flex items-center justify-between mb-4">
@@ -1395,6 +1419,16 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
               <div className="flex items-center gap-2 mb-2 px-1">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: etapa.color }} />
                 <span className="text-xs font-bold text-ber-carbon uppercase tracking-wide">{etapa.label}</span>
+                {cards.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSortByProbabilidade(etapa.value)}
+                    title="Ordenar por probabilidade (alta → baixa)"
+                    className="text-ber-gray/50 hover:text-ber-teal transition-colors"
+                  >
+                    <ArrowDownWideNarrow size={12} />
+                  </button>
+                )}
                 <span className="ml-auto text-xs text-ber-gray bg-ber-surface rounded-full px-1.5">{cards.length}</span>
               </div>
               {totalValor > 0 && (

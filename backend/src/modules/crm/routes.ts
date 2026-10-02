@@ -94,4 +94,13 @@ router.get('/stats/pipeline-aging', read, ctrl.getPipelineAging);
 router.get('/stats/recorrencia-clientes', read, ctrl.getRecorrenciaClientes);
 router.get('/stats/cohort', read, ctrl.getCohort);
 
+// Disparo manual do rollover de fechamento previsto vencido (teste/reprocesso) — 02/10/26
+router.post('/rollover-fechamento-previsto', admin, async (req, res, next) => {
+  try {
+    const { rolarFechamentoPrevistoVencido } = await import('./service');
+    const data = await rolarFechamentoPrevistoVencido();
+    res.json({ data });
+  } catch (e) { next(e); }
+});
+
 export default router;

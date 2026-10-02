@@ -429,6 +429,58 @@ export async function reorderOportunidades(input: { ids: string[]; etapa?: strin
   );
 }
 
+/** Último dia do mês seguinte ao de `data` (ex: 15/ago → 30/set). */
+function ultimoDiaDoMesSeguinte(data: Date): Date {
+  return new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth() + 2, 0));
+}
+
+/**
+ * Rollover automático de fechamento previsto (Bruno 02/10/26): oportunidade
+ * ainda aberta (não ganha/perdida/declinada/cancelada) cujo mês de fechamento
+ * previsto já passou sem decisão → empurra pro último dia do mês seguinte.
+ * Roda em loop por oportunidade pra já recuperar casos de vários meses
+ * parados de uma vez (ex: automação ligada depois de dados antigos acumulados).
+ * Agendado diariamente no scheduler.
+ */
+export async function rolarFechamentoPrevistoVencido() {
+  const hoje = new Date();
+  const inicioMesAtual = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1));
+
+  const abertas = await prisma.crmOportunidade.findMany({
+    where: {
+      etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] },
+      dataFechamentoPrevisto: { lt: inicioMesAtual },
+    },
+    select: { id: true, titulo: true, dataFechamentoPrevisto: true },
+  });
+
+  let atualizadas = 0;
+  for (const op of abertas) {
+    let novaData = op.dataFechamentoPrevisto!;
+    while (novaData < inicioMesAtual) {
+      novaData = ultimoDiaDoMesSeguinte(novaData);
+    }
+    if (novaData.getTime() === op.dataFechamentoPrevisto!.getTime()) continue;
+
+    await prisma.crmOportunidade.update({
+      where: { id: op.id },
+      data: { dataFechamentoPrevisto: novaData },
+    });
+    await prisma.crmOportunidadeHistorico.create({
+      data: {
+        oportunidadeId: op.id,
+        campo: 'dataFechamentoPrevisto',
+        valorAntigo: op.dataFechamentoPrevisto!.toISOString().slice(0, 10),
+        valorNovo: novaData.toISOString().slice(0, 10),
+        alteradoPor: 'Sistema (rollover automático)',
+      },
+    });
+    atualizadas++;
+  }
+
+  return { verificadas: abertas.length, atualizadas };
+}
+
 export async function getOportunidadeById(id: string) {
   return prisma.crmOportunidade.findUnique({
     where: { id },
