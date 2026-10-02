@@ -270,7 +270,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-dvh flex-col bg-ber-bg">
       {/* ─── Top header ─── */}
-      <header className="flex h-12 shrink-0 items-center justify-between bg-ber-sidebar px-4 border-b border-white/5">
+      {/* pt-safe-area: no PWA instalado em iPhone (viewportFit:cover) o header
+          colava atrás do notch/status bar e o menu hambúrguer ficava
+          inclicável — mesmo tratamento que o nav de baixo já tinha (Bruno 02/10). */}
+      <header className="flex min-h-12 shrink-0 items-center justify-between bg-ber-sidebar px-4 pt-[env(safe-area-inset-top)] border-b border-white/5">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDrawerOpen(true)}
