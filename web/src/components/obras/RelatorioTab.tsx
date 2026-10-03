@@ -475,15 +475,32 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     setCurvaSLocal(prev => prev.filter((_, idx) => idx !== i));
   }
 
+  // Salva incrementalmente (upsert ponto a ponto + delete do que foi removido)
+  // em vez de substituir a tabela inteira — antes, QUALQUER save de relatório
+  // reescrevia a curva S completa a partir só do que estava carregado no
+  // navegador, apagando silenciosamente o que outra pessoa tivesse salvo
+  // entretanto na mesma obra (achado real, 03/10/26).
   async function saveCurvaS() {
-    const pontos = curvaSLocal
-      .filter(p => p.semana && (p.planejadoPct != null || p.realizadoPct != null))
-      .map(p => ({
+    const originalPorSemana = new Map(curvaS.map(p => [p.semana.slice(0, 10), p]));
+    const localPorSemana = new Map(curvaSLocal.filter(p => p.semana).map(p => [p.semana, p]));
+
+    const upserts = Array.from(localPorSemana.values())
+      .filter(p => p.planejadoPct != null || p.realizadoPct != null)
+      .map(p => api.post(`/obras/${obraId}/relatorios/curva-s`, {
         semana: p.semana,
         planejadoPct: p.planejadoPct ?? null,
         realizadoPct: p.realizadoPct ?? null,
       }));
-    const cRes = await api.put(`/obras/${obraId}/relatorios/curva-s`, { pontos });
+
+    const deletes = Array.from(originalPorSemana.keys())
+      .filter(semana => {
+        const local = localPorSemana.get(semana);
+        return !local || (local.planejadoPct == null && local.realizadoPct == null);
+      })
+      .map(semana => api.delete(`/obras/${obraId}/relatorios/curva-s/${semana}`));
+
+    await Promise.all([...upserts, ...deletes]);
+    const cRes = await api.get(`/obras/${obraId}/relatorios/curva-s`);
     setCurvaS(cRes.data.data ?? []);
   }
 

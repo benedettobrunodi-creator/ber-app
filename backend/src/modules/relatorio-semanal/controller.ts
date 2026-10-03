@@ -268,6 +268,17 @@ export async function replaceCurvaS(req: Request, res: Response) {
   } catch (e: any) { return err500(res, e); }
 }
 
+/** Remove UM ponto da curva por data — usado pelo save incremental do front
+ *  (03/10/26: trocado de PUT-replace-tudo pra upsert+delete pontual, pra não
+ *  apagar silenciosamente o que outra pessoa tiver salvo na mesma obra). */
+export async function deleteCurvaSPonto(req: Request, res: Response) {
+  try {
+    const { id: obraId, semana } = req.params;
+    await prisma.relatorioCurvaS.deleteMany({ where: { obraId, semana: new Date(semana) } });
+    return res.json({ data: { ok: true } });
+  } catch (e: any) { return err500(res, e); }
+}
+
 export async function upsertCurvaSPlanejado(req: Request, res: Response) {
   try {
     const { id: obraId } = req.params;

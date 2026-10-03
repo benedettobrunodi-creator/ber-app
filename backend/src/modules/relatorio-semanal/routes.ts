@@ -14,6 +14,7 @@ router.post('/', ctrl.createRelatorio);
 router.get('/curva-s', ctrl.getCurvaS);
 router.put('/curva-s', ctrl.replaceCurvaS);
 router.post('/curva-s', ctrl.upsertCurvaSPlanejado);
+router.delete('/curva-s/:semana', ctrl.deleteCurvaSPonto);
 router.get('/tarefas', ctrl.getAllTarefas);
 router.get('/dados-periodo', ctrl.getDadosPeriodo);
 router.get('/:relatorioId/pdf', generatePdf);
