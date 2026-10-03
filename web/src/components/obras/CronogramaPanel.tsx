@@ -40,6 +40,12 @@ interface Cronograma {
   progressPct: number | null;
 }
 
+// Depositório do arquivo nativo de planejamento (MPP/Primavera) — sem
+// parsing, só guarda/baixa/substitui (Francisco Gritti, 03/10/26).
+interface CronogramaArquivo {
+  id: string; fileUrl: string; fileName: string; updatedAt: string;
+}
+
 export default function CronogramaPanel({ obraId }: { obraId: string }) {
   const [cronograma, setCronograma] = useState<Cronograma | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,6 +54,11 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
   const [reparseResult, setReparseResult] = useState<{ numTarefas: number; progressPct: number } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Depositório do arquivo nativo (MPP/Primavera) — independente do PDF acima
+  const [mpp, setMpp] = useState<CronogramaArquivo | null>(null);
+  const [mppUploading, setMppUploading] = useState(false);
+  const mppInputRef = useRef<HTMLInputElement>(null);
 
   // Prévia inline do PDF: browsers MOBILE não renderizam PDF em <iframe> —
   // Chrome/Safari disparam DOWNLOAD automático ao montar a página (bug real
@@ -65,7 +76,30 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
       .then(r => setCronograma(r.data.data))
       .catch(() => setCronograma(null))
       .finally(() => setLoading(false));
+    api.get(`/obras/${obraId}/cronograma/mpp`)
+      .then(r => setMpp(r.data.data))
+      .catch(() => setMpp(null));
   }, [obraId]);
+
+  async function handleMppUpload(file: File) {
+    setMppUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await api.post(`/obras/${obraId}/cronograma/mpp`, form);
+      setMpp(r.data.data);
+    } catch {
+      alert('Erro ao enviar o arquivo');
+    } finally { setMppUploading(false); }
+  }
+
+  async function handleMppRemove() {
+    if (!(await confirmar('Remover o arquivo do MS Project/Primavera desta obra?', { titulo: 'Remover arquivo', confirmarLabel: 'Remover' }))) return;
+    try {
+      await api.delete(`/obras/${obraId}/cronograma/mpp`);
+      setMpp(null);
+    } catch { alert('Erro ao remover'); }
+  }
 
   async function handleUpload(file: File) {
     setUploading(true);
@@ -171,6 +205,33 @@ export default function CronogramaPanel({ obraId }: { obraId: string }) {
           </button>
           <input ref={inputRef} type="file" accept=".pdf" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+        </div>
+      </div>
+
+      {/* Depositório do arquivo nativo (MPP/Primavera) — sem parsing, só
+          guarda/baixa/substitui; independente do PDF acima (Francisco, 03/10). */}
+      <div className="mb-4 flex items-center justify-between gap-3 flex-wrap rounded-lg border border-ber-gray/15 bg-ber-bg/40 px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wide text-ber-gray">Arquivo nativo do planejamento</p>
+          {mpp ? (
+            <a href={mpp.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-ber-teal hover:underline truncate block">
+              {mpp.fileName}
+            </a>
+          ) : (
+            <p className="text-sm text-ber-gray/70">Nenhum arquivo (.mpp, Primavera etc) enviado ainda</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => mppInputRef.current?.click()} disabled={mppUploading}
+            className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 px-3 py-1.5 text-xs font-medium text-ber-carbon hover:bg-white disabled:opacity-50">
+            <Upload size={12} />
+            {mppUploading ? 'Enviando…' : mpp ? 'Substituir' : 'Enviar arquivo'}
+          </button>
+          {mpp && (
+            <button onClick={handleMppRemove} className="text-xs font-medium text-ber-gray hover:text-red-500">Remover</button>
+          )}
+          <input ref={mppInputRef} type="file" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleMppUpload(f); e.target.value = ''; }} />
         </div>
       </div>
 

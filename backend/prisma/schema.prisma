@@ -235,6 +235,7 @@ model Obra {
   ambientesDiario      Ambiente[]
   diarios              DiarioObra[]
   cronogramas          Cronograma[]
+  cronogramaArquivo    CronogramaArquivo?
   recebimentoRelatorio RecebimentoRelatorio?
   qualidadeVistorias   QualidadeVistoria[]
   atividadeFvs         AtividadeFvs[]
@@ -2202,6 +2203,23 @@ model Cronograma {
 
   @@index([obraId])
   @@map("cronogramas")
+}
+
+// Depositório do arquivo nativo de planejamento (MS Project .mpp, Primavera
+// etc) — separado do Cronograma (PDF parseado por IA acima). Sem parsing,
+// só guarda/baixa/substitui: 1 arquivo ativo por obra (pedido Francisco
+// Gritti, 03/10/26: "precisamos de um depositório na área do cronograma
+// pra colocar o MPP").
+model CronogramaArquivo {
+  id        String   @id @default(uuid()) @db.Uuid
+  obraId    String   @unique @map("obra_id") @db.Uuid
+  fileUrl   String   @map("file_url")
+  fileName  String   @map("file_name") @db.VarChar(255)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("cronograma_arquivos")
 }
 
 // ─── CRM ────────────────────────────────────────────────────────────────────

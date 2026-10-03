@@ -49,6 +49,43 @@ export async function uploadCronograma(req: Request, res: Response) {
   return res.json({ data: cronograma });
 }
 
+// ─── Depositório do arquivo nativo (MPP/Primavera) — Francisco Gritti 03/10/26 ──
+// Sem parsing, só guarda/baixa/substitui. Independente do Cronograma (PDF) acima.
+export async function getCronogramaArquivo(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  const arquivo = await prisma.cronogramaArquivo.findUnique({ where: { obraId } });
+  return res.json({ data: arquivo });
+}
+
+export async function uploadCronogramaArquivo(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  if (!req.file) return res.status(400).json({ error: { message: 'Arquivo obrigatório' } });
+
+  let fileUrl: string;
+  if (isR2Configured()) {
+    fileUrl = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+  } else {
+    const dir = path.resolve(env.uploadDir);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const fname = `${Date.now()}-${req.file.originalname}`;
+    fs.writeFileSync(path.join(dir, fname), req.file.buffer);
+    fileUrl = `/uploads/${fname}`;
+  }
+
+  const arquivo = await prisma.cronogramaArquivo.upsert({
+    where: { obraId },
+    update: { fileUrl, fileName: req.file.originalname },
+    create: { obraId, fileUrl, fileName: req.file.originalname },
+  });
+  return res.json({ data: arquivo });
+}
+
+export async function deleteCronogramaArquivo(req: Request, res: Response) {
+  const { id: obraId } = req.params;
+  await prisma.cronogramaArquivo.deleteMany({ where: { obraId } });
+  return res.status(204).send();
+}
+
 export async function parseCronograma(req: Request, res: Response) {
   const { id: obraId } = req.params;
   console.log(`[PARSE] start obra=${obraId}`);
