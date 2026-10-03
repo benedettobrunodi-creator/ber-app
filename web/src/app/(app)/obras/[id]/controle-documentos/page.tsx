@@ -121,6 +121,7 @@ interface LoteItem {
   revisao: string;
   disciplina: string;
   vigenciaFim: string; // obrigatória quando disciplina = Seguro (apólice)
+  dataRevisao: string; // data real do documento/revisão — editável aqui pra não precisar abrir popup depois (Francisco, 03/10)
 }
 
 export default function ControleDocumentosPage() {
@@ -251,7 +252,7 @@ export default function ControleDocumentosPage() {
       const { codigo, revisao } = parseNome(file.name);
       // Código já existe na obra → vai virar revisão nova; herda a disciplina do doc
       const existente = documentos.find(d => d.codigo === codigo);
-      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao, vigenciaFim: '' };
+      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao, vigenciaFim: '', dataRevisao: new Date().toISOString().slice(0, 10) };
     }));
   }
 
@@ -260,6 +261,7 @@ export default function ControleDocumentosPage() {
     if (!lote || lote.length === 0) return;
     for (const item of lote) {
       if (!item.codigo.trim() || !item.revisao.trim()) { alert('Preencha código e revisão de todos os arquivos'); return; }
+      if (!item.dataRevisao) { alert(`"${item.file.name}": informe a data do documento`); return; }
       const existente = documentos.find(d => d.codigo === item.codigo.trim());
       if (item.disciplina === 'Seguro' && !existente && !item.vigenciaFim) {
         alert(`"${item.file.name}": apólice de Seguro exige a vigência (data de vencimento)`); return;
@@ -279,6 +281,7 @@ export default function ControleDocumentosPage() {
         projetista: loteProjetista.trim() || null,
         observacao: loteComentario.trim() || null,
         vigenciaFim: i.vigenciaFim || null,
+        dataRevisao: i.dataRevisao || null,
       }))));
       const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
       setDocumentos(r.data.data.documentos);
@@ -828,6 +831,7 @@ export default function ControleDocumentosPage() {
                     <th className="pb-2 font-medium">Arquivo</th>
                     <th className="pb-2 font-medium">Código</th>
                     <th className="pb-2 font-medium">Revisão</th>
+                    <th className="pb-2 font-medium">Data</th>
                     <th className="pb-2 font-medium">Disciplina</th>
                     <th></th>
                   </tr>
@@ -847,6 +851,12 @@ export default function ControleDocumentosPage() {
                           <input className="w-16 text-xs px-2 py-1.5 border border-ber-border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal"
                             value={item.revisao}
                             onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, revisao: e.target.value } : i))} />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input type="date" title="Data real do documento/revisão (não a data do upload)"
+                            className="w-full text-xs px-2 py-1.5 border border-ber-border rounded focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                            value={item.dataRevisao}
+                            onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, dataRevisao: e.target.value } : i))} />
                         </td>
                         <td className="py-2 pr-3">
                           {existente ? (

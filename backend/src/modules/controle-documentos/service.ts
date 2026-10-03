@@ -225,6 +225,10 @@ export async function bulkUpload(
       ? { codigo: m.codigo.trim(), revisao: m.revisao.trim() }
       : parseNomeArquivo(file.originalname);
     const url = await uploadToR2(file.buffer, `documentos/${obraId}-${codigo}-${revisao}-${file.originalname}`, file.mimetype);
+    // Data real do documento/revisão — informada na tela de conferência do
+    // lote; sem ela (upload sem meta, fluxo antigo), cai pra hoje (Francisco,
+    // 03/10: antes era sempre "hoje", obrigando a editar depois).
+    const dataRevisao = m?.dataRevisao ? new Date(m.dataRevisao + 'T12:00:00Z') : hoje;
 
     const existing = await prisma.projetoDocumento.findUnique({
       where: { obraId_codigo: { obraId, codigo } },
@@ -235,7 +239,7 @@ export async function bulkUpload(
         data: {
           documentoId: existing.id,
           revisao,
-          data: hoje,
+          data: dataRevisao,
           arquivoUrl: url,
           arquivoNome: file.originalname,
           observacao: m?.observacao ?? null,
@@ -255,7 +259,7 @@ export async function bulkUpload(
           vigenciaFim: m?.vigenciaFim ? new Date(m.vigenciaFim + 'T00:00:00Z') : null,
           createdById,
           revisoes: {
-            create: { revisao, data: hoje, arquivoUrl: url, arquivoNome: file.originalname, observacao: m?.observacao ?? null, createdById },
+            create: { revisao, data: dataRevisao, arquivoUrl: url, arquivoNome: file.originalname, observacao: m?.observacao ?? null, createdById },
           },
         },
       });
