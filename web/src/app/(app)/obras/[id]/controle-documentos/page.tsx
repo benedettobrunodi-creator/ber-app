@@ -20,7 +20,7 @@ const DISCIPLINAS = [
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
   'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
   'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'ART', 'Seguro', 'Documentos do Condomínio',
-  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'Outra',
+  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'PAE', 'Outra',
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
