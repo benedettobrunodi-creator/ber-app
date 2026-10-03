@@ -282,8 +282,23 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
     });
     const startIso = obra.startDate?.slice(0, 10) ?? null;
     const endIso   = obra.expectedEndDate?.slice(0, 10) ?? null;
-    if (startIso && !map.has(startIso)) map.set(startIso, { semana: startIso });
-    if (endIso   && !map.has(endIso))   map.set(endIso,   { semana: endIso });
+    // Só insere o marco sintético de início/fim se NENHUM ponto real já cair
+    // na mesma semana — senão duplica o rótulo "Sem. 1" (ou o da última
+    // semana) no eixo: achado real na obra Segura AI, onde o primeiro ponto
+    // real ficou 1 dia depois do start_date oficial, caindo na mesma "Sem. 1"
+    // mas sendo tratado como uma semana à parte (Bruno/Francisco, 03/10).
+    const weekNumOf = (iso: string): number | null => {
+      if (!startIso) return null;
+      const startMs = new Date(startIso + 'T12:00:00').getTime();
+      const pointMs = new Date(iso + 'T12:00:00').getTime();
+      if (pointMs < startMs) return null;
+      return Math.floor((pointMs - startMs) / (7 * 86400000)) + 1;
+    };
+    const semanaChaves = Array.from(map.keys());
+    const semanaInicioJaExiste = startIso != null && semanaChaves.some(k => weekNumOf(k) === 1);
+    const semanaFimJaExiste = endIso != null && semanaChaves.some(k => weekNumOf(k) === weekNumOf(endIso));
+    if (startIso && !semanaInicioJaExiste) map.set(startIso, { semana: startIso });
+    if (endIso   && !semanaFimJaExiste)    map.set(endIso,   { semana: endIso });
     const startMs   = startIso ? new Date(startIso + 'T12:00:00').getTime() : null;
     const endMs     = endIso   ? new Date(endIso   + 'T12:00:00').getTime() : null;
     const durationMs = startMs && endMs && endMs > startMs ? endMs - startMs : null;

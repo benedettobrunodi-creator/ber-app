@@ -285,10 +285,12 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       const fim = new Date(fbEndIso + 'T00:00:00');
       const span = fim.getTime() - ini.getTime();
       if (span > 0) {
-        // começa na segunda-feira anterior ao início
+        // Semana 1 = data real de início — NÃO recua pra segunda-feira anterior.
+        // O recuo criava um ponto fantasma ANTES do início (rotulado com a
+        // data crua, tipo "07/09"), dando a impressão de uma "semana 0" antes
+        // da Sem. 1 (Bruno/Francisco, 03/10 — mesmo princípio do fix na aba
+        // Relatórios: a curva nunca deve ter nada antes do marco zero).
         const w = new Date(ini);
-        const dow = w.getDay();
-        w.setDate(w.getDate() - (dow === 0 ? 6 : dow - 1));
         while (w <= fim) {
           const fimSemana = new Date(w); fimSemana.setDate(fimSemana.getDate() + 6);
           const pct = Math.min(100, Math.max(0, Math.round((fimSemana.getTime() - ini.getTime()) / span * 1000) / 10));
@@ -298,11 +300,23 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
       }
     }
     if (map.size === 0) return [];
-    // Âncora: curva oficial cobre o projeto inteiro; fallback ancora na fase de obra
+    // Âncora: curva oficial cobre o projeto inteiro; fallback ancora na fase de obra.
+    // Só insere o marco sintético se NENHUM ponto real já cair na mesma semana
+    // — senão duplica o rótulo "Sem. 1" (achado real: obra Segura AI, onde o
+    // primeiro ponto real ficou 1 dia depois do início oficial).
     const ancIni = curvaEhFallback ? fbStartIso : startIso;
     const ancFim = curvaEhFallback ? fbEndIso : endIso;
-    if (ancIni && !map.has(ancIni)) map.set(ancIni, { semana: ancIni });
-    if (ancFim && !map.has(ancFim)) map.set(ancFim, { semana: ancFim });
+    const weekNumOf = (iso: string): number | null => {
+      if (!startMs) return null;
+      const pointMs = new Date(iso + 'T12:00:00').getTime();
+      if (pointMs < startMs) return null;
+      return Math.round((pointMs - startMs) / (7 * 86_400_000)) + 1;
+    };
+    const semanaChaves = Array.from(map.keys());
+    const semanaIniJaExiste = ancIni != null && semanaChaves.some(k => weekNumOf(k) === weekNumOf(ancIni));
+    const semanaFimJaExiste = ancFim != null && semanaChaves.some(k => weekNumOf(k) === weekNumOf(ancFim));
+    if (ancIni && !semanaIniJaExiste) map.set(ancIni, { semana: ancIni });
+    if (ancFim && !semanaFimJaExiste) map.set(ancFim, { semana: ancFim });
     return Array.from(map.values())
       .sort((a, b) => a.semana.localeCompare(b.semana))
       .map((pt, i) => {
