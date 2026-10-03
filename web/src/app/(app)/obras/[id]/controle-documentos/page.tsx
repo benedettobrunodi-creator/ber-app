@@ -60,7 +60,7 @@ const SETOR_CONDOMINIO = ['Documentos do Condomínio'];
 const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d =>
   !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d) && !SETOR_SDS.includes(d) &&
   !SETOR_ARTS.includes(d) && !SETOR_SEGURO.includes(d) && !SETOR_CONDOMINIO.includes(d));
-type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'arts' | 'seguro' | 'condominio' | 'outros' | 'obsoletos';
+type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'arts' | 'seguro' | 'condominio' | 'outros' | 'asbuilt' | 'obsoletos';
 
 const ETAPAS = ['Conceito', 'Anteprojeto (AP)', 'Executivo (EX)', 'Locação (LO)', 'As Built'] as const;
 
@@ -264,7 +264,7 @@ export default function ControleDocumentosPage() {
         disciplina: existente?.disciplina ?? padrao,
         vigenciaFim: '',
         dataRevisao: new Date().toISOString().slice(0, 10),
-        etapa: existente ? '' : etapaSugeridaPeloNome(file.name),
+        etapa: existente ? '' : (setor === 'asbuilt' ? 'As Built' : etapaSugeridaPeloNome(file.name)),
       };
     }));
   }
@@ -439,6 +439,10 @@ export default function ControleDocumentosPage() {
     if (setor === 'seguro') return SETOR_SEGURO.includes(d.disciplina);
     if (setor === 'condominio') return SETOR_CONDOMINIO.includes(d.disciplina);
     if (setor === 'outros') return SETOR_OUTROS.includes(d.disciplina);
+    // As Builts cruza todas as disciplinas — filtra por Etapa, não por
+    // disciplina (pedido Dany/Francisco, 03/10); agrupamento por disciplina
+    // dentro da aba continua igual, via `grupos` abaixo.
+    if (setor === 'asbuilt') return d.etapa === 'As Built';
     if (setor === 'sds') {
       const sub = SDS_SUBS.find(t => t.label === subTecnico);
       return (sub ? sub.disciplinas : SETOR_SDS).includes(d.disciplina);
@@ -472,7 +476,9 @@ export default function ControleDocumentosPage() {
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-ber-teal/10 backdrop-blur-[1px]">
           <div className="rounded-2xl border-2 border-dashed border-ber-teal bg-white px-8 py-6 text-lg font-bold text-ber-teal shadow-xl">
             Solte os arquivos pra inserir
-            {setor !== 'todos' && setor !== 'obsoletos' && (
+            {setor === 'asbuilt' ? (
+              <span className="block text-sm font-semibold text-ber-gray mt-1">→ entram já marcados como Etapa: As Built</span>
+            ) : setor !== 'todos' && setor !== 'obsoletos' && (
               <span className="block text-sm font-semibold text-ber-gray mt-1">→ entram em: {disciplinaPadrao()}</span>
             )}
           </div>
@@ -513,6 +519,7 @@ export default function ControleDocumentosPage() {
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
             { key: 'arts', label: 'ARTs', count: documentos.filter(d => !d.obsoleto && SETOR_ARTS.includes(d.disciplina)).length },
+            { key: 'asbuilt', label: 'As Builts', count: documentos.filter(d => !d.obsoleto && d.etapa === 'As Built').length },
             { key: 'condominio', label: 'Docs do Condomínio', count: documentos.filter(d => !d.obsoleto && SETOR_CONDOMINIO.includes(d.disciplina)).length },
             { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
             { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
@@ -576,7 +583,7 @@ export default function ControleDocumentosPage() {
       {setor !== 'todos' && (
         <div className="mb-3 flex items-baseline gap-2">
           <h2 className="text-base font-bold text-ber-carbon">
-            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'arts' ? 'ARTs' : setor === 'seguro' ? 'Seguro' : setor === 'condominio' ? 'Docs do Condomínio' : setor === 'outros' ? 'Outros Documentos' : setor === 'sds' ? (subTecnico ?? 'Shop Drawings (SDs)') : (subTecnico ?? 'Projetos Técnicos')}
+            {setor === 'obsoletos' ? 'Obsoletos' : setor === 'arquitetura' ? 'Arquitetura' : setor === 'arts' ? 'ARTs' : setor === 'asbuilt' ? 'As Builts' : setor === 'seguro' ? 'Seguro' : setor === 'condominio' ? 'Docs do Condomínio' : setor === 'outros' ? 'Outros Documentos' : setor === 'sds' ? (subTecnico ?? 'Shop Drawings (SDs)') : (subTecnico ?? 'Projetos Técnicos')}
           </h2>
           <span className="text-xs text-ber-gray">{visiveis.length} documento(s)</span>
           {setor === 'obsoletos' && <span className="text-[11px] text-amber-700">desenhos fora de uso — restauráveis</span>}

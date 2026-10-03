@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import * as controller from './controller';
 import { authenticate } from '../../middleware/auth';
@@ -10,6 +10,22 @@ import { createDocumentoSchema, updateDocumentoSchema, createRevisaoSchema, upda
 // Limite de tamanho generoso (storage é barato, ver análise de custo R2 31/08) —
 // cobre arquivo CAD nativo grande sem travar por engano.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+// O multer/busboy decodifica o header Content-Disposition (onde vem o nome do
+// arquivo) como latin1 por padrão — nome com acento/ç vira mojibake ("Memória"
+// → "MemÃ³ria"). Isso quebrava o casamento com `meta[].nome` no upload em
+// lote: o arquivo "sumia" do Map e TODO o código/revisão/disciplina/data já
+// confirmados na tela de conferência eram descartados silenciosamente, caindo
+// no fallback de parsear o nome (corrompido) do zero. Achado real do
+// Francisco Gritti, 03/10/26. Fix padrão: reinterpretar os bytes como UTF-8.
+function corrigirCodificacaoArquivos(req: Request, _res: Response, next: NextFunction) {
+  const corrigir = (f: Express.Multer.File) => {
+    f.originalname = Buffer.from(f.originalname, 'latin1').toString('utf8');
+  };
+  if (req.file) corrigir(req.file);
+  if (Array.isArray(req.files)) req.files.forEach(corrigir);
+  next();
+}
 
 // Montado em /v1/obras/:id/controle-documentos — NÃO confundir com
 // /v1/obras/:obraId/documentos (módulo distinto, Gestão 360, 1 revisão em
@@ -27,17 +43,17 @@ router.patch('/:documentoId', requireRole('campo'), validate(updateDocumentoSche
 router.delete('/:documentoId', requireRole('campo'), controller.remove);
 
 router.get('/:documentoId/proxima-revisao', controller.proximaRevisao);
-router.post('/:documentoId/revisoes', requireRole('campo'), upload.single('file'), validate(createRevisaoSchema), controller.addRevisao);
+router.post('/:documentoId/revisoes', requireRole('campo'), upload.single('file'), corrigirCodificacaoArquivos, validate(createRevisaoSchema), controller.addRevisao);
 router.patch('/:documentoId/revisoes/:revisaoId', requireRole('campo'), validate(updateRevisaoSchema), controller.updateRevisao);
 router.delete('/:documentoId/revisoes/:revisaoId', requireRole('campo'), controller.removeRevisao);
 
 // Arrastar-e-soltar em massa (31/08/26): cada arquivo vira documento novo
 // (código/revisão detectados do nome) ou revisão nova de documento existente.
-router.post('/bulk-upload', requireRole('campo'), upload.array('files', 200), controller.bulkUpload);
+router.post('/bulk-upload', requireRole('campo'), upload.array('files', 200), corrigirCodificacaoArquivos, controller.bulkUpload);
 
 // Sugestão de metadados por IA — lê o arquivo antes de confirmar o lote
 // (Francisco/Bruno 03/10/26). Não salva nada, só sugere.
-router.post('/analisar', requireRole('campo'), upload.single('file'), controller.analisar);
+router.post('/analisar', requireRole('campo'), upload.single('file'), corrigirCodificacaoArquivos, controller.analisar);
 
 // Disparo manual do alerta de seguros vencendo (teste/reenvio) — ?dry=1 só simula
 router.post('/alerta-seguros', requireRole('campo'), async (req, res, next) => {
