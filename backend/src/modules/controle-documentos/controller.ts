@@ -62,6 +62,15 @@ export async function removeRevisao(req: Request, res: Response) {
   sendNoContent(res);
 }
 
+// Lê UM arquivo (ainda não salvo) e sugere disciplina/tema/data/projetista —
+// usado na tela de conferência do upload em lote, sempre como sugestão
+// editável (Francisco/Bruno 03/10/26).
+export async function analisar(req: Request, res: Response) {
+  if (!req.file) throw AppError.badRequest('Envie um arquivo (campo "file")');
+  const sugestao = await service.sugerirMetadadosDocumento(req.file.buffer, req.file.mimetype, req.file.originalname);
+  sendSuccess(res, sugestao);
+}
+
 export async function bulkUpload(req: Request, res: Response) {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (files.length === 0) throw AppError.badRequest('Envie ao menos um arquivo (campo "files")');

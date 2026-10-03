@@ -1,6 +1,8 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/errors';
 import type { CreateDocumentoInput, UpdateDocumentoInput, CreateRevisaoInput } from './types';
+import { DOCUMENTO_DISCIPLINAS } from './types';
 
 const include = {
   revisoes: { orderBy: { data: 'desc' as const } },
@@ -274,4 +276,73 @@ export async function bulkUpload(
     .catch(err => console.error('[ControleDocumentos] aviso de upload falhou:', (err as Error).message));
 
   return { criados, atualizados, documentos: await listByObra(obraId) };
+}
+
+// ─── Sugestão de metadados por IA (visão) — Bruno/Francisco 03/10/26 ──────
+// Lê o arquivo (PDF ou imagem) ANTES do upload de verdade e sugere disciplina/
+// tema/data/projetista. Sempre uma sugestão editável — nunca confirma sozinha.
+const METADADOS_PROMPT = `Você está catalogando um documento técnico de uma obra de reforma/construção
+(projetos de arquitetura, estrutural, elétrico, hidráulico, shop drawings, ARTs, seguros, relatórios internos, etc).
+
+Olhe o documento e extraia:
+- disciplina: uma destas opções EXATAS, a que melhor descrever o documento: ${DOCUMENTO_DISCIPLINAS.map(d => `"${d}"`).join(', ')}
+- tema: um resumo curto (até 60 caracteres) do que o documento mostra/trata
+- data: a data de emissão/revisão do documento, se aparecer impressa nele (formato YYYY-MM-DD). null se não achar.
+- projetista: nome do escritório/profissional responsável, se aparecer (carimbo, campo "projetista", "responsável técnico" etc). null se não achar.
+
+Retorne APENAS JSON minificado: {"disciplina":"...","tema":"...","data":"YYYY-MM-DD ou null","projetista":"... ou null"}`;
+
+const VISAO_MODELS_DOC = ['gemini-3.6-flash', 'gemini-2.5-flash'];
+
+export interface SugestaoMetadadosDocumento {
+  disciplina: string | null;
+  tema: string | null;
+  data: string | null;
+  projetista: string | null;
+}
+
+export async function sugerirMetadadosDocumento(
+  buffer: Buffer,
+  mimetype: string,
+  filename: string,
+): Promise<SugestaoMetadadosDocumento> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw AppError.badRequest('IA não configurada no servidor');
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let lastErr: Error | null = null;
+  for (const modelName of VISAO_MODELS_DOC) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        // thinkingConfig não está no tipo da SDK (ainda não atualizada), mas é
+        // repassado direto pro corpo da requisição — sem isso o gemini-2.5-flash
+        // consome o budget de tokens "pensando" e nunca emite a resposta.
+        generationConfig: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2000,
+          thinkingConfig: { thinkingBudget: 0 },
+        } as Record<string, unknown>,
+      });
+      const res = await model.generateContent([
+        { inlineData: { mimeType: mimetype, data: buffer.toString('base64') } },
+        METADADOS_PROMPT,
+      ]);
+      const out = JSON.parse(res.response.text()) as Partial<SugestaoMetadadosDocumento>;
+      const disciplina = out.disciplina && (DOCUMENTO_DISCIPLINAS as readonly string[]).includes(out.disciplina)
+        ? out.disciplina
+        : null;
+      const data = out.data && /^\d{4}-\d{2}-\d{2}$/.test(out.data) ? out.data : null;
+      return {
+        disciplina,
+        tema: out.tema ? String(out.tema).slice(0, 100) : null,
+        data,
+        projetista: out.projetista ? String(out.projetista).slice(0, 150) : null,
+      };
+    } catch (e) {
+      lastErr = e as Error;
+      console.warn(`[ControleDocumentos] sugestão IA ${modelName} falhou pra "${filename}": ${(e as Error).message.slice(0, 120)}`);
+    }
+  }
+  throw AppError.badRequest(`Sugestão de metadados falhou: ${lastErr?.message.slice(0, 120) ?? 'erro'}`);
 }

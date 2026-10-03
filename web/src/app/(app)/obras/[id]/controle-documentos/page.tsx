@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, Archive, ArchiveRestore } from 'lucide-react';
+import { ArrowLeft, Plus, X, Trash2, Pencil, ChevronDown, ChevronUp, Download, Upload, Archive, ArchiveRestore, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import { confirmar } from '@/lib/confirmar';
 
@@ -144,6 +144,7 @@ export default function ControleDocumentosPage() {
   // Tela de conferência do lote (03/09/26): arquivos escolhidos ficam aqui
   // até o usuário confirmar código/revisão/disciplina de cada um.
   const [lote, setLote] = useState<LoteItem[] | null>(null);
+  const [analisando, setAnalisando] = useState<number | null>(null); // índice do item lendo com IA (03/10/26)
   const [loteProjetista, setLoteProjetista] = useState('');
   const [loteComentario, setLoteComentario] = useState(''); // vai pra observação das revisões do lote
   // Edição inline de revisão existente (03/09/26)
@@ -294,6 +295,34 @@ export default function ControleDocumentosPage() {
       alert(m || 'Erro ao subir arquivos');
     } finally {
       setBulkUploading(false);
+    }
+  }
+
+  /** Lê o arquivo com IA e pré-preenche disciplina/data/projetista desse item
+   *  do lote — sempre editável depois, nunca confirma sozinho (Francisco/Bruno
+   *  03/10/26). Disciplina só é aplicada quando o item vai virar documento NOVO
+   *  (se já existe documento com esse código, a disciplina é a do documento). */
+  async function sugerirIA(idx: number) {
+    const item = lote?.[idx];
+    if (!item) return;
+    const existente = documentos.find(dd => dd.codigo === item.codigo.trim());
+    setAnalisando(idx);
+    try {
+      const fd = new FormData();
+      fd.append('file', item.file);
+      const r = await api.post(`/obras/${obraId}/controle-documentos/analisar`, fd);
+      const s = r.data.data as { disciplina: string | null; tema: string | null; data: string | null; projetista: string | null };
+      setLote(prev => prev && prev.map((i, j) => j === idx ? {
+        ...i,
+        disciplina: (!existente && s.disciplina) ? s.disciplina : i.disciplina,
+        dataRevisao: s.data ?? i.dataRevisao,
+      } : i));
+      if (s.projetista && !loteProjetista.trim()) setLoteProjetista(s.projetista);
+    } catch (e) {
+      const m = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      alert(m || 'Erro ao analisar com IA');
+    } finally {
+      setAnalisando(null);
     }
   }
 
@@ -834,6 +863,7 @@ export default function ControleDocumentosPage() {
                     <th className="pb-2 font-medium">Data</th>
                     <th className="pb-2 font-medium">Disciplina</th>
                     <th></th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -879,6 +909,13 @@ export default function ControleDocumentosPage() {
                               )}
                             </span>
                           )}
+                        </td>
+                        <td className="py-2 pr-2">
+                          <button type="button" onClick={() => sugerirIA(idx)} disabled={analisando === idx}
+                            title="Ler o arquivo com IA e sugerir disciplina/data/projetista"
+                            className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-semibold text-ber-teal hover:text-ber-carbon disabled:opacity-50">
+                            <Sparkles size={12} /> {analisando === idx ? 'Lendo…' : 'Sugerir com IA'}
+                          </button>
                         </td>
                         <td className="py-2 text-right">
                           <button onClick={() => setLote(prev => { const n = prev?.filter((_, j) => j !== idx) ?? null; return n && n.length > 0 ? n : null; })}
