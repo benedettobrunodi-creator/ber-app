@@ -84,6 +84,7 @@ export const bulkMetaItemSchema = z.object({
   observacao: z.string().max(1000).nullable().optional(), // comentário do lote → observação da revisão
   vigenciaFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), // apólice de Seguro no lote
   dataRevisao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), // data real do documento — Francisco 03/10
+  etapa: z.enum(DOCUMENTO_ETAPAS).nullable().optional(), // ex: As Built — pra não precisar editar depois (Dany, 03/10)
 });
 export const bulkMetaSchema = z.array(bulkMetaItemSchema).max(200);
 export type BulkMetaItem = z.infer<typeof bulkMetaItemSchema>;

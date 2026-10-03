@@ -122,6 +122,12 @@ interface LoteItem {
   disciplina: string;
   vigenciaFim: string; // obrigatória quando disciplina = Seguro (apólice)
   dataRevisao: string; // data real do documento/revisão — editável aqui pra não precisar abrir popup depois (Francisco, 03/10)
+  etapa: string; // ex: As Built — editável aqui pra não precisar abrir o documento depois pra setar (Dany, 03/10)
+}
+
+/** Nome sugere As Built (ex: "2401022_AsBuilt_Rua Dr R...") → pré-marca a etapa. */
+function etapaSugeridaPeloNome(filename: string): string {
+  return /as[\s_-]?built/i.test(filename) ? 'As Built' : '';
 }
 
 export default function ControleDocumentosPage() {
@@ -253,7 +259,13 @@ export default function ControleDocumentosPage() {
       const { codigo, revisao } = parseNome(file.name);
       // Código já existe na obra → vai virar revisão nova; herda a disciplina do doc
       const existente = documentos.find(d => d.codigo === codigo);
-      return { file, codigo, revisao, disciplina: existente?.disciplina ?? padrao, vigenciaFim: '', dataRevisao: new Date().toISOString().slice(0, 10) };
+      return {
+        file, codigo, revisao,
+        disciplina: existente?.disciplina ?? padrao,
+        vigenciaFim: '',
+        dataRevisao: new Date().toISOString().slice(0, 10),
+        etapa: existente ? '' : etapaSugeridaPeloNome(file.name),
+      };
     }));
   }
 
@@ -283,6 +295,7 @@ export default function ControleDocumentosPage() {
         observacao: loteComentario.trim() || null,
         vigenciaFim: i.vigenciaFim || null,
         dataRevisao: i.dataRevisao || null,
+        etapa: i.etapa || null,
       }))));
       const r = await api.post(`/obras/${obraId}/controle-documentos/bulk-upload`, fd);
       setDocumentos(r.data.data.documentos);
@@ -900,6 +913,13 @@ export default function ControleDocumentosPage() {
                                 value={item.disciplina}
                                 onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, disciplina: e.target.value } : i))}>
                                 {DISCIPLINAS.map(disc => <option key={disc} value={disc}>{disc}</option>)}
+                              </select>
+                              <select className="text-xs px-2 py-1.5 border border-ber-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-ber-teal"
+                                title="Etapa (ex: As Built) — fica no documento, dá pra ajustar depois também"
+                                value={item.etapa}
+                                onChange={e => setLote(prev => prev && prev.map((i, j) => j === idx ? { ...i, etapa: e.target.value } : i))}>
+                                <option value="">Etapa —</option>
+                                {ETAPAS.map(et => <option key={et} value={et}>{et}</option>)}
                               </select>
                               {item.disciplina === 'Seguro' && (
                                 <input type="date" title="Vigência da apólice (obrigatória)"

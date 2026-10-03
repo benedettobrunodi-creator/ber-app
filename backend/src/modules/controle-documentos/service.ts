@@ -258,6 +258,7 @@ export async function bulkUpload(
           disciplina: m?.disciplina ?? 'Outra',
           titulo: m?.titulo ?? null,
           projetista: m?.projetista ?? null,
+          etapa: m?.etapa ?? null, // ex: As Built — definido na conferência do lote (Dany, 03/10)
           vigenciaFim: m?.vigenciaFim ? new Date(m.vigenciaFim + 'T00:00:00Z') : null,
           createdById,
           revisoes: {
