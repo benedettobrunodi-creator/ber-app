@@ -856,7 +856,10 @@ export default function CapaObra({ obraId, embedded = false }: { obraId: string;
                 <span className="inline-block h-0.5 w-5 border-t-2 border-dashed border-[#3B82F6]" /> Planejado acumulado
               </span>
               {curvaEhFallback && (
-                <span className="italic">curva linear {faseObra ? 'da fase de construção do cronograma' : 'das datas da obra'} — gere a oficial no Cronograma (botão Gerar Curva S)</span>
+                // Texto antigo prometia geração automática a partir do Cronograma — Bruno
+                // confirmou 03/10 que planejado e realizado continuam 100% manuais, sem
+                // automação. Removida a promessa, mantida só a orientação de onde preencher.
+                <span className="italic">curva linear {faseObra ? 'da fase de construção do cronograma' : 'das datas da obra'} — a oficial é preenchida semana a semana no Relatório de Obra, aba Curva S</span>
               )}
               {curva.some(p => p.realizado != null) ? (
                 <span className="inline-flex items-center gap-1.5">
