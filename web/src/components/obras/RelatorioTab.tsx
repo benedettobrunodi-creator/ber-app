@@ -421,8 +421,15 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
 
   function addCurvaSWeek() {
     const last = curvaSLocal[curvaSLocal.length - 1];
-    const base = last ? last.semana : (obra.startDate?.slice(0, 10) ?? form.periodoFim);
-    const next = addDays(base, 7);
+    if (!last) {
+      // Primeira semana da curva = data real de início da obra (dia 0), não
+      // início + 7 dias — senão o gráfico já nasce "um avanço adiantado" e
+      // nunca existe o ponto 0%/0% (achado do Francisco, 03/10).
+      const inicio = obra.startDate?.slice(0, 10) ?? form.periodoFim;
+      setCurvaSLocal(prev => [...prev, { semana: inicio, planejadoPct: 0, realizadoPct: 0 }]);
+      return;
+    }
+    const next = addDays(last.semana, 7);
     setCurvaSLocal(prev => [...prev, { semana: next, planejadoPct: null }]);
   }
 
