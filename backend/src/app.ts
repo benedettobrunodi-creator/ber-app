@@ -125,6 +125,7 @@ app.get('/health', (_req, res) => {
 
 // API Routes (v1)
 app.use('/v1/auth', authRoutes);
+app.use('/v1/integracao', require('./modules/integracao/routes').default);           // BÈR OS (busca read-only, API key diretoria)
 app.use('/v1/users', userRoutes);                                                        // /me open; admin check inside
 app.use('/v1/notifications', notificationRoutes);                                        // always accessible
 app.use('/v1/announcements', announcementRoutes);                                        // always accessible
