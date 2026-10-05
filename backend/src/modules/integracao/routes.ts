@@ -143,6 +143,35 @@ router.get('/tarefas', authenticate, requireRole('diretoria'), async (req, res) 
   res.json({ obra: { id: obra.id, nome: obra.name }, tarefas });
 });
 
+// Indicadores do dia pro BÈR OS (item 1 do backlog, 05/10): counts por usuário,
+// read-only, sem valores financeiros. Escopo: membro vê as obras dele;
+// coordenação+ vê todas as ativas; esteira só escritório(4)+.
+router.get('/indicadores', authenticate, requireRole('diretoria'), async (req, res) => {
+  const email = String(req.query.email ?? '').trim().toLowerCase();
+  const usuario = await usuarioPorEmail(email);
+  if (!usuario) return res.status(404).json({ error: { message: 'Usuário não encontrado no BÈR App' } });
+  const nivel = ROLE_HIERARCHY[usuario.role as Role] ?? 0;
+
+  let obraIds: string[] | null = null; // null = todas
+  if (nivel < 3) {
+    const membros = await prisma.obraMember.findMany({ where: { userId: usuario.id }, select: { obraId: true } });
+    obraIds = membros.map(m => m.obraId);
+  }
+  const whereTarefa = {
+    status: { not: 'done' as const },
+    ...(obraIds ? { obraId: { in: obraIds } } : {}),
+  };
+  const hoje = new Date();
+  const [tarefasAbertas, tarefasAtrasadas, oportunidadesAtivas] = await Promise.all([
+    prisma.obraTask.count({ where: whereTarefa }),
+    prisma.obraTask.count({ where: { ...whereTarefa, dueDate: { lt: hoje } } }),
+    nivel >= 4
+      ? prisma.crmOportunidade.count({ where: { etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] } } })
+      : Promise.resolve(null),
+  ]);
+  res.json({ tarefasAbertas, tarefasAtrasadas, oportunidadesAtivas });
+});
+
 // Criar tarefa numa obra (ação de escrita — autoria do usuário)
 router.post('/tarefas', authenticate, requireRole('diretoria'), async (req, res) => {
   const { email, obra: obraQ, titulo, descricao, prazo, prioridade } = req.body ?? {};
