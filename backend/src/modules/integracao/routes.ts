@@ -88,6 +88,14 @@ async function usuarioPorEmail(email: string) {
 }
 
 // Pipeline comercial (esteira) — valores só pra nível diretoria+
+// Bug encontrado 05/10 (Bruno comparou com o CRM de verdade e os números não
+// batiam): "take: 60" + "orderBy etapa asc" cortava o resultado DENTRO da
+// etapa "lead" (ordem alfabética: lead < negociacao < proposta_* < qualificacao),
+// então nenhuma oportunidade de outra etapa chegava a aparecer — a ferramenta
+// via 60 leads e achava que era o pipeline inteiro. CRM real tinha 108 ativas
+// espalhadas em 4 etapas. Corrigido: sem corte artificial, ordenado na
+// sequência real do funil (não alfabética).
+const ORDEM_FUNIL = ['lead', 'qualificacao', 'proposta_producao', 'proposta_enviada', 'negociacao'];
 router.get('/crm/pipeline', authenticate, requireRole('diretoria'), async (req, res) => {
   const email = String(req.query.email ?? '').trim().toLowerCase();
   const usuario = await usuarioPorEmail(email);
@@ -95,8 +103,8 @@ router.get('/crm/pipeline', authenticate, requireRole('diretoria'), async (req, 
   const nivel = ROLE_HIERARCHY[usuario.role as Role] ?? 0;
   const oportunidades = await prisma.crmOportunidade.findMany({
     where: { etapa: { notIn: ['ganho', 'perdido', 'declinado', 'cancelado'] } },
-    orderBy: [{ etapa: 'asc' }, { ordem: 'asc' }],
-    take: 60,
+    orderBy: [{ ordem: 'asc' }],
+    take: 500, // teto de segurança, não um corte esperado — hoje são 108 ativas
     select: {
       id: true, titulo: true, etapa: true, probabilidade: true,
       dataFechamentoPrevisto: true, valor: true,
@@ -104,7 +112,10 @@ router.get('/crm/pipeline', authenticate, requireRole('diretoria'), async (req, 
       responsavel: { select: { name: true } },
     },
   });
+  oportunidades.sort((a, b) => ORDEM_FUNIL.indexOf(a.etapa) - ORDEM_FUNIL.indexOf(b.etapa));
   res.json({
+    total: oportunidades.length,
+    porEtapa: Object.fromEntries(ORDEM_FUNIL.map(e => [e, oportunidades.filter(o => o.etapa === e).length])),
     oportunidades: oportunidades.map(o => ({
       id: o.id, titulo: o.titulo, etapa: o.etapa,
       empresa: o.empresa?.razaoSocial ?? null,
