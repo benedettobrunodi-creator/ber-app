@@ -143,6 +143,18 @@ router.get('/tarefas', authenticate, requireRole('diretoria'), async (req, res) 
   res.json({ obra: { id: obra.id, nome: obra.name }, tarefas });
 });
 
+// Contatos da BÈR pro BÈR OS (pedido Bruno 05/10): nomes e e-mails dos
+// usuários ativos — alimenta o autocomplete de destinatários da ata.
+router.get('/contatos', authenticate, requireRole('diretoria'), async (_req, res) => {
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: { name: true, email: true },
+    orderBy: { name: 'asc' },
+    take: 200,
+  });
+  res.json({ contatos: users.map(u => ({ nome: u.name, email: u.email.toLowerCase() })) });
+});
+
 // Indicadores do dia pro BÈR OS (item 1 do backlog, 05/10): counts por usuário,
 // read-only, sem valores financeiros. Escopo: membro vê as obras dele;
 // coordenação+ vê todas as ativas; esteira só escritório(4)+.
