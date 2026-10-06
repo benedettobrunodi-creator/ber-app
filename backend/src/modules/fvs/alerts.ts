@@ -11,11 +11,18 @@ export async function checkFvsItensVencidos() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
+  // 06/10: só obra EM ANDAMENTO (ou pós-obra) deveria cobrar prazo vencido —
+  // mesma régua já usada em checkFasesAtrasadas() logo abaixo. Sem esse
+  // filtro, uma obra ainda em planejamento/pré-obra (que nem começou) gerava
+  // alerta de "item atrasado" pra Engenharia (achado: Chris, obra "Casa Urias
+  // de Azevedo - Fase Azul", item "confirmar contrato assinado antes do
+  // início da obra" cobrado como vencido antes da obra sequer começar).
   const itens = await prisma.obraFvsItem.findMany({
     where: {
       checked: false,
       na: false,
       dataLimite: { not: null, lt: hoje },
+      fvs: { obra: { status: { in: ['em_andamento', 'pos_obra'] } } },
     },
     include: {
       templateItem: true,
