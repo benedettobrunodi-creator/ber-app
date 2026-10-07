@@ -37,7 +37,7 @@ export async function notificarRelatorioQualidade(
         Nota <strong style="color:${corNota};font-size:20px;">${nota}</strong>
         · <span style="text-transform:capitalize;">${esc(vistoria.classificacao.replace(/_/g, ' '))}</span>
       </p>
-      <p style="margin:0;"><a href="${appUrl}/obras/${obraId}/qualidade" style="color:#5E6B0F;font-weight:600;font-size:13px;">Ver relatório e pendências no BER App →</a></p>`;
+      <p style="margin:0;"><a href="${appUrl}/obras/${obraId}/qualidade?pdf=${vistoria.id}" style="color:#5E6B0F;font-weight:600;font-size:13px;">Ver relatório e pendências no BER App →</a></p>`;
 
     const { sendEmailObra } = await import('../../services/email-obras');
     await sendEmailObra({

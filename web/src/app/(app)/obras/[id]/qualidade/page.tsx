@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, ClipboardCheck, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
@@ -106,6 +106,13 @@ type Resposta = 'sim' | 'nao' | 'na';
 
 export default function QualidadePage() {
   const { id: obraId } = useParams<{ id: string }>();
+  // Link do e-mail "Relatório de qualidade publicado" (Bruno 07/10: "ao
+  // clicar no link, deveria abrir o pdf") — ?pdf=<vistoriaId> pula a lista
+  // e abre o PDF dessa vistoria direto, sem exigir achar a linha certa.
+  const searchParams = useSearchParams();
+  const pdfVistoriaId = searchParams.get('pdf');
+  const [abrindoPdf, setAbrindoPdf] = useState(!!pdfVistoriaId);
+  const [erroAbrirPdf, setErroAbrirPdf] = useState(false);
   const [obraNome, setObraNome] = useState('');
   const [template, setTemplate] = useState<TemplateCategoria[]>([]);
   const [vistorias, setVistorias] = useState<Vistoria[]>([]);
@@ -178,6 +185,28 @@ export default function QualidadePage() {
   }
 
   useEffect(() => { load(); }, [obraId]);
+
+  // Redireciona a própria aba pro PDF (sem window.open — aqui não é toque do
+  // usuário, é link de e-mail; nova aba seria bloqueada por popup blocker).
+  useEffect(() => {
+    if (!pdfVistoriaId || !obraId) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await api.get(`/obras/${obraId}/qualidade/vistorias/${pdfVistoriaId}/pdf`, { responseType: 'blob' });
+        if (cancelado) return;
+        const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+        window.location.href = url;
+      } catch {
+        if (!cancelado) { setAbrindoPdf(false); setErroAbrirPdf(true); }
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [pdfVistoriaId, obraId]);
+
+  useEffect(() => {
+    if (erroAbrirPdf) toast('Não consegui abrir o PDF direto — a vistoria está na lista abaixo.', 'erro');
+  }, [erroAbrirPdf]);
 
   const totalItens = useMemo(() => template.reduce((acc, c) => acc + c.itens.length, 0), [template]);
   const respondidos = Object.keys(respostas).length;
@@ -458,6 +487,16 @@ export default function QualidadePage() {
   }
 
   const ultima = vistorias[0] ?? null;
+
+  // ─── Abrindo PDF direto do link do e-mail ───
+  if (abrindoPdf) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-center">
+        <ClipboardCheck size={28} className="text-ber-teal animate-pulse" />
+        <p className="text-sm text-ber-gray">Abrindo o PDF do relatório de qualidade…</p>
+      </div>
+    );
+  }
 
   // ─── Modo preenchimento ───
   if (preenchendo) {
