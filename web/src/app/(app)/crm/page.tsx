@@ -26,8 +26,23 @@ const TABS: { value: Tab; label: string; icon: React.ReactNode }[] = [
   { value: 'relatorios', label: 'Relatórios',   icon: <BarChart2 size={15} /> },
 ];
 
+// Farol Comercial (08/10/26, Bruno: "só pra mim") — banner fixo com a conta
+// da meta/run rate, visível apenas pro sócio; mesmo cálculo do e-mail 7h30.
+interface Farol {
+  ano: number; metaAno: number; realizadoAno: number; pctMeta: number;
+  falta: number; runRateAtual: number; runRateNecessario: number;
+  multiplicador: number | null; valorFunilQuente: number; pctFunilNecessario: number | null;
+}
+const fmtM = (v: number): string => {
+  const nf = (n: number, d = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  if (v >= 1_000_000) return `R$ ${nf(v / 1_000_000)} M`;
+  if (v >= 1_000) return `R$ ${nf(v / 1_000, 0)} mil`;
+  return `R$ ${nf(v, 0)}`;
+};
+
 export default function CrmPage() {
   const currentUser = useAuthStore((s) => s.user);
+  const [farol, setFarol] = useState<Farol | null>(null);
   const [tab, setTab] = useTabState<Tab>('pipeline');
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -59,6 +74,11 @@ export default function CrmPage() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'socio') return;
+    api.get('/crm/farol').then((r) => setFarol(r.data.data)).catch(() => { /* sem farol, segue sem banner */ });
+  }, [currentUser?.role]);
 
   const pendentesCount = atividades.filter((a) => !a.concluida && new Date(a.dataHora) < new Date()).length;
 
@@ -100,6 +120,19 @@ export default function CrmPage() {
           </button>
         ))}
       </div>
+
+      {/* Farol Comercial — só sócio */}
+      {farol && farol.metaAno > 0 && (
+        <div className="px-4 md:px-6 py-2 bg-[#F4F1E8] border-b border-ber-border text-[12.5px] text-ber-carbon flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="font-bold">🎯 Meta {farol.ano}: {fmtM(farol.metaAno)}</span>
+          <span>· ganho {fmtM(farol.realizadoAno)} ({farol.pctMeta}%)</span>
+          <span>· falta <strong className="text-ber-red">{fmtM(farol.falta)}</strong></span>
+          <span>· precisa {fmtM(farol.runRateNecessario)}/mês{farol.runRateAtual > 0 ? ` (atual ${fmtM(farol.runRateAtual)}/mês)` : ''}</span>
+          {farol.pctFunilNecessario != null && (
+            <span>· {fmtM(farol.valorFunilQuente)} quentes no funil — fechar ~{farol.pctFunilNecessario}% bate a meta</span>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">

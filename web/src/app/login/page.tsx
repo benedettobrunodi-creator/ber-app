@@ -42,7 +42,10 @@ export default function LoginPage() {
 
       document.cookie = `accessToken=${localStorage.getItem('accessToken')}; path=/; SameSite=Lax`;
 
-      router.push(redirect);
+      // Sócio cai no CRM (08/10/26, Bruno: "tela inicial sempre comercial,
+      // só pra mim") — deep link explícito (?redirect=) continua valendo.
+      const role = useAuthStore.getState().user?.role;
+      router.push(role === 'socio' && redirect === '/obras' ? '/crm' : redirect);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { error?: string } } })?.response?.data

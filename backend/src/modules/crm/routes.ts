@@ -10,6 +10,18 @@ const read = requireAnyRole('orcamentos', 'comercial', 'coordenacao', 'pmo', 'di
 const write = requireAnyRole('orcamentos', 'comercial', 'coordenacao', 'diretoria');
 const admin = requireAnyRole('diretoria');
 
+// ── Farol Comercial (08/10/26, Bruno: "só pra mim") — número de meta/run
+// rate exposto SÓ pro sócio; mesmo cálculo do e-mail diário das 7h30.
+router.get('/farol', async (req, res, next) => {
+  try {
+    if (req.user!.role !== 'socio') {
+      return res.status(403).json({ error: { message: 'Farol Comercial é restrito ao sócio' } });
+    }
+    const { calcularFarol } = await import('./farol');
+    res.json({ data: await calcularFarol() });
+  } catch (e) { next(e); }
+});
+
 // ── Empresas
 router.get('/empresas', read, ctrl.listEmpresas);
 router.get('/empresas/nutricao', read, ctrl.getNutricao);

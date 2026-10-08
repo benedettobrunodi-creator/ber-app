@@ -50,6 +50,18 @@ export function startScheduler() {
     }
   });
 
+  // Farol Comercial — todo dia às 07h30 (BRT), e-mail só pros sócios
+  // (08/10/26, Bruno: mensagem diária do que falta pra meta / run rate)
+  cron.schedule('30 7 * * *', async () => {
+    try {
+      const { enviarFarolComercial } = await import('../modules/crm/farol');
+      await enviarFarolComercial();
+      console.log('[Scheduler] Farol Comercial enviado');
+    } catch (err) {
+      console.error('[Scheduler] Farol Comercial falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // CRM Alerts — diariamente às 08h30 (BRT)
   cron.schedule('30 8 * * 1-5', async () => {
     try {
