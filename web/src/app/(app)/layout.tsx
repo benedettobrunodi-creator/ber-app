@@ -282,7 +282,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={22} />
           </button>
           <Link
-            href="/obras"
+            // Home do sócio é o CRM (08/10/26, Bruno: "quando eu clico em
+            // home, ele me leva pro diretorio de obras, precisa ir para CRM")
+            href={user?.role === 'socio' ? '/crm' : '/obras'}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
             title="Início"
           >
