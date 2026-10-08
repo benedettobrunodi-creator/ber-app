@@ -12,7 +12,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import api from '@/lib/api';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, ComposedChart, Line, LabelList,
+  PieChart, Pie, Cell, Legend, ComposedChart, Line, LabelList, ReferenceLine,
 } from 'recharts';
 import { fmt, Oportunidade } from '../types';
 import DrilldownModal from './DrilldownModal';
@@ -230,6 +230,20 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   });
   const valorEntradasAno = pipeMesData.reduce((s, r) => s + Number(r._total ?? 0), 0);
 
+  // Linha de média pontilhada nos 2 gráficos (Bruno 08/10). Média sobre os
+  // meses COM movimento — contar os 12 fixos derrubaria a média à toa com
+  // meses futuros ainda vazios.
+  const criadosPorMes = cohortData.map((c) => c.ganho + c.perdido + c.emAberto).filter((v) => v > 0);
+  const mediaCriadosMes = criadosPorMes.length ? criadosPorMes.reduce((s, v) => s + v, 0) / criadosPorMes.length : 0;
+  const entradasPorMes = pipeMesData.map((r) => Number(r._total ?? 0)).filter((v) => v > 0);
+  const mediaEntradasMes = entradasPorMes.length ? entradasPorMes.reduce((s, v) => s + v, 0) / entradasPorMes.length : 0;
+  const fmtCompacto = (v: number) => {
+    const nf = (n: number, digits = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    if (v >= 1_000_000) return `R$${nf(v / 1_000_000)} M`;
+    if (v >= 1_000) return `R$${nf(v / 1_000)} k`;
+    return `R$${nf(v, 0)}`;
+  };
+
   // ── BLOCO 2: Saúde do funil ────────────────────────────────────
   const funilAbertas = ETAPAS_ABERTAS.map((etapa) => {
     const f = funilEtapas.find((x) => x.etapa === etapa);
@@ -324,6 +338,12 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 <Bar dataKey="ganho" name="Ganho" stackId="a" fill="#3D9E5F" />
                 <Bar dataKey="perdido" name="Perdido/Declinado" stackId="a" fill="#EF4444" />
                 <Bar dataKey="emAberto" name="Em Aberto" stackId="a" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+                {mediaCriadosMes > 0 && (
+                  <ReferenceLine
+                    y={mediaCriadosMes} stroke="#5C5E54" strokeDasharray="6 4" strokeWidth={1.5} ifOverflow="extendDomain"
+                    label={{ value: `média ${mediaCriadosMes.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}/mês`, position: 'insideTopRight', fontSize: 10, fill: '#5C5E54', fontWeight: 600 }}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -338,6 +358,12 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 {allOrigens.map((o) => (
                   <Bar key={o} dataKey={o} name={ORIGEM_LABELS[o] ?? o} stackId="a" fill={ORIGEM_COLORS[o] ?? '#868686'} />
                 ))}
+                {mediaEntradasMes > 0 && (
+                  <ReferenceLine
+                    y={mediaEntradasMes} stroke="#5C5E54" strokeDasharray="6 4" strokeWidth={1.5} ifOverflow="extendDomain"
+                    label={{ value: `média ${fmtCompacto(mediaEntradasMes)}/mês`, position: 'insideTopRight', fontSize: 10, fill: '#5C5E54', fontWeight: 600 }}
+                  />
+                )}
                 <Line dataKey="_total" stroke="transparent" dot={false} activeDot={false} isAnimationActive={false} legendType="none">
                   <LabelList
                     dataKey="_total" position="top" offset={8}
