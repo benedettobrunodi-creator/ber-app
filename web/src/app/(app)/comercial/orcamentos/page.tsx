@@ -113,6 +113,7 @@ const GANTT_BAR_BG: Record<string, string> = {
 const CATEGORIAS = ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR', 'SEM_ACAO'] as const;
 const CATEGORIA_LABELS: Record<string, string> = {
   LEAD: 'Lead', EM_ANDAMENTO: 'Em Andamento', A_INICIAR: 'A Iniciar', SEM_ACAO: 'Sem Ação',
+  ENVIADOS: 'Enviados', // grupo sintético da Timeline (status enviado/aguardando)
 };
 const SEGMENTOS = ['Corporativo', 'Residencial', 'Industrial', 'Igreja', 'Hotel', 'Outros'];
 const ALL_STATUSES = Object.keys(STATUS_LABELS);
@@ -184,8 +185,16 @@ function addDays(d: Date, n: number) {
   return r;
 }
 
+// Timeline mostra também os ENVIADOS (08/10/26, Bruno: "aqui faltam os
+// enviados, so tem as propostas em producao e a iniciar") — enviado/aguardando
+// têm categoria SEM_ACAO no banco, então o filtro aqui é por STATUS.
+const TIMELINE_ENVIADOS = ['ENVIADO', 'AGUARDANDO'];
+function timelineVisivel(o: Orcamento): boolean {
+  return ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR'].includes(o.categoria) || TIMELINE_ENVIADOS.includes(o.status);
+}
+
 function ganttRange(items: Orcamento[]) {
-  const withDates = items.filter(o => ['LEAD', 'EM_ANDAMENTO', 'A_INICIAR'].includes(o.categoria) && (o.dataInicio || o.dataFim));
+  const withDates = items.filter(o => timelineVisivel(o) && (o.dataInicio || o.dataFim));
   if (withDates.length === 0) {
     const today = new Date();
     return { start: addDays(today, -30), end: addDays(today, 60) };
@@ -927,9 +936,16 @@ function TabTimeline({ items, canWrite, onClickItem, onReorder }: GanttProps) {
     }
   }
 
-  const grouped = (['EM_ANDAMENTO', 'A_INICIAR', 'LEAD'] as const).map(cat => ({
-    cat,
-    items: items.filter(o => o.categoria === cat && (o.dataInicio || o.dataFim)),
+  // Grupos da Timeline: Em Andamento → Enviados (status, não categoria —
+  // enviado/aguardando são SEM_ACAO no banco) → A Iniciar → Lead.
+  const grouped = ([
+    { cat: 'EM_ANDAMENTO', match: (o: Orcamento) => o.categoria === 'EM_ANDAMENTO' },
+    { cat: 'ENVIADOS', match: (o: Orcamento) => TIMELINE_ENVIADOS.includes(o.status) },
+    { cat: 'A_INICIAR', match: (o: Orcamento) => o.categoria === 'A_INICIAR' },
+    { cat: 'LEAD', match: (o: Orcamento) => o.categoria === 'LEAD' },
+  ]).map(g => ({
+    cat: g.cat,
+    items: items.filter(o => g.match(o) && (o.dataInicio || o.dataFim)),
   })).filter(g => g.items.length > 0);
 
   function barProps(o: Orcamento) {
