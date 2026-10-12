@@ -127,6 +127,55 @@ router.get('/crm/pipeline', authenticate, requireRole('diretoria'), async (req, 
   });
 });
 
+// Oportunidades FECHADAS do ano — ganhas e perdidas/declinadas/canceladas
+// (12/10/26, pedido Bruno via conector Claude.ai: "não consegui puxar as
+// vendas fechadas"). Mesma régua de valor do pipeline: só nível diretoria+.
+router.get('/crm/fechadas', authenticate, requireRole('diretoria'), async (req, res) => {
+  const email = String(req.query.email ?? '').trim().toLowerCase();
+  const usuario = await usuarioPorEmail(email);
+  if (!usuario) return res.status(404).json({ error: { message: 'Usuário não encontrado no BÈR App' } });
+  const nivel = ROLE_HIERARCHY[usuario.role as Role] ?? 0;
+  const ano = Number(req.query.ano) || new Date().getFullYear();
+  const ini = new Date(`${ano}-01-01T00:00:00`);
+  const fim = new Date(`${ano + 1}-01-01T00:00:00`);
+
+  const fechadas = await prisma.crmOportunidade.findMany({
+    where: { etapa: { in: ['ganho', 'perdido', 'declinado', 'cancelado'] } },
+    select: {
+      id: true, titulo: true, etapa: true, valor: true, motivoPerda: true,
+      dataGanho: true, dataFechamentoPrevisto: true, updatedAt: true,
+      empresa: { select: { razaoSocial: true } },
+      responsavel: { select: { name: true } },
+    },
+  });
+  // referência de data: mesma régua do vendas-vs-meta (dataGanho → previsto → updatedAt)
+  const doAno = fechadas.filter((o) => {
+    const ref = o.dataGanho ?? o.dataFechamentoPrevisto ?? o.updatedAt;
+    return ref >= ini && ref < fim;
+  });
+  const mapear = (o: (typeof doAno)[number]) => ({
+    id: o.id, titulo: o.titulo, etapa: o.etapa,
+    empresa: o.empresa?.razaoSocial ?? null,
+    responsavel: o.responsavel?.name ?? null,
+    dataFechamento: (o.dataGanho ?? o.dataFechamentoPrevisto ?? o.updatedAt).toISOString().slice(0, 10),
+    ...(o.etapa !== 'ganho' && o.motivoPerda ? { motivoPerda: o.motivoPerda } : {}),
+    ...(nivel >= 4 && o.valor != null ? { valor: Number(o.valor) } : {}),
+  });
+  const ganhas = doAno.filter((o) => o.etapa === 'ganho');
+  const perdidas = doAno.filter((o) => o.etapa !== 'ganho');
+  const soma = (arr: typeof doAno) => arr.reduce((s, o) => s + Number(o.valor ?? 0), 0);
+  res.json({
+    ano,
+    resumo: {
+      ganhas: ganhas.length,
+      perdidas: perdidas.length,
+      ...(nivel >= 4 ? { valorGanho: soma(ganhas), valorPerdido: soma(perdidas) } : {}),
+    },
+    ganhas: ganhas.map(mapear),
+    perdidas: perdidas.map(mapear),
+  });
+});
+
 // Tarefas de uma obra (por nome aproximado ou id)
 router.get('/tarefas', authenticate, requireRole('diretoria'), async (req, res) => {
   const email = String(req.query.email ?? '').trim().toLowerCase();
