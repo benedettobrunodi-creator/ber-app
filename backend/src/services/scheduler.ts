@@ -175,6 +175,19 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // CRM — previsão de fechamento: negócios em "Proposta em produção"+ sem data
+  // prevista — semanal, segunda 08h10 BRT (Bruno 14/10/26). Só sócios.
+  cron.schedule('10 8 * * 1', async () => {
+    console.log('[Scheduler] Forecast sem data iniciado...');
+    try {
+      const { alertarForecastSemData } = await import('../modules/crm/alerta-forecast');
+      const r = await alertarForecastSemData();
+      console.log(`[Scheduler] Forecast sem data — ${r.itens} negócio(s)${r.enviado ? ', e-mail enviado' : ' (nada a enviar)'}`);
+    } catch (err) {
+      console.error('[Scheduler] Forecast sem data falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // Qualidade — resumo semanal das vistorias — segunda às 08h (BRT), decisão Bruno 03/09
   cron.schedule('0 8 * * 1', async () => {
     console.log('[Scheduler] Qualidade resumo semanal iniciado...');
