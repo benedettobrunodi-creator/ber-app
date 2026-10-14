@@ -292,6 +292,10 @@ export async function getForecastHorizonte(req: Request, res: Response, next: Ne
   try { res.json(await svc.getForecastHorizonte()); } catch (e) { next(e); }
 }
 
+export async function getForecastFechamento(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await svc.getForecastFechamento()); } catch (e) { next(e); }
+}
+
 export async function getCicloVendas(req: Request, res: Response, next: NextFunction) {
   try {
     const ano = req.query.ano ? Number(req.query.ano) : undefined;

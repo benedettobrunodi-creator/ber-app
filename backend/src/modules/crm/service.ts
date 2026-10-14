@@ -761,6 +761,58 @@ export async function getForecast(ano: number) {
   return porMes;
 }
 
+/**
+ * Forecast de FECHAMENTO por mês, empilhado por probabilidade (Bruno 14/10/26).
+ * Só negócios da coluna "Proposta em produção" em diante (produção + enviada +
+ * negociação) — lead/qualificação não têm data de fechamento crível. Valor BRUTO
+ * (não ponderado): cada barra = R$ previsto no mês, segmentado em alta/média/baixa.
+ * Também devolve os negócios desse estágio que estão SEM data prevista (pro alerta).
+ */
+export async function getForecastFechamento() {
+  const ETAPAS = ['proposta_producao', 'proposta_enviada', 'negociacao'];
+  const ops = await prisma.crmOportunidade.findMany({
+    where: { etapa: { in: ETAPAS } },
+    select: {
+      id: true, titulo: true, valor: true, probabilidade: true, etapa: true,
+      dataFechamentoPrevisto: true,
+      empresa: { select: { razaoSocial: true } },
+      responsavel: { select: { name: true } },
+    },
+  });
+
+  const meses: Record<string, { ym: string; alta: number; media: number; baixa: number; sem: number; total: number; count: number }> = {};
+  const semData: { id: string; titulo: string; valor: number; etapa: string; probabilidade: string | null; empresa: string | null; responsavel: string | null }[] = [];
+
+  for (const op of ops) {
+    const val = Number(op.valor ?? 0);
+    if (!op.dataFechamentoPrevisto) {
+      semData.push({
+        id: op.id, titulo: op.titulo, valor: val, etapa: op.etapa,
+        probabilidade: op.probabilidade ?? null,
+        empresa: op.empresa?.razaoSocial ?? null,
+        responsavel: op.responsavel?.name ?? null,
+      });
+      continue;
+    }
+    const d = new Date(op.dataFechamentoPrevisto);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    meses[ym] ??= { ym, alta: 0, media: 0, baixa: 0, sem: 0, total: 0, count: 0 };
+    const band: 'alta' | 'media' | 'baixa' | 'sem' =
+      op.probabilidade === 'alta' ? 'alta'
+      : op.probabilidade === 'baixa' ? 'baixa'
+      : op.probabilidade === 'media' ? 'media'
+      : 'sem';
+    meses[ym][band] += val;
+    meses[ym].total += val;
+    meses[ym].count++;
+  }
+
+  const porMes = Object.values(meses).sort((a, b) => a.ym.localeCompare(b.ym));
+  const totalComData = porMes.reduce((s, m) => s + m.total, 0);
+  const temSem = porMes.some((m) => m.sem > 0);
+  return { porMes, semData, totalComData, countSemData: semData.length, temSem };
+}
+
 export async function getVendasVsMeta(ano: number) {
   const metas = await prisma.crmMetaVendas.findMany({
     where: { ano },

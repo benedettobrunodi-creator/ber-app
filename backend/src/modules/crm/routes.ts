@@ -100,6 +100,7 @@ router.get('/stats/funil-conversao', read, ctrl.getFunilConversao);
 router.get('/stats/motivos-perda', read, ctrl.getMotivosPerda);
 router.get('/stats/performance-responsavel', read, ctrl.getPerformanceResponsavel);
 router.get('/stats/forecast-horizonte', read, ctrl.getForecastHorizonte);
+router.get('/stats/forecast-fechamento', read, ctrl.getForecastFechamento);
 router.get('/stats/ciclo-vendas', read, ctrl.getCicloVendas);
 router.get('/stats/win-rate-segmento', read, ctrl.getWinRateSegmento);
 router.get('/stats/pipeline-aging', read, ctrl.getPipelineAging);

@@ -164,6 +164,11 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     total: number; ganho: number; perdido: number; emAberto: number; valorGanho: number;
   }>>({});
   const [funilEtapas, setFunilEtapas] = useState<{ etapa: string; count: number; valor: number }[]>([]);
+  const [forecast, setForecast] = useState<{
+    porMes: { ym: string; alta: number; media: number; baixa: number; sem: number; total: number; count: number }[];
+    semData: { id: string; titulo: string; valor: number; etapa: string; probabilidade: string | null }[];
+    totalComData: number; countSemData: number; temSem: boolean;
+  } | null>(null);
 
   // Produtividade dos orçamentistas (base: esteira de orçamentos)
   const [prodAno, setProdAno] = useState(ano);
@@ -193,6 +198,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     api.get('/crm/stats/recorrencia-clientes').then((r) => setRecorrencia(r.data)).catch(() => {});
     api.get(`/crm/stats/cohort?ano=${ano}`).then((r) => setCohort(r.data)).catch(() => {});
     api.get('/crm/stats/funil-conversao').then((r) => setFunilEtapas(r.data)).catch(() => {});
+    api.get('/crm/stats/forecast-fechamento').then((r) => setForecast(r.data)).catch(() => {});
   }, [ano]);
 
   useEffect(() => {
@@ -250,6 +256,17 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     return { etapa, label: ETAPA_LABELS[etapa], count: f?.count ?? 0, valor: f?.valor ?? 0 };
   });
   const totalAbertas = funilAbertas.reduce((s, f) => s + f.count, 0);
+
+  // Previsão de fechamento por mês, empilhada por probabilidade (proposta+).
+  const forecastData = (forecast?.porMes ?? []).map((m) => {
+    const [y, mm] = m.ym.split('-');
+    return {
+      label: `${MESES[Number(mm) - 1]}/${y.slice(2)}`,
+      alta: m.alta, media: m.media, baixa: m.baixa, sem: m.sem, total: m.total, count: m.count,
+    };
+  });
+  const forecastTemSem = forecast?.temSem ?? false;
+  const forecastTotalGeral = forecast?.totalComData ?? 0;
 
   // ── BLOCO 3: Time — demanda em aberto por pessoa (da lista viva) ─
   const demandaMap: Record<string, { count: number; valor: number }> = {};
@@ -404,6 +421,53 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
             </BarChart>
           </ResponsiveContainer>
           <p className="text-[11px] text-ber-gray mt-1">Barra = quantidade · rótulo = valor em aberto na etapa. Clique pra ver a lista.</p>
+        </Section>
+      )}
+
+      {forecast && forecastData.length > 0 && (
+        <Section title="Previsão de fechamento" subtitle="Proposta em produção em diante — R$ previsto por mês, por probabilidade">
+          <div className="mb-3">
+            <span className="text-2xl font-bold text-ber-carbon">{fmt(forecastTotalGeral)}</span>
+            <span className="text-xs text-ber-gray ml-2">previstos nos próximos meses</span>
+          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={forecastData} margin={{ top: 26, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} tick={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(v, name) => [fmt(Number(v)), name]}
+                labelFormatter={(label) => {
+                  const d = forecastData.find((f) => f.label === label);
+                  return d ? `${label} · ${fmt(d.total)} · ${d.count} negócio${d.count !== 1 ? 's' : ''}` : label;
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="alta" name="Alta" stackId="p" fill="#3D9E5F" />
+              <Bar dataKey="media" name="Média" stackId="p" fill="#E6A23C" />
+              <Bar dataKey="baixa" name="Baixa" stackId="p" fill="#94A3B8" radius={forecastTemSem ? undefined : [4, 4, 0, 0]} />
+              {forecastTemSem && <Bar dataKey="sem" name="Sem probabilidade" stackId="p" fill="#D4D4D8" radius={[4, 4, 0, 0]} />}
+              <Line dataKey="total" stroke="transparent" dot={false} activeDot={false} isAnimationActive={false} legendType="none">
+                <LabelList
+                  dataKey="total" position="top" offset={8}
+                  formatter={(value) => { const v = Number(value); return v ? fmtCompacto(v) : ''; }}
+                  style={{ fontSize: 11, fill: '#2A2A2A', fontWeight: 700 }}
+                />
+              </Line>
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-1 text-[11px] text-ber-gray flex-wrap">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#3D9E5F' }} />Alta</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#E6A23C' }} />Média</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#94A3B8' }} />Baixa</span>
+            <span className="ml-auto">Valor cheio do negócio (não ponderado) · pela data de fechamento prevista.</span>
+          </div>
+          {forecast.countSemData > 0 && (
+            <p className="text-[11px] text-ber-red/90 mt-2 cursor-pointer hover:underline"
+              onClick={() => openDrill('Proposta+ sem data de fechamento prevista', oportunidades.filter((o) => forecast.semData.some((s) => s.id === o.id)))}>
+              ⚠ {forecast.countSemData} negócio{forecast.countSemData !== 1 ? 's' : ''} em proposta em produção+ sem data de fechamento prevista — não entra{forecast.countSemData !== 1 ? 'm' : ''} no gráfico. Clique pra ver.
+            </p>
+          )}
         </Section>
       )}
 
