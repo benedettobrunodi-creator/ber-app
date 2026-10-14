@@ -258,15 +258,41 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   const totalAbertas = funilAbertas.reduce((s, f) => s + f.count, 0);
 
   // Previsão de fechamento por mês, empilhada por probabilidade (proposta+).
-  const forecastData = (forecast?.porMes ?? []).map((m) => {
-    const [y, mm] = m.ym.split('-');
+  // Janela FIXA de 12 meses a partir do mês atual (Bruno 14/10: "sempre em 12
+  // meses, de agora até 12+ — aí as barrinhas ficam menos largas"). Meses sem
+  // negócio aparecem vazios. O rollover de fechamento vencido (cron backend)
+  // garante que nada fique com data no passado, então a janela pra frente cobre tudo.
+  const fcMap = new Map((forecast?.porMes ?? []).map((m) => [m.ym, m]));
+  const hojeRef = new Date();
+  const forecastData = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(hojeRef.getFullYear(), hojeRef.getMonth() + i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const m = fcMap.get(ym);
     return {
-      label: `${MESES[Number(mm) - 1]}/${y.slice(2)}`,
-      alta: m.alta, media: m.media, baixa: m.baixa, sem: m.sem, total: m.total, count: m.count,
+      ym,
+      label: `${MESES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
+      alta: m?.alta ?? 0, media: m?.media ?? 0, baixa: m?.baixa ?? 0, sem: m?.sem ?? 0,
+      total: m?.total ?? 0, count: m?.count ?? 0,
     };
   });
   const forecastTemSem = forecast?.temSem ?? false;
   const forecastTotalGeral = forecast?.totalComData ?? 0;
+
+  // Clicar numa faixa do mês → lista de oportunidades daquele mês + probabilidade.
+  const ETAPAS_PROPOSTA = ['proposta_producao', 'proposta_enviada', 'negociacao'];
+  const PROB_LABEL: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa', sem: 'Sem probabilidade' };
+  const abrirForecastDrill = (ym: string, label: string, prob: 'alta' | 'media' | 'baixa' | 'sem') => {
+    const ops = oportunidades.filter((o) => {
+      if (!ETAPAS_PROPOSTA.includes(o.etapa)) return false;
+      if (!o.dataFechamentoPrevisto) return false;
+      if (o.dataFechamentoPrevisto.slice(0, 7) !== ym) return false;
+      const band = o.probabilidade === 'alta' ? 'alta'
+        : o.probabilidade === 'baixa' ? 'baixa'
+        : o.probabilidade === 'media' ? 'media' : 'sem';
+      return band === prob;
+    });
+    openDrill(`${label} · ${PROB_LABEL[prob]}`, ops);
+  };
 
   // ── BLOCO 3: Time — demanda em aberto por pessoa (da lista viva) ─
   const demandaMap: Record<string, { count: number; valor: number }> = {};
@@ -433,7 +459,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={forecastData} margin={{ top: 26, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
               <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} tick={{ fontSize: 11 }} />
               <Tooltip
                 formatter={(v, name) => [fmt(Number(v)), name]}
@@ -443,10 +469,14 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="alta" name="Alta" stackId="p" fill="#3D9E5F" />
-              <Bar dataKey="media" name="Média" stackId="p" fill="#E6A23C" />
-              <Bar dataKey="baixa" name="Baixa" stackId="p" fill="#94A3B8" radius={forecastTemSem ? undefined : [4, 4, 0, 0]} />
-              {forecastTemSem && <Bar dataKey="sem" name="Sem probabilidade" stackId="p" fill="#D4D4D8" radius={[4, 4, 0, 0]} />}
+              <Bar dataKey="alta" name="Alta" stackId="p" fill="#3D9E5F" cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'alta')} />
+              <Bar dataKey="media" name="Média" stackId="p" fill="#E6A23C" cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'media')} />
+              <Bar dataKey="baixa" name="Baixa" stackId="p" fill="#94A3B8" radius={forecastTemSem ? undefined : [4, 4, 0, 0]} cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'baixa')} />
+              {forecastTemSem && <Bar dataKey="sem" name="Sem probabilidade" stackId="p" fill="#D4D4D8" radius={[4, 4, 0, 0]} cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'sem')} />}
               <Line dataKey="total" stroke="transparent" dot={false} activeDot={false} isAnimationActive={false} legendType="none">
                 <LabelList
                   dataKey="total" position="top" offset={8}
@@ -460,7 +490,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#3D9E5F' }} />Alta</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#E6A23C' }} />Média</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: '#94A3B8' }} />Baixa</span>
-            <span className="ml-auto">Valor cheio do negócio (não ponderado) · pela data de fechamento prevista.</span>
+            <span className="ml-auto">Clique numa faixa pra ver os negócios · valor cheio (não ponderado), pela data de fechamento prevista.</span>
           </div>
           {forecast.countSemData > 0 && (
             <p className="text-[11px] text-ber-red/90 mt-2 cursor-pointer hover:underline"
