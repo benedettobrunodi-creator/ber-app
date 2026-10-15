@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown, Plus, FilePlus } from 'lucide-react';
+import { Upload, Trash2, X, AlertTriangle, TrendingDown, TrendingUp, ShoppingCart, ChevronRight, ChevronDown, Plus, FilePlus, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from '@/lib/api';
 import FornecedorInput from '@/components/FornecedorInput';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
@@ -361,6 +362,72 @@ export default function ComprasPage() {
     };
   })();
 
+  // Export da tabela pra Excel (.xlsx) — Bruno 15/10. 2 abas: Itens + Resumo.
+  // Client-side: usa os mesmos cálculos da tela (nada de recontar no backend).
+  const exportarPlanilha = () => {
+    const tipoLabel = (t: string) => (t === 'etapa' ? 'Etapa' : t === 'co' ? 'Change Order' : 'Item');
+    const header = ['Pacote', 'Nº', 'Categoria', 'Descritivo', 'Tipo', 'Venda', '% Meta', 'Meta', 'Comprado', 'Saving Orç', 'Saving Meta', 'Fornecedor', 'Nº OC', 'Faturamento', 'Comprado?', 'Comprado em'];
+    const rows = items.map((it) => {
+      const ehEtapa = it.tipo === 'etapa';
+      const venda = effectiveVendaItem(it);
+      const base = baseItem(it);
+      const meta = ehEtapa ? null : metaItem(it);
+      const comprado = effectiveCompradoItem(it);
+      return [
+        it.pacote != null ? `P${it.pacote}` : '',
+        it.n ?? '',
+        it.categoria,
+        it.descritivo ?? '',
+        tipoLabel(it.tipo),
+        venda || null,
+        ehEtapa ? null : Math.round(it.pctMeta * 1000) / 10, // % (ex: 20)
+        meta,
+        comprado || null,
+        ehEtapa ? null : base - comprado,
+        ehEtapa ? null : (meta ?? 0) - comprado,
+        it.fornecedor ?? '',
+        it.numeroOc ?? '',
+        it.faturamento ?? '',
+        it.compradoOk ? 'Sim' : '',
+        it.compradoEm ? new Date(it.compradoEm).toLocaleDateString('pt-BR') : '',
+      ];
+    });
+    const totais = ['', '', 'TOTAL', '', '', totalVendaBruta, '', totalMeta, totalComprado, savingTotal, okSavingMeta, '', '', '', '', ''];
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows, [], totais]);
+    ws['!cols'] = [{ wch: 7 }, { wch: 5 }, { wch: 28 }, { wch: 42 }, { wch: 13 }, { wch: 14 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 10 }, { wch: 12 }];
+
+    const resumo: (string | number)[][] = [
+      ['Metas de Compra', obraName ?? ''],
+      ['Exportado em', new Date().toLocaleString('pt-BR')],
+      [],
+      ['Contrato principal', contratoPrincipal],
+      ['Change Orders (líquido)', netCO],
+      ['Contrato total', contratoTotal],
+      [],
+      ['Total venda (base)', totalVenda],
+      ['Total meta', totalMeta],
+      ['Total comprado', totalComprado],
+      ['Saving / vendido (R$)', savingTotal],
+      ['Saving / vendido (%)', Math.round(savingPct * 10) / 10],
+      [],
+      ['Saving realizado (R$)', okSaving],
+      ['Saving realizado (%)', Math.round(okSavingPct * 10) / 10],
+      ['Saving vs meta (R$)', okSavingMeta],
+      ['Saving vs meta (%)', Math.round(okSavingMetaPct * 10) / 10],
+      [],
+      ['Itens comprados', itemsOk.length],
+      ['Itens pendentes', itemsPend.length],
+    ];
+    const wsR = XLSX.utils.aoa_to_sheet(resumo);
+    wsR['!cols'] = [{ wch: 26 }, { wch: 24 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Itens');
+    XLSX.utils.book_append_sheet(wb, wsR, 'Resumo');
+    const slug = (obraName ?? 'obra').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 60);
+    XLSX.writeFile(wb, `Metas de Compra — ${slug} — ${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
@@ -381,6 +448,14 @@ export default function ComprasPage() {
           >
             <Upload size={14} /> Importar Orçamento
           </button>
+          {items.length > 0 && (
+            <button
+              onClick={exportarPlanilha}
+              className="flex items-center gap-1.5 rounded-lg border border-ber-border bg-white px-3 py-2 text-sm font-medium text-ber-carbon hover:bg-ber-surface"
+            >
+              <Download size={14} /> Exportar
+            </button>
+          )}
           <button
             onClick={addChangeOrder}
             className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
