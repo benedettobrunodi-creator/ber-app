@@ -433,6 +433,12 @@ function GroupBox({
 
 /* ─── Recursive tree subtree ─── */
 
+// Remove nós marcados como "vaga em aberto" (e seu subtree) — pro export do
+// organograma pra concorrência, que não deve mostrar posições não preenchidas.
+function removerVagas(node: OrgNode): OrgNode {
+  return { ...node, children: node.children.filter(c => !c.vagaAberta).map(removerVagas) };
+}
+
 function OrgSubtree({
   node,
   cardRefs,
@@ -842,10 +848,17 @@ export default function OrganogramaPage() {
     } finally { setExporting(false); }
   }
 
-  async function handleExportPDF() {
-    if (!containerRef.current) return;
+  async function handleExportPDF(semVagas = false) {
+    if (!containerRef.current || !tree) return;
     setExporting(true);
+    const original = tree;
     try {
+      if (semVagas) {
+        // Renderiza a árvore SEM as vagas em aberto só pro print; as linhas de
+        // conexão recomputam sozinhas (useLayoutEffect em [tree]). Restaura no fim.
+        setTree(removerVagas(original));
+        await new Promise((r) => setTimeout(r, 200));
+      }
       const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
       const dataUrl = await toPng(containerRef.current, {
@@ -866,11 +879,14 @@ export default function OrganogramaPage() {
         format: [w, h],
       });
       pdf.addImage(dataUrl, 'PNG', 0, 0, w, h);
-      pdf.save('organograma-ber.pdf');
+      pdf.save(semVagas ? 'organograma-ber-sem-vagas.pdf' : 'organograma-ber.pdf');
     } catch (err) {
       console.error('[export PDF]', err);
       alert(`Erro ao exportar PDF: ${(err as Error)?.message ?? err}`);
-    } finally { setExporting(false); }
+    } finally {
+      if (semVagas) setTree(original);
+      setExporting(false);
+    }
   }
 
   const activeNode = activeId ? (tree ? findNode(tree, activeId.replace('drag-', '')) : null) : null;
@@ -924,11 +940,19 @@ export default function OrganogramaPage() {
             <Download size={13} /> PNG
           </button>
           <button
-            onClick={handleExportPDF}
+            onClick={() => handleExportPDF(false)}
             disabled={exporting}
             className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
           >
             <Download size={13} /> PDF
+          </button>
+          <button
+            onClick={() => handleExportPDF(true)}
+            disabled={exporting}
+            title="PDF sem as posições em aberto — pra anexar em concorrência"
+            className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
+          >
+            <Download size={13} /> PDF s/ vagas
           </button>
         </div>
       </div>
