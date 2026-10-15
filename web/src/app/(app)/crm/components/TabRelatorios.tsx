@@ -469,14 +469,15 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="alta" name="Alta" stackId="p" fill="#3D9E5F" cursor="pointer"
-                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'alta')} />
+              {/* Ordem de empilhamento (base → topo): sem · baixa · média · ALTA no topo (Bruno 15/10). */}
+              {forecastTemSem && <Bar dataKey="sem" name="Sem probabilidade" stackId="p" fill="#D4D4D8" cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'sem')} />}
+              <Bar dataKey="baixa" name="Baixa" stackId="p" fill="#94A3B8" cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'baixa')} />
               <Bar dataKey="media" name="Média" stackId="p" fill="#E6A23C" cursor="pointer"
                 onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'media')} />
-              <Bar dataKey="baixa" name="Baixa" stackId="p" fill="#94A3B8" radius={forecastTemSem ? undefined : [4, 4, 0, 0]} cursor="pointer"
-                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'baixa')} />
-              {forecastTemSem && <Bar dataKey="sem" name="Sem probabilidade" stackId="p" fill="#D4D4D8" radius={[4, 4, 0, 0]} cursor="pointer"
-                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'sem')} />}
+              <Bar dataKey="alta" name="Alta" stackId="p" fill="#3D9E5F" radius={[4, 4, 0, 0]} cursor="pointer"
+                onClick={(d) => abrirForecastDrill((d as unknown as { ym: string; label: string }).ym, (d as unknown as { label: string }).label, 'alta')} />
               <Line dataKey="total" stroke="transparent" dot={false} activeDot={false} isAnimationActive={false} legendType="none">
                 <LabelList
                   dataKey="total" position="top" offset={8}
