@@ -214,18 +214,22 @@ interface Line { x1: number; y1: number; x2: number; y2: number }
 
 function computeLines(root: OrgNode, cardRefs: Map<string, HTMLElement>, container: DOMRect): Line[] {
   const lines: Line[] = [];
+  const cx_ = (r: DOMRect) => r.left + r.width / 2 - container.left;
   function traverse(node: OrgNode) {
     if (node.isGroup) return;
     const parentEl = cardRefs.get(node.id);
     if (!parentEl) return;
     const pr = parentEl.getBoundingClientRect();
-    const px = pr.left + pr.width / 2 - container.left;
+    const px = cx_(pr);
     const py = pr.bottom - container.top;
     for (const child of node.children) {
+      // Pools compartilhados não são filhos diretos no desenho: viram um bloco
+      // único embaixo, ligado a todos os gestores (ver abaixo). Pula aqui.
+      if (child.isGroup && child.shared) continue;
       const childEl = cardRefs.get(child.id);
       if (!childEl) { traverse(child); continue; }
       const cr = childEl.getBoundingClientRect();
-      const cx = cr.left + cr.width / 2 - container.left;
+      const cx = cx_(cr);
       const cy = cr.top - container.top;
       const midY = py + (cy - py) / 2;
       lines.push({ x1: px, y1: py, x2: px, y2: midY });
@@ -235,6 +239,44 @@ function computeLines(root: OrgNode, cardRefs: Map<string, HTMLElement>, contain
     }
   }
   traverse(root);
+
+  // ── Pool compartilhado: UM bloco só, com as linhas de TODOS os gestores
+  //    convergindo pra ele, e os blocos empilhados ligados entre si (Mestres em
+  //    cima → Ajudantes embaixo). Pedido do Bruno 15/10. ──
+  const shared = collectSharedGroups(root);
+  if (shared.length) {
+    const firstEl = cardRefs.get(shared[0].id);
+    if (firstEl) {
+      const fr = firstEl.getBoundingClientRect();
+      const poolX = cx_(fr);
+      const poolTop = fr.top - container.top;
+      const railY = poolTop - 18; // barramento logo acima do bloco
+      const gestores: DOMRect[] = [];
+      (function findGestores(n: OrgNode) {
+        if (n.colorKey === 'gestor') { const el = cardRefs.get(n.id); if (el) gestores.push(el.getBoundingClientRect()); }
+        n.children.forEach(findGestores);
+      })(root);
+      for (const gr of gestores) {
+        const gx = cx_(gr);
+        const gy = gr.bottom - container.top;
+        lines.push({ x1: gx, y1: gy, x2: gx, y2: railY });   // desce do gestor até o barramento
+        lines.push({ x1: gx, y1: railY, x2: poolX, y2: railY }); // barramento até o centro do bloco
+      }
+      if (gestores.length) lines.push({ x1: poolX, y1: railY, x2: poolX, y2: poolTop }); // barramento → topo do bloco
+    }
+    // Liga os blocos empilhados (Mestres → Ajudantes → …)
+    for (let i = 1; i < shared.length; i++) {
+      const aEl = cardRefs.get(shared[i - 1].id), bEl = cardRefs.get(shared[i].id);
+      if (!aEl || !bEl) continue;
+      const ar = aEl.getBoundingClientRect(), br = bEl.getBoundingClientRect();
+      const ax = cx_(ar), ay = ar.bottom - container.top;
+      const bx = cx_(br), by = br.top - container.top;
+      const midY = (ay + by) / 2;
+      lines.push({ x1: ax, y1: ay, x2: ax, y2: midY });
+      lines.push({ x1: ax, y1: midY, x2: bx, y2: midY });
+      lines.push({ x1: bx, y1: midY, x2: bx, y2: by });
+    }
+  }
   return lines;
 }
 
@@ -1029,7 +1071,8 @@ export default function OrganogramaPage() {
               ))}
             </svg>
 
-            {/* Tree */}
+            {/* Tree — sem clonar os pools (sharedGroups=[]); o pool vira um bloco
+                único embaixo, ligado a todos os gestores. */}
             <div className="relative" style={{ zIndex: 1 }}>
               <OrgSubtree
                 node={tree}
@@ -1039,9 +1082,34 @@ export default function OrganogramaPage() {
                 onAddChild={handleAddChild}
                 onDelete={handleDelete}
                 isRoot
-                sharedGroups={collectSharedGroups(tree)}
+                sharedGroups={[]}
               />
             </div>
+
+            {/* Pool compartilhado (Bruno 15/10): UM bloco só, empilhado
+                (Mestres em cima → Ajudantes embaixo), centralizado abaixo da
+                árvore. As linhas de cada gestor convergindo pra cá são
+                desenhadas no computeLines. */}
+            {(() => {
+              const pools = collectSharedGroups(tree);
+              if (!pools.length) return null;
+              return (
+                <div className="relative mt-24 flex flex-col items-center" style={{ zIndex: 1 }}>
+                  {pools.map((g, i) => (
+                    <div key={g.id} style={{ marginTop: i === 0 ? 0 : 30 }}>
+                      <GroupBox
+                        node={g}
+                        cardRefs={cardRefs}
+                        showSalarios={showSalarios}
+                        onEdit={setEditNode}
+                        onAddMember={handleAddChild}
+                        onDelete={handleDelete}
+                      />
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           <DragOverlay dropAnimation={null}>
