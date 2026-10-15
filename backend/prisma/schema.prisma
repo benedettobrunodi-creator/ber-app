@@ -2362,6 +2362,7 @@ model CrmOportunidade {
   executivoComercial     String?   @map("executivo_comercial") @db.VarChar(50) // Bruno | Camila (14/09/26)
   createdById            String    @map("created_by_id") @db.Uuid
   valor                  Decimal?  @db.Decimal(14, 2)
+  metragemM2             Decimal?  @map("metragem_m2") @db.Decimal(10, 2) // área da obra em m² (preenchido pelo time, 15/10/26)
   etapa                  String    @default("lead") @db.VarChar(50)
   origem                 String?   @db.VarChar(50)
   probabilidade          String?   @db.VarChar(20)

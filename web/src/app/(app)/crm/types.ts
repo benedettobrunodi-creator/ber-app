@@ -217,6 +217,7 @@ export interface Oportunidade {
   id: string;
   titulo: string;
   valor: number | null;
+  metragemM2: number | null;
   etapa: string;
   origem: string | null;
   probabilidade: string | null;

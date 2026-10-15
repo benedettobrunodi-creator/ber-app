@@ -196,6 +196,7 @@ export const createOportunidadeSchema = z.object({
   responsavelId: z.string().uuid().optional().nullable(),
   executivoComercial: z.enum(['Bruno', 'Camila', 'Talita']).optional().nullable(),
   valor: z.number().positive().optional().nullable(),
+  metragemM2: z.number().positive().optional().nullable(),
   etapa: z.enum(CRM_ETAPAS).default('lead'),
   origem: z.enum(CRM_ORIGENS).optional().nullable(),
   probabilidade: z.enum(CRM_PROBABILIDADES).optional().nullable(),

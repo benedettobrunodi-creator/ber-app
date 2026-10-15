@@ -301,6 +301,7 @@ function OportunidadeDrawer({
   const [form, setForm] = useState({
     titulo: op?.titulo ?? '',
     valor: op?.valor?.toString() ?? '',
+    metragemM2: op?.metragemM2?.toString() ?? '',
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
@@ -419,6 +420,7 @@ function OportunidadeDrawer({
         titulo: form.titulo,
         etapa: form.etapa,
         valor: valorNum && valorNum > 0 ? valorNum : null,
+        metragemM2: form.metragemM2 && Number(form.metragemM2) > 0 ? Number(form.metragemM2) : null,
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
@@ -509,6 +511,18 @@ function OportunidadeDrawer({
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
                 value={form.dataFechamentoPrevisto}
                 onChange={(e) => setForm((f) => ({ ...f, dataFechamentoPrevisto: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Área (m²)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                placeholder="m²"
+                value={form.metragemM2}
+                onChange={(e) => setForm((f) => ({ ...f, metragemM2: e.target.value }))}
               />
             </div>
           </div>
