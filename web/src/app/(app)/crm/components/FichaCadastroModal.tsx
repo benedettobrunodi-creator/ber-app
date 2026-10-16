@@ -9,8 +9,7 @@
  */
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import api from '@/lib/api';
-import { Oportunidade, FichaCadastro } from '../types';
+import { FichaCadastro } from '../types';
 
 const ENTREGAVEIS: { key: string; label: string }[] = [
   { key: 'planilha_cliente', label: 'Planilha Orçamentária — modelo cliente' },
@@ -48,15 +47,18 @@ function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
-export default function FichaCadastroModal({ op, onClose, onSaved }: {
-  op: Oportunidade;
+/** Modal LOCAL: não chama API — devolve a ficha pro formulário da oportunidade,
+ *  que salva tudo junto. Assim funciona criando E editando, inclusive criar já
+ *  em Qualificação/Produção (onde o backend exige a ficha no save). */
+export default function FichaCadastroModal({ titulo, ficha, metragem: metragemInicial, onClose, onSave }: {
+  titulo: string;
+  ficha: FichaCadastro | null;
+  metragem: string;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: (ficha: FichaCadastro, metragem: string) => void;
 }) {
-  const [f, setF] = useState<FichaCadastro>({ ...(op.ficha ?? {}) });
-  const [metragem, setMetragem] = useState(op.metragemM2 != null ? String(op.metragemM2) : '');
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
+  const [f, setF] = useState<FichaCadastro>({ ...(ficha ?? {}) });
+  const [metragem, setMetragem] = useState(metragemInicial);
 
   const set = (k: keyof FichaCadastro, v: unknown) => setF((prev) => ({ ...prev, [k]: v }));
   const entregaveis = f.entregaveis ?? [];
@@ -72,21 +74,9 @@ export default function FichaCadastroModal({ op, onClose, onSaved }: {
   ];
   const completos = essenciais.filter(Boolean).length;
 
-  const handleSave = async () => {
-    setSaving(true);
-    setErr('');
-    try {
-      await api.patch(`/crm/oportunidades/${op.id}`, {
-        ficha: f,
-        metragemM2: metragem && Number(metragem) > 0 ? Number(metragem) : null,
-      });
-      onSaved();
-      onClose();
-    } catch (e: any) {
-      setErr(e?.response?.data?.error?.message ?? e?.message ?? 'Erro ao salvar a ficha');
-    } finally {
-      setSaving(false);
-    }
+  const handleSave = () => {
+    onSave(f, metragem);
+    onClose();
   };
 
   return (
@@ -96,7 +86,7 @@ export default function FichaCadastroModal({ op, onClose, onSaved }: {
         <div className="flex items-start justify-between gap-3 border-b border-ber-border px-5 py-4">
           <div>
             <p className="font-bold text-ber-carbon">Ficha de Cadastro</p>
-            <p className="text-xs text-ber-gray mt-0.5 truncate max-w-[60vw] md:max-w-md">{op.titulo}</p>
+            <p className="text-xs text-ber-gray mt-0.5 truncate max-w-[60vw] md:max-w-md">{titulo || 'Nova oportunidade'}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${completos === 5 ? 'bg-ber-green/10 text-ber-green' : 'bg-amber-100 text-amber-700'}`}>
@@ -209,11 +199,10 @@ export default function FichaCadastroModal({ op, onClose, onSaved }: {
               : 'Essenciais: obra, endereço, modalidade, metragem e entregáveis.'}
           </p>
           <div className="flex items-center gap-2 shrink-0">
-            {err && <span className="text-xs text-ber-red max-w-[220px] truncate" title={err}>{err}</span>}
             <button onClick={onClose} className="rounded-lg border border-ber-border px-3 py-2 text-sm text-ber-carbon hover:bg-ber-surface">Cancelar</button>
-            <button onClick={handleSave} disabled={saving}
-              className="rounded-lg bg-ber-teal px-4 py-2 text-sm font-semibold text-white hover:bg-ber-teal/90 disabled:opacity-50">
-              {saving ? 'Salvando…' : 'Salvar ficha'}
+            <button onClick={handleSave}
+              className="rounded-lg bg-ber-teal px-4 py-2 text-sm font-semibold text-white hover:bg-ber-teal/90">
+              Aplicar ficha
             </button>
           </div>
         </div>

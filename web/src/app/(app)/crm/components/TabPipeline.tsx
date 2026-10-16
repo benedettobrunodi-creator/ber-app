@@ -300,16 +300,11 @@ function OportunidadeDrawer({
 }) {
   const isNew = !op?.id;
   const [showFicha, setShowFicha] = useState(false);
-  // Essenciais da Ficha de Cadastro (padrão Talita): obra, endereço, modalidade, m², entregáveis
-  const fichaAtual = (op?.ficha ?? {}) as FichaCadastro;
-  const fichaEssenciais = [
-    !!fichaAtual.obra?.trim(), !!fichaAtual.enderecoObra?.trim(), !!fichaAtual.modalidade,
-    op?.metragemM2 != null && Number(op.metragemM2) > 0, !!(fichaAtual.entregaveis?.length),
-  ].filter(Boolean).length;
   const [form, setForm] = useState({
     titulo: op?.titulo ?? '',
     valor: op?.valor?.toString() ?? '',
     metragemM2: op?.metragemM2?.toString() ?? '',
+    ficha: (op?.ficha ?? null) as FichaCadastro | null,
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
@@ -434,6 +429,7 @@ function OportunidadeDrawer({
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
         responsavelOrcamentoId: form.responsavelOrcamentoId || null,
+        ...(form.ficha ? { ficha: form.ficha } : {}),
         executivoComercial: form.executivoComercial || null,
         contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
@@ -655,26 +651,38 @@ function OportunidadeDrawer({
               </select>
             </div>
           </div>
-          {/* Ficha de Cadastro (padrão Talita, 16/10) — tela própria; obrigatória pra Qualificação */}
-          <div className="rounded-xl border border-ber-border bg-ber-surface/40 px-3 py-2.5 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-ber-carbon">Ficha de Cadastro</p>
-              <p className="text-[11px] text-ber-gray">Obrigatória pra mover de Lead pra Qualificação.</p>
-            </div>
-            {isNew ? (
-              <span className="text-[11px] text-ber-gray shrink-0 text-right">salve a oportunidade<br/>pra preencher</span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowFicha(true)}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 ${fichaEssenciais === 5 ? 'bg-ber-green/10 text-ber-green' : 'bg-amber-100 text-amber-700'}`}
-              >
-                {fichaEssenciais}/5 essenciais · abrir
-              </button>
-            )}
-          </div>
-          {showFicha && op && (
-            <FichaCadastroModal op={op} onClose={() => setShowFicha(false)} onSaved={onSave} />
+          {/* Ficha de Cadastro (padrão Talita, 16/10) — tela própria (modal local,
+              salva junto com a oportunidade); obrigatória pra Qualificação+ */}
+          {(() => {
+            const fc = (form.ficha ?? {}) as FichaCadastro;
+            const fichaEssenciais = [
+              !!fc.obra?.trim(), !!fc.enderecoObra?.trim(), !!fc.modalidade,
+              !!form.metragemM2 && Number(form.metragemM2) > 0, !!(fc.entregaveis?.length),
+            ].filter(Boolean).length;
+            return (
+              <div className="rounded-xl border border-ber-border bg-ber-surface/40 px-3 py-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-ber-carbon">Ficha de Cadastro</p>
+                  <p className="text-[11px] text-ber-gray">Obrigatória pra Qualificação em diante.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFicha(true)}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 ${fichaEssenciais === 5 ? 'bg-ber-green/10 text-ber-green' : 'bg-amber-100 text-amber-700'}`}
+                >
+                  {fichaEssenciais}/5 essenciais · abrir
+                </button>
+              </div>
+            );
+          })()}
+          {showFicha && (
+            <FichaCadastroModal
+              titulo={form.titulo}
+              ficha={form.ficha}
+              metragem={form.metragemM2}
+              onClose={() => setShowFicha(false)}
+              onSave={(ficha, metragem) => setForm((f) => ({ ...f, ficha, metragemM2: metragem }))}
+            />
           )}
           <div>
             <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
