@@ -780,7 +780,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         <Section title="Ticket Médio">
           <div className="flex items-center gap-4 mb-4">
             <span className="text-2xl font-bold text-ber-teal">{fmt(ticketMedio.geral)}</span>
-            <span className="text-xs text-ber-gray">geral {ano}</span>
+            <span className="text-xs text-ber-gray">geral {ano} · exclui change orders</span>
           </div>
           {ticketData.length > 0 && (
             <ResponsiveContainer width="100%" height={180}>

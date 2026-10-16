@@ -952,7 +952,11 @@ export async function getTicketMedio(opts: { ano?: number; segmento?: string; or
 
   if (!ganhas.length) return { geral: 0, porOrigem: {} };
 
-  const total = ganhas.reduce((s, op) => s + Number(op.valor ?? 0), 0);
+  // Ticket médio GERAL exclui change orders (pedido Bruno 16/10/26): aditivo
+  // não é venda nova e puxa a média pra baixo. A barra "Change Order" continua
+  // no porOrigem como referência. Mesmo critério da performance por responsável.
+  const vendasNovas = ganhas.filter((op) => op.origem !== 'change_order');
+  const total = vendasNovas.reduce((s, op) => s + Number(op.valor ?? 0), 0);
 
   const porOrigem: Record<string, { soma: number; count: number }> = {};
   for (const op of ganhas) {
@@ -963,7 +967,7 @@ export async function getTicketMedio(opts: { ano?: number; segmento?: string; or
   }
 
   return {
-    geral: total / ganhas.length,
+    geral: vendasNovas.length > 0 ? total / vendasNovas.length : 0,
     porOrigem: Object.fromEntries(
       Object.entries(porOrigem).map(([k, v]) => [k, v.soma / v.count]),
     ),
