@@ -218,6 +218,9 @@ export interface Oportunidade {
   titulo: string;
   valor: number | null;
   metragemM2: number | null;
+  responsavelOrcamento?: { id: string; name: string } | null;
+  ficha?: FichaCadastro | null;
+  fichaEnviadaEm?: string | null;
   etapa: string;
   origem: string | null;
   probabilidade: string | null;
@@ -264,6 +267,30 @@ export interface User {
   id: string;
   name: string;
   avatarUrl: string | null;
+  role?: string | null;
+}
+
+// Ficha de Cadastro (padrão Talita, 16/10/26) — vive em Oportunidade.ficha.
+// Essenciais pra mover de Lead pra Qualificação: obra, enderecoObra,
+// modalidade, metragem (campo metragemM2 da oportunidade) e entregaveis.
+export interface FichaCadastro {
+  obra?: string | null;
+  enderecoObra?: string | null;
+  contatoGerenciadora?: string | null;
+  arquitetura?: string | null;
+  reservaTecnica?: string | null;
+  concorrentes?: string | null;
+  modalidade?: 'D&B' | 'D&B_TECNICO' | 'GC' | null;
+  prazosProcesso?: string | null;
+  horarioCondominio?: string | null;
+  modalidadeContratacao?: string | null;
+  informacoesGerais?: string | null;
+  escopo?: string | null;
+  seguro?: string | null;
+  formaPagamento?: string | null;
+  entregaveis?: string[] | null;
+  validadeProposta?: string | null;
+  arquivosRecebidos?: string | null;
 }
 
 export function fmt(value: number | string | null | undefined): string {

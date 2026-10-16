@@ -7,8 +7,9 @@ import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as Us
 import { DndContext, DragEndEvent, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, fmt, fmtDate, diasAtras } from '../types';
+import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, FichaCadastro, fmt, fmtDate, diasAtras } from '../types';
 import NovaObraModal from '@/components/obras/NovaObraModal';
+import FichaCadastroModal from './FichaCadastroModal';
 
 class DrawerBoundary extends Component<{ children: ReactNode; onClose: () => void }, { err: string | null }> {
   state = { err: null };
@@ -298,6 +299,13 @@ function OportunidadeDrawer({
   onSave: () => void;
 }) {
   const isNew = !op?.id;
+  const [showFicha, setShowFicha] = useState(false);
+  // Essenciais da Ficha de Cadastro (padrão Talita): obra, endereço, modalidade, m², entregáveis
+  const fichaAtual = (op?.ficha ?? {}) as FichaCadastro;
+  const fichaEssenciais = [
+    !!fichaAtual.obra?.trim(), !!fichaAtual.enderecoObra?.trim(), !!fichaAtual.modalidade,
+    op?.metragemM2 != null && Number(op.metragemM2) > 0, !!(fichaAtual.entregaveis?.length),
+  ].filter(Boolean).length;
   const [form, setForm] = useState({
     titulo: op?.titulo ?? '',
     valor: op?.valor?.toString() ?? '',
@@ -306,6 +314,7 @@ function OportunidadeDrawer({
     origem: op?.origem ?? '',
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
+    responsavelOrcamentoId: op?.responsavelOrcamento?.id ?? '',
     executivoComercial: op?.executivoComercial ?? '',
     contatoId: op?.contato?.id ?? '',
     dataFechamentoPrevisto: op?.dataFechamentoPrevisto?.slice(0, 10) ?? '',
@@ -424,6 +433,7 @@ function OportunidadeDrawer({
         origem: form.origem || null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
+        responsavelOrcamentoId: form.responsavelOrcamentoId || null,
         executivoComercial: form.executivoComercial || null,
         contatoId: form.contatoId || null,
         dataFechamentoPrevisto: form.dataFechamentoPrevisto || null,
@@ -609,7 +619,7 @@ function OportunidadeDrawer({
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Responsável *</label>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Responsável pela Conta *</label>
               <select
                 className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
                 value={form.responsavelId}
@@ -632,7 +642,40 @@ function OportunidadeDrawer({
                 <option value="Talita">Talita</option>
               </select>
             </div>
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Responsável pelo Orçamento</label>
+              <select
+                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+                value={form.responsavelOrcamentoId}
+                onChange={(e) => setForm((f) => ({ ...f, responsavelOrcamentoId: e.target.value }))}
+              >
+                <option value="">--</option>
+                {(users.some((u) => u.role === 'orcamentos') ? users.filter((u) => u.role === 'orcamentos') : users)
+                  .map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
           </div>
+          {/* Ficha de Cadastro (padrão Talita, 16/10) — tela própria; obrigatória pra Qualificação */}
+          <div className="rounded-xl border border-ber-border bg-ber-surface/40 px-3 py-2.5 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-ber-carbon">Ficha de Cadastro</p>
+              <p className="text-[11px] text-ber-gray">Obrigatória pra mover de Lead pra Qualificação.</p>
+            </div>
+            {isNew ? (
+              <span className="text-[11px] text-ber-gray shrink-0 text-right">salve a oportunidade<br/>pra preencher</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowFicha(true)}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-80 ${fichaEssenciais === 5 ? 'bg-ber-green/10 text-ber-green' : 'bg-amber-100 text-amber-700'}`}
+              >
+                {fichaEssenciais}/5 essenciais · abrir
+              </button>
+            )}
+          </div>
+          {showFicha && op && (
+            <FichaCadastroModal op={op} onClose={() => setShowFicha(false)} onSaved={onSave} />
+          )}
           <div>
             <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Contato</label>
             {contatos.length > 0 ? (
@@ -952,6 +995,7 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
   const [sortCol, setSortCol] = useState<SortCol>('etapa');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filters, setFilters] = useState<Filters>({ search: '', etapas: [], responsavelIds: [], probabilidades: [] });
+  const [moveErr, setMoveErr] = useState<string | null>(null); // trava da Ficha no drag (16/10)
   const [soEstrategicos, setSoEstrategicos] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [etapaDropOpen, setEtapaDropOpen] = useState(false);
@@ -1087,9 +1131,11 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
       setLocalOps(newLocalOps);
       try {
         await api.patch('/crm/oportunidades/reorder', { ids: finalDestIds, etapa: destEtapa });
+        setMoveErr(null);
         onRefresh();
-      } catch (err) {
+      } catch (err: any) {
         console.error('Erro ao mover entre colunas', err);
+        setMoveErr(err?.response?.data?.error?.message ?? err?.response?.data?.message ?? 'Não foi possível mover a oportunidade.');
         onRefresh();
       }
     }
@@ -1117,6 +1163,12 @@ export default function TabPipeline({ oportunidades: oportunidadesProp, users, o
 
   return (
     <div className="flex-1 min-h-0">
+      {moveErr && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5">
+          <p className="text-sm text-amber-800">{moveErr}</p>
+          <button onClick={() => setMoveErr(null)} className="shrink-0 text-amber-700 hover:text-amber-900"><X size={16} /></button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-ber-carbon">Pipeline</h2>

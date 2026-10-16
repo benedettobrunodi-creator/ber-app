@@ -110,6 +110,7 @@ model User {
   diarioFotos                   DiarioFoto[]              @relation("DiarioFotoUploader")
   diarioEfetivos                DiarioEfetivo[]           @relation("DiarioEfetivoUser")
   crmOportunidadesResp          CrmOportunidade[]         @relation("CrmOportResponsavel")
+  crmOportunidadesRespOrcamento CrmOportunidade[]         @relation("CrmOportRespOrcamento")
   crmOportunidadesCriadas       CrmOportunidade[]         @relation("CrmOportCreator")
   crmAtividades                 CrmAtividade[]            @relation("CrmAtividadeUsuario")
   crmCampanhas                  CrmCampanha[]             @relation("CrmCampanhaResponsavel")
@@ -2360,6 +2361,9 @@ model CrmOportunidade {
   contatoId              String?   @map("contato_id") @db.Uuid
   responsavelId          String?   @map("responsavel_id") @db.Uuid
   executivoComercial     String?   @map("executivo_comercial") @db.VarChar(50) // Bruno | Camila (14/09/26)
+  responsavelOrcamentoId String?   @map("responsavel_orcamento_id") @db.Uuid // orçamentista (16/10/26 — unificação pipeline↔esteira)
+  ficha                  Json?     // Ficha de Cadastro (padrão Talita 16/10/26) — obrigatória pra Qualificação
+  fichaEnviadaEm         DateTime? @map("ficha_enviada_em") // e-mail da ficha disparado (1x, na entrada em Qualificação)
   createdById            String    @map("created_by_id") @db.Uuid
   valor                  Decimal?  @db.Decimal(14, 2)
   metragemM2             Decimal?  @map("metragem_m2") @db.Decimal(10, 2) // área da obra em m² (preenchido pelo time, 15/10/26)
@@ -2391,6 +2395,7 @@ model CrmOportunidade {
   empresa     CrmEmpresa?                @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   contato     CrmContato?                @relation(fields: [contatoId], references: [id], onDelete: SetNull)
   responsavel User?                      @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  responsavelOrcamento User?             @relation("CrmOportRespOrcamento", fields: [responsavelOrcamentoId], references: [id], onDelete: SetNull)
   createdBy   User                       @relation("CrmOportCreator", fields: [createdById], references: [id])
   orcamento   Orcamento?                 @relation("OportOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
   obra        Obra?                      @relation("ObraCrmOportunidade")

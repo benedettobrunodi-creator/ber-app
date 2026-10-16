@@ -9,6 +9,10 @@ import {
   CRM_PROBABILIDADE_PCT, CRM_ETAPA_MACRO,
   CreateCampanhaInput, UpdateCampanhaInput,
 } from './types';
+import {
+  precisaFicha, validarFichaObrigatoria,
+  sincronizarEsteiraAposEtapa, espelharOportunidadeNoOrcamento,
+} from './integracao-esteira';
 
 // ── Empresas ─────────────────────────────────────────────────────────────────
 
@@ -401,6 +405,7 @@ export async function listOportunidades(opts: {
       empresa: { select: { id: true, razaoSocial: true, segmento: true } },
       contato: { select: { id: true, nome: true, cargo: true } },
       responsavel: { select: { id: true, name: true, avatarUrl: true } },
+      responsavelOrcamento: { select: { id: true, name: true } },
       atividades: {
         where: { concluida: false },
         orderBy: { dataHora: 'asc' },
@@ -415,7 +420,24 @@ export async function listOportunidades(opts: {
 /** Reordena oportunidades numa etapa (kanban drag & drop).
  *  Recebe a lista completa de ids na ordem final desejada e opcionalmente
  *  atualiza a etapa dos cards (útil quando o drop veio de outra coluna). */
-export async function reorderOportunidades(input: { ids: string[]; etapa?: string }) {
+export async function reorderOportunidades(input: { ids: string[]; etapa?: string }, userId?: string) {
+  // Fluxo único (16/10/26): o drag entre colunas passa por aqui. Antes de mover,
+  // aplica a trava da Ficha (Lead→Qualificação+) e, depois, sincroniza a esteira
+  // só pros cards cuja etapa realmente mudou.
+  let movidas: { id: string; createdById: string; veioDeLead: boolean }[] = [];
+  if (input.etapa) {
+    const atuais = await prisma.crmOportunidade.findMany({
+      where: { id: { in: input.ids } },
+      select: { id: true, etapa: true, ficha: true, metragemM2: true, createdById: true },
+    });
+    for (const o of atuais) {
+      if (o.etapa !== input.etapa && precisaFicha(o.etapa, input.etapa)) {
+        validarFichaObrigatoria(o); // lança 400 com a lista do que falta
+      }
+    }
+    movidas = atuais.filter((o) => o.etapa !== input.etapa).map((o) => ({ id: o.id, createdById: o.createdById, veioDeLead: o.etapa === 'lead' }));
+  }
+
   await prisma.$transaction(
     input.ids.map((id, idx) =>
       prisma.crmOportunidade.update({
@@ -427,6 +449,11 @@ export async function reorderOportunidades(input: { ids: string[]; etapa?: strin
       }),
     ),
   );
+
+  for (const m of movidas) {
+    await sincronizarEsteiraAposEtapa(m.id, userId ?? m.createdById, m.veioDeLead)
+      .catch((e) => console.error('[crm] sync esteira pós-reorder falhou:', (e as Error).message));
+  }
 }
 
 /** Último dia do mês seguinte ao de `data` (ex: 15/ago → 30/set). */
@@ -488,6 +515,7 @@ export async function getOportunidadeById(id: string) {
       empresa: true,
       contato: true,
       responsavel: { select: { id: true, name: true, avatarUrl: true } },
+      responsavelOrcamento: { select: { id: true, name: true } },
       atividades: { orderBy: { dataHora: 'desc' } },
       historico: { orderBy: { alteradoEm: 'desc' }, take: 30 },
       orcamento: {
@@ -502,9 +530,16 @@ export async function getOportunidadeById(id: string) {
 }
 
 export async function createOportunidade(data: CreateOportunidadeInput, userId: string, userName: string) {
+  // Fluxo único (16/10/26): nascer direto em etapa de orçamento exige a Ficha
+  // de Cadastro completa (mesma trava do movimento Lead→Qualificação).
+  if (precisaFicha(null, data.etapa ?? 'lead')) {
+    validarFichaObrigatoria({ ficha: data.ficha, metragemM2: data.metragemM2 });
+  }
+  const { ficha, ...resto } = data;
   const oport = await prisma.crmOportunidade.create({
     data: {
-      ...data,
+      ...resto,
+      ...(ficha != null ? { ficha } : {}), // Prisma Json não aceita null direto
       dataEntradaPipeline: data.dataEntradaPipeline ?? new Date(),
       createdById: userId,
     },
@@ -517,6 +552,9 @@ export async function createOportunidade(data: CreateOportunidadeInput, userId: 
       alteradoPor: userName,
     },
   });
+  // Fluxo único: já nasceu em etapa de orçamento → cria/sincroniza na esteira
+  await sincronizarEsteiraAposEtapa(oport.id, userId, true)
+    .catch((e) => console.error('[crm] sync esteira pós-create falhou:', (e as Error).message));
   return oport;
 }
 
@@ -524,11 +562,22 @@ export async function updateOportunidade(
   id: string,
   data: UpdateOportunidadeInput,
   userName: string,
+  userId?: string,
 ) {
   const anterior = await prisma.crmOportunidade.findUniqueOrThrow({ where: { id } });
 
+  // Fluxo único (16/10/26): sair de Lead pra etapa de orçamento exige a Ficha
+  // de Cadastro completa (considera o que está vindo neste update também).
+  if (data.etapa && data.etapa !== anterior.etapa && precisaFicha(anterior.etapa, data.etapa)) {
+    validarFichaObrigatoria({
+      ficha: data.ficha !== undefined ? data.ficha : anterior.ficha,
+      metragemM2: data.metragemM2 !== undefined ? data.metragemM2 : anterior.metragemM2,
+    });
+  }
+
   // Seta dataGanho automaticamente quando etapa muda para 'ganho' (se não foi passado manualmente)
   const dataWrite = { ...data } as Record<string, unknown>;
+  if (dataWrite.ficha === null) delete dataWrite.ficha; // Prisma Json não aceita null direto
   if (data.etapa === 'ganho' && anterior.etapa !== 'ganho' && !data.dataGanho) {
     dataWrite.dataGanho = new Date();
   } else if (data.etapa && data.etapa !== 'ganho' && anterior.etapa === 'ganho' && !data.dataGanho) {
@@ -558,6 +607,19 @@ export async function updateOportunidade(
       where: { id: anterior.empresaId },
       data: { ultimoContato: new Date() },
     });
+  }
+
+  // Fluxo único (16/10/26): etapa mudou → cria/sincroniza o orçamento na esteira
+  // (mão única CRM→esteira); senão, espelha probabilidade/responsável pelo orçamento.
+  if (data.etapa && data.etapa !== anterior.etapa) {
+    await sincronizarEsteiraAposEtapa(id, userId ?? anterior.createdById, anterior.etapa === 'lead')
+      .catch((e) => console.error('[crm] sync esteira pós-update falhou:', (e as Error).message));
+  } else if (
+    (data.probabilidade !== undefined && data.probabilidade !== anterior.probabilidade) ||
+    (data.responsavelOrcamentoId !== undefined && data.responsavelOrcamentoId !== anterior.responsavelOrcamentoId)
+  ) {
+    await espelharOportunidadeNoOrcamento(id)
+      .catch((e) => console.error('[crm] espelho pro orçamento falhou:', (e as Error).message));
   }
 
   return updated;

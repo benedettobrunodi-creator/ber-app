@@ -91,7 +91,7 @@ export async function create(userId: string, input: CreateOrcamentoInput) {
   const existing = await prisma.orcamento.findUnique({ where: { numero: input.numero } });
   if (existing) throw AppError.conflict(`Número ${input.numero} já existe`);
 
-  return prisma.orcamento.create({
+  const criado = await prisma.orcamento.create({
     data: {
       numero: input.numero,
       cliente: input.cliente,
@@ -114,6 +114,15 @@ export async function create(userId: string, input: CreateOrcamentoInput) {
     },
     include: INCLUDE_BASE,
   });
+
+  // Fluxo único (16/10/26): Change Order criada na esteira vira card no pipeline
+  // na coluna "Proposta em produção" (origem change_order).
+  if ((input.tipo ?? 'NOVO') === 'CHANGE_ORDER') {
+    const { criarCardPipelineParaCO } = await import('../crm/integracao-esteira');
+    await criarCardPipelineParaCO(criado.id, userId)
+      .catch((e) => console.error('[orcamentos] card de CO no pipeline falhou:', (e as Error).message));
+  }
+  return criado;
 }
 
 const TRACKED_FIELDS: Array<keyof UpdateOrcamentoInput> = [
@@ -271,6 +280,22 @@ export async function update(id: string, userName: string, input: UpdateOrcament
       ? [prisma.orcamentoHistorico.createMany({ data: histEntries })]
       : []),
   ]);
+
+  // Fluxo único (16/10/26): espelha pro pipeline SÓ o que mudou neste update
+  // (orçamento é o dono de valor e m²; probabilidade/responsável refletem
+  // quando alterados aqui). Mão única de etapa: status da esteira NÃO move o
+  // pipeline — por isso status fica de fora.
+  const mudou = {
+    valorVenda: 'valorVenda' in input && String(existing.valorVenda ?? '') !== String(input.valorVenda ?? ''),
+    m2: 'm2' in input && String(existing.m2 ?? '') !== String(input.m2 ?? ''),
+    probabilidade: 'probabilidade' in input && (existing.probabilidade ?? null) !== (input.probabilidade ?? null),
+    responsavelId: 'responsavelId' in input && (existing.responsavelId ?? null) !== (input.responsavelId ?? null),
+  };
+  if (mudou.valorVenda || mudou.m2 || mudou.probabilidade || mudou.responsavelId) {
+    const { espelharOrcamentoNaOportunidade } = await import('../crm/integracao-esteira');
+    await espelharOrcamentoNaOportunidade(id, mudou)
+      .catch((e) => console.error('[orcamentos] espelho pro pipeline falhou:', (e as Error).message));
+  }
 
   return updated;
 }

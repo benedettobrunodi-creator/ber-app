@@ -124,7 +124,7 @@ export async function createOportunidade(req: Request, res: Response, next: Next
 export async function updateOportunidade(req: Request, res: Response, next: NextFunction) {
   try {
     const body = updateOportunidadeSchema.parse(req.body);
-    const data = await svc.updateOportunidade(req.params.id, body, req.user!.email);
+    const data = await svc.updateOportunidade(req.params.id, body, req.user!.email, req.user!.userId);
     res.json(data);
   } catch (e) { next(e); }
 }
@@ -145,7 +145,7 @@ export async function reorderOportunidades(req: Request, res: Response, next: Ne
     await svc.reorderOportunidades({
       ids: body.ids as string[],
       etapa: typeof body.etapa === 'string' ? body.etapa : undefined,
-    });
+    }, req.user!.userId);
     res.status(204).end();
   } catch (e) { next(e); }
 }

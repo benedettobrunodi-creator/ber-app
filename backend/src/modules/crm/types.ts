@@ -189,6 +189,29 @@ export const updateCampanhaContatoSchema = z.object({
 export type CreateCampanhaInput = z.infer<typeof createCampanhaSchema>;
 export type UpdateCampanhaInput = z.infer<typeof updateCampanhaSchema>;
 
+// Ficha de Cadastro (padrão Talita, 16/10/26) — vive em CrmOportunidade.ficha (Json).
+// Obrigatória (campos essenciais) pra mover a oportunidade de Lead pra Qualificação+.
+export const fichaCadastroSchema = z.object({
+  obra: z.string().max(2000).optional().nullable(),
+  enderecoObra: z.string().max(500).optional().nullable(),
+  contatoGerenciadora: z.string().max(500).optional().nullable(),
+  arquitetura: z.string().max(500).optional().nullable(),
+  reservaTecnica: z.string().max(50).optional().nullable(),
+  concorrentes: z.string().max(1000).optional().nullable(),
+  modalidade: z.enum(['D&B', 'D&B_TECNICO', 'GC']).optional().nullable(),
+  prazosProcesso: z.string().max(2000).optional().nullable(),
+  horarioCondominio: z.string().max(1000).optional().nullable(),
+  modalidadeContratacao: z.string().max(1000).optional().nullable(),
+  informacoesGerais: z.string().max(4000).optional().nullable(),
+  escopo: z.string().max(4000).optional().nullable(),
+  seguro: z.string().max(1000).optional().nullable(),
+  formaPagamento: z.string().max(1000).optional().nullable(),
+  entregaveis: z.array(z.enum(['planilha_cliente', 'planilha_ber', 'cronograma_fisico_financeiro', 'proposta_tecnica', 'proposta_comercial'])).optional().nullable(),
+  validadeProposta: z.string().max(200).optional().nullable(),
+  arquivosRecebidos: z.string().max(2000).optional().nullable(),
+});
+export type FichaCadastroInput = z.infer<typeof fichaCadastroSchema>;
+
 export const createOportunidadeSchema = z.object({
   titulo: z.string().min(1).max(500),
   empresaId: z.string().uuid().optional().nullable(),
@@ -197,6 +220,8 @@ export const createOportunidadeSchema = z.object({
   executivoComercial: z.enum(['Bruno', 'Camila', 'Talita']).optional().nullable(),
   valor: z.number().positive().optional().nullable(),
   metragemM2: z.number().positive().optional().nullable(),
+  responsavelOrcamentoId: z.string().uuid().optional().nullable(),
+  ficha: fichaCadastroSchema.optional().nullable(),
   etapa: z.enum(CRM_ETAPAS).default('lead'),
   origem: z.enum(CRM_ORIGENS).optional().nullable(),
   probabilidade: z.enum(CRM_PROBABILIDADES).optional().nullable(),
