@@ -981,7 +981,10 @@ function refDateAno(op: { dataGanho: Date | null; dataFechamentoPrevisto: Date |
 }
 
 export async function getWinRate(opts: { ano?: number; responsavelId?: string }) {
-  const base: Record<string, unknown> = {};
+  // Win rate mede venda nova em disputa — change orders ficam fora de TODAS as
+  // contagens (ganhos, perdidos, declinados, cancelados). Pedido Bruno 16/10/26,
+  // mesmo critério do ticket médio e da performance por responsável.
+  const base: Record<string, unknown> = { NOT: { origem: 'change_order' } };
   if (opts.responsavelId) base.responsavelId = opts.responsavelId;
 
   const createdRange = opts.ano ? {
