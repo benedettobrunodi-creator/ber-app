@@ -619,15 +619,15 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
                     onClick={() => openDrill(`Origem: ${o.name}`, oportunidades.filter((op) => op.origem === o.origem))}>
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
                     <span className="text-sm text-ber-carbon font-medium flex-1 truncate">{o.name}</span>
-                    <span className="text-xs text-ber-gray w-20 text-right" title="tudo que entrou">{fmt(o.valor)}</span>
-                    <span className="text-xs font-bold text-ber-green w-20 text-right" title="ganho">{o.ganhoValor > 0 ? fmt(o.ganhoValor) : '—'}</span>
+                    <span className="text-xs text-ber-gray min-w-[16ch] whitespace-nowrap tabular-nums text-right" title="tudo que entrou">{fmt(o.valor)}</span>
+                    <span className="text-xs font-bold text-ber-green min-w-[16ch] whitespace-nowrap tabular-nums text-right" title="ganho">{o.ganhoValor > 0 ? fmt(o.ganhoValor) : '—'}</span>
                   </div>
                 ))}
                 <div className="flex items-center gap-2 px-2 mt-1 pt-2 border-t border-ber-border">
                   <span className="w-2.5 h-2.5 shrink-0" />
                   <span className="text-xs font-bold text-ber-gray flex-1">Total</span>
-                  <span className="text-xs font-bold text-ber-carbon w-20 text-right">{fmt(fontesTotal.valor)}</span>
-                  <span className="text-xs font-bold text-ber-green w-20 text-right">{fmt(fontesTotal.ganhoValor)}</span>
+                  <span className="text-xs font-bold text-ber-carbon min-w-[16ch] whitespace-nowrap tabular-nums text-right">{fmt(fontesTotal.valor)}</span>
+                  <span className="text-xs font-bold text-ber-green min-w-[16ch] whitespace-nowrap tabular-nums text-right">{fmt(fontesTotal.ganhoValor)}</span>
                 </div>
                 <p className="text-[10px] text-ber-gray/70 text-right">cinza = entrou · verde = ganho</p>
               </div>
