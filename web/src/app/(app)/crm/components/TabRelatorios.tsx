@@ -713,7 +713,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
           </div>
           <p className="text-[10px] text-ber-gray/60 mt-3">
             Fórmula: ganhos ÷ (ganhos + perdidos) = {winRate.ganho} ÷ {winRate.total} = {winRate.total > 0 ? Math.round(winRate.rate * 100) : 0}%.
-            Declinados (recusa antes da disputa) e cancelados (inviabilizado externamente) ficam fora.
+            Declinados (recusa antes da disputa), cancelados (inviabilizado externamente) e change orders ficam fora.
           </p>
         </Section>
       )}
