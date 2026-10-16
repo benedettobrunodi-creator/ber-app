@@ -88,6 +88,14 @@ export async function getById(id: string) {
 }
 
 export async function create(userId: string, input: CreateOrcamentoInput) {
+  // Fluxo único (Bruno 16/10/26, "forçar o hábito"): orçamento NOVO nasce no
+  // PIPELINE, nunca direto na esteira — quem cria é o comercial (oportunidade
+  // + Ficha + Qualificação) e o orçamento aparece aqui sozinho. Na esteira só
+  // nascem Revisão e Change Order. (A criação automática vinda do CRM não
+  // passa por aqui — usa prisma direto no integracao-esteira.)
+  if ((input.tipo ?? 'NOVO') === 'NOVO') {
+    throw AppError.badRequest('Orçamento novo nasce no pipeline: acione o comercial pra criar a oportunidade no CRM (com a Ficha de Cadastro) e movê-la pra Qualificação — o orçamento entra na esteira automaticamente. Aqui na esteira, só Revisão e Change Order são criados direto.');
+  }
   const existing = await prisma.orcamento.findUnique({ where: { numero: input.numero } });
   if (existing) throw AppError.conflict(`Número ${input.numero} já existe`);
 
