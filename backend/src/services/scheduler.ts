@@ -175,6 +175,33 @@ export function startScheduler() {
     }
   }, { timezone: 'America/Sao_Paulo' });
 
+  // Cobrança Diário de Obra — ter-sáb 07h50 BRT: cobra o dia útil ANTERIOR
+  // (seg-sex, pula feriado) sem diário fechado. Bruno + Gritti + Chris + gestor
+  // da obra (16/10/26).
+  cron.schedule('50 7 * * 2-6', async () => {
+    console.log('[Scheduler] Cobrança diário de obra iniciada...');
+    try {
+      const { cobrarDiariosFaltantes } = await import('../jobs/cobranca-reportes');
+      const r = await cobrarDiariosFaltantes();
+      console.log(`[Scheduler] Cobrança diário — dia ${r.dia ?? '—'}: ${r.faltantes}/${r.verificadas} obra(s) cobradas`);
+    } catch (err) {
+      console.error('[Scheduler] Cobrança diário falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
+  // Cobrança Relatório Semanal — segunda 08h20 BRT: cobra a semana anterior sem
+  // relatório criado/enviado. Mesmos destinatários (16/10/26).
+  cron.schedule('20 8 * * 1', async () => {
+    console.log('[Scheduler] Cobrança relatório semanal iniciada...');
+    try {
+      const { cobrarRelatoriosSemanaisFaltantes } = await import('../jobs/cobranca-reportes');
+      const r = await cobrarRelatoriosSemanaisFaltantes();
+      console.log(`[Scheduler] Cobrança relatório — semana ${r.semana}: ${r.faltantes}/${r.verificadas} obra(s) cobradas`);
+    } catch (err) {
+      console.error('[Scheduler] Cobrança relatório falhou:', (err as Error).message);
+    }
+  }, { timezone: 'America/Sao_Paulo' });
+
   // CRM — previsão de fechamento: negócios em "Proposta em produção"+ sem data
   // prevista — semanal, segunda 08h10 BRT (Bruno 14/10/26). Só sócios.
   cron.schedule('10 8 * * 1', async () => {

@@ -396,6 +396,13 @@ export async function enviarEmailCliente(req: Request, res: Response) {
     attachments,
   });
 
+  // Marca o envio (16/10/26) — é o que a cobrança automática de relatório
+  // semanal verifica. Mantém a data do 1º envio; reenvios não sobrescrevem.
+  await prisma.relatorioSemanal.updateMany({
+    where: { id: relatorioId, enviadoEm: null },
+    data: { enviadoEm: new Date() },
+  }).catch(() => {});
+
   if (req.body?.email) {
     const emailsStr = emails.join(', ');
     if (obra.clienteEmail !== emailsStr) {

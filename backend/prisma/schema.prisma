@@ -2508,6 +2508,7 @@ model RelatorioSemanal {
   responsavelId        String?   @map("responsavel_id") @db.Uuid
   responsavelNome      String?   @map("responsavel_nome") @db.VarChar(255)
   dataContrato         DateTime? @map("data_contrato") @db.Date
+  enviadoEm            DateTime? @map("enviado_em") // 1º envio ao cliente (16/10/26 — base da cobrança automática)
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at")
 
