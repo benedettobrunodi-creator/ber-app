@@ -150,6 +150,8 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   }[]>([]);
   const [cicloVendas, setCicloVendas] = useState<{
     geral: number;
+    ganho?: { diasMedio: number; count: number };
+    perdido?: { diasMedio: number; count: number };
     porOrigem: { origem: string; diasMedio: number; count: number }[];
     porResponsavel: { name: string; diasMedio: number; count: number }[];
   } | null>(null);
@@ -503,7 +505,23 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
       )}
 
       {cicloVendas && cicloVendas.porOrigem.length > 0 && (
-        <Section title="Ciclo Médio de Vendas" subtitle={`${cicloVendas.geral} dias em média — ${ano}`}>
+        <Section title="Ciclo de Venda" subtitle={`${cicloVendas.geral} dias da entrada ao desfecho — ${ano}`}>
+          {(cicloVendas.ganho || cicloVendas.perdido) && (
+            <div className="flex flex-wrap gap-8 mb-5">
+              {cicloVendas.ganho && cicloVendas.ganho.count > 0 && (
+                <div>
+                  <p className="text-2xl font-bold text-ber-green">{cicloVendas.ganho.diasMedio}d</p>
+                  <p className="text-[11px] text-ber-gray">até ganhar ({cicloVendas.ganho.count})</p>
+                </div>
+              )}
+              {cicloVendas.perdido && cicloVendas.perdido.count > 0 && (
+                <div>
+                  <p className="text-2xl font-bold text-ber-red">{cicloVendas.perdido.diasMedio}d</p>
+                  <p className="text-[11px] text-ber-gray">até perder ({cicloVendas.perdido.count})</p>
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-xs font-bold text-ber-gray mb-2 uppercase tracking-wide">Por Origem</p>

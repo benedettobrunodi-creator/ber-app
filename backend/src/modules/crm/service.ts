@@ -1246,53 +1246,91 @@ export async function getForecastHorizonte() {
   return result;
 }
 
-/** Ciclo médio de vendas: dias de createdAt até dataGanho, por origem */
+/**
+ * Ciclo de venda: dias da entrada da demanda (dataEntradaPipeline ?? createdAt)
+ * até o DESFECHO — ganho (dataGanho) ou perdido (data da mudança de etapa no
+ * histórico; fallback updatedAt). Redefinido 17/10/26 (pedido Bruno): antes só
+ * media ganhas, o que embelezava o número. Change orders ficam fora (mesmo
+ * critério de ticket médio e win rate).
+ */
 export async function getCicloVendas(ano?: number) {
-  const where: Record<string, unknown> = {
-    etapa: 'ganho',
-    dataGanho: { not: null },
-    dataEntradaPipeline: { not: null },
-  };
-  if (ano) {
-    where.dataGanho = {
-      not: null,
-      gte: new Date(`${ano}-01-01`),
-      lte: new Date(`${ano}-12-31`),
-    };
-  }
+  const [ganhas, perdidas] = await Promise.all([
+    prisma.crmOportunidade.findMany({
+      where: { etapa: 'ganho', dataGanho: { not: null }, NOT: { origem: 'change_order' } },
+      select: {
+        id: true,
+        dataGanho: true,
+        dataEntradaPipeline: true,
+        createdAt: true,
+        origem: true,
+        responsavel: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.crmOportunidade.findMany({
+      where: { etapa: 'perdido', NOT: { origem: 'change_order' } },
+      select: {
+        id: true,
+        dataEntradaPipeline: true,
+        createdAt: true,
+        updatedAt: true,
+        origem: true,
+        responsavel: { select: { id: true, name: true } },
+        historico: {
+          where: { campo: 'etapa', valorNovo: 'perdido' },
+          orderBy: { alteradoEm: 'desc' },
+          take: 1,
+          select: { alteradoEm: true },
+        },
+      },
+    }),
+  ]);
 
-  const ops = await prisma.crmOportunidade.findMany({
-    where,
-    select: {
-      dataGanho: true,
-      dataEntradaPipeline: true,
-      createdAt: true,
-      origem: true,
-      responsavel: { select: { id: true, name: true } },
-    },
-  });
+  type Desfecho = {
+    inicio: Date; fim: Date; origem: string | null; etapa: 'ganho' | 'perdido';
+    responsavel: { id: string; name: string } | null;
+  };
+  const desfechos: Desfecho[] = [
+    ...ganhas.map((op) => ({
+      inicio: op.dataEntradaPipeline ?? op.createdAt,
+      fim: op.dataGanho!,
+      origem: op.origem,
+      etapa: 'ganho' as const,
+      responsavel: op.responsavel,
+    })),
+    ...perdidas.map((op) => ({
+      inicio: op.dataEntradaPipeline ?? op.createdAt,
+      fim: op.historico[0]?.alteradoEm ?? op.updatedAt,
+      origem: op.origem,
+      etapa: 'perdido' as const,
+      responsavel: op.responsavel,
+    })),
+  ].filter((d) => !ano || new Date(d.fim).getFullYear() === ano);
 
   let totalDias = 0;
   let totalCount = 0;
+  const porEtapa: Record<'ganho' | 'perdido', { soma: number; count: number }> = {
+    ganho: { soma: 0, count: 0 },
+    perdido: { soma: 0, count: 0 },
+  };
   const porOrigem: Record<string, { soma: number; count: number }> = {};
   const porResponsavel: Record<string, { name: string; soma: number; count: number }> = {};
 
-  for (const op of ops) {
-    const inicio = op.dataEntradaPipeline ?? op.createdAt;
-    const fim = op.dataGanho!;
-    const dias = Math.max(0, Math.floor((new Date(fim).getTime() - new Date(inicio).getTime()) / 86_400_000));
+  for (const d of desfechos) {
+    const dias = Math.max(0, Math.floor((new Date(d.fim).getTime() - new Date(d.inicio).getTime()) / 86_400_000));
 
     totalDias += dias;
     totalCount++;
+    porEtapa[d.etapa].soma += dias;
+    porEtapa[d.etapa].count++;
 
-    const origem = op.origem ?? 'sem_origem';
+    const origem = d.origem ?? 'sem_origem';
     porOrigem[origem] ??= { soma: 0, count: 0 };
     porOrigem[origem].soma += dias;
     porOrigem[origem].count++;
 
-    if (op.responsavel) {
-      const rid = op.responsavel.id;
-      porResponsavel[rid] ??= { name: op.responsavel.name, soma: 0, count: 0 };
+    if (d.responsavel) {
+      const rid = d.responsavel.id;
+      porResponsavel[rid] ??= { name: d.responsavel.name, soma: 0, count: 0 };
       porResponsavel[rid].soma += dias;
       porResponsavel[rid].count++;
     }
@@ -1300,6 +1338,14 @@ export async function getCicloVendas(ano?: number) {
 
   return {
     geral: totalCount > 0 ? Math.round(totalDias / totalCount) : 0,
+    ganho: {
+      diasMedio: porEtapa.ganho.count > 0 ? Math.round(porEtapa.ganho.soma / porEtapa.ganho.count) : 0,
+      count: porEtapa.ganho.count,
+    },
+    perdido: {
+      diasMedio: porEtapa.perdido.count > 0 ? Math.round(porEtapa.perdido.soma / porEtapa.perdido.count) : 0,
+      count: porEtapa.perdido.count,
+    },
     porOrigem: Object.entries(porOrigem).map(([origem, v]) => ({
       origem,
       diasMedio: Math.round(v.soma / v.count),
