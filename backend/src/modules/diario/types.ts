@@ -28,6 +28,7 @@ export const createEfetivoSchema = z.object({
   nomeExterno: z.string().min(1).optional(),
   funcao: z.string().optional(),
   categoria: z.string().optional(),
+  disciplina: z.string().max(50).optional(), // disciplina MDO (mesma lista do histograma semanal)
   quantidade: z.number().int().min(1).default(1),
   presente: z.boolean().default(true),
   observacao: z.string().optional(),

@@ -290,6 +290,7 @@ export async function addEfetivo(req: Request, res: Response) {
       nomeExterno: input.nomeExterno,
       funcao: input.funcao,
       categoria: input.categoria,
+      disciplina: input.disciplina,
       quantidade: input.quantidade ?? 1,
       presente: input.presente ?? true,
       observacao: input.observacao,

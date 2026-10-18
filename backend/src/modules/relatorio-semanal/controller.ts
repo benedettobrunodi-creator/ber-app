@@ -327,7 +327,7 @@ export async function getDadosPeriodo(req: Request, res: Response) {
       where: { obraId, data: { gte: inicioDate, lte: fimDate } },
       select: {
         data: true,
-        efetivos: { select: { quantidade: true, presente: true } },
+        efetivos: { select: { quantidade: true, presente: true, categoria: true, disciplina: true } },
       },
       orderBy: { data: 'asc' },
     });
@@ -335,6 +335,28 @@ export async function getDadosPeriodo(req: Request, res: Response) {
       data: d.data,
       total: d.efetivos.filter(e => e.presente).reduce((s, e) => s + e.quantidade, 0),
     }));
+
+    // Efetivos agregados por disciplina × dia — alimenta o histograma do
+    // relatório semanal direto do diário (Francisco/Dany 09/10/26: "mesma
+    // base, não digitar duas vezes"). Lançamentos antigos sem disciplina
+    // caem no mapeamento por categoria (função).
+    const CATEGORIA_DISCIPLINA: Record<string, string> = {
+      pedreiro: 'Civil', servente: 'Civil', encarregado: 'Civil', armador: 'Civil',
+      eletricista: 'Elétrica', pintor: 'Pintura', gesseiro: 'Gesso', carpinteiro: 'Marcenaria',
+    };
+    const porDisciplina: Record<string, Record<string, number>> = {};
+    for (const d of diarios) {
+      const dia = d.data.toISOString().slice(0, 10);
+      for (const e of d.efetivos) {
+        if (!e.presente) continue;
+        const disc = e.disciplina || CATEGORIA_DISCIPLINA[e.categoria ?? ''] || 'Outros';
+        porDisciplina[disc] = porDisciplina[disc] ?? {};
+        porDisciplina[disc][dia] = (porDisciplina[disc][dia] ?? 0) + e.quantidade;
+      }
+    }
+    const efetivosPorDisciplina = Object.entries(porDisciplina)
+      .map(([disciplina, porDia]) => ({ disciplina, porDia }))
+      .sort((a, b) => a.disciplina.localeCompare(b.disciplina, 'pt-BR'));
 
     const cron = await prisma.cronograma.findFirst({ where: { obraId }, orderBy: { createdAt: 'desc' } });
     const tarefas: any[] = (cron?.parsedData as any)?.tarefas ?? [];
@@ -352,7 +374,7 @@ export async function getDadosPeriodo(req: Request, res: Response) {
       t.inicio > fimStr && t.inicio <= proximoFimStr,
     );
 
-    return res.json({ data: { efetivos, tarefasPeriodo, tarefasProximo } });
+    return res.json({ data: { efetivos, efetivosPorDisciplina, tarefasPeriodo, tarefasProximo } });
   } catch (e: any) { return err500(res, e); }
 }
 

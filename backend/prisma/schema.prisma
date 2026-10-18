@@ -2079,6 +2079,7 @@ model DiarioEfetivo {
   nomeExterno String?  @map("nome_externo")
   funcao      String?  @db.VarChar(100)
   categoria   String?  @db.VarChar(50)
+  disciplina  String?  @db.VarChar(50) // disciplina de MDO — mesma lista do histograma semanal (Francisco/Dany 09/10/26)
   quantidade  Int      @default(1)
   origem      String   @default("manual") @db.VarChar(20)
   presente    Boolean  @default(true)

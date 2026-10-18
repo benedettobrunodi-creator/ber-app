@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { MDO_DISCIPLINAS } from '@/lib/mdo';
+import { toast } from '@/lib/toast';
 import { Plus, Trash2, Download, X, Upload, ChevronDown, ChevronUp, Settings, Camera } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -123,11 +125,9 @@ const STATUS_TEMA_OPTS = [
   { value: 'critico',      label: 'Crítico',      color: 'bg-red-100   text-red-800'    },
 ];
 
-const DISCIPLINA_OPTS = [
-  'Civil', 'Pintura', 'Elétrica', 'Hidráulica', 'Drywall',
-  'Ar Condicionado', 'Marcenaria', 'Pedras', 'Serralheria', 'Impermeabilização',
-  'Gesso', 'Piso', 'Vidro', 'Paisagismo',
-];
+// Lista única de disciplinas de MDO — compartilhada com o Diário de Obra
+// (Francisco/Dany 09/10/26: efetivos do diário alimentam o histograma)
+const DISCIPLINA_OPTS: readonly string[] = MDO_DISCIPLINAS;
 
 const DEFAULT_SECOES_PDF: Record<string, boolean> = {
   fotos: true, curvaS: true, atividades: true, pontosAtencao: true,
@@ -357,6 +357,31 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
       setTarefasPeriodo(d.tarefasPeriodo ?? []);
       setTarefasProximo(d.tarefasProximo ?? []);
     } catch { /* ok */ }
+  }
+
+  /** Puxa os efetivos lançados no Diário de Obra e preenche o histograma
+   *  (disciplina × dia). Merge: célula com dado do diário é sobrescrita,
+   *  linhas manuais que o diário não tem são preservadas. */
+  const [puxandoDiario, setPuxandoDiario] = useState(false);
+  async function puxarEfetivosDoDiario() {
+    if (!form.periodoInicio || !form.periodoFim) { toast('Defina o período do relatório primeiro'); return; }
+    setPuxandoDiario(true);
+    try {
+      const res = await api.get(`/obras/${obraId}/relatorios/dados-periodo`, { params: { inicio: form.periodoInicio, fim: form.periodoFim } });
+      const doDiario: EfetivoDisciplina[] = res.data.data?.efetivosPorDisciplina ?? [];
+      if (doDiario.length === 0) { toast('Nenhum efetivo lançado no diário neste período.'); return; }
+      setForm(f => {
+        const atuais = [...(f.efetivoPorDisciplina ?? [])];
+        for (const novo of doDiario) {
+          const ex = atuais.find(a => a.disciplina === novo.disciplina);
+          if (ex) ex.porDia = { ...(ex.porDia ?? {}), ...novo.porDia };
+          else atuais.push({ disciplina: novo.disciplina, porDia: novo.porDia });
+        }
+        return { ...f, efetivoPorDisciplina: atuais };
+      });
+      toast('Histograma preenchido com os efetivos do diário ✓');
+    } catch { toast('Erro ao buscar efetivos do diário'); }
+    finally { setPuxandoDiario(false); }
   }
 
   // ─── Ambientes CRUD ─────────────────────────────────────────────────────────
@@ -1438,6 +1463,14 @@ export default function RelatorioTab({ obraId, obra }: { obraId: string; obra: O
             {/* ── 7. EQUIPE ────────────────────────────────────────────────────── */}
             {/* ── 8. HISTOGRAMA ────────────────────────────────────────────────── */}
             <FormSection title="Histograma de efetivos" desc="Preencha a quantidade de pessoas por disciplina em cada dia do período.">
+              {/* Puxar do Diário de Obra — mesma base, sem digitar duas vezes (Francisco/Dany 09/10) */}
+              <div className="mb-3">
+                <button type="button" onClick={puxarEfetivosDoDiario} disabled={puxandoDiario}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ber-border bg-white px-3 py-1.5 text-xs font-semibold text-ber-carbon hover:bg-ber-surface disabled:opacity-60">
+                  <Download size={13} /> {puxandoDiario ? 'Buscando…' : 'Puxar efetivos do Diário de Obra'}
+                </button>
+                <span className="ml-2 text-[11px] text-ber-gray">soma os lançamentos dos diários do período; depois é só ajustar</span>
+              </div>
               {/* Matriz disciplina × dia */}
               <div className="space-y-2 mb-4">
                 {disciplinasForm.length > 0 && diasPeriodo.length > 0 && (

@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { confirmar } from '@/lib/confirmar';
 import { toast } from '@/lib/toast';
 import { pedirTexto } from '@/lib/prompt-sheet';
+import { MDO_DISCIPLINAS, CATEGORIA_TO_DISCIPLINA } from '@/lib/mdo';
 import { useAuthStore } from '@/stores/authStore';
 import {
   ArrowLeft, Plus, X, Lock, Unlock, Sun, Cloud, CloudSun, CloudRain, Zap,
@@ -39,6 +40,7 @@ interface Efetivo {
   nomeExterno: string | null;
   funcao: string | null;
   categoria: string | null;
+  disciplina?: string | null;
   quantidade: number;
   presente: boolean;
   user: { id: string; name: string } | null;
@@ -128,6 +130,8 @@ const EFETIVO_CATEGORIAS = [
   { value: 'outro', label: 'Outro' },
 ];
 const UNIDADES = ['un', 'kg', 'm²', 'm³', 'm', 'saco', 'rolo', 'cx', 'lt', 'pç'];
+
+// Disciplinas de MDO — lista única compartilhada com o histograma do relatório semanal
 
 function fmtDate(iso: string) {
   const dateOnly = iso.slice(0, 10);
@@ -506,6 +510,9 @@ export default function DiarioObraPage() {
   function EfetivosSection() {
     const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<{ categoria: string; quantidade: number }[]>([]);
     const [showForm, setShowForm] = useState(false);
+    // Disciplina de MDO do lote — mesma lista do histograma do relatório semanal
+    // (Francisco/Dany 09/10/26). Vazio = sugerida pela função (pintor→Pintura...).
+    const [disciplinaSel, setDisciplinaSel] = useState('');
 
     const totalEfetivos = selected?.efetivos.reduce((acc, e) => acc + (e.quantidade || 1), 0) ?? 0;
 
@@ -518,8 +525,9 @@ export default function DiarioObraPage() {
 
     async function addCategoria(categoria: string, quantidade: number) {
       if (!selected || quantidade < 1) return;
+      const disciplina = disciplinaSel || CATEGORIA_TO_DISCIPLINA[categoria] || undefined;
       try {
-        await api.post(`/diario/${selected.id}/efetivos`, { categoria, quantidade });
+        await api.post(`/diario/${selected.id}/efetivos`, { categoria, quantidade, ...(disciplina ? { disciplina } : {}) });
         refreshDetail();
       } catch (e: any) { toast(e?.response?.data?.message ?? 'Erro', 'erro'); }
     }
@@ -553,6 +561,7 @@ export default function DiarioObraPage() {
             <div>
               <span className="text-ber-carbon font-medium capitalize">{ef.categoria ?? ef.user?.name ?? ef.nomeExterno ?? '—'}</span>
               {ef.quantidade > 1 && <span className="ml-2 text-xs text-ber-gray">× {ef.quantidade}</span>}
+              {ef.disciplina && <span className="ml-2 rounded-full bg-ber-olive/10 px-2 py-0.5 text-[10px] font-medium text-ber-olive">{ef.disciplina}</span>}
             </div>
             {!fechado && (
               <button onClick={() => deleteItem(`/diario/${selected!.id}/efetivos/${ef.id}`, refreshDetail)} className="text-ber-gray hover:text-ber-red ml-2">
@@ -570,6 +579,14 @@ export default function DiarioObraPage() {
 
         {!fechado && showForm && (
           <div className="rounded-lg bg-gray-50 border border-ber-border p-3 space-y-2">
+            <div>
+              <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide mb-1">Disciplina</p>
+              <select value={disciplinaSel} onChange={e => setDisciplinaSel(e.target.value)}
+                className="w-full rounded-lg border border-ber-border bg-white px-3 py-2 text-sm text-ber-carbon focus:outline-none focus:ring-1 focus:ring-ber-olive">
+                <option value="">Automática pela função (pintor→Pintura…)</option>
+                {MDO_DISCIPLINAS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
             <p className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Selecione quantidade por categoria</p>
             <div className="grid grid-cols-1 gap-2">
               {EFETIVO_CATEGORIAS.map(cat => {
