@@ -5,6 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { Plus, MapPin, Calendar, User, HardHat, Archive, ArchiveRestore, Trash2, X, AlertTriangle, Search, ArrowUpDown, ClipboardList } from 'lucide-react';
 import NovaObraModal from '@/components/obras/NovaObraModal';
+import { useAuthStore } from '@/stores/authStore';
 
 type ObraStatus = 'nao_iniciada' | 'planejamento' | 'em_andamento' | 'pos_obra' | 'pausada' | 'concluida' | 'cancelada';
 
@@ -146,6 +147,10 @@ function ConfirmDialog({ obraName, onConfirm, onCancel }: ConfirmDialogProps) {
 }
 
 export default function ObrasPage() {
+  // Excluir obra é só diretoria/sócio (backend já exige; aqui some o botão —
+  // pedido Francisco 09/10: "imagina alguém apagar um projeto com toda documentação")
+  const user = useAuthStore((s) => s.user);
+  const canDeleteObra = user?.role === 'socio' || user?.role === 'diretoria';
   const [obras, setObras] = useState<Obra[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -552,9 +557,11 @@ export default function ObrasPage() {
                         <Archive size={14} />
                       </button>
                     )}
-                    <button onClick={() => setDeleteObra(obra)} title="Excluir" className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600">
-                      <Trash2 size={14} />
-                    </button>
+                    {canDeleteObra && (
+                      <button onClick={() => setDeleteObra(obra)} title="Excluir (só diretoria)" className="rounded p-1 text-ber-gray hover:bg-red-50 hover:text-red-600">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
