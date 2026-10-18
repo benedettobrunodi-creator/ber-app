@@ -156,7 +156,7 @@ export default function ManualProprietarioPage() {
   const grupos = Array.from(new Set(bib.map(b => b.grupo)));
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto pb-44">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto pb-6">
       <Link href={`/obras/${obraId}/close-out`} className="inline-flex items-center gap-1.5 text-sm text-ber-gray hover:text-ber-carbon mb-4">
         <ArrowLeft size={16} /> Close Out
       </Link>
@@ -528,8 +528,9 @@ export default function ManualProprietarioPage() {
         </div>
       </div>
 
-      {/* Barra de salvar */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-ber-border bg-white/95 backdrop-blur">
+      {/* Barra de salvar — sticky (não fixed): no fim do scroll ela entra no fluxo
+          e nunca cobre o último card (Dany 09/10: tampava o Anexar arquivo) */}
+      <div className="sticky bottom-0 z-20 -mx-4 md:-mx-6 mt-4 border-t border-ber-border bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3 md:px-6">
           <p className="text-xs text-ber-gray">
             {savedAt ? `Salvo às ${savedAt}` : 'Alterações não salvas ainda'}

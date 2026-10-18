@@ -33,6 +33,8 @@ export const DOCUMENTO_DISCIPLINAS = [
   'SD - Aprovações',
   'PAE', // Plano de Auxílio de Emergência (pedido Dany, 03/10/26)
   'Iluminação', // pedido Francisco, 08/10/26
+  'Laudos', // pedido Dany/Francisco, 09/10/26 — área do laudo vai no título
+  'As Builts', // pedido Dany, 09/10/26 — além da etapa As Built, como modalidade própria
   'Outra',
 ] as const;
 

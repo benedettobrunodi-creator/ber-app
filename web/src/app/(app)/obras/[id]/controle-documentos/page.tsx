@@ -20,8 +20,13 @@ const DISCIPLINAS = [
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
   'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
   'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'ART', 'Seguro', 'Documentos do Condomínio',
-  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'PAE', 'Iluminação', 'Outra',
+  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'PAE', 'Iluminação', 'Laudos', 'As Builts', 'Outra',
 ] as const;
+
+// Área do laudo (pedido Francisco 09/10/26) — gravada no campo Título do documento
+const LAUDO_AREAS = ['Civil', 'Impermeabilização', 'Elétrica', 'Hidráulica', 'Ar Condicionado', 'Acústica', 'Estrutural', 'Outra'] as const;
+// Disciplinas sem projetista (pedido Dany 09/10/26): campo fica oculto
+const SEM_PROJETISTA = ['Seguro', 'PAE', 'ART'];
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
 const SETOR_ARQUITETURA = ['Arquitetura', 'Interiores', 'Paisagismo'];
@@ -60,7 +65,8 @@ const SETOR_SEGURO = ['Seguro'];
 const SETOR_CONDOMINIO = ['Documentos do Condomínio'];
 const SETOR_OUTROS: string[] = DISCIPLINAS.filter(d =>
   !SETOR_ARQUITETURA.includes(d) && !SETOR_TECNICOS.includes(d) && !SETOR_SDS.includes(d) &&
-  !SETOR_ARTS.includes(d) && !SETOR_SEGURO.includes(d) && !SETOR_CONDOMINIO.includes(d));
+  !SETOR_ARTS.includes(d) && !SETOR_SEGURO.includes(d) && !SETOR_CONDOMINIO.includes(d) &&
+  d !== 'As Builts'); // disciplina As Builts mora na aba As Builts, não em Outros
 type Setor = 'todos' | 'arquitetura' | 'tecnicos' | 'sds' | 'arts' | 'seguro' | 'condominio' | 'outros' | 'asbuilt' | 'obsoletos';
 
 const ETAPAS = ['Conceito', 'Anteprojeto (AP)', 'Executivo (EX)', 'Locação (LO)', 'As Built'] as const;
@@ -227,9 +233,9 @@ export default function ControleDocumentosPage() {
     }
   }
 
-  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista' | 'comentario' | 'vigenciaFim' | 'seguroDecisao', value: string) {
+  async function updateField(id: string, field: 'codigo' | 'disciplina' | 'etapa' | 'projetista' | 'comentario' | 'vigenciaFim' | 'seguroDecisao' | 'titulo', value: string) {
     try {
-      const nullable = ['etapa', 'projetista', 'vigenciaFim', 'seguroDecisao'].includes(field);
+      const nullable = ['etapa', 'projetista', 'vigenciaFim', 'seguroDecisao', 'titulo'].includes(field);
       const r = await api.patch(`/obras/${obraId}/controle-documentos/${id}`, { [field]: nullable ? (value || null) : value });
       setDocumentos(prev => prev.map(d => d.id === id ? r.data.data : d));
     } catch (e) {
@@ -443,7 +449,7 @@ export default function ControleDocumentosPage() {
     // As Builts cruza todas as disciplinas — filtra por Etapa, não por
     // disciplina (pedido Dany/Francisco, 03/10); agrupamento por disciplina
     // dentro da aba continua igual, via `grupos` abaixo.
-    if (setor === 'asbuilt') return d.etapa === 'As Built';
+    if (setor === 'asbuilt') return d.etapa === 'As Built' || d.disciplina === 'As Builts';
     if (setor === 'sds') {
       const sub = SDS_SUBS.find(t => t.label === subTecnico);
       return (sub ? sub.disciplinas : SETOR_SDS).includes(d.disciplina);
@@ -520,7 +526,7 @@ export default function ControleDocumentosPage() {
             { key: 'todos', label: 'Todos', count: documentos.filter(d => !d.obsoleto).length },
             { key: 'arquitetura', label: 'Arquitetura', count: documentos.filter(d => !d.obsoleto && SETOR_ARQUITETURA.includes(d.disciplina)).length },
             { key: 'arts', label: 'ARTs', count: documentos.filter(d => !d.obsoleto && SETOR_ARTS.includes(d.disciplina)).length },
-            { key: 'asbuilt', label: 'As Builts', count: documentos.filter(d => !d.obsoleto && d.etapa === 'As Built').length },
+            { key: 'asbuilt', label: 'As Builts', count: documentos.filter(d => !d.obsoleto && (d.etapa === 'As Built' || d.disciplina === 'As Builts')).length },
             { key: 'condominio', label: 'Docs do Condomínio', count: documentos.filter(d => !d.obsoleto && SETOR_CONDOMINIO.includes(d.disciplina)).length },
             { key: 'outros', label: 'Outros Documentos', count: documentos.filter(d => !d.obsoleto && SETOR_OUTROS.includes(d.disciplina)).length },
             { key: 'tecnicos', label: 'Projetos Técnicos', count: documentos.filter(d => !d.obsoleto && SETOR_TECNICOS.includes(d.disciplina)).length },
@@ -645,12 +651,23 @@ export default function ControleDocumentosPage() {
                               <option value="">Etapa —</option>
                               {ETAPAS.map(e => <option key={e} value={e}>{e}</option>)}
                             </select>
-                            <input
-                              defaultValue={d.projetista ?? ''}
-                              placeholder="Projetista"
-                              onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
-                              className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
-                            />
+                            {d.disciplina === 'Laudos' && (
+                              <select value={LAUDO_AREAS.includes(d.titulo as typeof LAUDO_AREAS[number]) ? d.titulo! : ''}
+                                title="Área do laudo (gravada no título do documento)"
+                                onChange={e => updateField(d.id, 'titulo', e.target.value)}
+                                className="text-[11px] bg-ber-surface border border-ber-border rounded px-1.5 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal">
+                                <option value="">Área do laudo —</option>
+                                {LAUDO_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                              </select>
+                            )}
+                            {!SEM_PROJETISTA.includes(d.disciplina) && (
+                              <input
+                                defaultValue={d.projetista ?? ''}
+                                placeholder="Projetista"
+                                onBlur={e => { if (e.target.value !== (d.projetista ?? '')) updateField(d.id, 'projetista', e.target.value.trim()); }}
+                                className="text-xs bg-ber-surface border border-ber-border rounded px-2 py-0.5 text-ber-carbon hover:border-ber-carbon/50 focus:outline-none focus:ring-1 focus:ring-ber-teal w-44"
+                              />
+                            )}
                             <input
                               defaultValue={d.comentario ?? ''}
                               placeholder="Comentário"
@@ -984,8 +1001,15 @@ export default function ControleDocumentosPage() {
                 <input className={inputCls} value={form.codigo} onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))} placeholder="ex: 319-EDW-CV-CD" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-ber-carbon">Título</label>
-                <input className={inputCls} value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="ex: Planta de Piso" />
+                <label className="mb-1 block text-xs font-medium text-ber-carbon">{form.disciplina === 'Laudos' ? 'Área do laudo' : 'Título'}</label>
+                {form.disciplina === 'Laudos' ? (
+                  <select className={inputCls} value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}>
+                    <option value="">—</option>
+                    {LAUDO_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                ) : (
+                  <input className={inputCls} value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="ex: Planta de Piso" />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1002,10 +1026,12 @@ export default function ControleDocumentosPage() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ber-carbon">Projetista</label>
-                <input className={inputCls} value={form.projetista} onChange={e => setForm(f => ({ ...f, projetista: e.target.value }))} />
-              </div>
+              {!SEM_PROJETISTA.includes(form.disciplina) && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-ber-carbon">Projetista</label>
+                  <input className={inputCls} value={form.projetista} onChange={e => setForm(f => ({ ...f, projetista: e.target.value }))} />
+                </div>
+              )}
             </div>
             {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
             <div className="mt-5 flex gap-2">
