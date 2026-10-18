@@ -32,6 +32,7 @@ export const DOCUMENTO_DISCIPLINAS = [
   'Multimídia',
   'SD - Aprovações',
   'PAE', // Plano de Auxílio de Emergência (pedido Dany, 03/10/26)
+  'Iluminação', // pedido Francisco, 08/10/26
   'Outra',
 ] as const;
 

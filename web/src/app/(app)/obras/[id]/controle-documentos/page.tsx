@@ -20,7 +20,7 @@ const DISCIPLINAS = [
   'Combate a Incêndio', 'Detecção e Alarme', 'Cabeamento Estruturado', 'SPK (Sprinklers)',
   'Divisórias', 'Pedras', 'Mobiliário', 'Marcenaria', 'Shop Drawings - Outros', 'Projetos Técnicos - Outros',
   'Comunicação Visual', 'Interiores', 'Paisagismo', 'Projeto Legal', 'ART', 'Seguro', 'Documentos do Condomínio',
-  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'PAE', 'Outra',
+  'Sistemas', 'Acústica', 'Automação', 'Multimídia', 'SD - Aprovações', 'PAE', 'Iluminação', 'Outra',
 ] as const;
 
 // ─── Setorização (mockup do Bruno, 02/09/26) ───
@@ -34,6 +34,7 @@ const TECNICOS_SUBS: { label: string; disciplinas: string[] }[] = [
   { label: 'Estrutura', disciplinas: ['Estrutural'] },
   { label: 'Hidráulica', disciplinas: ['Hidráulica'] },
   { label: 'HVAC', disciplinas: ['Ar Condicionado'] },
+  { label: 'Iluminação', disciplinas: ['Iluminação'] }, // pedido Francisco, 08/10/26
   { label: 'Incêndio', disciplinas: ['Combate a Incêndio'] },
   { label: 'Multimídia', disciplinas: ['Multimídia'] },
   { label: 'Sistemas', disciplinas: ['Sistemas'] },
