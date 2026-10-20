@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { fmt, Oportunidade } from '../types';
 import DrilldownModal from './DrilldownModal';
+import TeiaIndicacoes from './TeiaIndicacoes';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -651,6 +652,13 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
               </div>
             </div>
           </div>
+        </Section>
+      )}
+
+      {/* Teia de Indicações (Bruno 20/10/26): quem indica a BÈR e o que virou */}
+      {oportunidades.some((o) => o.origemEmpresa) && (
+        <Section title="Teia de Indicações" subtitle="empresas indicadoras e os negócios que trouxeram">
+          <TeiaIndicacoes oportunidades={oportunidades} onDrill={openDrill} />
         </Section>
       )}
 
