@@ -5,12 +5,12 @@
  * negócios. Indicadoras são os nós escuros; cada negócio orbita quem o indicou,
  * colorido pelo desfecho (aberto / ganho / perdido). Tamanho = valor.
  *
- * Layout por simulação de força própria (repulsão + mola nos links + centro +
- * anti-sobreposição), rodada de forma síncrona e determinística no useMemo —
- * sem dependência de d3 e sem animação. Interações (pedidos Bruno 20/10):
- * zoom (scroll + botões), pan arrastando o fundo, arrastar uma INDICADORA
- * move o cluster dela inteiro, tooltip segue o mouse, clique na indicadora
- * abre o drill-down.
+ * Layout por simulação de força própria (repulsão + mola nos links + âncora do
+ * grupo + anti-sobreposição), síncrona e determinística no useMemo — sem d3.
+ * Interações (pedidos Bruno 20/10): zoom (scroll + botões), pan no fundo,
+ * arrastar uma INDICADORA move o cluster dela, tooltip segue o mouse, clique
+ * na indicadora abre o drill-down. v3: default agrupado por categoria
+ * (Gerenciadoras × Arquitetura × Brokers) com filtro, canvas largo e baixo.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
@@ -24,8 +24,30 @@ const COR_RESULTADO: Record<string, string> = {
 };
 const ETAPAS_PERDA = ['perdido', 'declinado', 'cancelado'];
 
-const W = 900;
-const H = 620;
+const W = 1280;
+const H = 520;
+
+type Categoria = 'gerenciadora' | 'arquitetura' | 'broker' | 'outras';
+const CATEGORIAS: { id: Categoria | 'todas'; label: string }[] = [
+  { id: 'todas', label: 'Todas' },
+  { id: 'gerenciadora', label: 'Gerenciadoras' },
+  { id: 'arquitetura', label: 'Arquitetura' },
+  { id: 'broker', label: 'Brokers' },
+  { id: 'outras', label: 'Outras' },
+];
+const GRUPO_LABEL: Record<Categoria, string> = {
+  gerenciadora: 'GERENCIADORAS',
+  arquitetura: 'ARQUITETURA',
+  broker: 'BROKERS',
+  outras: 'OUTRAS',
+};
+/** Âncoras dos grupos no modo "todas" (gerenciadoras à esquerda, arquitetura à direita). */
+const ANCORAS: Record<Categoria, { x: number; y: number }> = {
+  gerenciadora: { x: W * 0.23, y: H * 0.52 },
+  arquitetura: { x: W * 0.74, y: H * 0.52 },
+  broker: { x: W * 0.48, y: H * 0.74 },
+  outras: { x: W * 0.48, y: H * 0.3 },
+};
 
 interface NodoBase {
   id: string;
@@ -34,6 +56,7 @@ interface NodoBase {
   vx: number;
   vy: number;
   r: number;
+  cat: Categoria;
 }
 interface NodoInd extends NodoBase { tipo: 'ind'; nome: string; total: number; ops: Oportunidade[] }
 interface NodoNeg extends NodoBase { tipo: 'neg'; op: Oportunidade; res: string }
@@ -67,9 +90,25 @@ function val(op: Oportunidade): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Categoria da indicadora = origem mais frequente entre os negócios dela. */
+function categoriaDe(ops: Oportunidade[]): Categoria {
+  const cont: Record<string, number> = {};
+  for (const o of ops) if (o.origem) cont[o.origem] = (cont[o.origem] ?? 0) + 1;
+  const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (top === 'gerenciadora' || top === 'arquitetura' || top === 'broker') return top;
+  return 'outras';
+}
+
 type Drag =
   | { modo: 'pan'; px: number; py: number; baseTx: number; baseTy: number; moved: boolean }
   | { modo: 'no'; id: string; px: number; py: number; baseDx: number; baseDy: number; moved: boolean };
+
+/** Escala e offsets reais do conteúdo dentro do <svg> (preserveAspectRatio meet letterboxa). */
+function geomSvg(svg: SVGSVGElement): { s: number; ox: number; oy: number; left: number; top: number } {
+  const r = svg.getBoundingClientRect();
+  const s = Math.min(r.width / W, r.height / H);
+  return { s, ox: (r.width - W * s) / 2, oy: (r.height - H * s) / 2, left: r.left, top: r.top };
+}
 
 export default function TeiaIndicacoes({
   oportunidades,
@@ -81,15 +120,16 @@ export default function TeiaIndicacoes({
   const [hover, setHover] = useState<Nodo | null>(null);
   const [mouse, setMouse] = useState<{ x: number; y: number; cw: number } | null>(null);
   const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
+  const [filtro, setFiltro] = useState<Categoria | 'todas'>('todas');
   /** Deslocamento manual por indicadora (arrasto move o cluster inteiro).
-   *  Guardado junto com a identidade do layout base: dataset mudou → os
-   *  arrastos antigos são descartados sem precisar de effect. */
+   *  Guardado junto com a identidade do layout base: layout novo → arrastos
+   *  antigos descartados sem precisar de effect. */
   const [offsBox, setOffsBox] = useState<{ base: unknown; offs: Record<string, { dx: number; dy: number }> }>({ base: null, offs: {} });
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const arrastouRef = useRef(false); // suprime o clique que vem depois de um arrasto
 
-  const { nodos, links, indDe } = useMemo(() => {
+  const { nodos, links, indDe, categorias } = useMemo(() => {
     const comInd = oportunidades.filter((o) => o.origemEmpresa);
     const porInd = new Map<string, { nome: string; ops: Oportunidade[] }>();
     for (const op of comInd) {
@@ -98,37 +138,46 @@ export default function TeiaIndicacoes({
       porInd.get(e.id)!.ops.push(op);
     }
     const indDe = new Map<string, string>(); // id do negócio → id da indicadora
-    if (!porInd.size) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe };
+    const categorias = new Set<Categoria>();
+    if (!porInd.size) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias };
 
-    const maxValor = Math.max(1, ...comInd.map(val));
+    const grupos = [...porInd.entries()].map(([id, g]) => ({ id, ...g, cat: categoriaDe(g.ops) }));
+    grupos.forEach((g) => categorias.add(g.cat));
+    const visiveis = filtro === 'todas' ? grupos : grupos.filter((g) => g.cat === filtro);
+    if (!visiveis.length) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias };
+
+    const opsVisiveis = visiveis.flatMap((g) => g.ops);
+    const maxValor = Math.max(1, ...opsVisiveis.map(val));
     const rNeg = (v: number) => 4 + 18 * Math.sqrt((v || 0) / maxValor);
-    const maxTotal = Math.max(1, ...[...porInd.values()].map((g) => g.ops.reduce((s, o) => s + val(o), 0)));
+    const maxTotal = Math.max(1, ...visiveis.map((g) => g.ops.reduce((s, o) => s + val(o), 0)));
     const rInd = (t: number) => 10 + 14 * Math.sqrt(t / maxTotal);
 
     const nodos: Nodo[] = [];
     const links: [Nodo, Nodo][] = [];
-    for (const [id, g] of porInd) {
+    for (const g of visiveis) {
       const total = g.ops.reduce((s, o) => s + val(o), 0);
-      const a = hash01(id) * Math.PI * 2;
+      const anc = filtro === 'todas' ? ANCORAS[g.cat] : { x: W / 2, y: H / 2 };
+      const a = hash01(g.id) * Math.PI * 2;
       const ind: NodoInd = {
-        tipo: 'ind', id, nome: g.nome, total, ops: g.ops, r: rInd(total),
-        x: W / 2 + Math.cos(a) * 200, y: H / 2 + Math.sin(a) * 140, vx: 0, vy: 0,
+        tipo: 'ind', id: g.id, nome: g.nome, total, ops: g.ops, r: rInd(total), cat: g.cat,
+        x: anc.x + Math.cos(a) * 130, y: anc.y + Math.sin(a) * 90, vx: 0, vy: 0,
       };
       nodos.push(ind);
       for (const op of g.ops) {
         const b = hash01(op.id) * Math.PI * 2;
         const neg: NodoNeg = {
-          tipo: 'neg', id: op.id, op, res: resultadoDe(op), r: rNeg(val(op)),
-          x: ind.x + Math.cos(b) * 60, y: ind.y + Math.sin(b) * 60, vx: 0, vy: 0,
+          tipo: 'neg', id: op.id, op, res: resultadoDe(op), r: rNeg(val(op)), cat: g.cat,
+          x: ind.x + Math.cos(b) * 55, y: ind.y + Math.sin(b) * 55, vx: 0, vy: 0,
         };
         nodos.push(neg);
         links.push([ind, neg]);
-        indDe.set(op.id, id);
+        indDe.set(op.id, g.id);
       }
     }
 
-    // Simulação: repulsão (indicadoras mais fortes), mola nos links, atração
-    // leve pro centro e separação por colisão. 320 passos bastam pra assentar.
+    // Simulação: repulsão (indicadoras bem mais fortes = clusters espaçados),
+    // mola nos links, âncora do grupo e separação por colisão.
+    const ancoraDe = (n: Nodo) => (filtro === 'todas' ? ANCORAS[n.cat] : { x: W / 2, y: H / 2 });
     for (let passo = 0; passo < 320; passo++) {
       const esfria = 1 - passo / 320;
       for (let i = 0; i < nodos.length; i++) {
@@ -139,10 +188,10 @@ export default function TeiaIndicacoes({
           let d2 = dx * dx + dy * dy;
           if (d2 < 1) { dx = (hash01(a.id + j) - 0.5); dy = (hash01(b.id + i) - 0.5); d2 = 1; }
           const d = Math.sqrt(d2);
-          const forca = (a.tipo === 'ind' && b.tipo === 'ind' ? 3800 : 420) / d2;
+          const forca = (a.tipo === 'ind' && b.tipo === 'ind' ? 7200 : 460) / d2;
           const fx = (dx / d) * forca, fy = (dy / d) * forca;
           a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
-          const minD = a.r + b.r + 6;
+          const minD = a.r + b.r + 7;
           if (d < minD) {
             const emp = (minD - d) / 2;
             a.vx += (dx / d) * emp; a.vy += (dy / d) * emp;
@@ -153,24 +202,26 @@ export default function TeiaIndicacoes({
       for (const [a, b] of links) {
         const dx = b.x - a.x, dy = b.y - a.y;
         const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        const alvo = a.r + b.r + 34;
-        const f = (d - alvo) * 0.045;
+        const alvo = a.r + b.r + 30;
+        const f = (d - alvo) * 0.05;
         const fx = (dx / d) * f, fy = (dy / d) * f;
         a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
       }
       for (const n of nodos) {
-        n.vx += (W / 2 - n.x) * 0.012;
-        n.vy += (H / 2 - n.y) * 0.016;
+        const anc = ancoraDe(n);
+        const forcaAnc = n.tipo === 'ind' ? 0.028 : 0.01;
+        n.vx += (anc.x - n.x) * forcaAnc;
+        n.vy += (anc.y - n.y) * (forcaAnc * 1.4); // segura mais na vertical (canvas baixo)
         n.x += n.vx * 0.08 * esfria;
         n.y += n.vy * 0.08 * esfria;
         n.vx *= 0.55; n.vy *= 0.55;
-        const mx = n.tipo === 'ind' ? 64 : 10; // margem extra pro rótulo da indicadora
+        const mx = n.tipo === 'ind' ? 70 : 10; // margem extra pro rótulo da indicadora
         n.x = Math.max(n.r + mx, Math.min(W - n.r - mx, n.x));
-        n.y = Math.max(n.r + 18, Math.min(H - n.r - 12, n.y));
+        n.y = Math.max(n.r + 34, Math.min(H - n.r - 12, n.y));
       }
     }
-    return { nodos, links, indDe };
-  }, [oportunidades]);
+    return { nodos, links, indDe, categorias };
+  }, [oportunidades, filtro]);
 
   const offs = offsBox.base === nodos ? offsBox.offs : {};
 
@@ -180,9 +231,9 @@ export default function TeiaIndicacoes({
     if (!svg) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const r = svg.getBoundingClientRect();
-      const ux = (e.clientX - r.left) * (W / r.width);
-      const uy = (e.clientY - r.top) * (H / r.height);
+      const g = geomSvg(svg);
+      const ux = (e.clientX - g.left - g.ox) / g.s;
+      const uy = (e.clientY - g.top - g.oy) / g.s;
       const fator = Math.exp(-e.deltaY * 0.0016);
       setView((v) => {
         const k = Math.min(4, Math.max(0.4, v.k * fator));
@@ -193,19 +244,13 @@ export default function TeiaIndicacoes({
     return () => svg.removeEventListener('wheel', onWheel);
   }, []);
 
-  if (!nodos.length) return null;
+  if (!nodos.length && filtro === 'todas') return null;
 
   /** Posição final do nó = layout da simulação + arrasto manual do cluster. */
   const fin = (n: Nodo): { x: number; y: number } => {
     const indId = n.tipo === 'ind' ? n.id : indDe.get(n.id);
     const o = indId ? offs[indId] : undefined;
     return o ? { x: n.x + o.dx, y: n.y + o.dy } : { x: n.x, y: n.y };
-  };
-
-  /** Delta de pixels da tela → unidades do viewBox. */
-  const escala = (): number => {
-    const r = svgRef.current?.getBoundingClientRect();
-    return r ? W / r.width : 1;
   };
 
   const zoomBotao = (fator: number) =>
@@ -229,10 +274,10 @@ export default function TeiaIndicacoes({
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = dragRef.current;
-    if (!d) return;
-    const s = escala();
-    const dx = (e.clientX - d.px) * s;
-    const dy = (e.clientY - d.py) * s;
+    if (!d || !svgRef.current) return;
+    const g = geomSvg(svgRef.current);
+    const dx = (e.clientX - d.px) / g.s;
+    const dy = (e.clientY - d.py) / g.s;
     if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
     if (d.modo === 'pan') {
       setView((v) => ({ ...v, tx: d.baseTx + dx, ty: d.baseTy + dy }));
@@ -251,6 +296,7 @@ export default function TeiaIndicacoes({
   };
 
   const larguraTooltip = 260;
+  const gruposVisiveis = filtro === 'todas' ? [...categorias] : [];
 
   return (
     <div
@@ -269,8 +315,26 @@ export default function TeiaIndicacoes({
         <span className="text-ber-gray/60">tamanho = valor · scroll = zoom · arraste o fundo = navega</span>
       </div>
 
+      {/* filtro por categoria */}
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {CATEGORIAS.filter((c) => c.id === 'todas' || categorias.has(c.id as Categoria)).map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => { setFiltro(c.id); setView({ k: 1, tx: 0, ty: 0 }); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              filtro === c.id
+                ? 'bg-ber-carbon text-white border-ber-carbon'
+                : 'bg-white text-ber-gray border-ber-border hover:bg-ber-surface'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       {/* controles de zoom */}
-      <div className="absolute right-2 top-8 z-10 flex flex-col gap-1">
+      <div className="absolute right-2 top-16 z-10 flex flex-col gap-1">
         <button type="button" onClick={() => zoomBotao(1.35)} aria-label="Aproximar"
           className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-carbon flex items-center justify-center hover:bg-ber-surface shadow-sm">
           <Plus size={16} />
@@ -288,8 +352,9 @@ export default function TeiaIndicacoes({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
         className="w-full cursor-grab active:cursor-grabbing select-none"
-        style={{ touchAction: 'pan-y' }}
+        style={{ height: 'clamp(300px, 36vw, 520px)', touchAction: 'pan-y' }}
         role="img"
         aria-label="Teia de indicações: empresas indicadoras conectadas aos negócios"
         onPointerDown={onPointerDownFundo}
@@ -298,6 +363,16 @@ export default function TeiaIndicacoes({
         onPointerCancel={onPointerUp}
       >
         <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
+          {/* rótulos dos grupos (só no modo Todas) */}
+          {gruposVisiveis.map((cat) => (
+            <text
+              key={`g-${cat}`} x={ANCORAS[cat].x} y={22} textAnchor="middle"
+              fontSize={12} fontWeight={700} letterSpacing={2} fill="#B9BBAF"
+              className="pointer-events-none"
+            >
+              {GRUPO_LABEL[cat]}
+            </text>
+          ))}
           {links.map(([a, b]) => {
             const pa = fin(a), pb = fin(b);
             return <line key={`${a.id}-${b.id}`} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#D4D6CA" strokeWidth={1.2} />;
@@ -344,6 +419,10 @@ export default function TeiaIndicacoes({
           })}
         </g>
       </svg>
+
+      {!nodos.length && (
+        <p className="text-sm text-ber-gray py-8 text-center">Nenhuma indicadora nessa categoria.</p>
+      )}
 
       {hover && mouse && (
         <div
