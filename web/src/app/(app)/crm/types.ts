@@ -234,7 +234,7 @@ export interface Oportunidade {
   fichaEnviadaEm?: string | null;
   etapa: string;
   origem: string | null;
-  origemEmpresa?: { id: string; razaoSocial: string } | null;
+  origemEmpresa?: { id: string; razaoSocial: string; classificacao?: string | null } | null;
   probabilidade: string | null;
   dataFechamentoPrevisto: string | null;
   dataEntradaPipeline: string | null;

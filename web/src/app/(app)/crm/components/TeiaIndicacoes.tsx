@@ -127,8 +127,11 @@ function statsInd(ops: Oportunidade[]): { ganhos: number; perdidos: number; aber
   return { ganhos, perdidos, abertos, valorGanho };
 }
 
-/** Categoria da indicadora = origem mais frequente entre os negócios dela. */
-function categoriaDe(ops: Oportunidade[]): Categoria {
+/** Categoria da indicadora: classificação do CADASTRO manda (Bruno 20/10:
+ *  "Gamaro não é arquitetura, é incorporadora"); sem classificação, vale a
+ *  origem mais frequente entre os negócios dela. */
+function categoriaDe(ops: Oportunidade[], classificacao?: string | null): Categoria {
+  if (classificacao) return categoriaDeClassificacao(classificacao);
   const cont: Record<string, number> = {};
   for (const o of ops) if (o.origem) cont[o.origem] = (cont[o.origem] ?? 0) + 1;
   const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -208,10 +211,10 @@ export default function TeiaIndicacoes({
     const comInd = oportunidades.filter((o) =>
       o.origemEmpresa &&
       (ano === 'todos' || new Date(o.dataEntradaPipeline ?? o.createdAt).getFullYear() === ano));
-    const porInd = new Map<string, { nome: string; ops: Oportunidade[] }>();
+    const porInd = new Map<string, { nome: string; classificacao: string | null; ops: Oportunidade[] }>();
     for (const op of comInd) {
       const e = op.origemEmpresa!;
-      if (!porInd.has(e.id)) porInd.set(e.id, { nome: e.razaoSocial, ops: [] });
+      if (!porInd.has(e.id)) porInd.set(e.id, { nome: e.razaoSocial, classificacao: e.classificacao ?? null, ops: [] });
       porInd.get(e.id)!.ops.push(op);
     }
     const indDe = new Map<string, string>(); // id do negócio → id da indicadora
@@ -221,7 +224,7 @@ export default function TeiaIndicacoes({
     const radarSo = radar.filter((e) => !porInd.has(e.id));
     if (!porInd.size && !radarSo.length) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias };
 
-    const grupos = [...porInd.entries()].map(([id, g]) => ({ id, ...g, cat: categoriaDe(g.ops) }));
+    const grupos = [...porInd.entries()].map(([id, g]) => ({ id, ...g, cat: categoriaDe(g.ops, g.classificacao) }));
     grupos.forEach((g) => categorias.add(g.cat));
     radarSo.forEach((e) => categorias.add(categoriaDeClassificacao(e.classificacao)));
     const visiveis = (filtro === 'todas' ? grupos : grupos.filter((g) => g.cat === filtro))

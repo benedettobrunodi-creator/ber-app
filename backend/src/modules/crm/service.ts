@@ -405,7 +405,7 @@ export async function listOportunidades(opts: {
     orderBy: [{ ordem: { sort: 'asc', nulls: 'last' } }, { updatedAt: 'desc' }],
     include: {
       empresa: { select: { id: true, razaoSocial: true, segmento: true } },
-      origemEmpresa: { select: { id: true, razaoSocial: true } },
+      origemEmpresa: { select: { id: true, razaoSocial: true, classificacao: true } },
       contato: { select: { id: true, nome: true, cargo: true } },
       responsavel: { select: { id: true, name: true, avatarUrl: true } },
       responsavelOrcamento: { select: { id: true, name: true } },
@@ -516,7 +516,7 @@ export async function getOportunidadeById(id: string) {
     where: { id },
     include: {
       empresa: true,
-      origemEmpresa: { select: { id: true, razaoSocial: true } },
+      origemEmpresa: { select: { id: true, razaoSocial: true, classificacao: true } },
       contato: true,
       responsavel: { select: { id: true, name: true, avatarUrl: true } },
       responsavelOrcamento: { select: { id: true, name: true } },
