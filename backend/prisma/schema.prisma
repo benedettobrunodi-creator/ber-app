@@ -2244,6 +2244,7 @@ model CrmEmpresa {
 
   contatos      CrmContato[]
   oportunidades CrmOportunidade[]
+  oportunidadesIndicadas CrmOportunidade[] @relation("CrmOportOrigemEmpresa")
 
   @@index([nutricao])
   @@map("crm_empresas")
@@ -2370,6 +2371,9 @@ model CrmOportunidade {
   metragemM2             Decimal?  @map("metragem_m2") @db.Decimal(10, 2) // área da obra em m² (preenchido pelo time, 15/10/26)
   etapa                  String    @default("lead") @db.VarChar(50)
   origem                 String?   @db.VarChar(50)
+  /// Empresa indicadora quando a origem é categoria com empresas recorrentes
+  /// (gerenciadora / arquitetura / broker) — Bruno 20/10/26
+  origemEmpresaId        String?   @map("origem_empresa_id") @db.Uuid
   probabilidade          String?   @db.VarChar(20)
   dataFechamentoPrevisto DateTime? @map("data_fechamento_previsto") @db.Date
   dataEntradaPipeline    DateTime? @map("data_entrada_pipeline") @db.Date
@@ -2394,6 +2398,7 @@ model CrmOportunidade {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
   empresa     CrmEmpresa?                @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  origemEmpresa CrmEmpresa?              @relation("CrmOportOrigemEmpresa", fields: [origemEmpresaId], references: [id], onDelete: SetNull)
   contato     CrmContato?                @relation(fields: [contatoId], references: [id], onDelete: SetNull)
   responsavel User?                      @relation("CrmOportResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
   responsavelOrcamento User?             @relation("CrmOportRespOrcamento", fields: [responsavelOrcamentoId], references: [id], onDelete: SetNull)

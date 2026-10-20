@@ -23,6 +23,15 @@ export const ORIGENS = [
   { value: 'change_order',  label: 'Change Order' },
 ] as const;
 
+/** Origens com empresas recorrentes (Bruno 20/10/26): selecionou uma delas →
+ *  abre o campo "qual empresa?" (busca nos cadastrados + cadastrar na hora).
+ *  Valor = classificação sugerida pro cadastro da empresa indicadora. */
+export const ORIGENS_COM_EMPRESA: Record<string, string> = {
+  gerenciadora: 'Gerenciadora',
+  arquitetura: 'Arquitetura',
+  broker: 'Broker',
+};
+
 export const PROBABILIDADES = [
   { value: 'alta',  label: 'Alta',  pct: 80 },
   { value: 'media', label: 'Média', pct: 50 },
@@ -223,6 +232,7 @@ export interface Oportunidade {
   fichaEnviadaEm?: string | null;
   etapa: string;
   origem: string | null;
+  origemEmpresa?: { id: string; razaoSocial: string } | null;
   probabilidade: string | null;
   dataFechamentoPrevisto: string | null;
   dataEntradaPipeline: string | null;

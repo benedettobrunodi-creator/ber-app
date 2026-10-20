@@ -7,7 +7,7 @@ import { Plus, Clock, X, AlertCircle, Trash2, LayoutGrid, LayoutList, User as Us
 import { DndContext, DragEndEvent, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ETAPAS, ETAPA_MAP, ORIGENS, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, FichaCadastro, fmt, fmtDate, diasAtras } from '../types';
+import { ETAPAS, ETAPA_MAP, ORIGENS, ORIGENS_COM_EMPRESA, PROBABILIDADES, SEGMENTOS, TIPOS_ATIVIDADE, Oportunidade, Atividade, Contato, User, FichaCadastro, fmt, fmtDate, diasAtras } from '../types';
 import NovaObraModal from '@/components/obras/NovaObraModal';
 import FichaCadastroModal from './FichaCadastroModal';
 
@@ -241,8 +241,9 @@ function CardOportunidade({
           <span className="text-xs font-bold text-ber-carbon">{fmt(op.valor)}</span>
         )}
         {op.origem && (
-          <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize">
+          <span className="text-[10px] bg-ber-surface text-ber-gray px-1.5 py-0.5 rounded capitalize truncate max-w-[160px]">
             {ORIGENS.find((o) => o.value === op.origem)?.label ?? op.origem}
+            {op.origemEmpresa ? ` · ${op.origemEmpresa.razaoSocial}` : ''}
           </span>
         )}
       </div>
@@ -287,6 +288,113 @@ function CardOportunidade({
   );
 }
 
+/** Campo "Empresa indicadora" (Bruno 20/10/26): origem com empresas recorrentes
+ *  (gerenciadora/arquitetura/broker) → busca nas cadastradas ou cadastra na hora
+ *  com a classificação da origem. */
+function EmpresaIndicadoraField({
+  classificacao,
+  value,
+  onChange,
+}: {
+  classificacao: string;
+  value: { id: string; razaoSocial: string } | null;
+  onChange: (v: { id: string; razaoSocial: string } | null) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  const [sugestoes, setSugestoes] = useState<{ id: string; razaoSocial: string; classificacao?: string | null }[]>([]);
+  const [aberto, setAberto] = useState(false);
+  const [criando, setCriando] = useState(false);
+  const [erro, setErro] = useState('');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      api.get(`/crm/empresas?search=${encodeURIComponent(busca.trim())}`)
+        .then((r) => setSugestoes((Array.isArray(r.data) ? r.data : []).slice(0, 8)))
+        .catch(() => setSugestoes([]));
+    }, 300);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [busca, aberto]);
+
+  async function cadastrar() {
+    const nome = busca.trim();
+    if (!nome || criando) return;
+    setCriando(true);
+    setErro('');
+    try {
+      const res = await api.post('/crm/empresas', { razaoSocial: nome, classificacao });
+      onChange({ id: res.data.id, razaoSocial: res.data.razaoSocial });
+      setAberto(false);
+      setBusca('');
+    } catch {
+      setErro('Erro ao cadastrar empresa');
+    }
+    setCriando(false);
+  }
+
+  if (value) {
+    return (
+      <div className="mt-1 flex items-center gap-2 border border-ber-border rounded-lg px-3 py-2 text-sm bg-ber-surface/50">
+        <span className="flex-1 truncate font-medium text-ber-carbon">{value.razaoSocial}</span>
+        <button
+          type="button"
+          onClick={() => { onChange(null); setBusca(''); setAberto(false); }}
+          className="text-ber-gray hover:text-ber-red p-2 -m-1"
+          aria-label="Remover empresa indicadora"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  const nomeNovo = busca.trim();
+  const jaExiste = sugestoes.some((s) => s.razaoSocial.toLowerCase() === nomeNovo.toLowerCase());
+  return (
+    <div className="relative">
+      <input
+        className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
+        placeholder="Buscar cadastrada ou digitar nova…"
+        value={busca}
+        onChange={(e) => { setBusca(e.target.value); setAberto(true); }}
+        onFocus={() => setAberto(true)}
+        onBlur={() => setTimeout(() => setAberto(false), 200)}
+      />
+      {aberto && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-ber-border rounded-lg shadow-lg max-h-56 overflow-auto">
+          {sugestoes.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="w-full text-left px-3 py-2.5 text-sm hover:bg-ber-surface flex items-center justify-between gap-2"
+              onMouseDown={(e) => { e.preventDefault(); onChange({ id: s.id, razaoSocial: s.razaoSocial }); setAberto(false); setBusca(''); }}
+            >
+              <span className="truncate">{s.razaoSocial}</span>
+              {s.classificacao && <span className="text-[10px] text-ber-gray shrink-0">{s.classificacao}</span>}
+            </button>
+          ))}
+          {nomeNovo && !jaExiste && (
+            <button
+              type="button"
+              disabled={criando}
+              className="w-full text-left px-3 py-2.5 text-sm text-ber-teal font-medium hover:bg-ber-surface border-t border-ber-border"
+              onMouseDown={(e) => { e.preventDefault(); cadastrar(); }}
+            >
+              {criando ? 'Cadastrando…' : `+ Cadastrar “${nomeNovo}” como ${classificacao}`}
+            </button>
+          )}
+          {!sugestoes.length && !nomeNovo && (
+            <p className="px-3 py-2 text-xs text-ber-gray">Digite pra buscar…</p>
+          )}
+        </div>
+      )}
+      {erro && <p className="text-xs text-ber-red mt-1">{erro}</p>}
+    </div>
+  );
+}
+
 function OportunidadeDrawer({
   op,
   users,
@@ -307,6 +415,7 @@ function OportunidadeDrawer({
     ficha: (op?.ficha ?? null) as FichaCadastro | null,
     etapa: op?.etapa ?? 'lead',
     origem: op?.origem ?? '',
+    origemEmpresa: (op?.origemEmpresa ?? null) as { id: string; razaoSocial: string } | null,
     probabilidade: op?.probabilidade ?? '',
     responsavelId: op?.responsavel?.id ?? '',
     responsavelOrcamentoId: op?.responsavelOrcamento?.id ?? '',
@@ -426,6 +535,9 @@ function OportunidadeDrawer({
         valor: valorNum && valorNum > 0 ? valorNum : null,
         metragemM2: form.metragemM2 && Number(form.metragemM2) > 0 ? Number(form.metragemM2) : null,
         origem: form.origem || null,
+        // Empresa indicadora só faz sentido em origem com empresas recorrentes;
+        // trocar pra outra origem limpa o vínculo.
+        origemEmpresaId: ORIGENS_COM_EMPRESA[form.origem] ? (form.origemEmpresa?.id ?? null) : null,
         probabilidade: form.probabilidade || null,
         responsavelId: form.responsavelId || null,
         responsavelOrcamentoId: form.responsavelOrcamentoId || null,
@@ -585,6 +697,20 @@ function OportunidadeDrawer({
               </select>
             </div>
           </div>
+          {/* Empresa indicadora (Bruno 20/10/26): origem com empresas recorrentes → qual empresa? */}
+          {ORIGENS_COM_EMPRESA[form.origem] && (
+            <div>
+              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">
+                Empresa indicadora
+                <span className="ml-1 font-normal normal-case text-ber-gray/60">({ORIGENS_COM_EMPRESA[form.origem]})</span>
+              </label>
+              <EmpresaIndicadoraField
+                classificacao={ORIGENS_COM_EMPRESA[form.origem]}
+                value={form.origemEmpresa}
+                onChange={(v) => setForm((f) => ({ ...f, origemEmpresa: v }))}
+              />
+            </div>
+          )}
           {/* Segmento — atualiza a empresa vinculada */}
           {(op?.empresa?.id || !isNew) && op?.empresa && (
             <div>

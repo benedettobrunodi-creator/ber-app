@@ -224,6 +224,8 @@ export const createOportunidadeSchema = z.object({
   ficha: fichaCadastroSchema.optional().nullable(),
   etapa: z.enum(CRM_ETAPAS).default('lead'),
   origem: z.enum(CRM_ORIGENS).optional().nullable(),
+  // Empresa indicadora (gerenciadora/arquitetura/broker) — Bruno 20/10/26
+  origemEmpresaId: z.string().uuid().optional().nullable(),
   probabilidade: z.enum(CRM_PROBABILIDADES).optional().nullable(),
   dataFechamentoPrevisto: dateOrNull,
   dataEntradaPipeline: dateOrNull,
