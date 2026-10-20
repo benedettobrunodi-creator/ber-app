@@ -57,6 +57,13 @@ function resultadoDe(op: Oportunidade): string {
   return 'aberto';
 }
 
+/** valor vem da API como string (Decimal do Prisma serializado) — somar sem
+ *  converter vira concatenação e NaN derruba o layout inteiro (bug 20/10). */
+function val(op: Oportunidade): number {
+  const n = Number(op.valor ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function TeiaIndicacoes({
   oportunidades,
   onDrill,
@@ -76,15 +83,15 @@ export default function TeiaIndicacoes({
     }
     if (!porInd.size) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][] };
 
-    const maxValor = Math.max(1, ...comInd.map((o) => o.valor ?? 0));
+    const maxValor = Math.max(1, ...comInd.map(val));
     const rNeg = (v: number) => 4 + 18 * Math.sqrt((v || 0) / maxValor);
-    const maxTotal = Math.max(1, ...[...porInd.values()].map((g) => g.ops.reduce((s, o) => s + (o.valor ?? 0), 0)));
+    const maxTotal = Math.max(1, ...[...porInd.values()].map((g) => g.ops.reduce((s, o) => s + val(o), 0)));
     const rInd = (t: number) => 10 + 14 * Math.sqrt(t / maxTotal);
 
     const nodos: Nodo[] = [];
     const links: [Nodo, Nodo][] = [];
     for (const [id, g] of porInd) {
-      const total = g.ops.reduce((s, o) => s + (o.valor ?? 0), 0);
+      const total = g.ops.reduce((s, o) => s + val(o), 0);
       const a = hash01(id) * Math.PI * 2;
       const ind: NodoInd = {
         tipo: 'ind', id, nome: g.nome, total, ops: g.ops, r: rInd(total),
@@ -94,7 +101,7 @@ export default function TeiaIndicacoes({
       for (const op of g.ops) {
         const b = hash01(op.id) * Math.PI * 2;
         const neg: NodoNeg = {
-          tipo: 'neg', id: op.id, op, res: resultadoDe(op), r: rNeg(op.valor ?? 0),
+          tipo: 'neg', id: op.id, op, res: resultadoDe(op), r: rNeg(val(op)),
           x: ind.x + Math.cos(b) * 60, y: ind.y + Math.sin(b) * 60, vx: 0, vy: 0,
         };
         nodos.push(neg);
@@ -208,7 +215,7 @@ export default function TeiaIndicacoes({
             <>
               <p className="text-xs font-bold text-ber-carbon">{hover.op.titulo}</p>
               <p className="text-[11px] text-ber-gray">
-                {hover.op.valor ? fmt(hover.op.valor) : 'sem valor'} · {hover.res === 'aberto' ? 'em aberto' : hover.res}
+                {val(hover.op) ? fmt(val(hover.op)) : 'sem valor'} · {hover.res === 'aberto' ? 'em aberto' : hover.res}
               </p>
             </>
           )}
