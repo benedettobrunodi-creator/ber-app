@@ -7,10 +7,13 @@
  *
  * Layout por simulação de força própria (repulsão + mola nos links + centro +
  * anti-sobreposição), rodada de forma síncrona e determinística no useMemo —
- * sem dependência de d3 e sem animação (resultado estático, leve pro mobile).
- * Clique na indicadora abre o drill-down com os negócios dela.
+ * sem dependência de d3 e sem animação. Interações (pedidos Bruno 20/10):
+ * zoom (scroll + botões), pan arrastando o fundo, arrastar uma INDICADORA
+ * move o cluster dela inteiro, tooltip segue o mouse, clique na indicadora
+ * abre o drill-down.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { Oportunidade, fmt } from '../types';
 
 const COR_INDICADORA = '#1E1E22';
@@ -64,6 +67,10 @@ function val(op: Oportunidade): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+type Drag =
+  | { modo: 'pan'; px: number; py: number; baseTx: number; baseTy: number; moved: boolean }
+  | { modo: 'no'; id: string; px: number; py: number; baseDx: number; baseDy: number; moved: boolean };
+
 export default function TeiaIndicacoes({
   oportunidades,
   onDrill,
@@ -72,8 +79,17 @@ export default function TeiaIndicacoes({
   onDrill: (title: string, ops: Oportunidade[]) => void;
 }) {
   const [hover, setHover] = useState<Nodo | null>(null);
+  const [mouse, setMouse] = useState<{ x: number; y: number; cw: number } | null>(null);
+  const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
+  /** Deslocamento manual por indicadora (arrasto move o cluster inteiro).
+   *  Guardado junto com a identidade do layout base: dataset mudou → os
+   *  arrastos antigos são descartados sem precisar de effect. */
+  const [offsBox, setOffsBox] = useState<{ base: unknown; offs: Record<string, { dx: number; dy: number }> }>({ base: null, offs: {} });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<Drag | null>(null);
+  const arrastouRef = useRef(false); // suprime o clique que vem depois de um arrasto
 
-  const { nodos, links } = useMemo(() => {
+  const { nodos, links, indDe } = useMemo(() => {
     const comInd = oportunidades.filter((o) => o.origemEmpresa);
     const porInd = new Map<string, { nome: string; ops: Oportunidade[] }>();
     for (const op of comInd) {
@@ -81,7 +97,8 @@ export default function TeiaIndicacoes({
       if (!porInd.has(e.id)) porInd.set(e.id, { nome: e.razaoSocial, ops: [] });
       porInd.get(e.id)!.ops.push(op);
     }
-    if (!porInd.size) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][] };
+    const indDe = new Map<string, string>(); // id do negócio → id da indicadora
+    if (!porInd.size) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe };
 
     const maxValor = Math.max(1, ...comInd.map(val));
     const rNeg = (v: number) => 4 + 18 * Math.sqrt((v || 0) / maxValor);
@@ -106,6 +123,7 @@ export default function TeiaIndicacoes({
         };
         nodos.push(neg);
         links.push([ind, neg]);
+        indDe.set(op.id, id);
       }
     }
 
@@ -151,61 +169,191 @@ export default function TeiaIndicacoes({
         n.y = Math.max(n.r + 18, Math.min(H - n.r - 12, n.y));
       }
     }
-    return { nodos, links };
+    return { nodos, links, indDe };
   }, [oportunidades]);
+
+  const offs = offsBox.base === nodos ? offsBox.offs : {};
+
+  // Zoom pelo scroll precisa de listener não-passivo (preventDefault barra o scroll da página)
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      const ux = (e.clientX - r.left) * (W / r.width);
+      const uy = (e.clientY - r.top) * (H / r.height);
+      const fator = Math.exp(-e.deltaY * 0.0016);
+      setView((v) => {
+        const k = Math.min(4, Math.max(0.4, v.k * fator));
+        return { k, tx: ux - ((ux - v.tx) / v.k) * k, ty: uy - ((uy - v.ty) / v.k) * k };
+      });
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, []);
 
   if (!nodos.length) return null;
 
+  /** Posição final do nó = layout da simulação + arrasto manual do cluster. */
+  const fin = (n: Nodo): { x: number; y: number } => {
+    const indId = n.tipo === 'ind' ? n.id : indDe.get(n.id);
+    const o = indId ? offs[indId] : undefined;
+    return o ? { x: n.x + o.dx, y: n.y + o.dy } : { x: n.x, y: n.y };
+  };
+
+  /** Delta de pixels da tela → unidades do viewBox. */
+  const escala = (): number => {
+    const r = svgRef.current?.getBoundingClientRect();
+    return r ? W / r.width : 1;
+  };
+
+  const zoomBotao = (fator: number) =>
+    setView((v) => {
+      const k = Math.min(4, Math.max(0.4, v.k * fator));
+      const cx = W / 2, cy = H / 2;
+      return { k, tx: cx - ((cx - v.tx) / v.k) * k, ty: cy - ((cy - v.ty) / v.k) * k };
+    });
+
+  const onPointerDownFundo = (e: React.PointerEvent<SVGSVGElement>) => {
+    svgRef.current?.setPointerCapture(e.pointerId);
+    dragRef.current = { modo: 'pan', px: e.clientX, py: e.clientY, baseTx: view.tx, baseTy: view.ty, moved: false };
+  };
+
+  const onPointerDownInd = (n: NodoInd) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    svgRef.current?.setPointerCapture(e.pointerId);
+    const o = offs[n.id] ?? { dx: 0, dy: 0 };
+    dragRef.current = { modo: 'no', id: n.id, px: e.clientX, py: e.clientY, baseDx: o.dx, baseDy: o.dy, moved: false };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const s = escala();
+    const dx = (e.clientX - d.px) * s;
+    const dy = (e.clientY - d.py) * s;
+    if (Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
+    if (d.modo === 'pan') {
+      setView((v) => ({ ...v, tx: d.baseTx + dx, ty: d.baseTy + dy }));
+    } else {
+      const id = d.id;
+      setOffsBox((b) => ({
+        base: nodos,
+        offs: { ...(b.base === nodos ? b.offs : {}), [id]: { dx: d.baseDx + dx / view.k, dy: d.baseDy + dy / view.k } },
+      }));
+    }
+  };
+
+  const onPointerUp = () => {
+    arrastouRef.current = dragRef.current?.moved ?? false;
+    dragRef.current = null;
+  };
+
+  const larguraTooltip = 260;
+
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        setMouse({ x: e.clientX - r.left, y: e.clientY - r.top, cw: r.width });
+      }}
+      onMouseLeave={() => setHover(null)}
+    >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-[11px] text-ber-gray">
-        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_INDICADORA }} />Indicadora (clique = negócios dela)</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_INDICADORA }} />Indicadora (clique = negócios · arraste = reposiciona)</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.aberto }} />Em aberto</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.ganho }} />Ganho</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.perdido }} />Perdido</span>
-        <span className="text-ber-gray/60">tamanho = valor</span>
+        <span className="text-ber-gray/60">tamanho = valor · scroll = zoom · arraste o fundo = navega</span>
       </div>
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[560px]" role="img" aria-label="Teia de indicações: empresas indicadoras conectadas aos negócios">
-          {links.map(([a, b]) => (
-            <line key={`${a.id}-${b.id}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#D4D6CA" strokeWidth={1.2} />
-          ))}
-          {nodos.map((n) => (
-            <g
-              key={n.id}
-              onMouseEnter={() => setHover(n)}
-              onMouseLeave={() => setHover((h) => (h?.id === n.id ? null : h))}
-              onClick={() => {
-                if (n.tipo === 'ind') onDrill(`Indicados por ${n.nome}`, n.ops);
-                else setHover((h) => (h?.id === n.id ? null : n)); // mobile: toque mostra o tooltip
-              }}
-              className="cursor-pointer"
-            >
-              {/* alvo de toque maior que o nó (mobile) */}
-              <circle cx={n.x} cy={n.y} r={Math.max(n.r, 16)} fill="transparent" />
-              <circle
-                cx={n.x} cy={n.y} r={n.r}
-                fill={n.tipo === 'ind' ? COR_INDICADORA : COR_RESULTADO[n.res]}
-                stroke="#F7F7F5" strokeWidth={2}
-                opacity={hover && hover.id !== n.id && hover.tipo === 'ind' && n.tipo === 'neg' && !(hover as NodoInd).ops.some((o) => o.id === n.id) ? 0.35 : 1}
-              />
-            </g>
-          ))}
+
+      {/* controles de zoom */}
+      <div className="absolute right-2 top-8 z-10 flex flex-col gap-1">
+        <button type="button" onClick={() => zoomBotao(1.35)} aria-label="Aproximar"
+          className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-carbon flex items-center justify-center hover:bg-ber-surface shadow-sm">
+          <Plus size={16} />
+        </button>
+        <button type="button" onClick={() => zoomBotao(1 / 1.35)} aria-label="Afastar"
+          className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-carbon flex items-center justify-center hover:bg-ber-surface shadow-sm">
+          <Minus size={16} />
+        </button>
+        <button type="button" onClick={() => { setView({ k: 1, tx: 0, ty: 0 }); setOffsBox({ base: nodos, offs: {} }); }} aria-label="Restaurar desenho"
+          className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-gray flex items-center justify-center hover:bg-ber-surface shadow-sm">
+          <RotateCcw size={14} />
+        </button>
+      </div>
+
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full cursor-grab active:cursor-grabbing select-none"
+        style={{ touchAction: 'pan-y' }}
+        role="img"
+        aria-label="Teia de indicações: empresas indicadoras conectadas aos negócios"
+        onPointerDown={onPointerDownFundo}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
+          {links.map(([a, b]) => {
+            const pa = fin(a), pb = fin(b);
+            return <line key={`${a.id}-${b.id}`} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#D4D6CA" strokeWidth={1.2} />;
+          })}
+          {nodos.map((n) => {
+            const p = fin(n);
+            return (
+              <g
+                key={n.id}
+                onMouseEnter={() => setHover(n)}
+                onMouseLeave={() => setHover((h) => (h?.id === n.id ? null : h))}
+                onPointerDown={n.tipo === 'ind' ? onPointerDownInd(n) : undefined}
+                onClick={() => {
+                  if (arrastouRef.current) { arrastouRef.current = false; return; }
+                  if (n.tipo === 'ind') onDrill(`Indicados por ${n.nome}`, n.ops);
+                  else setHover((h) => (h?.id === n.id ? null : n)); // mobile: toque mostra o tooltip
+                }}
+                className={n.tipo === 'ind' ? 'cursor-move' : 'cursor-pointer'}
+              >
+                {/* alvo de toque maior que o nó (mobile) */}
+                <circle cx={p.x} cy={p.y} r={Math.max(n.r, 16)} fill="transparent" />
+                <circle
+                  cx={p.x} cy={p.y} r={n.r}
+                  fill={n.tipo === 'ind' ? COR_INDICADORA : COR_RESULTADO[n.res]}
+                  stroke="#F7F7F5" strokeWidth={2}
+                  opacity={hover && hover.id !== n.id && hover.tipo === 'ind' && n.tipo === 'neg' && !(hover as NodoInd).ops.some((o) => o.id === n.id) ? 0.35 : 1}
+                />
+              </g>
+            );
+          })}
           {/* rótulos numa camada própria, por cima de todos os nós, com halo */}
-          {nodos.filter((n): n is NodoInd => n.tipo === 'ind').map((n) => (
-            <text
-              key={`l-${n.id}`} x={n.x} y={n.y - n.r - 6} textAnchor="middle"
-              fontSize={11.5} fontWeight={700} fill="#1E1E22"
-              stroke="#F7F7F5" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round"
-              className="pointer-events-none"
-            >
-              {encurta(n.nome)}
-            </text>
-          ))}
-        </svg>
-      </div>
-      {hover && (
-        <div className="absolute top-8 right-2 bg-white border border-ber-border rounded-lg shadow-lg px-3 py-2 max-w-[260px] pointer-events-none">
+          {nodos.filter((n): n is NodoInd => n.tipo === 'ind').map((n) => {
+            const p = fin(n);
+            return (
+              <text
+                key={`l-${n.id}`} x={p.x} y={p.y - n.r - 6} textAnchor="middle"
+                fontSize={11.5} fontWeight={700} fill="#1E1E22"
+                stroke="#F7F7F5" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round"
+                className="pointer-events-none"
+              >
+                {encurta(n.nome)}
+              </text>
+            );
+          })}
+        </g>
+      </svg>
+
+      {hover && mouse && (
+        <div
+          className="absolute bg-white border border-ber-border rounded-lg shadow-lg px-3 py-2 pointer-events-none z-10"
+          style={{
+            left: Math.min(mouse.x + 14, Math.max(0, mouse.cw - larguraTooltip)),
+            top: mouse.y + 16,
+            maxWidth: larguraTooltip,
+          }}
+        >
           {hover.tipo === 'ind' ? (
             <>
               <p className="text-xs font-bold text-ber-carbon">{hover.nome}</p>
