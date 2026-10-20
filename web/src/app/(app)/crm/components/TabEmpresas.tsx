@@ -122,6 +122,7 @@ function EmpresaDrawer({
     setor: empresa?.setor ?? '',
     cidade: empresa?.cidade ?? '',
     nutricao: empresa?.nutricao ?? false,
+    radar: empresa?.radar ?? false,
     observacoes: '',
   });
   const [newContato, setNewContato] = useState({ nome: '', cargo: '', email: '', telefone: '' });
@@ -200,6 +201,10 @@ function EmpresaDrawer({
           <div className="flex items-center gap-2">
             <input type="checkbox" id="nutricao" checked={form.nutricao} onChange={(e) => setForm((f) => ({ ...f, nutricao: e.target.checked }))} className="w-4 h-4" />
             <label htmlFor="nutricao" className="text-sm text-ber-carbon">Em nutrição (sem oportunidade ativa)</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="radar" checked={form.radar} onChange={(e) => setForm((f) => ({ ...f, radar: e.target.checked }))} className="w-4 h-4" />
+            <label htmlFor="radar" className="text-sm text-ber-carbon">Radar de aproximação (aparece na Teia de Indicações)</label>
           </div>
           {isNew && (
             <div className="border border-ber-border rounded-lg p-3 space-y-3">

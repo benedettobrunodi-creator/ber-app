@@ -18,11 +18,13 @@ import {
 
 export async function listEmpresas(opts: {
   nutricao?: boolean;
+  radar?: boolean;
   segmento?: string;
   search?: string;
 }) {
   const where: Record<string, unknown> = {};
   if (opts.nutricao !== undefined) where.nutricao = opts.nutricao;
+  if (opts.radar !== undefined) where.radar = opts.radar;
   if (opts.segmento) where.segmento = opts.segmento;
   if (opts.search) {
     where.OR = [

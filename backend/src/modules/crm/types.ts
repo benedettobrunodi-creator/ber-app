@@ -127,6 +127,7 @@ export const createEmpresaSchema = z.object({
   cidade: z.string().max(100).optional().nullable(),
   site: z.string().max(255).optional().nullable(),
   nutricao: z.boolean().default(false),
+  radar: z.boolean().optional(),
   observacoes: z.string().optional().nullable(),
   agendorId: z.string().max(50).optional().nullable(),
 });

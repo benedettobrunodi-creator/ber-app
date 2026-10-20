@@ -129,7 +129,7 @@ export default function CrmPage() {
           <span>· falta <strong className="text-ber-red">{fmtM(farol.falta)}</strong></span>
           <span>· precisa {fmtM(farol.runRateNecessario)}/mês{farol.runRateAtual > 0 ? ` (atual ${fmtM(farol.runRateAtual)}/mês)` : ''}</span>
           {farol.pctFunilNecessario != null && (
-            <span>· {fmtM(farol.valorFunilQuente)} quentes no funil — fechar ~{farol.pctFunilNecessario}% bate a meta</span>
+            <span>· {fmtM(farol.valorFunilQuente)} quentes no funil (prob. alta) — fechar ~{farol.pctFunilNecessario}% bate a meta</span>
           )}
         </div>
       )}

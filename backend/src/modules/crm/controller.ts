@@ -15,8 +15,10 @@ import {
 export async function listEmpresas(req: Request, res: Response, next: NextFunction) {
   try {
     const nutricao = req.query.nutricao === 'true' ? true : req.query.nutricao === 'false' ? false : undefined;
+    const radar = req.query.radar === 'true' ? true : req.query.radar === 'false' ? false : undefined;
     const data = await svc.listEmpresas({
       nutricao,
+      radar,
       segmento: req.query.segmento as string | undefined,
       search: req.query.search as string | undefined,
     });

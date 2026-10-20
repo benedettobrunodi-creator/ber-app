@@ -2236,6 +2236,9 @@ model CrmEmpresa {
   cidade        String?   @db.VarChar(100)
   site          String?   @db.VarChar(255)
   nutricao      Boolean   @default(false)
+  /** Radar de Aproximação (Bruno 20/10/26): lista curada de empresas-alvo por
+   *  segmento, exibida na Teia de Indicações mesmo sem negócio indicado. */
+  radar         Boolean   @default(false)
   ultimoContato DateTime? @map("ultimo_contato")
   observacoes   String?
   agendorId     String?   @unique @map("agendor_id") @db.VarChar(50)

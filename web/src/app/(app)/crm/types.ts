@@ -88,6 +88,8 @@ export interface Empresa {
   setor: string | null;
   cidade: string | null;
   nutricao: boolean;
+  /** Radar de Aproximação: empresa-alvo curada, aparece na Teia mesmo sem indicação. */
+  radar: boolean;
   ultimoContato: string | null;
   contatos: Contato[];
   _count?: { oportunidades: number };

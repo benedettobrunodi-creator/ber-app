@@ -9,7 +9,9 @@ import { getVendasVsMeta } from './service';
 
 const MS_DIA = 86_400_000;
 const MES_MEDIO_DIAS = 30.4375; // 365.25/12 — meses fracionários estáveis
-const ETAPAS_QUENTES = ['proposta_enviada', 'negociacao'] as const;
+// Funil quente (Bruno 20/10/26): oportunidade ABERTA com probabilidade ALTA —
+// não mais por etapa (proposta enviada/negociação) nem classificação ICP.
+const ETAPAS_ABERTAS = ['lead', 'qualificacao', 'proposta_producao', 'proposta_enviada', 'negociacao'] as const;
 
 export interface FarolComercial {
   ano: number;
@@ -52,15 +54,15 @@ export async function calcularFarol(): Promise<FarolComercial> {
   const runRateNecessario = mesesRestantes > 0.1 ? falta / mesesRestantes : falta;
   const multiplicador = runRateAtual > 0 ? runRateNecessario / runRateAtual : null;
 
-  // Funil quente: proposta enviada + negociação (o que dá pra fechar ainda)
+  // Funil quente: aberta + probabilidade alta (o que de fato dá pra fechar)
   const quentes = await prisma.crmOportunidade.findMany({
-    where: { etapa: { in: [...ETAPAS_QUENTES] } },
+    where: { etapa: { in: [...ETAPAS_ABERTAS] }, probabilidade: 'alta' },
     select: {
       id: true, titulo: true, etapa: true, valor: true, updatedAt: true,
       empresa: { select: { razaoSocial: true } },
     },
   });
-  const funilQuente = ETAPAS_QUENTES.map((e) => {
+  const funilQuente = ETAPAS_ABERTAS.map((e) => {
     const das = quentes.filter((q) => q.etapa === e);
     return { etapa: e, valor: das.reduce((s, q) => s + Number(q.valor ?? 0), 0), count: das.length };
   });
@@ -124,7 +126,13 @@ export async function enviarFarolComercial(): Promise<void> {
 
   const appUrl = process.env.APP_PUBLIC_URL ?? 'https://ber-app.vercel.app';
   const dataFmt = agoraSp().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  const ETAPA_LABEL: Record<string, string> = { proposta_enviada: 'proposta enviada', negociacao: 'negociação' };
+  const ETAPA_LABEL: Record<string, string> = {
+    lead: 'lead',
+    qualificacao: 'qualificação',
+    proposta_producao: 'proposta em produção',
+    proposta_enviada: 'proposta enviada',
+    negociacao: 'negociação',
+  };
 
   const linhasParadas = f.paradas.map((p) =>
     `<li style="margin:4px 0;color:#2D2D2D;font-size:13px;">
@@ -135,7 +143,7 @@ export async function enviarFarolComercial(): Promise<void> {
   const funilTxt = f.funilQuente
     .filter((x) => x.count > 0)
     .map((x) => `${fmtM(x.valor)} em ${ETAPA_LABEL[x.etapa] ?? x.etapa} (${x.count})`)
-    .join(' · ') || 'nada em proposta enviada ou negociação';
+    .join(' · ') || 'nenhuma oportunidade com probabilidade alta';
 
   const corpo = `
     <p style="font-size:14px;color:#2D2D2D;margin:0 0 10px;">
@@ -149,7 +157,7 @@ export async function enviarFarolComercial(): Promise<void> {
       Ritmo atual do ano: <strong>${fmtM(f.runRateAtual)}/mês</strong>${f.multiplicador ? ` — precisa de <strong>${f.multiplicador.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x</strong>` : ''}.
     </p>
     <p style="font-size:13px;color:#5C5E54;margin:0 0 14px;">
-      No funil quente: ${funilTxt}${f.pctFunilNecessario != null ? ` — fechar ~<strong>${f.pctFunilNecessario}%</strong> disso bate a meta` : ''}.
+      No funil quente (probabilidade alta): ${funilTxt}${f.pctFunilNecessario != null ? ` — fechar ~<strong>${f.pctFunilNecessario}%</strong> disso bate a meta` : ''}.
     </p>
     ${f.paradas.length ? `<p style="font-size:13px;color:#2D2D2D;margin:0 0 4px;"><strong>Hoje, destravar primeiro:</strong></p><ul style="margin:0 0 14px;padding-left:18px;">${linhasParadas}</ul>` : ''}
     <p style="margin:0;"><a href="${appUrl}/crm" style="color:#5E6B0F;font-weight:600;font-size:13px;">Abrir o CRM →</a></p>`;

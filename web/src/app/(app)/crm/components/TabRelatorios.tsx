@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { fmt, Oportunidade } from '../types';
 import DrilldownModal from './DrilldownModal';
-import TeiaIndicacoes from './TeiaIndicacoes';
+import TeiaIndicacoes, { EmpresaRadar } from './TeiaIndicacoes';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -177,6 +177,8 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
   const [prodAno, setProdAno] = useState(ano);
   const [prodMes, setProdMes] = useState(0); // 0 = ano todo
   const [prodEnviados, setProdEnviados] = useState(false);
+  /** Radar de Aproximação (Bruno 20/10/26): empresas-alvo curadas pra teia. */
+  const [radarEmpresas, setRadarEmpresas] = useState<EmpresaRadar[]>([]);
   const [produtividade, setProdutividade] = useState<{
     responsavelId: string | null; nome: string; novos: number; revisoes: number; changeOrders: number; total: number;
   }[]>([]);
@@ -202,6 +204,7 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
     api.get(`/crm/stats/cohort?ano=${ano}`).then((r) => setCohort(r.data)).catch(() => {});
     api.get('/crm/stats/funil-conversao').then((r) => setFunilEtapas(r.data)).catch(() => {});
     api.get('/crm/stats/forecast-fechamento').then((r) => setForecast(r.data)).catch(() => {});
+    api.get('/crm/empresas?radar=true').then((r) => setRadarEmpresas(r.data)).catch(() => {});
   }, [ano]);
 
   useEffect(() => {
@@ -655,10 +658,11 @@ export default function TabRelatorios({ oportunidades }: { oportunidades: Oportu
         </Section>
       )}
 
-      {/* Teia de Indicações (Bruno 20/10/26): quem indica a BÈR e o que virou */}
-      {oportunidades.some((o) => o.origemEmpresa) && (
-        <Section title="Teia de Indicações" subtitle="empresas indicadoras e os negócios que trouxeram">
-          <TeiaIndicacoes oportunidades={oportunidades} onDrill={openDrill} />
+      {/* Teia de Indicações (Bruno 20/10/26): quem indica a BÈR e o que virou,
+          + Radar de Aproximação (empresas-alvo ainda sem indicação) */}
+      {(oportunidades.some((o) => o.origemEmpresa) || radarEmpresas.length > 0) && (
+        <Section title="Teia de Indicações" subtitle="empresas indicadoras, radar de aproximação e os negócios que trouxeram">
+          <TeiaIndicacoes oportunidades={oportunidades} radar={radarEmpresas} onDrill={openDrill} />
         </Section>
       )}
 
