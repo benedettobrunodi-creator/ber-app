@@ -13,7 +13,7 @@
  * (Gerenciadoras × Arquitetura × Brokers) com filtro, canvas largo e baixo.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Download, Minus, Plus, RotateCcw } from 'lucide-react';
 import { Oportunidade, fmt } from '../types';
 
 const COR_INDICADORA = '#1E1E22';
@@ -58,7 +58,16 @@ interface NodoBase {
   r: number;
   cat: Categoria;
 }
-interface NodoInd extends NodoBase { tipo: 'ind'; nome: string; total: number; ops: Oportunidade[] }
+interface NodoInd extends NodoBase {
+  tipo: 'ind';
+  nome: string;
+  total: number;
+  ops: Oportunidade[];
+  /** dias desde a última indicação (entrada no pipeline ou criação) */
+  diasUltima: number;
+  /** indicadora recorrente (2+) sem indicar há 60+ dias — relação esfriando */
+  esfriando: boolean;
+}
 interface NodoNeg extends NodoBase { tipo: 'neg'; op: Oportunidade; res: string }
 type Nodo = NodoInd | NodoNeg;
 
@@ -88,6 +97,24 @@ function resultadoDe(op: Oportunidade): string {
 function val(op: Oportunidade): number {
   const n = Number(op.valor ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Dias desde a última indicação da empresa (entrada no pipeline ou criação). */
+function diasDesdeUltima(ops: Oportunidade[]): number {
+  const ultima = Math.max(...ops.map((o) => new Date(o.dataEntradaPipeline ?? o.createdAt).getTime()));
+  return Number.isFinite(ultima) ? Math.floor((Date.now() - ultima) / 86_400_000) : 0;
+}
+
+/** Conversão da indicadora: quantos ganhos/perdidos/abertos e R$ ganho. */
+function statsInd(ops: Oportunidade[]): { ganhos: number; perdidos: number; abertos: number; valorGanho: number } {
+  let ganhos = 0, perdidos = 0, abertos = 0, valorGanho = 0;
+  for (const o of ops) {
+    const r = resultadoDe(o);
+    if (r === 'ganho') { ganhos++; valorGanho += val(o); }
+    else if (r === 'perdido') perdidos++;
+    else abertos++;
+  }
+  return { ganhos, perdidos, abertos, valorGanho };
 }
 
 /** Categoria da indicadora = origem mais frequente entre os negócios dela. */
@@ -121,6 +148,7 @@ export default function TeiaIndicacoes({
   const [mouse, setMouse] = useState<{ x: number; y: number; cw: number } | null>(null);
   const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
   const [filtro, setFiltro] = useState<Categoria | 'todas'>('todas');
+  const [ano, setAno] = useState<'todos' | number>('todos');
   /** Deslocamento manual por indicadora (arrasto move o cluster inteiro).
    *  Guardado junto com a identidade do layout base: layout novo → arrastos
    *  antigos descartados sem precisar de effect. */
@@ -129,8 +157,19 @@ export default function TeiaIndicacoes({
   const dragRef = useRef<Drag | null>(null);
   const arrastouRef = useRef(false); // suprime o clique que vem depois de um arrasto
 
+  /** Anos com indicação (pro filtro de período). */
+  const anos = useMemo(() => {
+    const ys = new Set<number>();
+    for (const o of oportunidades) {
+      if (o.origemEmpresa) ys.add(new Date(o.dataEntradaPipeline ?? o.createdAt).getFullYear());
+    }
+    return [...ys].sort((a, b) => b - a);
+  }, [oportunidades]);
+
   const { nodos, links, indDe, categorias } = useMemo(() => {
-    const comInd = oportunidades.filter((o) => o.origemEmpresa);
+    const comInd = oportunidades.filter((o) =>
+      o.origemEmpresa &&
+      (ano === 'todos' || new Date(o.dataEntradaPipeline ?? o.createdAt).getFullYear() === ano));
     const porInd = new Map<string, { nome: string; ops: Oportunidade[] }>();
     for (const op of comInd) {
       const e = op.origemEmpresa!;
@@ -158,8 +197,10 @@ export default function TeiaIndicacoes({
       const total = g.ops.reduce((s, o) => s + val(o), 0);
       const anc = filtro === 'todas' ? ANCORAS[g.cat] : { x: W / 2, y: H / 2 };
       const a = hash01(g.id) * Math.PI * 2;
+      const diasUltima = diasDesdeUltima(g.ops);
       const ind: NodoInd = {
         tipo: 'ind', id: g.id, nome: g.nome, total, ops: g.ops, r: rInd(total), cat: g.cat,
+        diasUltima, esfriando: g.ops.length >= 2 && diasUltima > 60,
         x: anc.x + Math.cos(a) * 130, y: anc.y + Math.sin(a) * 90, vx: 0, vy: 0,
       };
       nodos.push(ind);
@@ -221,7 +262,7 @@ export default function TeiaIndicacoes({
       }
     }
     return { nodos, links, indDe, categorias };
-  }, [oportunidades, filtro]);
+  }, [oportunidades, filtro, ano]);
 
   const offs = offsBox.base === nodos ? offsBox.offs : {};
 
@@ -295,6 +336,44 @@ export default function TeiaIndicacoes({
     dragRef.current = null;
   };
 
+  /** Exporta o desenho atual como PNG (2x, fundo branco). */
+  const exportarPng = () => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute('width', String(W));
+    clone.setAttribute('height', String(H));
+    clone.setAttribute('style', 'font-family:Arial,Helvetica,sans-serif;background:#ffffff');
+    const fundo = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    fundo.setAttribute('width', String(W));
+    fundo.setAttribute('height', String(H));
+    fundo.setAttribute('fill', '#ffffff');
+    clone.insertBefore(fundo, clone.firstChild);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = W * 2;
+      canvas.height = H * 2;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); return; }
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0, W, H);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `teia-indicacoes-${new Date().toISOString().slice(0, 10)}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
+  };
+
   const larguraTooltip = 260;
   const gruposVisiveis = filtro === 'todas' ? [...categorias] : [];
 
@@ -312,11 +391,12 @@ export default function TeiaIndicacoes({
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.aberto }} />Em aberto</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.ganho }} />Ganho</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: COR_RESULTADO.perdido }} />Perdido</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-dashed" style={{ borderColor: '#E6A23C' }} />60+ dias sem indicar</span>
         <span className="text-ber-gray/60">tamanho = valor · scroll = zoom · arraste o fundo = navega</span>
       </div>
 
-      {/* filtro por categoria */}
-      <div className="flex flex-wrap gap-1.5 mb-2">
+      {/* filtros: categoria + ano */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
         {CATEGORIAS.filter((c) => c.id === 'todas' || categorias.has(c.id as Categoria)).map((c) => (
           <button
             key={c.id}
@@ -331,6 +411,17 @@ export default function TeiaIndicacoes({
             {c.label}
           </button>
         ))}
+        {anos.length > 1 && (
+          <select
+            value={String(ano)}
+            onChange={(e) => { setAno(e.target.value === 'todos' ? 'todos' : Number(e.target.value)); setView({ k: 1, tx: 0, ty: 0 }); }}
+            className="ml-1 border border-ber-border rounded-full px-3 py-1.5 text-xs text-ber-gray bg-white focus:outline-none focus:border-ber-teal"
+            aria-label="Filtrar por ano"
+          >
+            <option value="todos">Todos os anos</option>
+            {anos.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
       </div>
 
       {/* controles de zoom */}
@@ -346,6 +437,10 @@ export default function TeiaIndicacoes({
         <button type="button" onClick={() => { setView({ k: 1, tx: 0, ty: 0 }); setOffsBox({ base: nodos, offs: {} }); }} aria-label="Restaurar desenho"
           className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-gray flex items-center justify-center hover:bg-ber-surface shadow-sm">
           <RotateCcw size={14} />
+        </button>
+        <button type="button" onClick={exportarPng} aria-label="Baixar imagem da teia"
+          className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-gray flex items-center justify-center hover:bg-ber-surface shadow-sm">
+          <Download size={14} />
         </button>
       </div>
 
@@ -388,12 +483,16 @@ export default function TeiaIndicacoes({
                 onClick={() => {
                   if (arrastouRef.current) { arrastouRef.current = false; return; }
                   if (n.tipo === 'ind') onDrill(`Indicados por ${n.nome}`, n.ops);
-                  else setHover((h) => (h?.id === n.id ? null : n)); // mobile: toque mostra o tooltip
+                  else onDrill(n.op.titulo, [n.op]); // negócio: abre os detalhes dele
                 }}
                 className={n.tipo === 'ind' ? 'cursor-move' : 'cursor-pointer'}
               >
                 {/* alvo de toque maior que o nó (mobile) */}
                 <circle cx={p.x} cy={p.y} r={Math.max(n.r, 16)} fill="transparent" />
+                {/* anel de alerta: indicadora recorrente sem indicar há 60+ dias */}
+                {n.tipo === 'ind' && n.esfriando && (
+                  <circle cx={p.x} cy={p.y} r={n.r + 5} fill="none" stroke="#E6A23C" strokeWidth={2.5} strokeDasharray="5 4" />
+                )}
                 <circle
                   cx={p.x} cy={p.y} r={n.r}
                   fill={n.tipo === 'ind' ? COR_INDICADORA : COR_RESULTADO[n.res]}
@@ -434,10 +533,20 @@ export default function TeiaIndicacoes({
           }}
         >
           {hover.tipo === 'ind' ? (
-            <>
-              <p className="text-xs font-bold text-ber-carbon">{hover.nome}</p>
-              <p className="text-[11px] text-ber-gray">{hover.ops.length} negócio{hover.ops.length > 1 ? 's' : ''} indicado{hover.ops.length > 1 ? 's' : ''} · {fmt(hover.total)}</p>
-            </>
+            (() => {
+              const s = statsInd(hover.ops);
+              return (
+                <>
+                  <p className="text-xs font-bold text-ber-carbon">{hover.nome}</p>
+                  <p className="text-[11px] text-ber-gray">{hover.ops.length} indicado{hover.ops.length > 1 ? 's' : ''} · {fmt(hover.total)}</p>
+                  <p className="text-[11px] text-ber-gray">
+                    <span className="font-semibold" style={{ color: COR_RESULTADO.ganho }}>{s.ganhos} ganho{s.ganhos !== 1 ? 's' : ''}</span>
+                    {s.valorGanho > 0 ? ` (${fmt(s.valorGanho)})` : ''} · <span style={{ color: COR_RESULTADO.perdido }}>{s.perdidos} perdido{s.perdidos !== 1 ? 's' : ''}</span> · {s.abertos} em aberto
+                  </p>
+                  <p className="text-[11px] text-ber-gray">última indicação há {hover.diasUltima} dia{hover.diasUltima !== 1 ? 's' : ''}{hover.esfriando ? ' — esfriando ⚠️' : ''}</p>
+                </>
+              );
+            })()
           ) : (
             <>
               <p className="text-xs font-bold text-ber-carbon">{hover.op.titulo}</p>
