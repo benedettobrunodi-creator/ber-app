@@ -323,7 +323,44 @@ export default function TeiaIndicacoes({
     return { nodos, links, indDe, categorias };
   }, [oportunidades, radar, filtro, soRadar, ano]);
 
-  const offs = offsBox.base === nodos ? offsBox.offs : {};
+  /** Posições salvas pelo usuário (Bruno 20/10: arrasto tem que persistir).
+   *  Guardadas como posição ABSOLUTA por empresa e por vista (filtro+radar),
+   *  no localStorage — sobrevive a reload e a layout novo (offset é derivado). */
+  const chavePos = `teia-pos:v1:${filtro}:${soRadar ? 1 : 0}`;
+  const posSalvas = useMemo<Record<string, { x: number; y: number }>>(() => {
+    void nodos; // layout novo relê o storage (pode ter sido salvo depois da 1ª leitura)
+    try {
+      return JSON.parse(localStorage.getItem(chavePos) ?? '{}');
+    } catch {
+      return {};
+    }
+  }, [chavePos, nodos]);
+
+  const offs = useMemo<Record<string, { dx: number; dy: number }>>(() => {
+    if (offsBox.base === nodos) return offsBox.offs;
+    const derivados: Record<string, { dx: number; dy: number }> = {};
+    for (const n of nodos) {
+      if (n.tipo !== 'ind') continue;
+      const s = posSalvas[n.id];
+      if (s && Number.isFinite(s.x) && Number.isFinite(s.y)) derivados[n.id] = { dx: s.x - n.x, dy: s.y - n.y };
+    }
+    return derivados;
+  }, [offsBox, nodos, posSalvas]);
+
+  /** Persiste a posição final (layout + arrasto) das empresas movidas. */
+  const salvarPosicoes = () => {
+    try {
+      const m: Record<string, { x: number; y: number }> = {};
+      for (const n of nodos) {
+        if (n.tipo !== 'ind') continue;
+        const o = offs[n.id];
+        if (o) m[n.id] = { x: n.x + o.dx, y: n.y + o.dy };
+      }
+      localStorage.setItem(chavePos, JSON.stringify(m));
+    } catch {
+      /* storage indisponível (modo privado etc.) — segue sem persistir */
+    }
+  };
 
   // Zoom pelo scroll precisa de listener não-passivo (preventDefault barra o scroll da página)
   useEffect(() => {
@@ -383,16 +420,20 @@ export default function TeiaIndicacoes({
       setView((v) => ({ ...v, tx: d.baseTx + dx, ty: d.baseTy + dy }));
     } else {
       const id = d.id;
-      setOffsBox((b) => ({
+      // base = offs efetivo do render (inclui posições salvas derivadas) — senão
+      // o 1º arrasto depois do reload descartaria as posições das outras empresas
+      setOffsBox({
         base: nodos,
-        offs: { ...(b.base === nodos ? b.offs : {}), [id]: { dx: d.baseDx + dx / view.k, dy: d.baseDy + dy / view.k } },
-      }));
+        offs: { ...offs, [id]: { dx: d.baseDx + dx / view.k, dy: d.baseDy + dy / view.k } },
+      });
     }
   };
 
   const onPointerUp = () => {
-    arrastouRef.current = dragRef.current?.moved ?? false;
+    const d = dragRef.current;
+    arrastouRef.current = d?.moved ?? false;
     dragRef.current = null;
+    if (d?.modo === 'no' && d.moved) salvarPosicoes(); // persiste onde o usuário soltou
   };
 
   /** Exporta o desenho atual como PNG (2x, fundo branco). */
@@ -508,7 +549,7 @@ export default function TeiaIndicacoes({
           className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-carbon flex items-center justify-center hover:bg-ber-surface shadow-sm">
           <Minus size={16} />
         </button>
-        <button type="button" onClick={() => { setView({ k: 1, tx: 0, ty: 0 }); setOffsBox({ base: nodos, offs: {} }); }} aria-label="Restaurar desenho"
+        <button type="button" onClick={() => { setView({ k: 1, tx: 0, ty: 0 }); setOffsBox({ base: nodos, offs: {} }); try { localStorage.removeItem(chavePos); } catch { /* sem storage */ } }} aria-label="Restaurar desenho"
           className="w-9 h-9 rounded-lg bg-white border border-ber-border text-ber-gray flex items-center justify-center hover:bg-ber-surface shadow-sm">
           <RotateCcw size={14} />
         </button>
