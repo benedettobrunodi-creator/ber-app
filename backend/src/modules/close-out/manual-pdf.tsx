@@ -1109,7 +1109,8 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       {/* ─── GALERIA ─── */}
       {manual.galeria.length > 0 && (
         <Page size="A4" style={s.page}>
-          <Cabecalho eyebrow="Manual do Proprietário" kicker="1.1 GALERIA DA OBRA" titulo={obra.name} />
+          {/* "Galeria da Obra" → "Fotos", sem "(continuação)" — pedido Francisco 21/10/26 */}
+          <Cabecalho eyebrow="Manual do Proprietário" kicker="1.1 FOTOS" titulo={obra.name} />
           {manual.galeria.slice(0, 3).map((g, i) =>
             i === 0 ? (
               <View key={i} style={{ position: 'relative' }}>
@@ -1138,7 +1139,7 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
           const fotos = manual.galeria.slice(3 + pageIdx * 4, 3 + pageIdx * 4 + 4);
           return (
             <Page key={`gal-${pageIdx}`} size="A4" style={s.page}>
-              <Cabecalho eyebrow="Manual do Proprietário" kicker="1.1 GALERIA DA OBRA" titulo="Galeria (continuação)" />
+              <Cabecalho eyebrow="Manual do Proprietário" kicker="1.1 FOTOS" titulo={obra.name} />
               {[0, 2].map((rowStart) => (
                 <View key={rowStart} style={s.galRow}>
                   {fotos.slice(rowStart, rowStart + 2).map((g, i) => (
@@ -1275,9 +1276,10 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
       </Page>
 
       {/* ─── SEÇÃO 03 · PROJETOS ─── */}
-      <SecaoEscura num="03" titulo="Projetos entregues" desc="Todos os projetos executados da obra, para consultar em futuras instalações ou mudanças no espaço." />
+      {/* "Entregues" retirado do título a pedido do Francisco (21/10/26) */}
+      <SecaoEscura num="03" titulo="Projetos" desc="Todos os projetos executados da obra, para consultar em futuras instalações ou mudanças no espaço." />
       <Page size="A4" style={s.page}>
-        <Cabecalho eyebrow="Manual do Proprietário · Lista de projetos" kicker="3.1 PROJETOS ENTREGUES" titulo="Projetos recebidos" />
+        <Cabecalho eyebrow="Manual do Proprietário · Lista de projetos" kicker="3.1 PROJETOS" titulo="Projetos recebidos" />
         <Text style={s.p}>Juntamente com este manual do proprietário disponibilizamos todos os projetos que recebemos da arquitetura para a execução da obra e as built se necessário.</Text>
         <Text style={s.p}>É necessária a consulta desses projetos para futuras instalações ou mudanças a se fazer em seu imóvel.</Text>
         {projetos.length === 0 ? (
