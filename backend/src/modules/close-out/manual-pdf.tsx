@@ -1184,22 +1184,8 @@ export function ManualProprietarioPdf({ data }: { data: ManualPdfData }) {
           <View><Text style={s.emergTitulo}>Fechar o registro</Text><Text style={s.emergDesc}>Vazamento de gás</Text></View>
           <View><Text style={s.emergTitulo}>Disjuntor geral</Text><Text style={s.emergDesc}>Desligar o quadro de força</Text></View>
         </View>
-        <View style={s.qrRow}>
-          <View style={s.qrCard}>
-            <View style={s.qrBox}><Text style={s.qrBoxTxt}>WEB</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 9, fontWeight: 700 }}>Versão online</Text>
-              <Text style={{ fontSize: 7, color: GRAY }}>Manual sempre atualizado — {manual.urlOnline ?? 'em breve'}</Text>
-            </View>
-          </View>
-          <View style={s.qrCard}>
-            <View style={s.qrBox}><Text style={s.qrBoxTxt}>BÈR</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 9, fontWeight: 700 }}>Assistência BÈR</Text>
-              <Text style={{ fontSize: 7, color: GRAY }}>Fale com a gente — {manual.canalAssistencia ?? 'assistencia@ber-engenharia.com.br'}</Text>
-            </View>
-          </View>
-        </View>
+        {/* Cartões "Versão online"/"Assistência BÈR" removidos — sem definição/
+            responsável ainda (Francisco + ok do Bruno, 21/10/26) */}
         <Rodape />
       </Page>
 
