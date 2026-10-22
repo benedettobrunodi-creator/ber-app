@@ -127,12 +127,76 @@ export async function getOrgChart(_req: Request, res: Response) {
   sendSuccess(res, record.data);
 }
 
+/** Quantas versões ficam guardadas (cada salvamento gera uma). */
+const MAX_VERSOES = 300;
+
+/** Guarda o estado atual como versão e poda o excedente. */
+async function snapshotAtual(userId?: string) {
+  const atual = await (prisma as any).orgChart.findUnique({ where: { key: 'main' } });
+  if (!atual) return;
+  await (prisma as any).orgChartVersion.create({
+    data: { key: 'main', data: atual.data, savedById: userId ?? null },
+  });
+  const excedente = await (prisma as any).orgChartVersion.findMany({
+    where: { key: 'main' },
+    orderBy: { createdAt: 'desc' },
+    skip: MAX_VERSOES,
+    select: { id: true },
+  });
+  if (excedente.length) {
+    await (prisma as any).orgChartVersion.deleteMany({
+      where: { id: { in: excedente.map((v: { id: string }) => v.id) } },
+    });
+  }
+}
+
 export async function putOrgChart(req: Request, res: Response) {
   const { data } = req.body;
+  // histórico: o estado que está sendo substituído vira uma versão restaurável
+  await snapshotAtual(req.user?.userId);
   const record = await (prisma as any).orgChart.upsert({
     where: { key: 'main' },
     update: { data, updatedById: req.user?.userId },
     create: { key: 'main', data, updatedById: req.user?.userId },
+  });
+  sendSuccess(res, record.data);
+}
+
+/** Conta os cartões de uma árvore salva (pro rótulo do histórico). */
+function contarNos(data: unknown): number {
+  let n = 0;
+  const anda = (node: any) => {
+    if (!node) return;
+    n += 1;
+    for (const c of node.children ?? []) anda(c);
+  };
+  for (const raiz of Array.isArray(data) ? data : [data]) anda(raiz);
+  return n;
+}
+
+export async function getVersoes(_req: Request, res: Response) {
+  const versoes = await (prisma as any).orgChartVersion.findMany({
+    where: { key: 'main' },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+  });
+  sendSuccess(
+    res,
+    versoes.map((v: any) => ({ id: v.id, createdAt: v.createdAt, pessoas: contarNos(v.data) })),
+  );
+}
+
+/** Restaura uma versão do histórico; o estado vigente vira versão (dá pra voltar). */
+export async function restaurarVersao(req: Request, res: Response) {
+  const versao = await (prisma as any).orgChartVersion.findUnique({ where: { id: req.params.id } });
+  if (!versao) {
+    res.status(404).json({ success: false, error: 'Versão não encontrada' });
+    return;
+  }
+  await snapshotAtual(req.user?.userId);
+  const record = await (prisma as any).orgChart.update({
+    where: { key: 'main' },
+    data: { data: versao.data, updatedById: req.user?.userId },
   });
   sendSuccess(res, record.data);
 }

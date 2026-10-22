@@ -6,8 +6,9 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 
 type DropSide = 'left' | 'right' | 'center';
 const DropSideContext = createContext<DropSide | null>(null);
-import { GripVertical, Pencil, Plus, Trash2, Download, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
+import { GripVertical, Pencil, Plus, Trash2, Download, Loader2, Check, X, Eye, EyeOff, Undo2, History } from 'lucide-react';
 import api from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { useAuthStore, getUserPermissions } from '@/stores/authStore';
 import { useRouter } from 'next/navigation';
 
@@ -91,11 +92,15 @@ function reparentNode(root: OrgNode, draggedId: string, targetId: string): OrgNo
   if (!dragged) return root;
   if (isDescendant(dragged, targetId)) return root;
   const { tree: withoutDragged } = removeNode(root, draggedId);
+  let inseriu = false;
   function addToTarget(node: OrgNode): OrgNode {
-    if (node.id === targetId) return { ...node, children: [...node.children, dragged!] };
+    if (node.id === targetId) { inseriu = true; return { ...node, children: [...node.children, dragged!] }; }
     return { ...node, children: node.children.map(addToTarget) };
   }
-  return addToTarget(withoutDragged);
+  const resultado = addToTarget(withoutDragged);
+  // Alvo não encontrado na árvore: devolve a árvore ORIGINAL — nunca descartar
+  // o cartão arrastado (incidente 22/10: ramo da engenharia sumiu num arrasto).
+  return inseriu ? resultado : root;
 }
 
 /** Move o nó pra ficar como irmão do target, antes ou depois dele. */
@@ -109,10 +114,16 @@ function reorderSibling(
   const dragged = findNode(root, draggedId);
   if (!dragged) return root;
   if (isDescendant(dragged, targetId)) return root;
+  // Soltar ao LADO da raiz: ela não tem irmãos — o gesto vira "subordinado
+  // direto da raiz". (Antes o cartão era removido e nunca reinserido: foi o
+  // bug que apagou o ramo inteiro da engenharia em 22/10.)
+  if (root.id === targetId) return reparentNode(root, draggedId, targetId);
   const { tree: withoutDragged } = removeNode(root, draggedId);
+  let inseriu = false;
   function insertNear(node: OrgNode): OrgNode {
     const idx = node.children.findIndex(c => c.id === targetId);
     if (idx >= 0) {
+      inseriu = true;
       const insertAt = side === 'before' ? idx : idx + 1;
       const newChildren = [
         ...node.children.slice(0, insertAt),
@@ -123,7 +134,9 @@ function reorderSibling(
     }
     return { ...node, children: node.children.map(insertNear) };
   }
-  return insertNear(withoutDragged);
+  const resultado = insertNear(withoutDragged);
+  // Alvo não encontrado: preserva a árvore original (nunca perder o cartão).
+  return inseriu ? resultado : root;
 }
 
 function updateNodeInTree(root: OrgNode, updated: OrgNode): OrgNode {
@@ -777,6 +790,9 @@ export default function OrganogramaPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [exporting, setExporting] = useState(false);
   const [showSalarios, setShowSalarios] = useState(false);
+  const [desfazendo, setDesfazendo] = useState(false);
+  const [versoes, setVersoes] = useState<{ id: string; createdAt: string; pessoas: number }[] | null>(null);
+  const [showHist, setShowHist] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -867,6 +883,41 @@ export default function OrganogramaPage() {
   function handleDelete(id: string) {
     if (!tree || tree.id === id) return;
     applyChange(deleteNodeFromTree(tree, id));
+  }
+
+  /** Aplica uma versão do histórico; o estado vigente vira versão (dá pra voltar). */
+  async function restaurarVersao(id: string) {
+    const r = await api.post(`/organograma/versoes/${id}/restaurar`);
+    const payload = r.data.data;
+    setTree(Array.isArray(payload) ? payload[0] : payload);
+    setShowHist(false);
+    toast('Versão restaurada ✓');
+  }
+
+  /** Desfazer = restaurar a versão mais recente do histórico. */
+  async function handleDesfazer() {
+    setDesfazendo(true);
+    try {
+      const r = await api.get('/organograma/versoes');
+      const lista = r.data.data as { id: string }[];
+      if (!lista.length) { toast('Ainda não há versão anterior', 'aviso'); return; }
+      await restaurarVersao(lista[0].id);
+    } catch {
+      toast('Não consegui desfazer', 'erro');
+    } finally {
+      setDesfazendo(false);
+    }
+  }
+
+  async function abrirHistorico() {
+    if (showHist) { setShowHist(false); return; }
+    try {
+      const r = await api.get('/organograma/versoes');
+      setVersoes(r.data.data);
+      setShowHist(true);
+    } catch {
+      toast('Não consegui carregar o histórico', 'erro');
+    }
   }
 
   async function handleExportPNG() {
@@ -963,6 +1014,46 @@ export default function OrganogramaPage() {
               <Loader2 size={12} className="animate-spin" /> Salvando…
             </span>
           )}
+          <button
+            onClick={handleDesfazer}
+            disabled={desfazendo}
+            title="Desfazer a última alteração salva"
+            className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite disabled:opacity-50"
+          >
+            {desfazendo ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />} Desfazer
+          </button>
+          <div className="relative">
+            <button
+              onClick={abrirHistorico}
+              title="Restaurar uma versão anterior do organograma"
+              className="flex items-center gap-1.5 rounded-md border border-ber-gray/30 bg-white px-3 py-2 text-xs font-medium text-ber-carbon hover:bg-ber-offwhite"
+            >
+              <History size={13} /> Histórico
+            </button>
+            {showHist && versoes && (
+              <div className="absolute right-0 top-full mt-1 z-30 w-72 rounded-lg border border-ber-gray/20 bg-white shadow-lg max-h-80 overflow-y-auto">
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ber-gray">
+                  Versões salvas (clique pra restaurar)
+                </p>
+                {versoes.length === 0 && (
+                  <p className="px-3 pb-3 text-xs text-ber-gray">Nenhuma versão guardada ainda — elas passam a ser salvas a cada alteração.</p>
+                )}
+                {versoes.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => restaurarVersao(v.id).catch(() => toast('Não consegui restaurar', 'erro'))}
+                    className="block w-full px-3 py-2 text-left text-xs text-ber-carbon hover:bg-ber-offwhite"
+                  >
+                    {new Date(v.createdAt).toLocaleString('pt-BR', {
+                      timeZone: 'America/Sao_Paulo',
+                      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    })}
+                    <span className="text-ber-gray"> · {v.pessoas} cartões</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setShowSalarios(s => !s)}
             className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${

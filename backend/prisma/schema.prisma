@@ -2642,6 +2642,20 @@ model OrgChart {
   @@map("org_charts")
 }
 
+// Histórico do organograma: cada salvamento guarda o estado ANTERIOR, pra
+// desfazer/restaurar (incidente 22/10: arrasto bugado apagou um ramo inteiro
+// e não havia como voltar).
+model OrgChartVersion {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @default("main")
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  savedById String?  @map("saved_by_id") @db.Uuid
+
+  @@index([key, createdAt])
+  @@map("org_chart_versions")
+}
+
 // ─── ObraContratacaoPlano (cronograma de contratações) ──────────────────
 model ObraContratacaoPlano {
   id                String    @id @default(uuid()) @db.Uuid
