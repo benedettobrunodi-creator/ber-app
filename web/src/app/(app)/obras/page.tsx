@@ -464,7 +464,11 @@ export default function ObrasPage() {
                   className={`flex items-center gap-1 uppercase tracking-wide font-semibold text-left hover:text-ber-carbon ${sortKey === k ? 'text-ber-carbon' : ''} ${cls}`}
                 >
                   {rotulo}
-                  {sortKey === k && <span className="text-[9px]">{sortDir === 1 ? '▲' : '▼'}</span>}
+                  {/* seta sempre visível: sem ela ninguém descobria que o
+                      cabeçalho ordena (Bruno pediu o recurso já existente, 22/10) */}
+                  {sortKey === k
+                    ? <span className="text-[9px]">{sortDir === 1 ? '▲' : '▼'}</span>
+                    : <span className="text-[9px] opacity-35">↕</span>}
                 </button>
               ))}
               <span />
