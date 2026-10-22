@@ -32,27 +32,30 @@ const ETAPAS_PERDA = ['perdido', 'declinado', 'cancelado'];
 const W = 1280;
 const H = 520;
 
-type Categoria = 'gerenciadora' | 'arquitetura' | 'broker' | 'outras';
+/** Categorias da teia = classificações do cadastro (Bruno 22/10: entram todas,
+ *  menos End User — cliente final não é indicador nem alvo de aproximação). */
+type Categoria = 'gerenciadora' | 'arquitetura' | 'broker' | 'incorporadora' | 'fundo' | 'administradora' | 'outras';
+const ORDEM_CATS: Categoria[] = ['gerenciadora', 'arquitetura', 'broker', 'incorporadora', 'fundo', 'administradora', 'outras'];
 const CATEGORIAS: { id: Categoria | 'todas'; label: string }[] = [
   { id: 'todas', label: 'Todas' },
   { id: 'gerenciadora', label: 'Gerenciadoras' },
   { id: 'arquitetura', label: 'Arquitetura' },
   { id: 'broker', label: 'Brokers' },
+  { id: 'incorporadora', label: 'Incorporadoras' },
+  { id: 'fundo', label: 'Fundos' },
+  { id: 'administradora', label: 'Administradoras' },
   { id: 'outras', label: 'Outras' },
 ];
 const GRUPO_LABEL: Record<Categoria, string> = {
   gerenciadora: 'GERENCIADORAS',
   arquitetura: 'ARQUITETURA',
   broker: 'BROKERS',
+  incorporadora: 'INCORPORADORAS',
+  fundo: 'FUNDOS',
+  administradora: 'ADMINISTRADORAS',
   outras: 'OUTRAS',
 };
-/** Âncoras dos grupos no modo "todas" (gerenciadoras à esquerda, arquitetura à direita). */
-const ANCORAS: Record<Categoria, { x: number; y: number }> = {
-  gerenciadora: { x: W * 0.23, y: H * 0.52 },
-  arquitetura: { x: W * 0.74, y: H * 0.52 },
-  broker: { x: W * 0.48, y: H * 0.74 },
-  outras: { x: W * 0.48, y: H * 0.3 },
-};
+type Ancoras = Partial<Record<Categoria, { x: number; y: number }>>;
 
 interface NodoBase {
   id: string;
@@ -129,8 +132,8 @@ function statsInd(ops: Oportunidade[]): { ganhos: number; perdidos: number; aber
 
 /** Categoria da indicadora: classificação do CADASTRO manda (Bruno 20/10:
  *  "Gamaro não é arquitetura, é incorporadora"); sem classificação, vale a
- *  origem mais frequente entre os negócios dela. */
-function categoriaDe(ops: Oportunidade[], classificacao?: string | null): Categoria {
+ *  origem mais frequente entre os negócios dela. null = fora da teia (End User). */
+function categoriaDe(ops: Oportunidade[], classificacao?: string | null): Categoria | null {
   if (classificacao) return categoriaDeClassificacao(classificacao);
   const cont: Record<string, number> = {};
   for (const o of ops) if (o.origem) cont[o.origem] = (cont[o.origem] ?? 0) + 1;
@@ -147,12 +150,17 @@ export interface EmpresaRadar {
   ultimoContato: string | null;
 }
 
-/** Categoria de um alvo do radar sem negócio = classificação do cadastro. */
-function categoriaDeClassificacao(c: string | null): Categoria {
-  const low = (c ?? '').toLowerCase();
-  if (low === 'gerenciadora') return 'gerenciadora';
-  if (low === 'arquitetura') return 'arquitetura';
-  if (low === 'broker') return 'broker';
+/** Categoria a partir da classificação do cadastro. Valores reais no banco:
+ *  Arquitetura · End User · Fornecedor · Incorporadora · Gerenciadora · Fundo ·
+ *  Broker · Administradora · vazio. End User → null (fica FORA da teia);
+ *  Fornecedor e vazio caem em "outras". */
+function categoriaDeClassificacao(c: string | null): Categoria | null {
+  const low = (c ?? '').trim().toLowerCase();
+  if (low === 'end user') return null;
+  if (low === 'gerenciadora' || low === 'arquitetura' || low === 'broker' ||
+      low === 'incorporadora' || low === 'fundo' || low === 'administradora') {
+    return low;
+  }
   return 'outras';
 }
 
@@ -207,7 +215,7 @@ export default function TeiaIndicacoes({
     return [...ys].sort((a, b) => b - a);
   }, [oportunidades]);
 
-  const { nodos, links, indDe, categorias } = useMemo(() => {
+  const { nodos, links, indDe, categorias, ancoras } = useMemo(() => {
     const comInd = oportunidades.filter((o) =>
       o.origemEmpresa &&
       (ano === 'todos' || new Date(o.dataEntradaPipeline ?? o.createdAt).getFullYear() === ano));
@@ -220,17 +228,42 @@ export default function TeiaIndicacoes({
     const indDe = new Map<string, string>(); // id do negócio → id da indicadora
     const categorias = new Set<Categoria>();
     const radarIds = new Set(radar.map((e) => e.id));
+    const vazio = { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias, ancoras: {} as Ancoras };
     // alvos do radar que ainda não indicaram nada — entram tracejados
-    const radarSo = radar.filter((e) => !porInd.has(e.id));
-    if (!porInd.size && !radarSo.length) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias };
+    // (categoria null = End User → fica fora da teia, Bruno 22/10)
+    const radarAlvos = radar
+      .filter((e) => !porInd.has(e.id))
+      .map((e) => ({ ...e, cat: categoriaDeClassificacao(e.classificacao) }))
+      .filter((e): e is EmpresaRadar & { cat: Categoria } => e.cat !== null);
+    if (!porInd.size && !radarAlvos.length) return vazio;
 
-    const grupos = [...porInd.entries()].map(([id, g]) => ({ id, ...g, cat: categoriaDe(g.ops, g.classificacao) }));
+    type Grupo = { id: string; nome: string; classificacao: string | null; ops: Oportunidade[]; cat: Categoria };
+    const grupos = [...porInd.entries()]
+      .map(([id, g]) => ({ id, ...g, cat: categoriaDe(g.ops, g.classificacao) }))
+      .filter((g): g is Grupo => g.cat !== null);
     grupos.forEach((g) => categorias.add(g.cat));
-    radarSo.forEach((e) => categorias.add(categoriaDeClassificacao(e.classificacao)));
+    radarAlvos.forEach((e) => categorias.add(e.cat));
     const visiveis = (filtro === 'todas' ? grupos : grupos.filter((g) => g.cat === filtro))
       .filter((g) => !soRadar || radarIds.has(g.id));
-    const radarVisiveis = radarSo.filter((e) => filtro === 'todas' || categoriaDeClassificacao(e.classificacao) === filtro);
-    if (!visiveis.length && !radarVisiveis.length) return { nodos: [] as Nodo[], links: [] as [Nodo, Nodo][], indDe, categorias };
+    const radarVisiveis = radarAlvos.filter((e) => filtro === 'todas' || e.cat === filtro);
+    if (!visiveis.length && !radarVisiveis.length) return vazio;
+
+    // Âncoras DINÂMICAS: as categorias presentes dividem a largura na ordem
+    // fixa, cada uma com espaço proporcional ao tamanho do cluster — com 3 ou
+    // com 7 grupos a teia preenche o canvas sem sobrepor rótulos.
+    const tamanho = new Map<Categoria, number>();
+    for (const g of visiveis) tamanho.set(g.cat, (tamanho.get(g.cat) ?? 0) + 1 + g.ops.length);
+    for (const e of radarVisiveis) tamanho.set(e.cat, (tamanho.get(e.cat) ?? 0) + 1);
+    const presentes = ORDEM_CATS.filter((c) => tamanho.has(c));
+    const pesos = presentes.map((c) => Math.sqrt(tamanho.get(c)! + 3));
+    const somaPesos = pesos.reduce((s, p) => s + p, 0);
+    const ancoras: Ancoras = {};
+    let acum = 0;
+    presentes.forEach((c, i) => {
+      ancoras[c] = { x: W * ((acum + pesos[i] / 2) / somaPesos), y: H * 0.54 };
+      acum += pesos[i];
+    });
+    const ancoraCat = (cat: Categoria) => ancoras[cat] ?? { x: W / 2, y: H / 2 };
 
     const opsVisiveis = visiveis.flatMap((g) => g.ops);
     const maxValor = Math.max(1, ...opsVisiveis.map(val));
@@ -242,7 +275,7 @@ export default function TeiaIndicacoes({
     const links: [Nodo, Nodo][] = [];
     for (const g of visiveis) {
       const total = g.ops.reduce((s, o) => s + val(o), 0);
-      const anc = filtro === 'todas' ? ANCORAS[g.cat] : { x: W / 2, y: H / 2 };
+      const anc = filtro === 'todas' ? ancoraCat(g.cat) : { x: W / 2, y: H / 2 };
       const a = hash01(g.id) * Math.PI * 2;
       const diasUltima = diasDesdeUltima(g.ops);
       const ind: NodoInd = {
@@ -266,8 +299,8 @@ export default function TeiaIndicacoes({
 
     // Alvos do radar sem indicação: nós tracejados no cluster do segmento.
     for (const e of radarVisiveis) {
-      const cat = categoriaDeClassificacao(e.classificacao);
-      const anc = filtro === 'todas' ? ANCORAS[cat] : { x: W / 2, y: H / 2 };
+      const cat = e.cat;
+      const anc = filtro === 'todas' ? ancoraCat(cat) : { x: W / 2, y: H / 2 };
       const a = hash01(e.id) * Math.PI * 2;
       const diasContato = diasDesdeContato(e.ultimoContato);
       nodos.push({
@@ -280,7 +313,7 @@ export default function TeiaIndicacoes({
 
     // Simulação: repulsão (indicadoras bem mais fortes = clusters espaçados),
     // mola nos links, âncora do grupo e separação por colisão.
-    const ancoraDe = (n: Nodo) => (filtro === 'todas' ? ANCORAS[n.cat] : { x: W / 2, y: H / 2 });
+    const ancoraDe = (n: Nodo) => (filtro === 'todas' ? ancoraCat(n.cat) : { x: W / 2, y: H / 2 });
     for (let passo = 0; passo < 320; passo++) {
       const esfria = 1 - passo / 320;
       for (let i = 0; i < nodos.length; i++) {
@@ -323,7 +356,7 @@ export default function TeiaIndicacoes({
         n.y = Math.max(n.r + 34, Math.min(H - n.r - 12, n.y));
       }
     }
-    return { nodos, links, indDe, categorias };
+    return { nodos, links, indDe, categorias, ancoras };
   }, [oportunidades, radar, filtro, soRadar, ano]);
 
   /** Posições salvas pelo usuário (Bruno 20/10: arrasto tem que persistir).
@@ -478,7 +511,7 @@ export default function TeiaIndicacoes({
   };
 
   const larguraTooltip = 260;
-  const gruposVisiveis = filtro === 'todas' ? [...categorias] : [];
+  const gruposVisiveis = filtro === 'todas' ? ORDEM_CATS.filter((c) => ancoras[c]) : [];
 
   return (
     <div
@@ -579,7 +612,7 @@ export default function TeiaIndicacoes({
           {/* rótulos dos grupos (só no modo Todas) */}
           {gruposVisiveis.map((cat) => (
             <text
-              key={`g-${cat}`} x={ANCORAS[cat].x} y={22} textAnchor="middle"
+              key={`g-${cat}`} x={ancoras[cat]!.x} y={22} textAnchor="middle"
               fontSize={12} fontWeight={700} letterSpacing={2} fill="#B9BBAF"
               className="pointer-events-none"
             >
