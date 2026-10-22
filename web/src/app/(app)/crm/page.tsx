@@ -133,8 +133,8 @@ export default function CrmPage() {
               <span>· {fmtM(farol.valorFunilQuente)} quentes no funil (prob. alta) — fechar ~{farol.pctFunilNecessario}% bate a meta</span>
             ) : (
               // >100% é impossível por definição (Bruno 22/10): o alerta real
-              // é que o funil quente não cobre a meta — falta gerar pipeline
-              <span>· {fmtM(farol.valorFunilQuente)} quentes no funil (prob. alta) — <strong className="text-ber-red">não cobre a meta: fechando tudo ainda faltam {fmtM(Math.max(0, farol.falta - farol.valorFunilQuente))}</strong> — precisa entrar pipeline novo</span>
+              // é que o funil quente não cobre a meta. CURTO: 1 linha só.
+              <span>· {fmtM(farol.valorFunilQuente)} quentes — <strong className="text-ber-red">não cobre: faltam {fmtM(Math.max(0, farol.falta - farol.valorFunilQuente))}</strong> · gerar pipeline novo</span>
             )
           )}
         </div>
