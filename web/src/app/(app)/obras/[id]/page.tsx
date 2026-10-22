@@ -262,6 +262,16 @@ export default function ObraDetailPage() {
   const tabParam = searchParams.get('tab');
   const initialTab = ((tabParam === 'cockpit' ? 'capa' : tabParam) as TabKey) || 'capa';
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // ?tab= só era lido no MOUNT: um Link pra MESMA rota com query nova (ex.
+  // "Abrir Passo a Passo" da Capa → ?tab=fvs) não remonta a página e o botão
+  // parecia morto (bug reportado pelo Francisco, 22/10). Sincroniza aqui;
+  // as abas internas usam setActiveTab sem mexer na URL, então não há loop.
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (!t) return;
+    const alvo = ((t === 'cockpit' ? 'capa' : t) as TabKey);
+    setActiveTab((atual) => (atual === alvo ? atual : alvo));
+  }, [searchParams]);
   // Menu por fase (Bruno 10/09): dropdown abre no hover (desktop) e no toque (mobile)
   const [menuFase, setMenuFase] = useState<string | null>(null);
   // Posição FIXED do dropdown: a régua de abas tem overflow-x-auto (mobile), e
