@@ -47,6 +47,8 @@ const FICHA_EMAIL_FIXOS = [
   'francisco.gritti@ber-engenharia.com.br',
   'bruna.lima@ber-engenharia.com.br',
   'caroline.tenorio@ber-engenharia.com.br', // orçamentos (Bruno 19/10/26)
+  'talita.buchala@ber-engenharia.com.br',   // comercial — todos em cópia (Bruno 22/10/26)
+  'camila.santos@ber-engenharia.com.br',    // comercial — todos em cópia (Bruno 22/10/26)
 ];
 
 export const ENTREGAVEIS_LABELS: Record<string, string> = {
