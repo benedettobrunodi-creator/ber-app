@@ -32,6 +32,10 @@ const dateInputToIso = (s: string): string | null =>
 
 export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModalProps) {
   const [form, setForm] = useState<Record<string, string>>({});
+  // Checkbox "tem projeto?" (Bruno 22/10): obra sem fase de projeto esconde
+  // as datas de projeto; desmarcar LIMPA as datas ao salvar. Estado inicial
+  // deriva dos dados (tem data de projeto = marcado).
+  const [temProjeto, setTemProjeto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,6 +60,7 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
           dataInicioObra: isoToDateInput(o.dataInicioObra ?? null),
           dataFimObra: isoToDateInput(o.dataFimObra ?? null),
         });
+        setTemProjeto(Boolean(o.startDate || o.expectedEndDate));
       })
       .catch(err => {
         if (cancelled) return;
@@ -82,8 +87,8 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
         address: form.address || null,
         arquiteturaEscritorio: form.arquiteturaEscritorio || null,
         gerenciadora: form.gerenciadora || null,
-        startDate: dateInputToIso(form.startDate),
-        expectedEndDate: dateInputToIso(form.expectedEndDate),
+        startDate: temProjeto ? dateInputToIso(form.startDate) : null,
+        expectedEndDate: temProjeto ? dateInputToIso(form.expectedEndDate) : null,
         dataInicioObra: form.dataInicioObra || null,
         dataFimObra: form.dataFimObra || null,
       };
@@ -143,12 +148,26 @@ export default function ObraInfoModal({ obraId, onClose, onSaved }: ObraInfoModa
               <Field label="Valor do contrato (R$)">
                 <input value={form.valorContrato} onChange={e => update('valorContrato', e.target.value)} className={inputCls} placeholder="Ex: 1500000" inputMode="decimal" />
               </Field>
-              <Field label="Data início do projeto">
-                <input type="date" value={form.startDate} onChange={e => update('startDate', e.target.value)} className={inputCls} />
-              </Field>
-              <Field label="Previsão de entrega">
-                <input type="date" value={form.expectedEndDate} onChange={e => update('expectedEndDate', e.target.value)} className={inputCls} />
-              </Field>
+              <label className="md:col-span-2 flex items-center gap-2 text-sm text-ber-carbon select-none">
+                <input
+                  type="checkbox"
+                  checked={temProjeto}
+                  onChange={e => setTemProjeto(e.target.checked)}
+                  className="h-4 w-4 rounded border-ber-gray/40 accent-ber-olive"
+                />
+                Esta obra tem fase de projeto
+                {!temProjeto && <span className="text-xs text-ber-gray">(marque para informar as datas de projeto)</span>}
+              </label>
+              {temProjeto && (
+                <>
+                  <Field label="Data início do projeto">
+                    <input type="date" value={form.startDate} onChange={e => update('startDate', e.target.value)} className={inputCls} />
+                  </Field>
+                  <Field label="Previsão de entrega (projeto)">
+                    <input type="date" value={form.expectedEndDate} onChange={e => update('expectedEndDate', e.target.value)} className={inputCls} />
+                  </Field>
+                </>
+              )}
               <Field label="Data início da obra">
                 <input type="date" value={form.dataInicioObra} onChange={e => update('dataInicioObra', e.target.value)} className={inputCls} />
               </Field>
