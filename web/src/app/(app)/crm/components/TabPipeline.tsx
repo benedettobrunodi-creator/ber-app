@@ -519,7 +519,6 @@ function OportunidadeDrawer({
 
   const handleSave = async () => {
     if (!form.titulo.trim()) { setErr('Título obrigatório'); return; }
-    if (!form.responsavelId) { setErr('Selecione o responsável'); return; }
     // Lead ainda não tem valor definido — só fica obrigatório a partir da etapa seguinte (Bruno 02/10).
     if (form.etapa !== 'lead' && (!form.valor || Number(form.valor) <= 0)) { setErr('Informe o valor'); return; }
     setSaving(true);
@@ -738,17 +737,6 @@ function OportunidadeDrawer({
               >
                 <option value="">--</option>
                 {PROBABILIDADES.map((p) => <option key={p.value} value={p.value}>{p.label} ({p.pct}%)</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-ber-gray uppercase tracking-wide">Responsável pela Conta *</label>
-              <select
-                className="mt-1 w-full border border-ber-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ber-teal"
-                value={form.responsavelId}
-                onChange={(e) => setForm((f) => ({ ...f, responsavelId: e.target.value }))}
-              >
-                <option value="">--</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div>
