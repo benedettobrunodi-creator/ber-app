@@ -772,8 +772,14 @@ function OportunidadeDrawer({
                 onChange={(e) => setForm((f) => ({ ...f, responsavelOrcamentoId: e.target.value }))}
               >
                 <option value="">--</option>
-                {(users.some((u) => u.role === 'orcamentos') ? users.filter((u) => u.role === 'orcamentos') : users)
-                  .map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {(() => {
+                  // orçamentistas = role 'orcamentos' + autorizados avulsos
+                  // (Bruna é coordenação mas responde por orçamento — Bruno 22/10;
+                  // mudar o role dela mudaria as permissões no app inteiro)
+                  const EXTRAS = ['bruna.lima@ber-engenharia.com.br'];
+                  const lista = users.filter((u) => u.role === 'orcamentos' || EXTRAS.includes(u.email ?? ''));
+                  return (lista.length ? lista : users).map((u) => <option key={u.id} value={u.id}>{u.name}</option>);
+                })()}
               </select>
             </div>
           </div>

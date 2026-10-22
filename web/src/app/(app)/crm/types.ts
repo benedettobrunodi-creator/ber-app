@@ -278,6 +278,7 @@ export interface Atividade {
 export interface User {
   id: string;
   name: string;
+  email?: string | null;   // /users/responsaveis já devolve (22/10)
   avatarUrl: string | null;
   role?: string | null;
 }
