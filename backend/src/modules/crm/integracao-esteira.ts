@@ -192,14 +192,29 @@ export async function sincronizarEsteiraAposEtapa(oportunidadeId: string, userId
     }).catch(() => {});
   }
 
-  // E-mail da ficha — 1x, na primeira entrada em etapa de orçamento
-  if (criaNessaEtapa && !opp.fichaEnviadaEm) {
-    try {
-      await enviarFichaEmail(opp.id);
-      await prisma.crmOportunidade.update({ where: { id: opp.id }, data: { fichaEnviadaEm: new Date() } });
-    } catch (e) {
-      console.error('[integracao-esteira] e-mail da ficha falhou:', (e as Error).message);
-    }
+  // E-mail da ficha — 1x, sempre que a oportunidade está em etapa de orçamento
+  // com ficha preenchida e o e-mail ainda não saiu (não exige mais "vindo de
+  // lead": cobre ficha preenchida depois e negócios anteriores ao fluxo único).
+  await enviarFichaSePendente(opp.id);
+}
+
+/** Dispara o e-mail da ficha se ainda não foi enviado, a oportunidade está em
+ *  etapa de orçamento e a ficha existe. Caso real (Camila 22/10): a ficha era
+ *  preenchida DEPOIS do negócio já estar em qualificação — sem mudança de
+ *  etapa, o e-mail nunca saía. Agora salvar a ficha também dispara. */
+export async function enviarFichaSePendente(oportunidadeId: string): Promise<void> {
+  try {
+    const opp = await prisma.crmOportunidade.findUnique({
+      where: { id: oportunidadeId },
+      select: { id: true, etapa: true, ficha: true, fichaEnviadaEm: true },
+    });
+    if (!opp || opp.fichaEnviadaEm) return;
+    if (!(ETAPAS_CRIA_ORCAMENTO as readonly string[]).includes(opp.etapa)) return;
+    if (opp.ficha == null) return; // sem ficha não há o que enviar
+    await enviarFichaEmail(opp.id);
+    await prisma.crmOportunidade.update({ where: { id: opp.id }, data: { fichaEnviadaEm: new Date() } });
+  } catch (e) {
+    console.error('[integracao-esteira] e-mail da ficha falhou:', (e as Error).message);
   }
 }
 

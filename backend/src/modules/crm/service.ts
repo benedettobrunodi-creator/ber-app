@@ -11,7 +11,7 @@ import {
 } from './types';
 import {
   precisaFicha, validarFichaObrigatoria,
-  sincronizarEsteiraAposEtapa, espelharOportunidadeNoOrcamento,
+  sincronizarEsteiraAposEtapa, espelharOportunidadeNoOrcamento, enviarFichaSePendente,
 } from './integracao-esteira';
 
 // ── Empresas ─────────────────────────────────────────────────────────────────
@@ -624,6 +624,13 @@ export async function updateOportunidade(
   ) {
     await espelharOportunidadeNoOrcamento(id)
       .catch((e) => console.error('[crm] espelho pro orçamento falhou:', (e as Error).message));
+  }
+
+  // Ficha preenchida/alterada SEM mudança de etapa (caso Camila 22/10): se o
+  // negócio já está em etapa de orçamento e o e-mail da ficha nunca saiu,
+  // dispara agora. (Com mudança de etapa, o sincronizar acima já cuida.)
+  if (data.ficha !== undefined && !(data.etapa && data.etapa !== anterior.etapa)) {
+    await enviarFichaSePendente(id);
   }
 
   return updated;
