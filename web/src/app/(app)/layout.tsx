@@ -10,6 +10,7 @@ import { ConfirmHost } from '@/lib/confirmar';
 import { ToastHost } from '@/lib/toast';
 import { PromptHost } from '@/lib/prompt-sheet';
 import { PushSetup } from '@/components/pwa/PushSetup';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   HardHat, Clock, Settings, LogOut,
   ClipboardCheck, ShieldCheck, BookOpen,
@@ -251,6 +252,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* User footer */}
       <div className="border-t border-white/10 p-3">
+        <div className="px-1 pb-1"><ThemeToggle /></div>
         <div className="flex items-center gap-2 px-3 py-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ber-olive text-white text-sm font-bold">
             {user?.name?.[0]?.toUpperCase() || 'U'}

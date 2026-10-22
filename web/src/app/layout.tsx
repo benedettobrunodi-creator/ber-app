@@ -39,8 +39,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Tema escuro (Colman, 22/10): aplica ANTES do primeiro paint pra não
+  // piscar claro→escuro. 'auto' segue o sistema; padrão é claro.
+  const temaScript = `(function(){try{var t=localStorage.getItem('ber-theme')||'light';if(t==='auto'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t}catch(e){}})()`;
   return (
     <html lang="pt-BR" className={`${montserrat.variable} h-full min-h-dvh`}>
+      <head><script dangerouslySetInnerHTML={{ __html: temaScript }} /></head>
       <body className="h-full min-h-dvh antialiased"><PwaSetup />
         {children}</body>
     </html>

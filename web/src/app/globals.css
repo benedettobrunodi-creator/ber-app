@@ -19,6 +19,75 @@
   --ber-amber: #E6A23C;
 }
 
+/* ─── TEMA ESCURO (pedido do Colman, aprovado pelo Bruno 22/10) ───
+   As cores da marca são tokens: redefinir as vars cobre todas as classes
+   ber-*. As classes literais do Tailwind mais usadas (bg-white, gray-*,
+   semânticas) ganham override SÓ em tela — impressão/PDF seguem claros. */
+[data-theme="dark"] {
+  --ber-carbon: #E6E6E2;        /* texto principal (era o carvão) */
+  --ber-teal: #7FA3A3;
+  --ber-olive: #C6C93A;
+  --ber-offwhite: #2A2E2A;
+  --ber-gray: #9C9C98;
+  --ber-bg: #15171B;
+  --ber-sidebar: #12161D;
+  --ber-sidebar-hover: #1C222C;
+  --ber-card: #1D2026;
+  --ber-border: #2E3138;
+  --ber-surface: #191C21;
+  --ber-red: #E66A6A;
+  --ber-green: #52B475;
+  --ber-amber: #ECB45C;
+}
+@media screen {
+  [data-theme="dark"] body { background: var(--ber-bg); color: var(--ber-carbon); }
+  /* fundos neutros */
+  [data-theme="dark"] .bg-white { background-color: var(--ber-card); }
+  [data-theme="dark"] .bg-gray-50 { background-color: var(--ber-surface); }
+  [data-theme="dark"] .bg-gray-100 { background-color: #262A31; }
+  [data-theme="dark"] .bg-gray-200 { background-color: #2E333B; }
+  [data-theme="dark"] .bg-\[\#F7F7F5\], [data-theme="dark"] .bg-\[\#F0F0ED\], [data-theme="dark"] .bg-\[\#F4F1E8\] { background-color: var(--ber-surface); }
+  /* o carvão como FUNDO continua escuro (o token virou cor de texto) */
+  [data-theme="dark"] .bg-ber-carbon { background-color: #0F1114; }
+  /* textos neutros */
+  [data-theme="dark"] .text-gray-900, [data-theme="dark"] .text-gray-800 { color: #E6E6E2; }
+  [data-theme="dark"] .text-gray-700 { color: #D2D2CE; }
+  [data-theme="dark"] .text-gray-600 { color: #B8B8B4; }
+  [data-theme="dark"] .text-gray-500 { color: #9C9C98; }
+  [data-theme="dark"] .text-gray-400 { color: #84847F; }
+  [data-theme="dark"] .text-gray-300 { color: #6A6A66; }
+  /* bordas */
+  [data-theme="dark"] .border-gray-100 { border-color: #262A31; }
+  [data-theme="dark"] .border-gray-200 { border-color: var(--ber-border); }
+  /* semânticas — vermelho */
+  [data-theme="dark"] .bg-red-50 { background-color: #372123; }
+  [data-theme="dark"] .bg-red-100 { background-color: #452629; }
+  [data-theme="dark"] .text-red-500 { color: #F08A8A; }
+  [data-theme="dark"] .text-red-600 { color: #EF8484; }
+  [data-theme="dark"] .text-red-700 { color: #F49B9B; }
+  [data-theme="dark"] .border-red-200 { border-color: #5A3236; }
+  /* âmbar */
+  [data-theme="dark"] .bg-amber-50 { background-color: #382E1C; }
+  [data-theme="dark"] .bg-amber-100 { background-color: #453823; }
+  [data-theme="dark"] .text-amber-500 { color: #E8B35E; }
+  [data-theme="dark"] .text-amber-600 { color: #E8B35E; }
+  [data-theme="dark"] .text-amber-700 { color: #EFC37A; }
+  [data-theme="dark"] .text-amber-800 { color: #F3CD90; }
+  [data-theme="dark"] .border-amber-300 { border-color: #5C4A28; }
+  /* verde */
+  [data-theme="dark"] .bg-green-50 { background-color: #1F3328; }
+  [data-theme="dark"] .bg-green-100 { background-color: #264031; }
+  [data-theme="dark"] .text-green-600 { color: #67C388; }
+  [data-theme="dark"] .text-green-700 { color: #7FCF9B; }
+  /* azul */
+  [data-theme="dark"] .bg-blue-50 { background-color: #1E2A3C; }
+  [data-theme="dark"] .bg-blue-100 { background-color: #243349; }
+  [data-theme="dark"] .text-blue-600 { color: #7FA8E8; }
+  [data-theme="dark"] .text-blue-700 { color: #93B6EC; }
+  /* sombras mais discretas em fundo escuro */
+  [data-theme="dark"] .shadow, [data-theme="dark"] .shadow-sm, [data-theme="dark"] .shadow-md { box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+}
+
 @theme inline {
   --color-ber-carbon: var(--ber-carbon);
   --color-ber-teal: var(--ber-teal);
@@ -45,6 +114,12 @@ body {
 }
 
 @media print {
+  [data-theme="dark"] {
+    --ber-carbon: #2D2D2D; --ber-teal: #5A7A7A; --ber-olive: #B5B820;
+    --ber-offwhite: #D8DDD8; --ber-gray: #868686; --ber-bg: #FFFFFF;
+    --ber-card: #FAFAF8; --ber-border: #E8E8E4; --ber-surface: #F7F7F5;
+    --ber-red: #E05555; --ber-green: #3D9E5F; --ber-amber: #E6A23C;
+  }
   /* hide app shell */
   nav, header[data-sidebar], aside, [data-sidebar], .sidebar { display: none !important; }
   /* dashboard print layout */
